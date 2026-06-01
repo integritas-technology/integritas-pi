@@ -110,6 +110,25 @@ View logs:
 docker compose logs -f
 ```
 
+## Troubleshooting
+
+If the UI shows `Backend health error: HTTP 502`, check backend logs:
+
+```bash
+sudo docker compose -f /opt/integritas-pi/docker-compose.yml --project-directory /opt/integritas-pi logs --tail=100 backend
+```
+
+If logs contain `SqliteError: unable to open database file`, fix the SQLite data directory permissions:
+
+```bash
+sudo mkdir -p /opt/integritas-pi/data
+sudo chown -R 1000:1000 /opt/integritas-pi/data
+sudo chmod 700 /opt/integritas-pi/data
+sudo docker compose -f /opt/integritas-pi/docker-compose.yml --project-directory /opt/integritas-pi restart backend
+```
+
+The backend container runs as the non-root `node` user, which uses uid `1000`. That user must be able to write to the mounted SQLite data directory.
+
 ## Stop The App
 
 On the Pi:

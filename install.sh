@@ -103,6 +103,7 @@ verify_docker() {
 prepare_app_directory() {
   log "Preparing $APP_DIR"
   mkdir -p "$APP_DIR"
+  chmod 755 "$APP_DIR"
 }
 
 prepare_runtime_directories() {
@@ -115,6 +116,7 @@ prepare_runtime_directories() {
   esac
   mkdir -p "$resolved_data_dir"
   chown -R 1000:1000 "$resolved_data_dir"
+  chmod 700 "$resolved_data_dir"
 
   case "$MINIMA_DATA_DIR" in
     /*) mkdir -p "$MINIMA_DATA_DIR" ;;
