@@ -1,0 +1,29 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    environment:
+      PORT: 3000
+      HOST_FILES_ROOT: /host-files
+    volumes:
+      - ${HOST_FILES_DIR:-/home/pi}:/host-files:ro
+    expose:
+      - "3000"
+    restart: unless-stopped
+    networks:
+      - integritas
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - integritas
+
+networks:
+  integritas:
+    name: integritas-pi
