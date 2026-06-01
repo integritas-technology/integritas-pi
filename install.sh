@@ -7,21 +7,32 @@ APP_BRANCH="${APP_BRANCH:-main}"
 APP_DIR="${APP_DIR:-/opt/integritas-pi}"
 HOST_FILES_DIR_INPUT="${HOST_FILES_DIR-}"
 FRONTEND_PORT_INPUT="${FRONTEND_PORT-}"
+DATA_DIR_INPUT="${DATA_DIR-}"
+APP_SECRET_INPUT="${APP_SECRET-}"
 MINIMA_DATA_DIR_INPUT="${MINIMA_DATA_DIR-}"
 MINIMA_P2P_PORT_INPUT="${MINIMA_P2P_PORT-}"
 MINIMA_RPC_BIND_INPUT="${MINIMA_RPC_BIND-}"
 MINIMA_RPC_PORT_INPUT="${MINIMA_RPC_PORT-}"
+INTEGRITAS_BASE_URL_INPUT="${INTEGRITAS_BASE_URL-}"
+INTEGRITAS_API_KEY_INPUT="${INTEGRITAS_API_KEY-}"
+INTEGRITAS_REQUEST_ID_INPUT="${INTEGRITAS_REQUEST_ID-}"
 HOST_FILES_DIR="${HOST_FILES_DIR:-/home/pi}"
 FRONTEND_PORT="${FRONTEND_PORT:-8080}"
+DATA_DIR="${DATA_DIR:-./data}"
+APP_SECRET="${APP_SECRET:-}"
 MINIMA_DATA_DIR="${MINIMA_DATA_DIR:-./minima}"
 MINIMA_P2P_PORT="${MINIMA_P2P_PORT:-9003}"
 MINIMA_RPC_BIND="${MINIMA_RPC_BIND:-127.0.0.1}"
 MINIMA_RPC_PORT="${MINIMA_RPC_PORT:-9005}"
+INTEGRITAS_BASE_URL="${INTEGRITAS_BASE_URL:-https://integritas.technology/core}"
+INTEGRITAS_API_KEY="${INTEGRITAS_API_KEY:-}"
+INTEGRITAS_REQUEST_ID="${INTEGRITAS_REQUEST_ID:-integritas-pi}"
 
 APT_PACKAGES=(
   curl
   ca-certificates
   git
+  openssl
 )
 
 log() {
@@ -96,6 +107,15 @@ prepare_app_directory() {
 
 prepare_runtime_directories() {
   log "Preparing runtime directories"
+  local resolved_data_dir
+  case "$DATA_DIR" in
+    /*) resolved_data_dir="$DATA_DIR" ;;
+    ./*) resolved_data_dir="$APP_DIR/${DATA_DIR#./}" ;;
+    *) resolved_data_dir="$APP_DIR/$DATA_DIR" ;;
+  esac
+  mkdir -p "$resolved_data_dir"
+  chown -R 1000:1000 "$resolved_data_dir"
+
   case "$MINIMA_DATA_DIR" in
     /*) mkdir -p "$MINIMA_DATA_DIR" ;;
     ./*) mkdir -p "$APP_DIR/${MINIMA_DATA_DIR#./}" ;;
@@ -116,33 +136,62 @@ load_existing_config() {
 
   HOST_FILES_DIR="${HOST_FILES_DIR_INPUT:-${HOST_FILES_DIR:-/home/pi}}"
   FRONTEND_PORT="${FRONTEND_PORT_INPUT:-${FRONTEND_PORT:-8080}}"
+  DATA_DIR="${DATA_DIR_INPUT:-${DATA_DIR:-./data}}"
+  APP_SECRET="${APP_SECRET_INPUT:-${APP_SECRET:-}}"
   MINIMA_DATA_DIR="${MINIMA_DATA_DIR_INPUT:-${MINIMA_DATA_DIR:-./minima}}"
   MINIMA_P2P_PORT="${MINIMA_P2P_PORT_INPUT:-${MINIMA_P2P_PORT:-9003}}"
   MINIMA_RPC_BIND="${MINIMA_RPC_BIND_INPUT:-${MINIMA_RPC_BIND:-127.0.0.1}}"
   MINIMA_RPC_PORT="${MINIMA_RPC_PORT_INPUT:-${MINIMA_RPC_PORT:-9005}}"
+  INTEGRITAS_BASE_URL="${INTEGRITAS_BASE_URL_INPUT:-${INTEGRITAS_BASE_URL:-https://integritas.technology/core}}"
+  INTEGRITAS_API_KEY="${INTEGRITAS_API_KEY_INPUT:-${INTEGRITAS_API_KEY:-}}"
+  INTEGRITAS_REQUEST_ID="${INTEGRITAS_REQUEST_ID_INPUT:-${INTEGRITAS_REQUEST_ID:-integritas-pi}}"
+}
+
+ensure_app_secret() {
+  if [ -n "$APP_SECRET" ]; then
+    return
+  fi
+
+  log "Generating APP_SECRET for encrypted local settings"
+  APP_SECRET="$(openssl rand -hex 32)"
+}
+
+relative_top_level_dir() {
+  local value="$1"
+  case "$value" in
+    /*) echo "" ;;
+    ./*) value="${value#./}"; echo "${value%%/*}" ;;
+    *) echo "${value%%/*}" ;;
+  esac
 }
 
 download_app() {
   local tmp_dir
-  local protected_data_dir
+  local protected_minima_dir
+  local protected_sqlite_dir
   tmp_dir="$(mktemp -d)"
-  protected_data_dir=""
-
-  case "$MINIMA_DATA_DIR" in
-    /*) protected_data_dir="" ;;
-    ./*) protected_data_dir="${MINIMA_DATA_DIR#./}" ;;
-    *) protected_data_dir="$MINIMA_DATA_DIR" ;;
-  esac
-  protected_data_dir="${protected_data_dir%%/*}"
+  protected_minima_dir="$(relative_top_level_dir "$MINIMA_DATA_DIR")"
+  protected_sqlite_dir="$(relative_top_level_dir "$DATA_DIR")"
 
   log "Downloading $APP_REPO_URL ($APP_BRANCH)"
   git clone --depth 1 --branch "$APP_BRANCH" "$APP_REPO_URL" "$tmp_dir"
 
   rm -rf "$APP_DIR/.git" "$APP_DIR/backend" "$APP_DIR/frontend"
-  if [ -n "$protected_data_dir" ]; then
+  if [ -n "$protected_minima_dir" ] && [ -n "$protected_sqlite_dir" ]; then
     find "$APP_DIR" -mindepth 1 -maxdepth 1 \
       ! -name ".env" \
-      ! -name "$protected_data_dir" \
+      ! -name "$protected_minima_dir" \
+      ! -name "$protected_sqlite_dir" \
+      -exec rm -rf {} +
+  elif [ -n "$protected_minima_dir" ]; then
+    find "$APP_DIR" -mindepth 1 -maxdepth 1 \
+      ! -name ".env" \
+      ! -name "$protected_minima_dir" \
+      -exec rm -rf {} +
+  elif [ -n "$protected_sqlite_dir" ]; then
+    find "$APP_DIR" -mindepth 1 -maxdepth 1 \
+      ! -name ".env" \
+      ! -name "$protected_sqlite_dir" \
       -exec rm -rf {} +
   else
     find "$APP_DIR" -mindepth 1 -maxdepth 1 \
@@ -163,6 +212,9 @@ MINIMA_DATA_DIR=$MINIMA_DATA_DIR
 MINIMA_P2P_PORT=$MINIMA_P2P_PORT
 MINIMA_RPC_BIND=$MINIMA_RPC_BIND
 MINIMA_RPC_PORT=$MINIMA_RPC_PORT
+INTEGRITAS_BASE_URL=$INTEGRITAS_BASE_URL
+INTEGRITAS_API_KEY=$INTEGRITAS_API_KEY
+INTEGRITAS_REQUEST_ID=$INTEGRITAS_REQUEST_ID
 EOF
 }
 
@@ -203,6 +255,7 @@ main() {
   verify_docker
   prepare_app_directory
   load_existing_config
+  ensure_app_secret
   download_app
   prepare_runtime_directories
   write_env_file

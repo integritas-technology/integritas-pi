@@ -6,8 +6,14 @@ services:
       PORT: 3000
       HOST_FILES_ROOT: /host-files
       MINIMA_STATUS_URL: http://minima:9005/status
+      INTEGRITAS_BASE_URL: ${INTEGRITAS_BASE_URL:-https://integritas.technology/core}
+      INTEGRITAS_API_KEY: ${INTEGRITAS_API_KEY:-}
+      INTEGRITAS_REQUEST_ID: ${INTEGRITAS_REQUEST_ID:-integritas-pi}
+      DATABASE_PATH: /data/integritas-pi.db
+      APP_SECRET: ${APP_SECRET:-dev-change-me}
     volumes:
       - ${HOST_FILES_DIR:-/home/pi}:/host-files:ro
+      - ${DATA_DIR:-./data}:/data
     expose:
       - "3000"
     restart: unless-stopped

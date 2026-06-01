@@ -9,6 +9,8 @@ The current prototype contains:
 - A React frontend on port `8080`
 - A TypeScript/Express backend
 - A Minima node container
+- Integritas stamping and verification proxy endpoints
+- SQLite persistence for local settings
 - Read-only file browsing for a configured host directory
 - A simple architecture that can grow with more services later
 
@@ -51,10 +53,15 @@ Runtime configuration is stored in `.env`:
 ```env
 HOST_FILES_DIR=/home/pi
 FRONTEND_PORT=8080
+DATA_DIR=./data
+APP_SECRET=dev-change-me
 MINIMA_DATA_DIR=./minima
 MINIMA_P2P_PORT=9003
 MINIMA_RPC_BIND=127.0.0.1
 MINIMA_RPC_PORT=9005
+INTEGRITAS_BASE_URL=https://integritas.technology/core
+INTEGRITAS_API_KEY=
+INTEGRITAS_REQUEST_ID=integritas-pi
 ```
 
 `HOST_FILES_DIR` is mounted into the backend container as `/host-files:ro`. The `:ro` flag is intentional for this prototype.
@@ -62,6 +69,12 @@ MINIMA_RPC_PORT=9005
 `MINIMA_DATA_DIR` is mounted into the Minima container as `/home/minima/data` so node data survives container restarts and updates.
 
 `MINIMA_RPC_BIND` defaults to `127.0.0.1`, which means Minima RPC is only exposed on the Pi itself. Set it to `0.0.0.0` only on a trusted network.
+
+`DATA_DIR` is mounted into the backend container as `/data` and stores the SQLite database.
+
+`APP_SECRET` is used by the backend to encrypt local secrets before storing them in SQLite. The installer generates this automatically and preserves it on updates. If it changes, previously encrypted secrets cannot be decrypted.
+
+`INTEGRITAS_API_KEY` is optional. You can leave it empty and save the API key from the Integritas page in the UI. The key is sent to the backend once, encrypted, and stored in SQLite. It is never exposed in the frontend bundle.
 
 To install with another file root or port:
 
@@ -114,7 +127,7 @@ Run the installer again:
 curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/install.sh | sudo bash
 ```
 
-The installer preserves the existing `.env` file and the configured Minima data directory, then pulls the latest repository contents and recreates the containers.
+The installer preserves the existing `.env` file, SQLite data directory, and Minima data directory, then pulls the latest repository contents and recreates the containers.
 
 You can override the branch:
 
@@ -133,15 +146,19 @@ frontend container
   - React static app
   - Nginx
   - Proxies /api to backend:3000
+  - Sidebar pages: App status, Minima, Integritas, File explorer
   |
   v
 backend container
   - Express + TypeScript
+  - SQLite database at /data/integritas-pi.db
   - GET /api/health
   - GET /api/files
   - GET /api/minima/status
+  - Integritas hash, stamp, status, verify endpoints
   - Reads /host-files only
   - Reads Minima status from http://minima:9005/status
+  - Calls https://integritas.technology/core with backend-only API key
 
 minima container
   - minimaglobal/minima:dev
@@ -152,6 +169,7 @@ minima container
   v
 Pi host filesystem
   - ${HOST_FILES_DIR:-/home/pi} mounted read-only
+  - ./data mounted read-write for SQLite
   - ./minima mounted read-write for Minima data
 ```
 
@@ -207,6 +225,33 @@ http://minima:9005/status
 
 The frontend reads `/api/minima/status`, so the browser does not need direct access to Minima RPC.
 
+Integritas:
+
+```http
+GET /api/integritas/config
+POST /api/integritas/api-key
+DELETE /api/integritas/api-key
+POST /api/integritas/hash
+POST /api/integritas/stamp
+POST /api/integritas/status
+POST /api/integritas/verify
+```
+
+The frontend sends canonical bytes and proof payloads to the backend. The backend performs SHA3-256 hashing and calls Integritas with a backend-only API key.
+
+The API key can come from either:
+
+- encrypted SQLite storage, set from the frontend UI
+- `INTEGRITAS_API_KEY` in `.env`, used as a fallback
+
+Install with an Integritas API key:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/install.sh | sudo INTEGRITAS_API_KEY=your-api-key bash
+```
+
+For the preferred prototype UX, install without a key and then enter it in the Integritas page in the browser.
+
 ## Security Notes
 
 This is a learning prototype, not a production-ready product.
@@ -216,6 +261,7 @@ This is a learning prototype, not a production-ready product.
 - Backend blocks access outside `/host-files`
 - Frontend cannot trigger shell commands
 - Minima RPC binds to `127.0.0.1` by default
+- Integritas API key is backend-only and encrypted at rest in SQLite when saved from the UI
 - Authentication is not implemented yet
 
 ## Future Services
