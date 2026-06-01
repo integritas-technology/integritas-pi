@@ -418,6 +418,78 @@ code {
   gap: 12px;
 }
 
+.integritas-upload-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+}
+
+.integritas-action-card {
+  display: grid;
+  gap: 16px;
+}
+
+.integritas-action-card h3 {
+  margin: 0;
+}
+
+.drop-box {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  gap: 10px;
+  padding: 24px;
+  color: #475569;
+  text-align: center;
+  border: 2px dashed #cbd5e1;
+  border-radius: 24px;
+  background: #f8fafc;
+}
+
+.drop-box.dragging {
+  border-color: #020617;
+  background: #f1f5f9;
+}
+
+.drop-box input {
+  display: none;
+}
+
+.api-key-box {
+  display: grid;
+  gap: 10px;
+  min-width: min(100%, 360px);
+}
+
+.history-card {
+  display: grid;
+  gap: 16px;
+}
+
+.history-card .json-preview {
+  max-width: 420px;
+  max-height: 180px;
+  margin: 0;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.row-actions button {
+  padding: 8px 10px;
+  color: #fff;
+  border: 0;
+  border-radius: 12px;
+  background: #020617;
+}
+
+.selected-row {
+  background: #f8fafc;
+}
+
 .form-card label {
   color: #334155;
   font-weight: 700;
