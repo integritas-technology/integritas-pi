@@ -1,7 +1,7 @@
 node_modules/
 dist/
 .env
-data/
-minima/
+/data/
+/minima/
 npm-debug.log*
 .DS_Store
