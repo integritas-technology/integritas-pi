@@ -44,6 +44,7 @@ services:
       minima_mdsenable: "false"
       minima_rpcenable: "true"
       minima_rpccrlf: "true"
+      minima_p2pnodes: "https://spartacusrex.com/minimapeers.txt"
     ports:
       - "${MINIMA_P2P_PORT:-9003}:9003"
       - "${MINIMA_RPC_BIND:-127.0.0.1}:${MINIMA_RPC_PORT:-9005}:9005"
