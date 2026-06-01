@@ -113,6 +113,15 @@ View logs:
 docker compose logs -f
 ```
 
+Run checks before pushing or installing on a Pi:
+
+```bash
+npm run check
+docker compose build --no-cache
+```
+
+`npm run check` runs backend and frontend TypeScript checks plus moderate-level npm audits. `docker compose build --no-cache` catches Docker build issues from a clean image context.
+
 ## Troubleshooting
 
 If the UI shows `Backend health error: HTTP 502`, check backend logs:
