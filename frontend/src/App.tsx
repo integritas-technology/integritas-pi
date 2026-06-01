@@ -11,7 +11,6 @@ import {
   HardDrive,
   KeyRound,
   Layers3,
-  LineChart,
   RadioTower,
   Settings,
   ShieldCheck,
@@ -19,7 +18,7 @@ import {
 } from "lucide-react";
 
 type Tone = "neutral" | "good" | "warn" | "future";
-type NavId = "dashboard" | "setup" | "node" | "wallet" | "integritas" | "data" | "automation" | "diagnostics" | "marketplace";
+type NavId = "dashboard" | "setup" | "node" | "wallet" | "integritas" | "data" | "automation" | "diagnostics";
 
 type NavItem = { id: NavId; label: string; icon: LucideIcon; badge?: string };
 type Health = { status: string; service: string };
@@ -53,8 +52,7 @@ const nav: NavItem[] = [
   { id: "integritas", label: "Integritas", icon: ShieldCheck },
   { id: "data", label: "Data Sources", icon: Database },
   { id: "automation", label: "Automation", icon: BellRing },
-  { id: "diagnostics", label: "Diagnostics", icon: Activity },
-  { id: "marketplace", label: "Marketplace", icon: LineChart, badge: "V2 Preview" }
+  { id: "diagnostics", label: "Diagnostics", icon: Activity }
 ];
 
 function cx(...classes: Array<string | false | null | undefined>) {
@@ -480,8 +478,7 @@ function ActivePage({ active }: { active: NavId }) {
     integritas: <IntegritasPage />,
     data: <DataSourcesPage />,
     automation: <EmptyPage eyebrow="Automation" title="Automation" desc="Rules, triggers, and actions are not implemented yet." />,
-    diagnostics: <EmptyPage eyebrow="Diagnostics" title="Diagnostics" desc="Dedicated diagnostics tooling is not implemented yet. Current service health is available on Dashboard." />,
-    marketplace: <EmptyPage eyebrow="Marketplace - V2 Preview" title="Marketplace" desc="Marketplace functionality is not implemented yet." />
+    diagnostics: <EmptyPage eyebrow="Diagnostics" title="Diagnostics" desc="Dedicated diagnostics tooling is not implemented yet. Current service health is available on Dashboard." />
   };
   return <>{pages[active]}</>;
 }
