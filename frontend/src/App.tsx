@@ -16,6 +16,14 @@ type FilesResponse = {
   items: FileItem[];
 };
 
+type MinimaStatus = {
+  ok: boolean;
+  status?: number;
+  source: string;
+  body?: unknown;
+  error?: string;
+};
+
 function joinPath(currentPath: string, child: string) {
   return currentPath === "/" ? `/${child}` : `${currentPath}/${child}`;
 }
@@ -41,6 +49,8 @@ export default function App() {
   const [items, setItems] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [minimaStatus, setMinimaStatus] = useState<MinimaStatus | null>(null);
+  const [minimaError, setMinimaError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/health")
@@ -50,6 +60,13 @@ export default function App() {
       })
       .then(setHealth)
       .catch((err: Error) => setHealthError(err.message));
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/minima/status")
+      .then((response) => response.json() as Promise<MinimaStatus>)
+      .then(setMinimaStatus)
+      .catch((err: Error) => setMinimaError(err.message));
   }, []);
 
   useEffect(() => {
@@ -91,6 +108,20 @@ export default function App() {
             {health ? `${health.status} (${health.service})` : healthError ? `error: ${healthError}` : "checking..."}
           </span>
         </div>
+      </section>
+
+      <section className="panel">
+        <div className="status-row">
+          <strong>Minima status</strong>
+          <span className={minimaStatus?.ok ? "status ok" : "status error"}>
+            {minimaStatus ? `HTTP ${minimaStatus.status}` : minimaError ? `error: ${minimaError}` : "checking..."}
+          </span>
+        </div>
+        {minimaStatus?.source && <code>{minimaStatus.source}</code>}
+        {minimaStatus?.error && <p className="error-text">{minimaStatus.error}</p>}
+        {minimaStatus?.body !== undefined && (
+          <pre className="json-preview">{JSON.stringify(minimaStatus.body, null, 2)}</pre>
+        )}
       </section>
 
       <section className="panel">

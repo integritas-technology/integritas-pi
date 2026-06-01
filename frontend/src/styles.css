@@ -139,6 +139,17 @@ code {
   color: #64748b;
 }
 
+.json-preview {
+  max-height: 320px;
+  overflow: auto;
+  padding: 14px;
+  margin: 16px 0 0;
+  color: #dbeafe;
+  background: #0f172a;
+  border-radius: 12px;
+  font-size: 0.85rem;
+}
+
 @media (max-width: 640px) {
   .status-row,
   .browser-header,

@@ -5,11 +5,14 @@ services:
     environment:
       PORT: 3000
       HOST_FILES_ROOT: /host-files
+      MINIMA_STATUS_URL: http://minima:9005/status
     volumes:
       - ${HOST_FILES_DIR:-/home/pi}:/host-files:ro
     expose:
       - "3000"
     restart: unless-stopped
+    depends_on:
+      - minima
     networks:
       - integritas
 
@@ -20,6 +23,22 @@ services:
       - "${FRONTEND_PORT:-8080}:80"
     depends_on:
       - backend
+    restart: unless-stopped
+    networks:
+      - integritas
+
+  minima:
+    image: minimaglobal/minima:dev
+    stop_grace_period: 60s
+    environment:
+      minima_mdsenable: "false"
+      minima_rpcenable: "true"
+      minima_rpccrlf: "true"
+    ports:
+      - "${MINIMA_P2P_PORT:-9003}:9003"
+      - "${MINIMA_RPC_BIND:-127.0.0.1}:${MINIMA_RPC_PORT:-9005}:9005"
+    volumes:
+      - ${MINIMA_DATA_DIR:-./minima}:/home/minima/data
     restart: unless-stopped
     networks:
       - integritas

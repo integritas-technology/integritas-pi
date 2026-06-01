@@ -5,6 +5,7 @@ import path from "node:path";
 const app = express();
 const port = Number(process.env.PORT ?? 3000);
 const hostFilesRoot = path.resolve(process.env.HOST_FILES_ROOT ?? "/host-files");
+const minimaStatusUrl = process.env.MINIMA_STATUS_URL ?? "http://minima:9005/status";
 
 type FileItem = {
   name: string;
@@ -20,6 +21,35 @@ app.use((req, _res, next) => {
 app.get("/api/health", (_req, res) => {
   // TODO: Add authentication before exposing this beyond a trusted local network.
   res.json({ status: "ok", service: "integritas-pi-backend" });
+});
+
+app.get("/api/minima/status", async (_req, res) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
+  try {
+    const response = await fetch(minimaStatusUrl, { signal: controller.signal });
+    const text = await response.text();
+    let body: unknown = text;
+
+    try {
+      body = JSON.parse(text) as unknown;
+    } catch {
+      // Minima RPC should return JSON, but keep the raw body visible during prototyping.
+    }
+
+    res.status(response.ok ? 200 : 502).json({
+      ok: response.ok,
+      status: response.status,
+      source: minimaStatusUrl,
+      body
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    res.status(502).json({ ok: false, source: minimaStatusUrl, error: message });
+  } finally {
+    clearTimeout(timeout);
+  }
 });
 
 app.get("/api/files", async (req, res) => {
@@ -94,4 +124,5 @@ app.get("/api/files", async (req, res) => {
 app.listen(port, "0.0.0.0", () => {
   console.log(`integritas-pi backend listening on port ${port}`);
   console.log(`File access root: ${hostFilesRoot}`);
+  console.log(`Minima status URL: ${minimaStatusUrl}`);
 });
