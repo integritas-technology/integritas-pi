@@ -2,6 +2,7 @@ import express from "express";
 import Database from "better-sqlite3";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
+import http from "node:http";
 import path from "node:path";
 
 const app = express();
@@ -13,6 +14,7 @@ const integritasRequestId = process.env.INTEGRITAS_REQUEST_ID ?? "integritas-pi"
 const integritasApiKeyFallback = process.env.INTEGRITAS_API_KEY ?? "";
 const databasePath = process.env.DATABASE_PATH ?? "/data/integritas-pi.db";
 const appSecret = process.env.APP_SECRET ?? "dev-change-me";
+const dockerSocketPath = process.env.DOCKER_SOCKET_PATH ?? "/var/run/docker.sock";
 const db = new Database(databasePath);
 
 type FileItem = {
@@ -38,6 +40,40 @@ type EncryptedSecret = {
   value: string;
 };
 
+type ServiceStatus = {
+  name: string;
+  ok: boolean;
+  status: string;
+  details?: unknown;
+  error?: string;
+};
+
+type DockerContainer = {
+  Id: string;
+  Names: string[];
+  State: string;
+  Status: string;
+  SizeRootFs?: number;
+  Labels?: Record<string, string>;
+};
+
+type DockerStats = {
+  cpu_stats?: {
+    cpu_usage?: { total_usage?: number; percpu_usage?: number[] };
+    system_cpu_usage?: number;
+    online_cpus?: number;
+  };
+  precpu_stats?: {
+    cpu_usage?: { total_usage?: number };
+    system_cpu_usage?: number;
+  };
+  memory_stats?: {
+    usage?: number;
+    limit?: number;
+    stats?: { cache?: number };
+  };
+};
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
@@ -56,6 +92,89 @@ app.use((req, _res, next) => {
 app.get("/api/health", (_req, res) => {
   // TODO: Add authentication before exposing this beyond a trusted local network.
   res.json({ status: "ok", service: "integritas-pi-backend" });
+});
+
+app.get("/api/status/overview", async (_req, res) => {
+  const services: ServiceStatus[] = [
+    {
+      name: "backend",
+      ok: true,
+      status: "ok",
+      details: {
+        service: "integritas-pi-backend",
+        databasePath,
+        integritasApiKeyConfigured: Boolean(getIntegritasApiKey())
+      }
+    }
+  ];
+
+  try {
+    const { response, body } = await fetchJsonWithTimeout(minimaStatusUrl);
+    const minimaBody = body as { status?: boolean; response?: unknown } | null;
+    services.push({
+      name: "minima",
+      ok: response.ok && minimaBody?.status === true,
+      status: response.ok && minimaBody?.status === true ? "ok" : `HTTP ${response.status}`,
+      details: body
+    });
+  } catch (error) {
+    services.push({
+      name: "minima",
+      ok: false,
+      status: "error",
+      error: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
+
+  const integritasApiKey = getIntegritasApiKey();
+  if (!integritasApiKey) {
+    services.push({
+      name: "integritas",
+      ok: false,
+      status: "missing_api_key",
+      error: "Integritas API key is not configured"
+    });
+  } else {
+    try {
+      const { response, body } = await fetchJsonWithTimeout(`${integritasBaseUrl}/api/v1/check/health`, {
+        headers: {
+          "x-request-id": integritasRequestId,
+          "x-api-key": integritasApiKey
+        }
+      });
+      services.push({
+        name: "integritas",
+        ok: response.ok,
+        status: response.ok ? "ok" : `HTTP ${response.status}`,
+        details: body
+      });
+    } catch (error) {
+      services.push({
+        name: "integritas",
+        ok: false,
+        status: "error",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  }
+
+  let resources: unknown = null;
+  try {
+    resources = {
+      containers: await dockerServiceResources(),
+      disks: [await diskUsage("/data"), await diskUsage(hostFilesRoot)]
+    };
+  } catch (error) {
+    resources = {
+      error: error instanceof Error ? error.message : "Could not read Docker resource usage"
+    };
+  }
+
+  res.json({
+    generatedAt: new Date().toISOString(),
+    services,
+    resources
+  });
 });
 
 app.get("/api/minima/status", async (_req, res) => {
@@ -95,6 +214,114 @@ function parseResponseBody(responseText: string) {
   } catch {
     return responseText;
   }
+}
+
+async function fetchJsonWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 5000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    const text = await response.text();
+    return { response, body: parseResponseBody(text) };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function dockerRequest<T>(pathName: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const request = http.request({ socketPath: dockerSocketPath, path: pathName, method: "GET" }, (response) => {
+      let body = "";
+      response.setEncoding("utf8");
+      response.on("data", (chunk) => {
+        body += chunk;
+      });
+      response.on("end", () => {
+        if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) {
+          reject(new Error(`Docker API returned HTTP ${response.statusCode}: ${body}`));
+          return;
+        }
+
+        try {
+          resolve(JSON.parse(body) as T);
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+
+    request.on("error", reject);
+    request.setTimeout(5000, () => request.destroy(new Error("Docker API request timed out")));
+    request.end();
+  });
+}
+
+function formatBytes(bytes?: number) {
+  if (bytes === undefined) return null;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
+}
+
+function cpuPercent(stats: DockerStats) {
+  const cpuDelta = (stats.cpu_stats?.cpu_usage?.total_usage ?? 0) - (stats.precpu_stats?.cpu_usage?.total_usage ?? 0);
+  const systemDelta = (stats.cpu_stats?.system_cpu_usage ?? 0) - (stats.precpu_stats?.system_cpu_usage ?? 0);
+  const onlineCpus = stats.cpu_stats?.online_cpus || stats.cpu_stats?.cpu_usage?.percpu_usage?.length || 1;
+
+  if (cpuDelta <= 0 || systemDelta <= 0) return 0;
+  return Number(((cpuDelta / systemDelta) * onlineCpus * 100).toFixed(2));
+}
+
+async function dockerServiceResources() {
+  const containers = await dockerRequest<DockerContainer[]>("/containers/json?all=1&size=1");
+  const appContainers = containers.filter((container) => container.Labels?.["com.docker.compose.project"] === "integritas-pi");
+
+  return Promise.all(appContainers.map(async (container) => {
+    const stats = container.State === "running"
+      ? await dockerRequest<DockerStats>(`/containers/${container.Id}/stats?stream=false`)
+      : null;
+    const memoryUsage = stats?.memory_stats?.usage ?? 0;
+    const memoryCache = stats?.memory_stats?.stats?.cache ?? 0;
+    const memoryWorkingSet = Math.max(memoryUsage - memoryCache, 0);
+
+    return {
+      service: container.Labels?.["com.docker.compose.service"] ?? container.Names[0]?.replace(/^\//, "") ?? container.Id.slice(0, 12),
+      containerId: container.Id.slice(0, 12),
+      state: container.State,
+      status: container.Status,
+      cpuPercent: stats ? cpuPercent(stats) : null,
+      memory: stats ? {
+        usageBytes: memoryWorkingSet,
+        usage: formatBytes(memoryWorkingSet),
+        limitBytes: stats.memory_stats?.limit,
+        limit: formatBytes(stats.memory_stats?.limit)
+      } : null,
+      disk: {
+        rootFsBytes: container.SizeRootFs,
+        rootFs: formatBytes(container.SizeRootFs)
+      }
+    };
+  }));
+}
+
+async function diskUsage(targetPath: string) {
+  const stats = await fs.statfs(targetPath);
+  const total = stats.blocks * stats.bsize;
+  const free = stats.bavail * stats.bsize;
+  const used = total - free;
+
+  return {
+    path: targetPath,
+    totalBytes: total,
+    total: formatBytes(total),
+    usedBytes: used,
+    used: formatBytes(used),
+    freeBytes: free,
+    free: formatBytes(free),
+    usedPercent: total > 0 ? Number(((used / total) * 100).toFixed(2)) : 0
+  };
 }
 
 function sha3HashHex(bytesOrString: string) {

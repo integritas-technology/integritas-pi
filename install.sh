@@ -9,6 +9,7 @@ HOST_FILES_DIR_INPUT="${HOST_FILES_DIR-}"
 FRONTEND_PORT_INPUT="${FRONTEND_PORT-}"
 DATA_DIR_INPUT="${DATA_DIR-}"
 APP_SECRET_INPUT="${APP_SECRET-}"
+DOCKER_GID_INPUT="${DOCKER_GID-}"
 MINIMA_DATA_DIR_INPUT="${MINIMA_DATA_DIR-}"
 MINIMA_P2P_PORT_INPUT="${MINIMA_P2P_PORT-}"
 MINIMA_RPC_BIND_INPUT="${MINIMA_RPC_BIND-}"
@@ -20,6 +21,7 @@ HOST_FILES_DIR="${HOST_FILES_DIR:-/home/pi}"
 FRONTEND_PORT="${FRONTEND_PORT:-8080}"
 DATA_DIR="${DATA_DIR:-./data}"
 APP_SECRET="${APP_SECRET:-}"
+DOCKER_GID="${DOCKER_GID:-}"
 MINIMA_DATA_DIR="${MINIMA_DATA_DIR:-./minima}"
 MINIMA_P2P_PORT="${MINIMA_P2P_PORT:-9003}"
 MINIMA_RPC_BIND="${MINIMA_RPC_BIND:-127.0.0.1}"
@@ -140,6 +142,7 @@ load_existing_config() {
   FRONTEND_PORT="${FRONTEND_PORT_INPUT:-${FRONTEND_PORT:-8080}}"
   DATA_DIR="${DATA_DIR_INPUT:-${DATA_DIR:-./data}}"
   APP_SECRET="${APP_SECRET_INPUT:-${APP_SECRET:-}}"
+  DOCKER_GID="${DOCKER_GID_INPUT:-${DOCKER_GID:-}}"
   MINIMA_DATA_DIR="${MINIMA_DATA_DIR_INPUT:-${MINIMA_DATA_DIR:-./minima}}"
   MINIMA_P2P_PORT="${MINIMA_P2P_PORT_INPUT:-${MINIMA_P2P_PORT:-9003}}"
   MINIMA_RPC_BIND="${MINIMA_RPC_BIND_INPUT:-${MINIMA_RPC_BIND:-127.0.0.1}}"
@@ -156,6 +159,18 @@ ensure_app_secret() {
 
   log "Generating APP_SECRET for encrypted local settings"
   APP_SECRET="$(openssl rand -hex 32)"
+}
+
+detect_docker_gid() {
+  if [ -n "$DOCKER_GID" ]; then
+    return
+  fi
+
+  if [ -S /var/run/docker.sock ]; then
+    DOCKER_GID="$(stat -c '%g' /var/run/docker.sock)"
+  else
+    DOCKER_GID="0"
+  fi
 }
 
 relative_top_level_dir() {
@@ -210,6 +225,9 @@ write_env_file() {
   cat > "$APP_DIR/.env" <<EOF
 HOST_FILES_DIR=$HOST_FILES_DIR
 FRONTEND_PORT=$FRONTEND_PORT
+DATA_DIR=$DATA_DIR
+APP_SECRET=$APP_SECRET
+DOCKER_GID=$DOCKER_GID
 MINIMA_DATA_DIR=$MINIMA_DATA_DIR
 MINIMA_P2P_PORT=$MINIMA_P2P_PORT
 MINIMA_RPC_BIND=$MINIMA_RPC_BIND
@@ -258,6 +276,7 @@ main() {
   prepare_app_directory
   load_existing_config
   ensure_app_secret
+  detect_docker_gid
   download_app
   prepare_runtime_directories
   write_env_file

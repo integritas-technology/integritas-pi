@@ -55,6 +55,7 @@ HOST_FILES_DIR=/home/pi
 FRONTEND_PORT=8080
 DATA_DIR=./data
 APP_SECRET=dev-change-me
+DOCKER_GID=0
 MINIMA_DATA_DIR=./minima
 MINIMA_P2P_PORT=9003
 MINIMA_RPC_BIND=127.0.0.1
@@ -73,6 +74,8 @@ INTEGRITAS_REQUEST_ID=integritas-pi
 `DATA_DIR` is mounted into the backend container as `/data` and stores the SQLite database.
 
 `APP_SECRET` is used by the backend to encrypt local secrets before storing them in SQLite. The installer generates this automatically and preserves it on updates. If it changes, previously encrypted secrets cannot be decrypted.
+
+`DOCKER_GID` lets the non-root backend user read Docker status through `/var/run/docker.sock`. The installer detects this automatically from the socket group id.
 
 `INTEGRITAS_API_KEY` is optional. You can leave it empty and save the API key from the Integritas page in the UI. The key is sent to the backend once, encrypted, and stored in SQLite. It is never exposed in the frontend bundle.
 
@@ -172,12 +175,14 @@ backend container
   - Express + TypeScript
   - SQLite database at /data/integritas-pi.db
   - GET /api/health
+  - GET /api/status/overview
   - GET /api/files
   - GET /api/minima/status
   - Integritas hash, stamp, status, verify endpoints
   - Reads /host-files only
   - Reads Minima status from http://minima:9005/status
   - Calls https://integritas.technology/core with backend-only API key
+  - Reads Docker resource usage through /var/run/docker.sock
 
 minima container
   - minimaglobal/minima:dev
@@ -200,7 +205,10 @@ Health:
 
 ```http
 GET /api/health
+GET /api/status/overview
 ```
+
+`/api/status/overview` returns status for the frontend, backend, Minima node, and Integritas API, plus Docker container CPU/memory/image-size data when the Docker socket is available.
 
 Files:
 
@@ -275,12 +283,15 @@ For the preferred prototype UX, install without a key and then enter it in the I
 
 This is a learning prototype, not a production-ready product.
 
+See [`SECURITY.md`](./SECURITY.md) for the current risk register, known vulnerabilities, and mitigation plan.
+
 - Backend container runs as the non-root `node` user
 - Host files are mounted read-only
 - Backend blocks access outside `/host-files`
 - Frontend cannot trigger shell commands
 - Minima RPC binds to `127.0.0.1` by default
 - Integritas API key is backend-only and encrypted at rest in SQLite when saved from the UI
+- Backend mounts `/var/run/docker.sock:ro` to read container status and resource usage for the App status page. This is useful for the prototype, but Docker socket access is sensitive and should be replaced with a narrower monitoring approach before production.
 - Authentication is not implemented yet
 
 ## Future Services

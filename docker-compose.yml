@@ -11,9 +11,13 @@ services:
       INTEGRITAS_REQUEST_ID: ${INTEGRITAS_REQUEST_ID:-integritas-pi}
       DATABASE_PATH: /data/integritas-pi.db
       APP_SECRET: ${APP_SECRET:-dev-change-me}
+      DOCKER_SOCKET_PATH: /var/run/docker.sock
     volumes:
       - ${HOST_FILES_DIR:-/home/pi}:/host-files:ro
       - ${DATA_DIR:-./data}:/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    group_add:
+      - "${DOCKER_GID:-0}"
     expose:
       - "3000"
     restart: unless-stopped
