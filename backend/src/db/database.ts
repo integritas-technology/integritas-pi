@@ -28,4 +28,21 @@ export function runMigrations() {
       proof_error TEXT
     )
   `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS data_sources (
+      id TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL,
+      status TEXT NOT NULL,
+      description TEXT,
+      config TEXT NOT NULL,
+      last_read_at TEXT,
+      last_error TEXT,
+      last_preview TEXT,
+      last_hash TEXT
+    )
+  `);
 }

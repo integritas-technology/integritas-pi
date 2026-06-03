@@ -490,13 +490,61 @@ code {
   background: #f8fafc;
 }
 
+.data-source-template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.data-source-template {
+  display: grid;
+  gap: 12px;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.data-source-template:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+.data-source-template h3,
+.data-source-template p {
+  margin: 0;
+}
+
+.data-source-template p {
+  color: #64748b;
+}
+
+.data-source-template button,
+.data-source-list button {
+  width: fit-content;
+  padding: 10px 14px;
+  color: #fff;
+  border: 0;
+  border-radius: 14px;
+  background: #020617;
+}
+
+.data-source-list {
+  display: grid;
+  gap: 16px;
+}
+
+.data-source-list .json-preview {
+  max-width: 380px;
+  max-height: 180px;
+  margin: 0;
+}
+
 .form-card label {
   color: #334155;
   font-weight: 700;
 }
 
 input,
-textarea {
+textarea,
+select {
   width: 100%;
   padding: 12px;
   color: #020617;
