@@ -575,6 +575,17 @@ code {
   margin: 0;
 }
 
+.data-read-list {
+  display: grid;
+  gap: 16px;
+}
+
+.data-read-list .json-preview {
+  max-width: 520px;
+  max-height: 260px;
+  margin: 0;
+}
+
 .automation-form,
 .automation-list {
   display: grid;

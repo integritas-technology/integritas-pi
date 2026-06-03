@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { createDataSourceRead } from "../data-reads/dataReads.repository.js";
 import { createDataSource, deleteDataSource, getDataSource, listDataSources, updateDataSourceReadResult } from "./dataSources.repository.js";
 import { parseJsonApiConfig, readJsonApiSource, serializeDataSource } from "./dataSources.service.js";
 
@@ -35,11 +36,16 @@ dataSourcesRouter.post("/:id/read", async (req, res) => {
   if (!record) return res.status(404).json({ error: "Data source not found" });
 
   try {
-    const result = await readJsonApiSource(parseJsonApiConfig(JSON.parse(record.config) as unknown));
+    const config = parseJsonApiConfig(JSON.parse(record.config) as unknown);
+    const result = await readJsonApiSource(config);
     const updated = updateDataSourceReadResult(req.params.id, { hash: result.bytesHash, preview: result.preview });
+    createDataSourceRead({ dataSourceId: record.id, sourceName: record.name, sourceUrl: config.url, triggerType: "manual", status: "success", hash: result.bytesHash, preview: result.preview });
     return res.json({ item: serializeDataSource(updated), result });
   } catch (error) {
-    const updated = updateDataSourceReadResult(req.params.id, { error: error instanceof Error ? error.message : "Failed to read data source" });
+    const message = error instanceof Error ? error.message : "Failed to read data source";
+    const config = parseJsonApiConfig(JSON.parse(record.config) as unknown);
+    const updated = updateDataSourceReadResult(req.params.id, { error: message });
+    createDataSourceRead({ dataSourceId: record.id, sourceName: record.name, sourceUrl: config.url, triggerType: "manual", status: "failed", error: message });
     return res.status(502).json({ error: updated.last_error, item: serializeDataSource(updated) });
   }
 });

@@ -1,5 +1,6 @@
 import { getDataSource, updateDataSourceReadResult } from "../data-sources/dataSources.repository.js";
 import { parseJsonApiConfig, readJsonApiSource, serializeDataSource } from "../data-sources/dataSources.service.js";
+import { createDataSourceRead, linkDataSourceReadProof } from "../data-reads/dataReads.repository.js";
 import { createProofRecord } from "../integritas/integritas.repository.js";
 import { requestProofUid } from "../integritas/integritas.service.js";
 import { getIntegritasApiKey } from "../settings/secrets.service.js";
@@ -34,13 +35,19 @@ export async function runAutomationWorkflow(id: string) {
   runningWorkflowIds.add(id);
   let lastHash: string | undefined;
   let proofId: string | null = null;
+  let readId: string | null = null;
+  let dataSourceSnapshot: { id: string; name: string; url: string } | null = null;
   try {
     const dataSource = getDataSource(workflow.data_source_id);
     if (!dataSource) throw new Error("Data source not found");
+    const config = parseJsonApiConfig(JSON.parse(dataSource.config) as unknown);
+    dataSourceSnapshot = { id: dataSource.id, name: dataSource.name, url: config.url };
 
-    const readResult = await readJsonApiSource(parseJsonApiConfig(JSON.parse(dataSource.config) as unknown));
+    const readResult = await readJsonApiSource(config);
     const updatedSource = updateDataSourceReadResult(dataSource.id, { hash: readResult.bytesHash, preview: readResult.preview });
     lastHash = readResult.bytesHash;
+    const readRecord = createDataSourceRead({ dataSourceId: dataSource.id, workflowId: workflow.id, sourceName: dataSource.name, sourceUrl: config.url, triggerType: "automation", status: "success", hash: readResult.bytesHash, preview: readResult.preview });
+    readId = readRecord.id;
 
     if (workflow.stamp_with_integritas) {
       const apiKey = getIntegritasApiKey();
@@ -49,11 +56,15 @@ export async function runAutomationWorkflow(id: string) {
       if (!stamp.ok) throw new Error(formatIntegritasStampError(stamp));
       const proof = createProofRecord({ fileName: `Automation: ${dataSource.name}`, fileSize: Buffer.byteLength(readResult.canonicalBytes, "utf8"), hash: readResult.bytesHash, proofUid: stamp.proofUid, proofStatus: "pending" });
       proofId = proof.id;
+      linkDataSourceReadProof(readId, proof.id);
     }
 
     const updatedWorkflow = updateAutomationRunSuccess(id, { hash: readResult.bytesHash, proofId });
     return { workflow: serializeAutomationWorkflow(updatedWorkflow), dataSource: serializeDataSource(updatedSource), proofId };
   } catch (error) {
+    if (!readId && dataSourceSnapshot) {
+      createDataSourceRead({ dataSourceId: dataSourceSnapshot.id, workflowId: workflow.id, sourceName: dataSourceSnapshot.name, sourceUrl: dataSourceSnapshot.url, triggerType: "automation", status: "failed", hash: lastHash, error: error instanceof Error ? error.message : "Automation workflow failed" });
+    }
     const updatedWorkflow = updateAutomationRunError(id, error instanceof Error ? error.message : "Automation workflow failed", { hash: lastHash, proofId });
     throw Object.assign(error instanceof Error ? error : new Error("Automation workflow failed"), { workflow: serializeAutomationWorkflow(updatedWorkflow) });
   } finally {

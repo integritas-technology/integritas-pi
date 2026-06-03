@@ -10,6 +10,7 @@ The current prototype contains:
 - A TypeScript/Express backend
 - A Minima node container
 - Integritas stamping and verification proxy endpoints
+- Data source read history with links to automated Integritas stamps
 - SQLite persistence for local settings
 - Read-only file browsing for a configured host directory
 - A simple architecture that can grow with more services later
@@ -224,7 +225,8 @@ backend container
   - GET /api/status/overview
   - GET /api/files
   - GET /api/minima/status
-  - Integritas hash, stamp, status, verify endpoints
+- Integritas hash, stamp, status, verify endpoints
+- Data source APIs and historic read log at `/api/data-sources` and `/api/data-reads`
   - Reads /host-files only
   - Reads Minima status from http://minima:9005/status
   - Calls https://integritas.technology/core with backend-only API key

@@ -64,4 +64,24 @@ export function runMigrations() {
       FOREIGN KEY (data_source_id) REFERENCES data_sources(id) ON DELETE CASCADE
     )
   `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS data_source_reads (
+      id TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      data_source_id TEXT NOT NULL,
+      workflow_id TEXT,
+      integritas_proof_id TEXT,
+      source_name TEXT NOT NULL,
+      source_url TEXT NOT NULL,
+      trigger_type TEXT NOT NULL,
+      status TEXT NOT NULL,
+      hash TEXT,
+      preview_json TEXT,
+      error TEXT,
+      FOREIGN KEY (data_source_id) REFERENCES data_sources(id) ON DELETE CASCADE,
+      FOREIGN KEY (workflow_id) REFERENCES automation_workflows(id) ON DELETE SET NULL,
+      FOREIGN KEY (integritas_proof_id) REFERENCES integritas_proofs(id) ON DELETE SET NULL
+    )
+  `);
 }
