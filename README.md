@@ -113,6 +113,43 @@ View logs:
 docker compose logs -f
 ```
 
+## CLI
+
+The browser UI and CLI both call the same backend API. The backend does not run arbitrary shell commands, and the CLI does not duplicate business logic.
+
+After installation, the CLI is available on the Pi as:
+
+```bash
+integritas-pi --help
+```
+
+Operational V1 commands:
+
+```bash
+integritas-pi status
+integritas-pi doctor
+integritas-pi logs backend
+integritas-pi data-sources list
+integritas-pi data-sources read <id>
+integritas-pi automation list
+integritas-pi automation run <id>
+integritas-pi automation pause <id>
+integritas-pi automation enable <id>
+integritas-pi integritas history
+```
+
+By default the CLI calls:
+
+```txt
+http://localhost:8080/api
+```
+
+Override it when calling a remote Pi:
+
+```bash
+INTEGRITAS_PI_API_URL=http://<pi-ip>:8080/api integritas-pi status
+```
+
 Run checks before pushing or installing on a Pi:
 
 ```bash

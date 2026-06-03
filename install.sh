@@ -244,6 +244,13 @@ start_app() {
   docker compose up -d --build
 }
 
+install_cli() {
+  if [ -f "$APP_DIR/bin/integritas-pi" ]; then
+    log "Installing CLI command"
+    install -m 755 "$APP_DIR/bin/integritas-pi" /usr/local/bin/integritas-pi
+  fi
+}
+
 get_ip_address() {
   hostname -I 2>/dev/null | awk '{print $1}'
 }
@@ -280,6 +287,7 @@ main() {
   download_app
   prepare_runtime_directories
   write_env_file
+  install_cli
   start_app
   print_success_message
 }

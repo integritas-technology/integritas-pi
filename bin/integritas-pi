@@ -1,0 +1,132 @@
+#!/usr/bin/env sh
+set -eu
+
+API_URL="${INTEGRITAS_PI_API_URL:-http://localhost:8080/api}"
+APP_DIR="${INTEGRITAS_PI_APP_DIR:-/opt/integritas-pi}"
+
+usage() {
+  cat <<'EOF'
+Usage: integritas-pi <command> [args]
+
+Commands:
+  status                              Show app status overview
+  data-sources list                   List data sources
+  data-sources read <id>              Read a data source now
+  automation list                     List automation workflows
+  automation run <id>                 Run a workflow now
+  automation pause <id>               Pause a workflow
+  automation enable <id>              Enable a workflow
+  integritas history                  Show Integritas proof history
+  doctor                              Check API reachability
+  logs [service]                      Show Docker Compose logs
+
+Environment:
+  INTEGRITAS_PI_API_URL               Defaults to http://localhost:8080/api
+  INTEGRITAS_PI_APP_DIR               Defaults to /opt/integritas-pi
+EOF
+}
+
+pretty_json() {
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -m json.tool
+  else
+    cat
+  fi
+}
+
+api() {
+  method="$1"
+  path="$2"
+  body="${3-}"
+  if [ -n "$body" ]; then
+    curl -fsS -X "$method" "$API_URL$path" -H "Content-Type: application/json" --data "$body" | pretty_json
+  else
+    curl -fsS -X "$method" "$API_URL$path" | pretty_json
+  fi
+}
+
+require_arg() {
+  if [ -z "${1-}" ]; then
+    echo "Missing required argument: $2" >&2
+    exit 2
+  fi
+}
+
+command="${1-}"
+case "$command" in
+  status)
+    api GET /status/overview
+    ;;
+  data-sources)
+    subcommand="${2-}"
+    case "$subcommand" in
+      list)
+        api GET /data-sources
+        ;;
+      read)
+        id="${3-}"
+        require_arg "$id" "data source id"
+        api POST "/data-sources/$id/read"
+        ;;
+      *)
+        usage
+        exit 2
+        ;;
+    esac
+    ;;
+  automation)
+    subcommand="${2-}"
+    id="${3-}"
+    case "$subcommand" in
+      list)
+        api GET /automation/workflows
+        ;;
+      run)
+        require_arg "$id" "workflow id"
+        api POST "/automation/workflows/$id/run"
+        ;;
+      pause)
+        require_arg "$id" "workflow id"
+        api PATCH "/automation/workflows/$id" '{"enabled":false}'
+        ;;
+      enable)
+        require_arg "$id" "workflow id"
+        api PATCH "/automation/workflows/$id" '{"enabled":true}'
+        ;;
+      *)
+        usage
+        exit 2
+        ;;
+    esac
+    ;;
+  integritas)
+    subcommand="${2-}"
+    case "$subcommand" in
+      history)
+        api GET /integritas/history
+        ;;
+      *)
+        usage
+        exit 2
+        ;;
+    esac
+    ;;
+  doctor)
+    api GET /health
+    ;;
+  logs)
+    service="${2-}"
+    if [ -n "$service" ]; then
+      docker compose -f "$APP_DIR/docker-compose.yml" --project-directory "$APP_DIR" logs --tail=100 "$service"
+    else
+      docker compose -f "$APP_DIR/docker-compose.yml" --project-directory "$APP_DIR" logs --tail=100
+    fi
+    ;;
+  -h|--help|help|"")
+    usage
+    ;;
+  *)
+    usage
+    exit 2
+    ;;
+esac
