@@ -71,15 +71,15 @@ export function updateAutomationRunSuccess(id: string, input: { hash: string; pr
   return getAutomationWorkflow(id)!;
 }
 
-export function updateAutomationRunError(id: string, error: string) {
+export function updateAutomationRunError(id: string, error: string, input: { hash?: string; proofId?: string | null } = {}) {
   const current = getAutomationWorkflow(id)!;
   const now = new Date();
   const nextRunAt = new Date(now.getTime() + current.polling_interval_seconds * 1000).toISOString();
   db.prepare(`
     UPDATE automation_workflows
-    SET updated_at = ?, last_run_at = ?, next_run_at = ?, last_error = ?
+    SET updated_at = ?, last_run_at = ?, next_run_at = ?, last_hash = COALESCE(?, last_hash), last_proof_id = COALESCE(?, last_proof_id), last_error = ?
     WHERE id = ?
-  `).run(now.toISOString(), now.toISOString(), nextRunAt, error, id);
+  `).run(now.toISOString(), now.toISOString(), nextRunAt, input.hash ?? null, input.proofId ?? null, error, id);
   return getAutomationWorkflow(id)!;
 }
 

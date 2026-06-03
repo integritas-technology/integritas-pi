@@ -32,19 +32,21 @@ export async function runAutomationWorkflow(id: string) {
   if (runningWorkflowIds.has(id)) throw new Error("Automation workflow is already running");
 
   runningWorkflowIds.add(id);
+  let lastHash: string | undefined;
+  let proofId: string | null = null;
   try {
     const dataSource = getDataSource(workflow.data_source_id);
     if (!dataSource) throw new Error("Data source not found");
 
     const readResult = await readJsonApiSource(parseJsonApiConfig(JSON.parse(dataSource.config) as unknown));
     const updatedSource = updateDataSourceReadResult(dataSource.id, { hash: readResult.bytesHash, preview: readResult.preview });
+    lastHash = readResult.bytesHash;
 
-    let proofId: string | null = null;
     if (workflow.stamp_with_integritas) {
       const apiKey = getIntegritasApiKey();
       if (!apiKey) throw new Error("Integritas API key is not configured");
       const stamp = await requestProofUid({ apiKey, hash: readResult.bytesHash });
-      if (!stamp.ok) throw new Error(stamp.error);
+      if (!stamp.ok) throw new Error(formatIntegritasStampError(stamp));
       const proof = createProofRecord({ fileName: `Automation: ${dataSource.name}`, fileSize: Buffer.byteLength(readResult.canonicalBytes, "utf8"), hash: readResult.bytesHash, proofUid: stamp.proofUid, proofStatus: "pending" });
       proofId = proof.id;
     }
@@ -52,11 +54,15 @@ export async function runAutomationWorkflow(id: string) {
     const updatedWorkflow = updateAutomationRunSuccess(id, { hash: readResult.bytesHash, proofId });
     return { workflow: serializeAutomationWorkflow(updatedWorkflow), dataSource: serializeDataSource(updatedSource), proofId };
   } catch (error) {
-    const updatedWorkflow = updateAutomationRunError(id, error instanceof Error ? error.message : "Automation workflow failed");
+    const updatedWorkflow = updateAutomationRunError(id, error instanceof Error ? error.message : "Automation workflow failed", { hash: lastHash, proofId });
     throw Object.assign(error instanceof Error ? error : new Error("Automation workflow failed"), { workflow: serializeAutomationWorkflow(updatedWorkflow) });
   } finally {
     runningWorkflowIds.delete(id);
   }
+}
+
+function formatIntegritasStampError(stamp: { status: number; error: string; responseBody: unknown }) {
+  return `${stamp.error}: HTTP ${stamp.status} ${JSON.stringify(stamp.responseBody)}`;
 }
 
 export function startAutomationScheduler() {
