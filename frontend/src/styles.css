@@ -685,6 +685,62 @@ textarea {
   font-size: 0.84rem;
 }
 
+button.json-link {
+  padding: 0;
+  color: #2563eb;
+  font-weight: 800;
+  text-decoration: underline;
+  border: 0;
+  background: transparent;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.58);
+}
+
+.json-modal {
+  display: grid;
+  gap: 16px;
+  width: min(980px, 100%);
+  max-height: min(760px, 90vh);
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
+}
+
+.json-modal-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.json-modal-header h3 {
+  margin: 0;
+}
+
+.json-modal-header button {
+  padding: 10px 14px;
+  color: #fff;
+  border: 0;
+  border-radius: 14px;
+  background: #020617;
+}
+
+.json-modal .json-preview {
+  max-width: none;
+  max-height: calc(90vh - 120px);
+  margin: 0;
+}
+
 .table-wrap {
   width: 100%;
   overflow-x: auto;
