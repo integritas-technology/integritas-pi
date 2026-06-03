@@ -706,8 +706,10 @@ button.json-link {
 
 .json-modal {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 16px;
   width: min(980px, 100%);
+  min-width: 0;
   max-height: min(760px, 90vh);
   padding: 20px;
   border: 1px solid #e2e8f0;
@@ -736,9 +738,14 @@ button.json-link {
 }
 
 .json-modal .json-preview {
+  width: 100%;
+  min-width: 0;
   max-width: none;
+  min-height: 0;
   max-height: calc(90vh - 120px);
+  overflow: auto;
   margin: 0;
+  white-space: pre;
 }
 
 .table-wrap {
