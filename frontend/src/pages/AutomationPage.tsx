@@ -4,6 +4,7 @@ import { createAutomationWorkflow, deleteAutomationWorkflow, listAutomationWorkf
 import type { AutomationWorkflow } from "../features/automation/automationTypes";
 import { listDataSources } from "../features/data-sources/dataSourcesApi";
 import type { DataSource } from "../features/data-sources/dataSourceTypes";
+import { formatLocalTime, formatUtcTime } from "../lib/time";
 
 const intervals = [10, 30, 60, 300, 900, 3600];
 
@@ -77,8 +78,8 @@ export function AutomationPage() {
                   <td>{sourceName(workflow.dataSourceId)}</td>
                   <td>{formatInterval(workflow.pollingIntervalSeconds)}</td>
                   <td>{workflow.lastError ? <span className="pill pill-warn">Error</span> : workflow.enabled ? <span className="pill pill-good">Enabled</span> : <span className="pill pill-neutral">Paused</span>} {workflow.lastError && <p className="error-text">{workflow.lastError}</p>}</td>
-                  <td>{workflow.lastRunAt ? formatDate(workflow.lastRunAt) : <span className="muted">Never</span>}</td>
-                  <td>{workflow.nextRunAt ? formatDate(workflow.nextRunAt) : <span className="muted">Paused</span>}</td>
+                  <td>{workflow.lastRunAt ? <TimeStack label="Last run" value={workflow.lastRunAt} /> : <span className="muted">Never</span>}</td>
+                  <td>{workflow.nextRunAt ? <TimeStack label="Next run" value={workflow.nextRunAt} /> : <span className="muted">Paused</span>}</td>
                   <td>{workflow.lastHash ? <code>{workflow.lastHash}</code> : <span className="muted">No hash yet</span>}</td>
                   <td><div className="row-actions"><button type="button" disabled={busy} onClick={() => run(() => runAutomationWorkflow(workflow.id))}>Run now</button><button type="button" disabled={busy} onClick={() => run(() => updateAutomationWorkflow(workflow.id, { enabled: !workflow.enabled }))}>{workflow.enabled ? "Pause" : "Enable"}</button><button type="button" disabled={busy} onClick={() => run(() => deleteAutomationWorkflow(workflow.id))}>Delete</button></div></td>
                 </tr>
@@ -98,6 +99,11 @@ function formatInterval(seconds: number) {
   return `Every ${seconds / 3600} hour${seconds === 3600 ? "" : "s"}`;
 }
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleString();
+function TimeStack({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="time-stack">
+      <strong>{label}: {formatLocalTime(value)} local</strong>
+      <span>UTC: {formatUtcTime(value)}</span>
+    </div>
+  );
 }

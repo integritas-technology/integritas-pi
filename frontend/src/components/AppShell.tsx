@@ -4,6 +4,7 @@ import { nav } from "../app/nav";
 import type { NavId } from "../app/types";
 import { cx } from "../lib/cx";
 import { Card } from "./Card";
+import { Clock } from "./Clock";
 import { Pill } from "./Pill";
 
 export function AppShell({ active, setActive, children }: { active: NavId; setActive: (id: NavId) => void; children: React.ReactNode }) {
@@ -39,7 +40,7 @@ export function AppShell({ active, setActive, children }: { active: NavId; setAc
               <div className="mobile-brand-icon"><Layers3 size={22} /></div>
               <div><p>Current section</p><h2>{activeItem.label}</h2></div>
             </div>
-            <div className="topbar-pills"><Pill tone="neutral">Pi Edition</Pill><Pill tone="neutral">Prototype</Pill></div>
+            <div className="topbar-right"><Clock /><div className="topbar-pills"><Pill tone="neutral">Pi Edition</Pill><Pill tone="neutral">Prototype</Pill></div></div>
           </header>
 
           <div className="mobile-nav">

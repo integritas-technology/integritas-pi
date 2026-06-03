@@ -185,6 +185,44 @@ button:disabled {
   font-size: 1.25rem;
 }
 
+.topbar-right {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.clock-card {
+  display: flex;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.clock-card div,
+.time-stack {
+  display: grid;
+  gap: 2px;
+}
+
+.clock-card span,
+.time-stack span {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.clock-card strong,
+.time-stack strong {
+  color: #020617;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 0.86rem;
+}
+
 .topbar-pills,
 .hero-pills,
 .button-row {
