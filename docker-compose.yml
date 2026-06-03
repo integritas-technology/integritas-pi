@@ -18,6 +18,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     group_add:
       - "${DOCKER_GID:-0}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     expose:
       - "3000"
     restart: unless-stopped

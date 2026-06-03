@@ -1,8 +1,10 @@
 import { env } from "./config/env.js";
 import { runMigrations } from "./db/database.js";
 import { createApp } from "./app.js";
+import { startAutomationScheduler } from "./features/automation/automation.service.js";
 
 runMigrations();
+startAutomationScheduler();
 
 const app = createApp();
 

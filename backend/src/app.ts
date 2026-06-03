@@ -1,4 +1,5 @@
 import express from "express";
+import { automationRouter } from "./features/automation/automation.routes.js";
 import { filesRouter } from "./features/files/files.routes.js";
 import { dataSourcesRouter } from "./features/data-sources/dataSources.routes.js";
 import { healthRouter } from "./features/health/health.routes.js";
@@ -18,6 +19,7 @@ export function createApp() {
   app.use("/api/minima", minimaRouter);
   app.use("/api/integritas", integritasRouter);
   app.use("/api/data-sources", dataSourcesRouter);
+  app.use("/api/automation", automationRouter);
   app.use("/api/files", filesRouter);
 
   return app;

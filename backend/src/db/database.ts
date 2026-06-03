@@ -45,4 +45,23 @@ export function runMigrations() {
       last_hash TEXT
     )
   `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS automation_workflows (
+      id TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      name TEXT NOT NULL,
+      data_source_id TEXT NOT NULL,
+      enabled INTEGER NOT NULL,
+      polling_interval_seconds INTEGER NOT NULL,
+      stamp_with_integritas INTEGER NOT NULL,
+      last_run_at TEXT,
+      next_run_at TEXT,
+      last_hash TEXT,
+      last_proof_id TEXT,
+      last_error TEXT,
+      FOREIGN KEY (data_source_id) REFERENCES data_sources(id) ON DELETE CASCADE
+    )
+  `);
 }

@@ -37,11 +37,18 @@ export function parseJsonApiConfig(value: unknown): JsonApiConfig {
 }
 
 export async function readJsonApiSource(config: JsonApiConfig) {
-  const response = await fetch(config.url, {
-    method: config.method,
-    headers: { ...config.headers, "Content-Type": "application/json" },
-    body: config.method === "POST" && config.body !== undefined ? JSON.stringify(config.body) : undefined
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(config.url, {
+      method: config.method,
+      headers: { ...config.headers, "Content-Type": "application/json" },
+      body: config.method === "POST" && config.body !== undefined ? JSON.stringify(config.body) : undefined
+    });
+  } catch (error) {
+    throw new Error(`Could not fetch ${config.url}: ${describeFetchError(error)}`);
+  }
+
   const text = await response.text();
   let json: unknown;
 
@@ -54,5 +61,15 @@ export async function readJsonApiSource(config: JsonApiConfig) {
   if (!response.ok) throw new Error(`Source returned HTTP ${response.status}`);
 
   const canonical = `${JSON.stringify(json, null, 2)}\n`;
-  return { contentType: "application/json", bytesHash: sha3HashHex(canonical), preview: json, fetchedAt: new Date().toISOString() };
+  return { contentType: "application/json", bytesHash: sha3HashHex(canonical), canonicalBytes: canonical, preview: json, fetchedAt: new Date().toISOString() };
+}
+
+function describeFetchError(error: unknown) {
+  if (!(error instanceof Error)) return "Unknown error";
+  const cause = error.cause;
+  if (cause && typeof cause === "object") {
+    const details = cause as { code?: string; address?: string; port?: number; message?: string };
+    return [details.code, details.address, details.port, details.message].filter(Boolean).join(" ") || error.message;
+  }
+  return error.message;
 }

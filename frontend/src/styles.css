@@ -537,6 +537,29 @@ code {
   margin: 0;
 }
 
+.automation-form,
+.automation-list {
+  display: grid;
+  gap: 16px;
+}
+
+.automation-form label {
+  display: grid;
+  gap: 10px;
+  color: #334155;
+  font-weight: 700;
+}
+
+.check-row {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  justify-content: start;
+}
+
+.check-row input {
+  width: auto;
+}
+
 .form-card label {
   color: #334155;
   font-weight: 700;
