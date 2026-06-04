@@ -8,11 +8,12 @@ import { DataReadsPage } from "./pages/DataReadsPage";
 import { IntegritasPage } from "./pages/IntegritasPage";
 import { MinimaPage } from "./pages/MinimaPage";
 import { AutomationPage } from "./pages/AutomationPage";
+import { SetupPage } from "./pages/SetupPage";
 
 function ActivePage({ active }: { active: NavId }) {
   const pages: Record<NavId, React.ReactNode> = {
     dashboard: <DashboardPage />,
-    setup: <EmptyPage eyebrow="Setup" title="Guided setup" desc="Installation and access setup flow is not implemented yet." />,
+    setup: <SetupPage />,
     node: <MinimaPage />,
     wallet: <EmptyPage eyebrow="Wallet" title="Wallet and tokens" desc="Wallet management is not implemented yet." />,
     integritas: <IntegritasPage />,

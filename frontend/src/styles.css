@@ -586,6 +586,83 @@ code {
   margin: 0;
 }
 
+.setup-progress-card {
+  display: grid;
+  gap: 16px;
+}
+
+.setup-progress-card strong {
+  font-size: 1.15rem;
+}
+
+.setup-progress-card p {
+  margin: 6px 0 0;
+}
+
+.setup-progress-bar {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.setup-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #16a34a;
+}
+
+.setup-step-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.setup-step {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.setup-step.complete {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.setup-step-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  color: #020617;
+  border-radius: 18px;
+  background: #f1f5f9;
+}
+
+.setup-step.complete .setup-step-icon {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.setup-step span:first-child {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.setup-step h3 {
+  margin: 6px 0;
+}
+
+.setup-step p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.55;
+}
+
 .automation-form,
 .automation-list {
   display: grid;
