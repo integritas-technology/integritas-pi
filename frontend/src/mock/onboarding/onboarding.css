@@ -1,0 +1,243 @@
+@import "tailwindcss";
+
+@layer components {
+  .mock-onboarding-root {
+    @apply min-h-screen grid grid-rows-[auto_auto_1fr] bg-slate-300;
+  }
+
+  .mock-onboarding-header {
+    @apply flex items-center justify-between gap-4 px-6 py-5 bg-white border-b border-slate-200;
+  }
+
+  .mock-onboarding-brand {
+    @apply flex gap-3 items-center;
+  }
+
+  .mock-onboarding-brand-icon {
+    @apply flex w-11 h-11 items-center justify-center rounded-2xl text-white bg-slate-950;
+  }
+
+  .mock-onboarding-brand p {
+    @apply m-0 text-slate-500 text-sm;
+  }
+
+  .mock-onboarding-brand h1 {
+    @apply m-0 mt-0.5 text-lg;
+  }
+
+  .mock-onboarding-progress-track {
+    @apply h-1 bg-slate-300;
+  }
+
+  .mock-onboarding-progress-bar {
+    @apply block h-full bg-slate-950 transition-[width] duration-200;
+  }
+
+  .mock-onboarding-body {
+    @apply grid min-h-0 max-[900px]:grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)];
+  }
+
+  .mock-onboarding-sidebar {
+    @apply p-5 text-slate-200 bg-slate-900 max-[900px]:px-4;
+  }
+
+  .mock-onboarding-sidebar-title {
+    @apply m-0 mb-5 text-slate-400 text-[0.72rem] font-extrabold tracking-widest uppercase;
+  }
+
+  .mock-onboarding-step-list {
+    @apply grid gap-2 m-0 p-0 list-none max-[900px]:grid-flow-col max-[900px]:auto-cols-[minmax(140px,1fr)] max-[900px]:overflow-x-auto max-[900px]:pb-1;
+  }
+
+  .mock-onboarding-step-item {
+    @apply flex gap-3 items-start p-3 rounded-2xl text-slate-400;
+  }
+
+  .mock-onboarding-step-item-active {
+    @apply text-white bg-white/10;
+  }
+
+  .mock-onboarding-step-item-complete {
+    @apply text-slate-300;
+  }
+
+  .mock-onboarding-step-item span {
+    @apply block text-[0.72rem] font-bold tracking-wide uppercase;
+  }
+
+  .mock-onboarding-step-item strong {
+    @apply block mt-0.5 text-[0.95rem];
+  }
+
+  .mock-onboarding-step-icon {
+    @apply grid w-[34px] h-[34px] shrink-0 place-items-center rounded-xl bg-white/10;
+  }
+
+  .mock-onboarding-step-icon-active {
+    @apply bg-white text-slate-950;
+  }
+
+  .mock-onboarding-step-icon-complete {
+    @apply bg-green-600 text-white;
+  }
+
+  .mock-onboarding-content {
+    @apply grid grid-rows-[1fr_auto] m-6 min-h-[calc(100vh-120px)] p-6 border border-slate-200 rounded-[28px] bg-white shadow-sm shadow-slate-900/5 max-[900px]:m-4 max-[900px]:min-h-0;
+  }
+
+  .mock-onboarding-panel {
+    @apply grid gap-5 content-start pt-2 px-1;
+  }
+
+  .mock-onboarding-eyebrow {
+    @apply m-0 text-slate-500 text-xs font-extrabold tracking-[0.18em] uppercase;
+  }
+
+  .mock-onboarding-panel h2 {
+    @apply m-0 text-[clamp(1.6rem,3vw,2.2rem)] leading-tight text-slate-950;
+  }
+
+  .mock-onboarding-lead {
+    @apply max-w-3xl m-0 text-slate-600 leading-relaxed;
+  }
+
+  .mock-onboarding-feature-grid {
+    @apply grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3.5;
+  }
+
+  .mock-onboarding-feature-card {
+    @apply grid gap-2.5 p-4 border border-slate-200 rounded-[20px] bg-slate-50;
+  }
+
+  .mock-onboarding-feature-card h3 {
+    @apply m-0 text-base;
+  }
+
+  .mock-onboarding-feature-card p {
+    @apply m-0 text-slate-500 text-sm leading-relaxed;
+  }
+
+  .mock-onboarding-form-grid {
+    @apply grid gap-4 max-w-[520px];
+  }
+
+  .mock-onboarding-label {
+    @apply grid gap-2 text-slate-700 font-bold;
+  }
+
+  .mock-onboarding-input {
+    @apply w-full p-3 text-slate-950 border border-slate-300 rounded-2xl bg-slate-50;
+  }
+
+  .mock-onboarding-muted {
+    @apply text-sm font-medium text-slate-500;
+  }
+
+  .mock-onboarding-hint-good {
+    @apply text-sm font-medium text-emerald-700;
+  }
+
+  .mock-onboarding-hint-warn {
+    @apply text-sm font-medium text-amber-700;
+  }
+
+  .mock-onboarding-check-row {
+    @apply grid grid-cols-[auto_1fr] items-center gap-3 p-3.5 border border-slate-200 rounded-[18px] bg-slate-50;
+  }
+
+  .mock-onboarding-check-row span {
+    @apply grid gap-1;
+  }
+
+  .mock-onboarding-status-card {
+    @apply grid gap-3.5 max-w-2xl p-4 border border-slate-200 rounded-[20px] bg-slate-50;
+  }
+
+  .mock-onboarding-status-row {
+    @apply flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between;
+  }
+
+  .mock-onboarding-status-row p {
+    @apply mt-1 mb-0 text-slate-500;
+  }
+
+  .mock-onboarding-mock-result {
+    @apply flex gap-3 items-start p-3 rounded-xl text-emerald-700 bg-emerald-50;
+  }
+
+  .mock-onboarding-mock-result p {
+    @apply mt-1 mb-0 text-slate-500;
+  }
+
+  .mock-onboarding-info-callout {
+    @apply flex gap-3.5 items-start max-w-2xl p-4 border border-blue-200 rounded-[18px] bg-blue-50;
+  }
+
+  .mock-onboarding-info-callout a {
+    @apply inline-flex gap-1 items-center text-blue-700 font-bold no-underline hover:underline;
+  }
+
+  .mock-onboarding-summary-list {
+    @apply grid gap-2.5 max-w-xl m-0 p-0 list-none;
+  }
+
+  .mock-onboarding-summary-item {
+    @apply flex gap-3 items-start p-3.5 border rounded-2xl border-slate-200 bg-slate-50;
+  }
+
+  .mock-onboarding-summary-item-ok {
+    @apply border-green-200 bg-green-50;
+  }
+
+  .mock-onboarding-summary-icon {
+    @apply grid w-7 h-7 place-items-center rounded-full bg-slate-200 text-slate-500;
+  }
+
+  .mock-onboarding-summary-icon-ok {
+    @apply bg-green-600 text-white;
+  }
+
+  .mock-onboarding-summary-item p {
+    @apply mt-1 mb-0 text-slate-500;
+  }
+
+  .mock-onboarding-note {
+    @apply max-w-2xl m-0 p-3 rounded-xl bg-slate-100 text-sm text-slate-500;
+  }
+
+  .mock-onboarding-footer {
+    @apply flex flex-col gap-4 items-stretch mt-7 pt-5 border-t border-slate-200 max-[900px]:gap-4 sm:flex-row sm:items-center sm:justify-between;
+  }
+
+  .mock-onboarding-footer-right {
+    @apply flex gap-3.5 items-center justify-between max-[900px]:justify-between;
+  }
+
+  .mock-onboarding-btn-primary {
+    @apply inline-flex items-center gap-2 px-4 py-3 text-white font-bold border-0 rounded-2xl bg-slate-950 cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed;
+  }
+
+  .mock-onboarding-btn-secondary {
+    @apply inline-flex items-center gap-2 px-4 py-3 text-slate-700 font-bold border-0 rounded-2xl bg-slate-100 cursor-pointer;
+  }
+
+  .mock-onboarding-pill {
+    @apply inline-flex items-center w-fit px-2.5 py-1 text-xs font-bold rounded-full;
+  }
+
+  .mock-onboarding-pill-neutral {
+    @apply text-slate-700 bg-slate-100;
+  }
+
+  .mock-onboarding-pill-good {
+    @apply text-emerald-700 bg-emerald-100;
+  }
+
+  .mock-onboarding-pill-warn {
+    @apply text-amber-700 bg-amber-100;
+  }
+
+  .mock-onboarding-pill-future {
+    @apply text-violet-700 bg-violet-100;
+  }
+}

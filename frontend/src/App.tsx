@@ -1,8 +1,7 @@
 import { useState } from "react";
 import type { NavId } from "./app/types";
 import { AppShell } from "./components/AppShell";
-import { OnboardingWizard } from "./features/onboarding/OnboardingWizard";
-import { isOnboardingComplete, markOnboardingComplete, resetOnboarding } from "./features/onboarding/storage";
+import { OnboardingWizard, isOnboardingComplete, markOnboardingComplete, resetOnboarding } from "./mock/onboarding";
 import { DashboardPage } from "./pages/DashboardPage";
 import { DataSourcesPage } from "./pages/DataSourcesPage";
 import { DiagnosticsPage } from "./pages/DiagnosticsPage";
