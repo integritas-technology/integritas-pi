@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -57,15 +57,16 @@ function StepIcon({ id, active, complete }: { id: OnboardingStepId; active: bool
   };
   const Icon = complete ? Check : icons[id];
   return (
-    <span
+    <div
       className={cx(
         "mock-onboarding-step-icon",
         active && "mock-onboarding-step-icon-active",
         complete && "mock-onboarding-step-icon-complete"
       )}
+      aria-hidden="true"
     >
-      <Icon size={18} />
-    </span>
+      <Icon size={18} strokeWidth={2} />
+    </div>
   );
 }
 
@@ -248,7 +249,7 @@ function IntegritasStep({
         </div>
       </div>
 
-      <label className={cx("mock-onboarding-check-row", "max-w-2xl")}>
+      <label className="mock-onboarding-check-row mock-onboarding-skip-row">
         <input type="checkbox" checked={form.skipIntegritas} onChange={(event) => setForm({ skipIntegritas: event.target.checked })} />
         <span>
           <strong>Skip for now</strong>
@@ -342,6 +343,14 @@ export function OnboardingWizard({ onComplete, onSkip }: { onComplete: () => voi
   const [minimaCheck, setMinimaCheck] = useState<MockCheckState>("idle");
   const [integritasCheck, setIntegritasCheck] = useState<MockCheckState>("idle");
 
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
   const currentStep = onboardingSteps[stepIndex];
   const progress = ((stepIndex + 1) / onboardingSteps.length) * 100;
 
@@ -387,86 +396,90 @@ export function OnboardingWizard({ onComplete, onSkip }: { onComplete: () => voi
 
   return (
     <div className="mock-onboarding-root">
-      <header className="mock-onboarding-header">
-        <div className="mock-onboarding-brand">
-          <div className="mock-onboarding-brand-icon"><Layers3 size={24} /></div>
-          <div>
-            <p>Minima Edge Stack</p>
-            <h1>First-time setup</h1>
-          </div>
-        </div>
-        <MockPill tone="future">UI mockup</MockPill>
-      </header>
-
-      <div className="mock-onboarding-progress-track">
-        <span className="mock-onboarding-progress-bar" style={{ width: `${progress}%` }} />
-      </div>
-
-      <div className="mock-onboarding-body">
-        <aside className="mock-onboarding-sidebar">
-          <p className="mock-onboarding-sidebar-title">Setup steps</p>
-          <ol className="mock-onboarding-step-list">
-            {onboardingSteps.map((step, index) => {
-              const complete = index < stepIndex;
-              const active = index === stepIndex;
-              return (
-                <li
-                  key={step.id}
-                  className={cx(
-                    "mock-onboarding-step-item",
-                    active && "mock-onboarding-step-item-active",
-                    complete && "mock-onboarding-step-item-complete"
-                  )}
-                >
-                  <StepIcon id={step.id} active={active} complete={complete} />
-                  <div>
-                    <span>{step.shortLabel}</span>
-                    <strong>{step.label}</strong>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        </aside>
-
-        <section className="mock-onboarding-content">
-          {currentStep.id === "welcome" && <WelcomeStep />}
-          {currentStep.id === "account" && <AccountStep form={form} setForm={setForm} />}
-          {currentStep.id === "minima" && (
-            <MinimaStep form={form} setForm={setForm} checkState={minimaCheck} onTestConnection={() => mockDelay(setMinimaCheck)} />
-          )}
-          {currentStep.id === "integritas" && (
-            <IntegritasStep form={form} setForm={setForm} checkState={integritasCheck} onVerifyKey={() => mockDelay(setIntegritasCheck)} />
-          )}
-          {currentStep.id === "complete" && (
-            <CompleteStep form={form} minimaOk={minimaCheck === "ok"} integritasOk={integritasCheck === "ok"} />
-          )}
-
-          <footer className="mock-onboarding-footer">
+      <div className="mock-onboarding-modal" role="dialog" aria-modal="true" aria-label="First-time setup">
+        <header className="mock-onboarding-header">
+          <div className="mock-onboarding-brand">
+            <div className="mock-onboarding-brand-icon"><Layers3 size={24} /></div>
             <div>
-              {stepIndex > 0 ? (
-                <button type="button" className="mock-onboarding-btn-secondary" onClick={goBack}>
-                  <ArrowLeft size={16} /> Back
-                </button>
-              ) : onSkip ? (
-                <button type="button" className="mock-onboarding-btn-secondary" onClick={onSkip}>
-                  Skip for now
-                </button>
-              ) : (
-                <span />
+              <p>Minima Edge Stack</p>
+              <h1>First-time setup</h1>
+            </div>
+          </div>
+          <MockPill tone="future">UI mockup</MockPill>
+        </header>
+
+        <div className="mock-onboarding-progress-track">
+          <span className="mock-onboarding-progress-bar" style={{ width: `${progress}%` }} />
+        </div>
+
+        <div className="mock-onboarding-body">
+          <aside className="mock-onboarding-sidebar">
+            <p className="mock-onboarding-sidebar-title">Setup steps</p>
+            <ol className="mock-onboarding-step-list">
+              {onboardingSteps.map((step, index) => {
+                const complete = index < stepIndex;
+                const active = index === stepIndex;
+                return (
+                  <li
+                    key={step.id}
+                    className={cx(
+                      "mock-onboarding-step-item",
+                      active && "mock-onboarding-step-item-active",
+                      complete && "mock-onboarding-step-item-complete"
+                    )}
+                  >
+                    <StepIcon id={step.id} active={active} complete={complete} />
+                    <div className="mock-onboarding-step-copy">
+                      <span>{step.shortLabel}</span>
+                      <strong>{step.label}</strong>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          </aside>
+
+          <div className="mock-onboarding-main">
+            <div className="mock-onboarding-scroll">
+              {currentStep.id === "welcome" && <WelcomeStep />}
+              {currentStep.id === "account" && <AccountStep form={form} setForm={setForm} />}
+              {currentStep.id === "minima" && (
+                <MinimaStep form={form} setForm={setForm} checkState={minimaCheck} onTestConnection={() => mockDelay(setMinimaCheck)} />
+              )}
+              {currentStep.id === "integritas" && (
+                <IntegritasStep form={form} setForm={setForm} checkState={integritasCheck} onVerifyKey={() => mockDelay(setIntegritasCheck)} />
+              )}
+              {currentStep.id === "complete" && (
+                <CompleteStep form={form} minimaOk={minimaCheck === "ok"} integritasOk={integritasCheck === "ok"} />
               )}
             </div>
-            <div className="mock-onboarding-footer-right">
-              <span className="mock-onboarding-muted">
-                Step {stepIndex + 1} of {onboardingSteps.length}
-              </span>
-              <button type="button" className="mock-onboarding-btn-primary" disabled={!canContinue} onClick={goNext}>
-                {currentStep.id === "complete" ? "Enter Edge Workbench" : "Continue"}
-                {currentStep.id !== "complete" && <ArrowRight size={16} />}
-              </button>
-            </div>
-          </footer>
-        </section>
+
+            <footer className="mock-onboarding-footer">
+              <div>
+                {stepIndex > 0 ? (
+                  <button type="button" className="mock-onboarding-btn-secondary" onClick={goBack}>
+                    <ArrowLeft size={16} /> Back
+                  </button>
+                ) : onSkip ? (
+                  <button type="button" className="mock-onboarding-btn-secondary" onClick={onSkip}>
+                    Skip for now
+                  </button>
+                ) : (
+                  <span />
+                )}
+              </div>
+              <div className="mock-onboarding-footer-right">
+                <span className="mock-onboarding-muted">
+                  Step {stepIndex + 1} of {onboardingSteps.length}
+                </span>
+                <button type="button" className="mock-onboarding-btn-primary" disabled={!canContinue} onClick={goNext}>
+                  {currentStep.id === "complete" ? "Enter Edge Workbench" : "Continue"}
+                  {currentStep.id !== "complete" && <ArrowRight size={16} />}
+                </button>
+              </div>
+            </footer>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -2,11 +2,15 @@
 
 @layer components {
   .mock-onboarding-root {
-    @apply min-h-screen grid grid-rows-[auto_auto_1fr] bg-slate-300;
+    @apply fixed inset-0 z-50 grid place-items-center overscroll-contain p-4 sm:p-6 bg-slate-900/20 backdrop-blur-md;
+  }
+
+  .mock-onboarding-modal {
+    @apply flex h-[min(768px,92vh)] w-full max-w-[1160px] flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-2xl shadow-slate-900/20;
   }
 
   .mock-onboarding-header {
-    @apply flex items-center justify-between gap-4 px-6 py-5 bg-white border-b border-slate-200;
+    @apply flex shrink-0 items-center justify-between gap-4 px-6 py-4 bg-white border-b border-slate-200;
   }
 
   .mock-onboarding-brand {
@@ -26,31 +30,33 @@
   }
 
   .mock-onboarding-progress-track {
-    @apply h-1 bg-slate-300;
+    @apply h-1 shrink-0 bg-slate-200;
   }
 
   .mock-onboarding-progress-bar {
-    @apply block h-full bg-slate-950 transition-[width] duration-200;
+    @apply block h-full bg-violet-600 transition-[width] duration-200;
   }
 
   .mock-onboarding-body {
-    @apply grid min-h-0 max-[900px]:grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)];
+    @apply grid min-h-0 flex-1 grid-cols-1 max-[900px]:grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)];
   }
 
   .mock-onboarding-sidebar {
-    @apply p-5 text-slate-200 bg-slate-900 max-[900px]:px-4;
+    @apply flex min-h-0 flex-col overflow-hidden p-5 text-slate-200 bg-slate-900 max-[900px]:px-4 max-[900px]:py-4;
   }
 
   .mock-onboarding-sidebar-title {
-    @apply m-0 mb-5 text-slate-400 text-[0.72rem] font-extrabold tracking-widest uppercase;
+    @apply m-0 mb-5 shrink-0 text-slate-400 text-[0.72rem] font-extrabold tracking-widest uppercase;
   }
 
   .mock-onboarding-step-list {
-    @apply grid gap-2 m-0 p-0 list-none max-[900px]:grid-flow-col max-[900px]:auto-cols-[minmax(140px,1fr)] max-[900px]:overflow-x-auto max-[900px]:pb-1;
+    @apply grid min-h-0 flex-1 gap-2 m-0 p-0 list-none overflow-y-auto max-[900px]:grid-flow-col max-[900px]:auto-cols-[minmax(140px,1fr)] max-[900px]:overflow-x-auto max-[900px]:overflow-y-hidden max-[900px]:pb-1;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(148 163 184 / 0.55) transparent;
   }
 
   .mock-onboarding-step-item {
-    @apply flex gap-3 items-start p-3 rounded-2xl text-slate-400;
+    @apply flex gap-3 items-center p-3 rounded-2xl text-slate-400;
   }
 
   .mock-onboarding-step-item-active {
@@ -61,16 +67,16 @@
     @apply text-slate-300;
   }
 
-  .mock-onboarding-step-item span {
+  .mock-onboarding-step-copy span {
     @apply block text-[0.72rem] font-bold tracking-wide uppercase;
   }
 
-  .mock-onboarding-step-item strong {
+  .mock-onboarding-step-copy strong {
     @apply block mt-0.5 text-[0.95rem];
   }
 
   .mock-onboarding-step-icon {
-    @apply grid w-[34px] h-[34px] shrink-0 place-items-center rounded-xl bg-white/10;
+    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 [&_svg]:pointer-events-none;
   }
 
   .mock-onboarding-step-icon-active {
@@ -81,12 +87,18 @@
     @apply bg-green-600 text-white;
   }
 
-  .mock-onboarding-content {
-    @apply grid grid-rows-[1fr_auto] m-6 min-h-[calc(100vh-120px)] p-6 border border-slate-200 rounded-[28px] bg-white shadow-sm shadow-slate-900/5 max-[900px]:m-4 max-[900px]:min-h-0;
+  .mock-onboarding-main {
+    @apply flex min-h-0 min-w-0 flex-col bg-white;
+  }
+
+  .mock-onboarding-scroll {
+    @apply min-h-0 flex-1 overflow-y-auto p-6;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
   }
 
   .mock-onboarding-panel {
-    @apply grid gap-5 content-start pt-2 px-1;
+    @apply grid gap-5 content-start;
   }
 
   .mock-onboarding-eyebrow {
@@ -149,6 +161,10 @@
     @apply grid gap-1;
   }
 
+  .mock-onboarding-skip-row {
+    @apply max-w-2xl;
+  }
+
   .mock-onboarding-status-card {
     @apply grid gap-3.5 max-w-2xl p-4 border border-slate-200 rounded-[20px] bg-slate-50;
   }
@@ -206,7 +222,7 @@
   }
 
   .mock-onboarding-footer {
-    @apply flex flex-col gap-4 items-stretch mt-7 pt-5 border-t border-slate-200 max-[900px]:gap-4 sm:flex-row sm:items-center sm:justify-between;
+    @apply flex shrink-0 flex-col gap-4 items-stretch border-t border-slate-200 bg-white px-6 py-4 max-[900px]:gap-4 sm:flex-row sm:items-center sm:justify-between;
   }
 
   .mock-onboarding-footer-right {
@@ -240,4 +256,39 @@
   .mock-onboarding-pill-future {
     @apply text-violet-700 bg-violet-100;
   }
+}
+
+.mock-onboarding-scroll::-webkit-scrollbar,
+.mock-onboarding-step-list::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.mock-onboarding-scroll::-webkit-scrollbar-track,
+.mock-onboarding-step-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mock-onboarding-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: #cbd5e1;
+  background-clip: padding-box;
+}
+
+.mock-onboarding-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+  background-clip: padding-box;
+}
+
+.mock-onboarding-step-list::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgb(148 163 184 / 0.55);
+  background-clip: padding-box;
+}
+
+.mock-onboarding-step-list::-webkit-scrollbar-thumb:hover {
+  background: rgb(148 163 184 / 0.8);
+  background-clip: padding-box;
 }

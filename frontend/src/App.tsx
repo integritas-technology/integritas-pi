@@ -47,13 +47,14 @@ export default function App() {
     setShowOnboarding(true);
   };
 
-  if (showOnboarding) {
-    return <OnboardingWizard onComplete={finishOnboarding} onSkip={finishOnboarding} />;
-  }
-
   return (
-    <AppShell active={active} setActive={setActive}>
-      <ActivePage active={active} setActive={setActive} onRestartOnboarding={restartOnboarding} />
-    </AppShell>
+    <>
+      <AppShell active={active} setActive={setActive}>
+        <ActivePage active={active} setActive={setActive} onRestartOnboarding={restartOnboarding} />
+      </AppShell>
+      {showOnboarding && (
+        <OnboardingWizard onComplete={finishOnboarding} onSkip={finishOnboarding} />
+      )}
+    </>
   );
 }
