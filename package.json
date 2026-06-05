@@ -6,6 +6,7 @@
     "typecheck": "npm --prefix backend run typecheck && npm --prefix frontend run typecheck",
     "build": "npm --prefix backend run build && npm --prefix frontend run build",
     "audit:moderate": "npm --prefix backend audit --audit-level=moderate && npm --prefix frontend audit --audit-level=moderate",
-    "check": "npm run typecheck && npm run audit:moderate"
+    "check": "npm run typecheck && npm run audit:moderate",
+    "postinstall": "npm i --prefix backend && npm i --prefix frontend"
   }
 }
