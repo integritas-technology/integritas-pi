@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { NavId } from "./app/types";
 import { AppShell } from "./components/AppShell";
+import { OnboardingWizard } from "./features/onboarding/OnboardingWizard";
+import { isOnboardingComplete, markOnboardingComplete, resetOnboarding } from "./features/onboarding/storage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { DataSourcesPage } from "./pages/DataSourcesPage";
 import { DiagnosticsPage } from "./pages/DiagnosticsPage";
@@ -10,10 +12,18 @@ import { AutomationPage } from "./pages/AutomationPage";
 import { SetupPage } from "./pages/SetupPage";
 import { WalletPage } from "./pages/WalletPage";
 
-function ActivePage({ active, setActive }: { active: NavId; setActive: (id: NavId) => void }) {
+function ActivePage({
+  active,
+  setActive,
+  onRestartOnboarding
+}: {
+  active: NavId;
+  setActive: (id: NavId) => void;
+  onRestartOnboarding: () => void;
+}) {
   const pages: Record<NavId, React.ReactNode> = {
     dashboard: <DashboardPage onStartSetup={() => setActive("setup")} />,
-    setup: <SetupPage />,
+    setup: <SetupPage onRestartOnboarding={onRestartOnboarding} />,
     node: <MinimaPage />,
     wallet: <WalletPage />,
     integritas: <IntegritasPage />,
@@ -26,5 +36,25 @@ function ActivePage({ active, setActive }: { active: NavId; setActive: (id: NavI
 
 export default function App() {
   const [active, setActive] = useState<NavId>("dashboard");
-  return <AppShell active={active} setActive={setActive}><ActivePage active={active} setActive={setActive} /></AppShell>;
+  const [showOnboarding, setShowOnboarding] = useState(() => !isOnboardingComplete());
+
+  const finishOnboarding = () => {
+    markOnboardingComplete();
+    setShowOnboarding(false);
+  };
+
+  const restartOnboarding = () => {
+    resetOnboarding();
+    setShowOnboarding(true);
+  };
+
+  if (showOnboarding) {
+    return <OnboardingWizard onComplete={finishOnboarding} onSkip={finishOnboarding} />;
+  }
+
+  return (
+    <AppShell active={active} setActive={setActive}>
+      <ActivePage active={active} setActive={setActive} onRestartOnboarding={restartOnboarding} />
+    </AppShell>
+  );
 }

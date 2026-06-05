@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, LockKeyhole, RadioTower, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Circle, LockKeyhole, RadioTower, ShieldCheck, Sparkles } from "lucide-react";
 import { Page } from "../components/Page";
 
 const setupSteps = [
@@ -10,11 +10,22 @@ const setupSteps = [
   { title: "Secure your data origination", description: "Stamp source data with Integritas.", complete: false, icon: ShieldCheck }
 ];
 
-export function SetupPage() {
+export function SetupPage({ onRestartOnboarding }: { onRestartOnboarding?: () => void }) {
   const completed = setupSteps.filter((step) => step.complete).length;
 
   return (
-    <Page eyebrow="Setup" title="Get your edge data workflow running" desc="Follow these steps to connect devices, collect data, and create verifiable Integritas records from the Pi.">
+    <Page
+      eyebrow="Setup"
+      title="Get your edge data workflow running"
+      desc="Follow these steps to connect devices, collect data, and create verifiable Integritas records from the Pi."
+      action={
+        onRestartOnboarding ? (
+          <button type="button" className="setup-relaunch-button" onClick={onRestartOnboarding}>
+            <Sparkles size={16} /> Preview setup wizard
+          </button>
+        ) : undefined
+      }
+    >
       <section className="card setup-progress-card">
         <div>
           <strong>{completed} of {setupSteps.length} steps complete</strong>
