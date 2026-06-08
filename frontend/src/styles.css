@@ -180,6 +180,12 @@ button:disabled {
   align-items: center;
 }
 
+.topbar-left {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .topbar-title h2 {
   color: #020617;
   font-size: 1.25rem;
@@ -190,6 +196,7 @@ button:disabled {
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
+  justify-content: flex-start;
 }
 
 .clock-card {
@@ -580,6 +587,31 @@ code {
   gap: 16px;
 }
 
+.subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px;
+  width: fit-content;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.subtabs button {
+  padding: 10px 14px;
+  color: #475569;
+  font-weight: 800;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+}
+
+.subtabs button.active {
+  color: #ffffff;
+  background: #020617;
+}
+
 .data-read-list .json-preview {
   max-width: 520px;
   max-height: 260px;
@@ -897,6 +929,19 @@ th {
   .config-card {
     flex-direction: row;
     align-items: center;
+  }
+
+  .topbar {
+    justify-content: space-between;
+  }
+
+  .topbar-left {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .topbar-right {
+    justify-content: flex-end;
   }
 
   .hero-card {

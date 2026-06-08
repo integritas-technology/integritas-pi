@@ -36,11 +36,14 @@ export function AppShell({ active, setActive, children }: { active: NavId; setAc
 
         <main className="main-area">
           <header className="topbar">
-            <div className="topbar-title">
-              <div className="mobile-brand-icon"><Layers3 size={22} /></div>
-              <div><p>Current section</p><h2>{activeItem.label}</h2></div>
+            <div className="topbar-left">
+              <div className="topbar-title">
+                <div className="mobile-brand-icon"><Layers3 size={22} /></div>
+                <div><p>Current section</p><h2>{activeItem.label}</h2></div>
+              </div>
+              <div className="topbar-pills"><Pill tone="neutral">Pi Edition</Pill><Pill tone="neutral">Prototype</Pill></div>
             </div>
-            <div className="topbar-right"><Clock /><div className="topbar-pills"><Pill tone="neutral">Pi Edition</Pill><Pill tone="neutral">Prototype</Pill></div></div>
+            <div className="topbar-right"><Clock /></div>
           </header>
 
           <div className="mobile-nav">

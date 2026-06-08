@@ -3,39 +3,27 @@ import type { IntegritasConfig } from "../app/types";
 import { JsonPreview } from "../components/JsonPreview";
 import { Page } from "../components/Page";
 import { postJson } from "../lib/api";
-import { deleteSelected, downloadSelected, getHistory, pollRecord, stampFile, verifyProofFile, verifyRecord } from "../features/integritas/integritasApi";
-import { IntegritasHistoryTable } from "../features/integritas/IntegritasHistoryTable";
+import { stampFile, verifyProofFile } from "../features/integritas/integritasApi";
 import { IntegritasRuntimeConfig } from "../features/integritas/IntegritasRuntimeConfig";
 import { StampFilePanel } from "../features/integritas/StampFilePanel";
 import { VerifyProofPanel } from "../features/integritas/VerifyProofPanel";
-import type { IntegritasProofRecord } from "../features/integritas/integritasTypes";
 
 export function IntegritasPage() {
   const [config, setConfig] = useState<IntegritasConfig | null>(null);
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [stampUpload, setStampUpload] = useState<File | null>(null);
   const [verifyUpload, setVerifyUpload] = useState<File | null>(null);
-  const [records, setRecords] = useState<IntegritasProofRecord[]>([]);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [selectedRecord, setSelectedRecord] = useState<IntegritasProofRecord | null>(null);
   const [result, setResult] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     refreshConfig().catch((err: Error) => setError(err.message));
-    refreshHistory().catch((err: Error) => setError(err.message));
   }, []);
 
   async function refreshConfig() {
     const response = await fetch("/api/integritas/config");
     setConfig(await response.json() as IntegritasConfig);
-  }
-
-  async function refreshHistory() {
-    const response = await getHistory();
-    setRecords(response.items);
-    setSelectedRecord((current) => current ? response.items.find((item) => item.id === current.id) ?? null : null);
   }
 
   async function run(action: () => Promise<unknown>) {
@@ -44,7 +32,6 @@ export function IntegritasPage() {
     try {
       const response = await action();
       setResult(response);
-      await refreshHistory();
       return response;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -52,10 +39,6 @@ export function IntegritasPage() {
     } finally {
       setBusy(false);
     }
-  }
-
-  function toggleSelected(id: string) {
-    setSelectedIds((ids) => ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id]);
   }
 
   return (
@@ -71,21 +54,8 @@ export function IntegritasPage() {
 
       <div className="integritas-upload-grid">
         <StampFilePanel file={stampUpload} setFile={setStampUpload} busy={busy} onStamp={() => run(async () => { if (!stampUpload) throw new Error("Select a file first"); const response = await stampFile(stampUpload); setStampUpload(null); return response; })} />
-        <VerifyProofPanel file={verifyUpload} setFile={setVerifyUpload} busy={busy} selectedRecord={selectedRecord} onVerifyFile={() => run(async () => { if (!verifyUpload) throw new Error("Select a proof JSON file first"); const response = await verifyProofFile(verifyUpload); setVerifyUpload(null); return response; })} onVerifySelected={() => run(async () => { if (!selectedRecord) throw new Error("Select a history row first"); return verifyRecord(selectedRecord.id); })} />
+        <VerifyProofPanel file={verifyUpload} setFile={setVerifyUpload} busy={busy} onVerifyFile={() => run(async () => { if (!verifyUpload) throw new Error("Select a proof JSON file first"); const response = await verifyProofFile(verifyUpload); setVerifyUpload(null); return response; })} />
       </div>
-
-      <IntegritasHistoryTable
-        records={records}
-        selectedIds={selectedIds}
-        selectedRecordId={selectedRecord?.id ?? null}
-        busy={busy}
-        onToggle={toggleSelected}
-        onSelect={setSelectedRecord}
-        onPoll={(record) => run(() => pollRecord(record.id))}
-        onVerify={(record) => run(() => verifyRecord(record.id))}
-        onDeleteSelected={() => run(async () => { const response = await deleteSelected(selectedIds); setSelectedIds([]); return response; })}
-        onDownloadSelected={() => run(() => downloadSelected(selectedIds))}
-      />
 
       {error && <p className="error-text">{error}</p>}
       {result !== null && <JsonPreview value={result} />}
