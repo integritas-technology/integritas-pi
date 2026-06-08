@@ -75,13 +75,20 @@ backend/src/
         └── setup.routes.ts            ← status, totp init, complete
 
 frontend/src/
+├── lib/
+│   └── api.ts                         ← extend: credentials:include, getJson, 401 handler
 └── features/
-    └── auth/
-        ├── api.ts
-        ├── types.ts
-        ├── AuthProvider.tsx           ← session state, /api/auth/me on load
-        ├── LoginPage.tsx              ← replace mock/login
-        └── hooks.ts
+    ├── auth/
+    │   ├── api.ts
+    │   ├── types.ts
+    │   ├── AuthProvider.tsx           ← bootstrap: setup/status → wizard vs auth/me
+    │   ├── LoginPage.tsx              ← migrate from mock/login
+    │   └── hooks.ts
+    └── setup/
+        ├── config.ts                  ← INTEGRITAS_STEP_REQUIRED toggle
+        ├── OnboardingWizard.tsx       ← migrate from mock/onboarding (keep CSS)
+        ├── steps.ts
+        └── types.ts
 ```
 
 Wire routers in `backend/src/app.ts`:
@@ -92,7 +99,28 @@ app.use("/api/auth", authRouter);       // login public; logout/me protected
 // … existing feature routers behind requireAuth
 ```
 
-Replace `frontend/src/mock/login` and connect `frontend/src/mock/onboarding/OnboardingWizard.tsx` to real setup endpoints (then delete mock auth storage).
+Delete `frontend/src/mock/login` and `frontend/src/mock/onboarding` after migration (remove all `localStorage` auth/onboarding gates).
+
+---
+
+## App bootstrap flow
+
+Replaces mock routing in [`frontend/src/App.tsx`](../frontend/src/App.tsx):
+
+```txt
+App load
+  → GET /api/setup/status
+      setupComplete: false  → OnboardingWizard (first-run only)
+      setupComplete: true  → GET /api/auth/me (credentials: include)
+          200 → AppShell
+          401 → LoginPage
+OnboardingWizard finish → POST /api/setup/complete → session cookie → AppShell
+LoginPage → POST /api/auth/login → session cookie → AppShell
+```
+
+- Show a loading state while `setup/status` and `auth/me` resolve
+- Remove guest skip ("Continue as guest") from wizard and login
+- [`SetupPage`](../frontend/src/pages/SetupPage.tsx): remove "Preview setup wizard" (setup cannot re-run after admin exists); sign-out calls `POST /api/auth/logout`
 
 ---
 
@@ -134,7 +162,17 @@ totp_secret  TEXT NOT NULL          -- EncryptedSecret JSON
 expires_at   TEXT NOT NULL          -- e.g. 15 minutes from init
 ```
 
-> Why `setup_pending`: the original plan’s single `POST /setup/complete` cannot show a real QR code unless the server generates the secret first. The frontend onboarding wizard already has a dedicated 2FA step with QR display.
+**`audit_events` table**
+
+```sql
+id         TEXT PRIMARY KEY
+created_at TEXT NOT NULL
+user_id    TEXT                   -- nullable for failed login / pre-setup events
+action     TEXT NOT NULL          -- e.g. login.success, setup.complete
+detail     TEXT                   -- metadata only, no secrets
+```
+
+> Why `setup_pending`: the wizard’s 2FA step needs a real QR before `POST /api/setup/complete`. TOTP is verified for real on **complete** (no separate verify endpoint in V1).
 
 Use `crypto.randomUUID()` for IDs (consistent with other features). Use `new Date().toISOString()` for timestamps.
 
@@ -253,9 +291,11 @@ Default `COOKIE_SECURE=false` in `.env.example` with a comment that TLS + `COOKI
 
 **`POST /api/setup/totp/init`** (only when `setupComplete === false`)
 
+Body: `{ "username": "admin" }` — username from account step (labels the QR / otpauth URL).
+
 - Generate TOTP secret, store encrypted row in `setup_pending` (15 min TTL)
 - Return `{ qrCodePngBase64, expiresAt }` — **never** return raw secret in JSON
-- Frontend shows QR; user enters code on next step
+- Call when user enters the 2FA step; frontend shows QR; user enters 6-digit code (verified on **complete**)
 
 **`POST /api/setup/complete`** (only when no users)
 
@@ -276,12 +316,12 @@ Steps:
 2. Load latest non-expired `setup_pending` row; fail if missing
 3. Decrypt pending secret; verify `totpToken`
 4. `hashPassword`, encrypt totp secret, INSERT user
-5. If `integritasApiKey` non-empty → `saveIntegritasApiKey()` (not `.env`)
-6. Delete `setup_pending` rows
-7. `createSession`, set cookie
+5. If `integritasApiKey` non-empty → validate with lightweight upstream check, then `saveIntegritasApiKey()` (not `.env`)
+6. Delete `setup_pending` rows; write `audit_events` row (`setup.complete`)
+7. `createSession` (new token — no session fixation), set cookie
 8. Return `{ success: true, user: { username, role } }`
 
-Integritas API key is **optional** at setup (wizard allows skip; key can be saved later on Integritas page).
+Integritas API key is **optional** at setup — wizard Integritas step has a **Skip** button (see Phase 8). Key can be saved later on the Integritas page.
 
 ### Auth — `backend/src/features/auth/auth.routes.ts`
 
@@ -336,20 +376,52 @@ No `dotenv` package — Docker Compose and `install.sh` already inject env vars.
 
 ---
 
-## Phase 8 — Frontend integration
+## Phase 8 — Frontend integration (auth + startup wizard)
 
-1. On app load: `GET /api/setup/status`
-   - `setupComplete: false` → show onboarding wizard (real API)
-   - `setupComplete: true` → `GET /api/auth/me` (credentials: include)
-     - 200 → main app
-     - 401 → login screen
-2. Replace `localStorage` mock session (`frontend/src/mock/login/storage.ts`) with cookie-based session (`fetch(..., { credentials: "include" })`).
-3. Remove guest login from V1 product flow (or keep UI hidden until guest permissions exist).
-4. Onboarding wizard steps map to:
-   - account → local form state
-   - twofa → `POST /api/setup/totp/init` then display `qrCodePngBase64`
-   - integritas → optional key in `POST /api/setup/complete`
-5. Global API helper: on `401`, redirect to login (except on public auth/setup calls).
+Auth and the first-run wizard ship in the **same phase** — not as a follow-up.
+
+### 8a — Shared API layer — `frontend/src/lib/api.ts`
+
+- Add `credentials: "include"` to all fetches (`getJson`, `postJson`, etc.)
+- Central `401` handler (redirect to login except on public auth/setup calls)
+
+### 8b — `AuthProvider` — `frontend/src/features/auth/AuthProvider.tsx`
+
+- On mount: `GET /api/setup/status` → if incomplete, render wizard; else `GET /api/auth/me`
+- Expose `user`, `loading`, `signOut`, `refreshSession`
+- Wrap app in [`App.tsx`](../frontend/src/App.tsx)
+
+### 8c — Startup wizard — migrate `mock/onboarding` → `features/setup/`
+
+Keep existing UI/CSS; remove mock-only copy (`UI mockup`, `MOCK_2FA_SECRET`, pattern QR grid).
+
+| Step | Wired behavior |
+|---|---|
+| Welcome | Static — unchanged |
+| Account | Local validation (username min 2, password min 8, confirm match) |
+| 2FA | On step enter: `POST /api/setup/totp/init` with `{ username }`; show `qrCodePngBase64`; require 6-digit code entered (real verify on **complete**) |
+| Integritas | Optional — verify button if key entered; **Skip** to continue without key |
+| Complete | `POST /api/setup/complete` with full form → `AuthProvider.refreshSession()` → AppShell |
+
+**Integritas step toggle** — `frontend/src/features/setup/config.ts`:
+
+```ts
+export const INTEGRITAS_STEP_REQUIRED = false;
+```
+
+- `false` (V1): Skip visible; `canContinue` = verified **or** skipped
+- `true`: hide Skip; require verify before continue (one constant change)
+
+### 8d — Login — migrate `mock/login` → `features/auth/LoginPage.tsx`
+
+- Keep two-phase UI (credentials → TOTP)
+- `POST /api/auth/login` with `{ username, password, totpToken }`
+- Remove guest login
+
+### 8e — Cleanup
+
+- Delete `frontend/src/mock/login/` and `frontend/src/mock/onboarding/` (and `localStorage` storage)
+- Update [`SetupPage`](../frontend/src/pages/SetupPage.tsx): real sign-out; no "Preview setup wizard"
 
 Nginx already proxies `/api/` with cookies; no frontend nginx change required.
 
@@ -402,14 +474,16 @@ Already present: `better-sqlite3`, `@types/better-sqlite3`, `express`.
 
 ## Suggested implementation order
 
-1. DB migrations + auth repository
-2. password + totp + session services
-3. setup routes (status, totp/init, complete) + integritas key via secrets service
-4. auth routes (login, logout, me) + middleware + protect existing routers
-5. Frontend auth feature + wire onboarding wizard
-6. Remove mock login/onboarding persistence
-7. Verification: `npm run check`, manual HTTP LAN test with `COOKIE_SECURE=false`
-8. Update README / SECURITY / AGENTS
+1. DB migrations (`users`, `sessions`, `setup_pending`, `audit_events`) + auth repository
+2. Password + totp + session services
+3. Setup + auth routes (test with curl + cookies)
+4. `requireAuth` on all existing routers; rate-limit login/setup
+5. Extend `frontend/src/lib/api.ts` + `AuthProvider`
+6. Migrate wizard to `features/setup/`; wire totp/init + setup/complete
+7. Migrate login to `features/auth/LoginPage.tsx`; refactor `App.tsx`
+8. Remove mock folders; update `SetupPage`
+9. Verification: `npm run check`, manual path below
+10. Update README / SECURITY / AGENTS / `.env.example`
 
 ---
 
@@ -424,9 +498,11 @@ docker compose config
 
 Manual:
 
-- Fresh `DATA_DIR`: wizard → admin + 2FA → logged in
+- Fresh `DATA_DIR`: wizard (account → 2FA QR → skip Integritas) → dashboard logged in
+- Fresh `DATA_DIR` with key: wizard including Integritas verify → key configured
 - Reload browser: session persists via cookie
 - Logout clears access; API returns 401
 - Wrong password/TOTP: generic error only
 - `integritas-pi status` without cookie: 401 (documented)
+- No guest skip; no "Preview setup wizard" after admin exists
 - API key saved during setup appears as configured in Integritas UI (masked, not returned)

@@ -7,11 +7,11 @@ Living doc for **auth implementation** risks and controls. Implementation detail
 ## Scope
 
 **In scope (app responsibility):**
-- Login, sessions, TOTP, setup wizard
+- Login, sessions, TOTP, and **first-run startup wizard** (same Phase 1 delivery)
 - Protecting all `/api/*` routes except explicit public endpoints
 - Secrets handling (passwords, TOTP, Integritas key, session tokens)
 - Server-side input validation on auth/setup routes
-- Audit metadata for sensitive actions
+- Audit metadata for sensitive actions (`audit_events` table)
 
 **Out of scope (user / later phases):**
 - OS hardening, firewall, SSH, physical security
@@ -33,6 +33,7 @@ Living doc for **auth implementation** risks and controls. Implementation detail
 - Admin-only: single `admin` role; `requireRole('admin')` on high-risk mutations
 - TOTP mandatory at first-run setup and every login
 - Remove frontend mock guest/localStorage auth
+- Wizard gated by `GET /api/setup/status` (not `localStorage`); no re-run after admin exists
 
 **Status:** Planned — see auth-implementation.md
 
@@ -109,7 +110,21 @@ Living doc for **auth implementation** risks and controls. Implementation detail
 **Controls:**
 - Reject setup if any user exists
 - `setup_pending` TOTP rows: 15 min TTL, rate limited
+- `POST /api/setup/totp/init` requires `{ username }` from account step
 - Setup complete in transaction where practical
+- TOTP verified only on `POST /api/setup/complete` (no separate verify endpoint in V1)
+
+---
+
+### 11. Wizard UX / mock leftovers
+**Risk:** Mock wizard leaves localStorage gates, fake QR, or guest skip — bypassing real auth.
+
+**Controls:**
+- Migrate wizard from `mock/onboarding` → `features/setup/`; wire real APIs
+- `AuthProvider` owns bootstrap (`setup/status` → wizard vs `auth/me`)
+- Remove mock QR, `MOCK_2FA_SECRET`, "UI mockup" copy, guest skip
+- Integritas step optional via `INTEGRITAS_STEP_REQUIRED = false` (toggle to require later)
+- All `fetch` calls use `credentials: "include"`
 
 ---
 
@@ -222,10 +237,22 @@ No passwords, tokens, or key values in audit rows.
 
 ## Pre-coding checklist
 
+**Backend**
+- [ ] `audit_events` table + logging (login, logout, setup.complete, api key changes)
 - [ ] Rate limits on login/setup
-- [ ] Session regeneration on login
-- [ ] Audit table + secret-change logging
-- [ ] Integritas key validation before save
+- [ ] Session regeneration on login/setup complete
+- [ ] Integritas key validation before save (setup + integritas routes)
 - [ ] `requireRole('admin')` on high-risk routes
+
+**Frontend (wizard + auth together)**
+- [ ] `lib/api.ts`: `credentials: "include"` on all requests
+- [ ] `AuthProvider` bootstrap flow
+- [ ] Wizard wired: `totp/init` (with username) → `setup/complete`
+- [ ] Integritas step Skip + `INTEGRITAS_STEP_REQUIRED` toggle
+- [ ] Remove mock login/onboarding + localStorage gates
+- [ ] `SetupPage`: real logout; no "Preview setup wizard"
+
+**Verification**
 - [ ] Security tests (401, setup guard, generic login error)
+- [ ] Manual: wizard skip Integritas path + wizard with key path
 - [ ] Update SECURITY.md statuses when merged
