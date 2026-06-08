@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { IntegritasConfig } from "../app/types";
 import { JsonPreview } from "../components/JsonPreview";
+import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
 import { postJson } from "../lib/api";
 import { stampFile, verifyProofFile } from "../features/integritas/integritasApi";
@@ -18,6 +19,7 @@ export function IntegritasPage() {
   const [result, setResult] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
 
   useEffect(() => {
     refreshConfig().catch((err: Error) => setError(err.message));
@@ -44,15 +46,19 @@ export function IntegritasPage() {
   }
 
   return (
-    <Page eyebrow="Integritas" title="Prove local data" desc="Generate timestamp proofs from local files, poll proof status, export proof payloads, and verify JSON proof files.">
-      <IntegritasRuntimeConfig
-        config={config}
-        apiKeyInput={apiKeyInput}
-        setApiKeyInput={setApiKeyInput}
-        busy={busy}
-        onSave={() => run(async () => { const response = await postJson("/api/integritas/api-key", { apiKey: apiKeyInput }); setApiKeyInput(""); await refreshConfig(); return response; })}
-        onClear={() => run(async () => { const response = await fetch("/api/integritas/api-key", { method: "DELETE" }); const parsed = await response.json(); if (!response.ok) throw new Error(parsed?.error || `HTTP ${response.status}`); await refreshConfig(); return parsed; })}
-      />
+    <Page eyebrow="Integritas" title="Prove local data" desc="Generate timestamp proofs from local files, poll proof status, export proof payloads, and verify JSON proof files." action={<button type="button" className="section-action-button" onClick={() => setConfigOpen(true)}>Configure Integritas</button>}>
+      {configOpen && (
+        <Modal title="Runtime configuration" onClose={() => setConfigOpen(false)}>
+          <IntegritasRuntimeConfig
+            config={config}
+            apiKeyInput={apiKeyInput}
+            setApiKeyInput={setApiKeyInput}
+            busy={busy}
+            onSave={() => run(async () => { const response = await postJson("/api/integritas/api-key", { apiKey: apiKeyInput }); setApiKeyInput(""); await refreshConfig(); return response; })}
+            onClear={() => run(async () => { const response = await fetch("/api/integritas/api-key", { method: "DELETE" }); const parsed = await response.json(); if (!response.ok) throw new Error(parsed?.error || `HTTP ${response.status}`); await refreshConfig(); return parsed; })}
+          />
+        </Modal>
+      )}
 
       <div className="integritas-upload-grid">
         <StampFilePanel file={stampUpload} setFile={(file) => { setStampUpload(file); setStampResult(null); }} busy={busy} result={stampResult} onStamp={() => run(async () => { if (!stampUpload) throw new Error("Select a file first"); const response = await stampFile(stampUpload); setStampUpload(null); setStampResult(response); setResult(null); return response; }, false)} />

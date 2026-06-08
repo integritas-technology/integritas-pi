@@ -1,10 +1,9 @@
 import type { IntegritasConfig } from "../../app/types";
-import { Card } from "../../components/Card";
 import { StatusBadge } from "../../components/StatusBadge";
 
 export function IntegritasRuntimeConfig({ config, apiKeyInput, setApiKeyInput, busy, onSave, onClear }: { config: IntegritasConfig | null; apiKeyInput: string; setApiKeyInput: (value: string) => void; busy: boolean; onSave: () => void; onClear: () => void }) {
   return (
-    <Card className="config-card">
+    <section className="config-card runtime-config-panel">
       <div>
         <strong>Runtime configuration</strong>
         <code>baseUrl: {config?.baseUrl ?? "loading..."}</code>
@@ -19,6 +18,6 @@ export function IntegritasRuntimeConfig({ config, apiKeyInput, setApiKeyInput, b
           <button type="button" disabled={busy || !config?.hasApiKey} onClick={onClear}>Clear stored key</button>
         </div>
       </div>
-    </Card>
+    </section>
   );
 }
