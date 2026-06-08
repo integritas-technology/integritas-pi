@@ -1,4 +1,9 @@
-export type OnboardingStepId = "welcome" | "account" | "minima" | "integritas" | "complete";
+export type OnboardingStepId =
+  | "welcome"
+  | "account"
+  | "minima"
+  | "integritas"
+  | "complete";
 
 export type OnboardingStep = {
   id: OnboardingStepId;

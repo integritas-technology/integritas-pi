@@ -2,15 +2,15 @@
 
 @layer components {
   .mock-onboarding-root {
-    @apply fixed inset-0 z-50 grid place-items-center overscroll-contain p-4 sm:p-6 bg-slate-900/20 backdrop-blur-md;
+    @apply fixed inset-0 z-50 flex min-h-0 flex-col overflow-hidden overscroll-contain bg-white;
   }
 
-  .mock-onboarding-modal {
-    @apply flex h-[min(768px,92vh)] w-full max-w-[1160px] flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-2xl shadow-slate-900/20;
+  .mock-onboarding-shell {
+    @apply flex h-full min-h-0 w-full flex-col overflow-hidden bg-white;
   }
 
   .mock-onboarding-header {
-    @apply flex shrink-0 items-center justify-between gap-4 px-6 py-4 bg-white border-b border-slate-200;
+    @apply flex shrink-0 items-center justify-between gap-4 px-6 py-3 bg-white border-b border-slate-200;
   }
 
   .mock-onboarding-brand {
@@ -38,25 +38,25 @@
   }
 
   .mock-onboarding-body {
-    @apply grid min-h-0 flex-1 grid-cols-1 max-[900px]:grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)];
+    @apply grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)];
   }
 
   .mock-onboarding-sidebar {
-    @apply flex min-h-0 flex-col overflow-hidden p-5 text-slate-200 bg-slate-900 max-[900px]:px-4 max-[900px]:py-4;
+    @apply flex min-h-0 flex-col overflow-hidden p-4 text-slate-200 bg-slate-900 max-[900px]:px-4 max-[900px]:py-3;
   }
 
   .mock-onboarding-sidebar-title {
-    @apply m-0 mb-5 shrink-0 text-slate-400 text-[0.72rem] font-extrabold tracking-widest uppercase;
+    @apply m-0 mb-3 shrink-0 text-slate-400 text-[0.72rem] font-extrabold tracking-widest uppercase;
   }
 
   .mock-onboarding-step-list {
-    @apply grid min-h-0 flex-1 gap-2 m-0 p-0 list-none overflow-y-auto max-[900px]:grid-flow-col max-[900px]:auto-cols-[minmax(140px,1fr)] max-[900px]:overflow-x-auto max-[900px]:overflow-y-hidden max-[900px]:pb-1;
+    @apply grid min-h-0 gap-2 m-0 p-0 list-none overflow-y-auto max-[900px]:grid-flow-col max-[900px]:auto-cols-[minmax(140px,1fr)] max-[900px]:overflow-x-auto max-[900px]:overflow-y-hidden max-[900px]:pb-1;
     scrollbar-width: thin;
     scrollbar-color: rgb(148 163 184 / 0.55) transparent;
   }
 
   .mock-onboarding-step-item {
-    @apply flex gap-3 items-center p-3 rounded-2xl text-slate-400;
+    @apply flex gap-2.5 items-center px-2.5 py-2 rounded-xl text-slate-400;
   }
 
   .mock-onboarding-step-item-active {
@@ -72,11 +72,11 @@
   }
 
   .mock-onboarding-step-copy strong {
-    @apply block mt-0.5 text-[0.95rem];
+    @apply block mt-0.5 text-[0.88rem] leading-snug;
   }
 
   .mock-onboarding-step-icon {
-    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 [&_svg]:pointer-events-none;
+    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 [&_svg]:pointer-events-none;
   }
 
   .mock-onboarding-step-icon-active {
@@ -92,13 +92,13 @@
   }
 
   .mock-onboarding-scroll {
-    @apply min-h-0 flex-1 overflow-y-auto p-6;
+    @apply min-h-0 flex-1 overflow-y-auto px-6 py-5 lg:px-10 lg:py-6;
     scrollbar-width: thin;
     scrollbar-color: #cbd5e1 transparent;
   }
 
   .mock-onboarding-panel {
-    @apply grid gap-5 content-start;
+    @apply grid gap-3 content-start;
   }
 
   .mock-onboarding-eyebrow {
@@ -106,31 +106,31 @@
   }
 
   .mock-onboarding-panel h2 {
-    @apply m-0 text-[clamp(1.6rem,3vw,2.2rem)] leading-tight text-slate-950;
+    @apply m-0 text-[clamp(1.4rem,2.2vw,1.85rem)] leading-tight text-slate-950;
   }
 
   .mock-onboarding-lead {
-    @apply max-w-3xl m-0 text-slate-600 leading-relaxed;
+    @apply max-w-3xl m-0 text-sm text-slate-600 leading-relaxed;
   }
 
   .mock-onboarding-feature-grid {
-    @apply grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3.5;
+    @apply grid grid-cols-1 gap-2.5 sm:grid-cols-3;
   }
 
   .mock-onboarding-feature-card {
-    @apply grid gap-2.5 p-4 border border-slate-200 rounded-[20px] bg-slate-50;
+    @apply grid gap-2 p-3 border border-slate-200 rounded-2xl bg-slate-50;
   }
 
   .mock-onboarding-feature-card h3 {
-    @apply m-0 text-base;
+    @apply m-0 text-sm;
   }
 
   .mock-onboarding-feature-card p {
-    @apply m-0 text-slate-500 text-sm leading-relaxed;
+    @apply m-0 text-slate-500 text-xs leading-relaxed;
   }
 
   .mock-onboarding-form-grid {
-    @apply grid gap-4 max-w-[520px];
+    @apply grid gap-2.5 max-w-[520px];
   }
 
   .mock-onboarding-label {
@@ -138,7 +138,7 @@
   }
 
   .mock-onboarding-input {
-    @apply w-full p-3 text-slate-950 border border-slate-300 rounded-2xl bg-slate-50;
+    @apply w-full px-3 py-2.5 text-slate-950 border border-slate-300 rounded-xl bg-slate-50;
   }
 
   .mock-onboarding-muted {
@@ -154,7 +154,7 @@
   }
 
   .mock-onboarding-check-row {
-    @apply grid grid-cols-[auto_1fr] items-center gap-3 p-3.5 border border-slate-200 rounded-[18px] bg-slate-50;
+    @apply grid grid-cols-[auto_1fr] items-center gap-2.5 p-3 border border-slate-200 rounded-2xl bg-slate-50;
   }
 
   .mock-onboarding-check-row span {
@@ -166,7 +166,7 @@
   }
 
   .mock-onboarding-status-card {
-    @apply grid gap-3.5 max-w-2xl p-4 border border-slate-200 rounded-[20px] bg-slate-50;
+    @apply grid gap-2.5 max-w-2xl p-3 border border-slate-200 rounded-2xl bg-slate-50;
   }
 
   .mock-onboarding-status-row {
@@ -178,7 +178,7 @@
   }
 
   .mock-onboarding-mock-result {
-    @apply flex gap-3 items-start p-3 rounded-xl text-emerald-700 bg-emerald-50;
+    @apply flex gap-2.5 items-start p-2.5 rounded-xl text-sm text-emerald-700 bg-emerald-50;
   }
 
   .mock-onboarding-mock-result p {
@@ -186,7 +186,7 @@
   }
 
   .mock-onboarding-info-callout {
-    @apply flex gap-3.5 items-start max-w-2xl p-4 border border-blue-200 rounded-[18px] bg-blue-50;
+    @apply flex gap-3 items-start max-w-2xl p-3 border border-blue-200 rounded-2xl bg-blue-50;
   }
 
   .mock-onboarding-info-callout a {
@@ -194,11 +194,11 @@
   }
 
   .mock-onboarding-summary-list {
-    @apply grid gap-2.5 max-w-xl m-0 p-0 list-none;
+    @apply grid gap-2 max-w-xl m-0 p-0 list-none;
   }
 
   .mock-onboarding-summary-item {
-    @apply flex gap-3 items-start p-3.5 border rounded-2xl border-slate-200 bg-slate-50;
+    @apply flex gap-2.5 items-start p-3 border rounded-xl border-slate-200 bg-slate-50;
   }
 
   .mock-onboarding-summary-item-ok {
@@ -218,11 +218,11 @@
   }
 
   .mock-onboarding-note {
-    @apply max-w-2xl m-0 p-3 rounded-xl bg-slate-100 text-sm text-slate-500;
+    @apply max-w-2xl m-0 p-2.5 rounded-xl bg-slate-100 text-xs text-slate-500;
   }
 
   .mock-onboarding-footer {
-    @apply flex shrink-0 flex-col gap-4 items-stretch border-t border-slate-200 bg-white px-6 py-4 max-[900px]:gap-4 sm:flex-row sm:items-center sm:justify-between;
+    @apply flex shrink-0 flex-col gap-3 items-stretch border-t border-slate-200 bg-white px-6 py-3 max-[900px]:gap-3 sm:flex-row sm:items-center sm:justify-between;
   }
 
   .mock-onboarding-footer-right {
@@ -230,11 +230,11 @@
   }
 
   .mock-onboarding-btn-primary {
-    @apply inline-flex items-center gap-2 px-4 py-3 text-white font-bold border-0 rounded-2xl bg-slate-950 cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed;
+    @apply inline-flex items-center gap-2 px-4 py-2.5 text-sm text-white font-bold border-0 rounded-xl bg-slate-950 cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed;
   }
 
   .mock-onboarding-btn-secondary {
-    @apply inline-flex items-center gap-2 px-4 py-3 text-slate-700 font-bold border-0 rounded-2xl bg-slate-100 cursor-pointer;
+    @apply inline-flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 font-bold border-0 rounded-xl bg-slate-100 cursor-pointer;
   }
 
   .mock-onboarding-pill {
@@ -255,6 +255,20 @@
 
   .mock-onboarding-pill-future {
     @apply text-violet-700 bg-violet-100;
+  }
+
+  .mock-onboarding-action-row {
+    @apply flex flex-wrap gap-2.5 items-center;
+  }
+}
+
+@media (max-height: 700px) {
+  .mock-onboarding-scroll {
+    padding-block: 0.75rem;
+  }
+
+  .mock-onboarding-panel {
+    gap: 0.5rem;
   }
 }
 

@@ -5,5 +5,5 @@ export const onboardingSteps: OnboardingStep[] = [
   { id: "account", label: "Secure access", shortLabel: "Account" },
   { id: "minima", label: "Minima node", shortLabel: "Minima" },
   { id: "integritas", label: "Integritas stamping", shortLabel: "Integritas" },
-  { id: "complete", label: "Ready to use", shortLabel: "Finish" }
+  { id: "complete", label: "Ready to use", shortLabel: "Finish" },
 ];
