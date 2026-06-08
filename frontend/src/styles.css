@@ -1206,6 +1206,12 @@ th {
   }
 }
 
+.setup-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .setup-relaunch-button {
   display: inline-flex;
   gap: 8px;
@@ -1216,4 +1222,10 @@ th {
   border: 0;
   border-radius: 16px;
   background: #020617;
+  cursor: pointer;
+}
+
+.setup-signout-button {
+  color: #334155;
+  background: #f1f5f9;
 }

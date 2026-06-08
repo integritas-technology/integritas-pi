@@ -1,0 +1,159 @@
+import { useState } from "react";
+import { ArrowLeft, ArrowRight, Layers3, LogIn } from "lucide-react";
+import "./login.css";
+
+type LoginPhase = "credentials" | "twofa";
+
+export function LoginScreen({ onLogin }: { onLogin: () => void }) {
+  const [phase, setPhase] = useState<LoginPhase>("credentials");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+  const [signingIn, setSigningIn] = useState(false);
+
+  const credentialsValid =
+    username.trim().length >= 2 && password.trim().length >= 1;
+  const twoFactorValid = twoFactorCode.length === 6;
+
+  const continueToTwoFactor = () => {
+    if (!credentialsValid) return;
+    setPhase("twofa");
+    setTwoFactorCode("");
+  };
+
+  const signIn = () => {
+    if (!twoFactorValid || signingIn) return;
+    setSigningIn(true);
+    window.setTimeout(() => {
+      setSigningIn(false);
+      onLogin();
+    }, 700);
+  };
+
+  const backToCredentials = () => {
+    setPhase("credentials");
+    setTwoFactorCode("");
+    setSigningIn(false);
+  };
+
+  return (
+    <div className="mock-login-root">
+      <div className="mock-login-card" role="main" aria-label="Sign in">
+        <div className="mock-login-brand">
+          <div className="mock-login-brand-icon" aria-hidden="true">
+            <Layers3 size={24} />
+          </div>
+          <div>
+            <p>Minima Edge Stack</p>
+            <h1>Edge Workbench</h1>
+          </div>
+          <span className="mock-login-pill">UI mockup</span>
+        </div>
+
+        {phase === "credentials" ? (
+          <div className="mock-login-panel">
+            <p className="mock-login-eyebrow">Sign in</p>
+            <h2>Welcome back</h2>
+            <p className="mock-login-lead">
+              Enter your admin username and password to continue.
+            </p>
+
+            <div className="mock-login-form">
+              <label className="mock-login-label">
+                Username
+                <input
+                  className="mock-login-input"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  placeholder="admin"
+                  autoComplete="username"
+                />
+              </label>
+
+              <label className="mock-login-label">
+                Password
+                <input
+                  className="mock-login-input"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  type="password"
+                  placeholder="Your password"
+                  autoComplete="current-password"
+                />
+              </label>
+            </div>
+
+            <div className="mock-login-actions">
+              <button
+                type="button"
+                className="mock-login-btn-primary"
+                disabled={!credentialsValid}
+                onClick={continueToTwoFactor}
+              >
+                Continue <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="mock-login-panel">
+            <button
+              type="button"
+              className="mock-login-back"
+              onClick={backToCredentials}
+            >
+              <ArrowLeft size={16} /> Back
+            </button>
+
+            <p className="mock-login-eyebrow">Two-factor auth</p>
+            <h2>Enter your code</h2>
+            <p className="mock-login-lead">
+              Open your authenticator app and enter the 6-digit code for{" "}
+              <strong>{username.trim() || "your account"}</strong>.
+            </p>
+
+            <div className="mock-login-form">
+              <label className="mock-login-label">
+                Authentication code
+                <input
+                  className="mock-login-code-input"
+                  value={twoFactorCode}
+                  onChange={(event) =>
+                    setTwoFactorCode(
+                      event.target.value.replace(/\D/g, "").slice(0, 6),
+                    )
+                  }
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="000000"
+                  maxLength={6}
+                  autoFocus
+                />
+              </label>
+            </div>
+
+            <div className="mock-login-actions">
+              <button
+                type="button"
+                className="mock-login-btn-primary"
+                disabled={!twoFactorValid || signingIn}
+                onClick={signIn}
+              >
+                {signingIn ? (
+                  "Signing in…"
+                ) : (
+                  <>
+                    <LogIn size={16} /> Sign in
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <p className="mock-login-note">
+          Mock login only. Any username, password, and 6-digit code will work.
+        </p>
+      </div>
+    </div>
+  );
+}
