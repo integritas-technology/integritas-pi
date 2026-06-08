@@ -84,6 +84,14 @@ The Minima page also stores its Megammr host URL in SQLite through the Configure
 
 The Minima page exposes an allowlisted Megammr resync action. The browser calls the backend, and the backend calls Minima RPC internally with `megammrsync action:resync host:<configured-megammr-host>`.
 
+The Wallet page exposes an allowlisted balance read. The browser calls the backend, and the backend calls Minima RPC internally with `balance`.
+
+Minima RPC commands should be transmitted as a single percent-encoded URL path command, not as query parameters. For example:
+
+```txt
+http://minima:9005/megammrsync%20action%3Aresync%20host%3Amegammr.minima.global%3A9001
+```
+
 To install with another file root or port:
 
 ```bash

@@ -141,8 +141,9 @@ Status: Partially mitigated by host-local bind and no arbitrary command proxy.
 
 Current Controls:
 
-- Backend exposes a narrow allowlisted Megammr resync action instead of a generic Minima command proxy.
-- The resync action always calls the configured Minima RPC endpoint over the Docker network and only passes the saved Megammr host value.
+- Backend exposes narrow allowlisted Minima actions instead of a generic Minima command proxy.
+- The Megammr resync action always calls the configured Minima RPC endpoint over the Docker network and only passes the saved Megammr host value.
+- The wallet balance action only calls the Minima `balance` command and returns its response through the backend.
 
 ### Integritas Request Proxy
 

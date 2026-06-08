@@ -30,14 +30,12 @@ export async function getMinimaStatus() {
   };
 }
 
-export async function resyncMegammr() {
-  const { megammrHost } = getMinimaConfig();
-  const command = `megammrsync action:resync host:${megammrHost}`;
+async function runMinimaPathCommand(command: string, timeoutMs = 5000) {
   const url = new URL(env.minimaStatusUrl);
   url.pathname = `/${encodeURIComponent(command)}`;
   url.search = "";
 
-  const { response, body } = await fetchJsonWithTimeout(url.toString(), {}, 30000);
+  const { response, body } = await fetchJsonWithTimeout(url.toString(), {}, timeoutMs);
   return {
     ok: response.ok,
     status: response.status,
@@ -45,4 +43,14 @@ export async function resyncMegammr() {
     command,
     body
   };
+}
+
+export async function getWalletBalance() {
+  return runMinimaPathCommand("balance");
+}
+
+export async function resyncMegammr() {
+  const { megammrHost } = getMinimaConfig();
+  const command = `megammrsync action:resync host:${megammrHost}`;
+  return runMinimaPathCommand(command, 30000);
 }
