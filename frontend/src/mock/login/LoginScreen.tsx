@@ -1,10 +1,16 @@
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Layers3, LogIn } from "lucide-react";
+import { ArrowLeft, ArrowRight, Layers3, LogIn, UserRound } from "lucide-react";
 import "./login.css";
 
 type LoginPhase = "credentials" | "twofa";
 
-export function LoginScreen({ onLogin }: { onLogin: () => void }) {
+export function LoginScreen({
+  onAdminLogin,
+  onGuestLogin,
+}: {
+  onAdminLogin: (username: string) => void;
+  onGuestLogin: () => void;
+}) {
   const [phase, setPhase] = useState<LoginPhase>("credentials");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -26,8 +32,12 @@ export function LoginScreen({ onLogin }: { onLogin: () => void }) {
     setSigningIn(true);
     window.setTimeout(() => {
       setSigningIn(false);
-      onLogin();
+      onAdminLogin(username.trim() || "admin");
     }, 700);
+  };
+
+  const continueAsGuest = () => {
+    onGuestLogin();
   };
 
   const backToCredentials = () => {
@@ -92,7 +102,19 @@ export function LoginScreen({ onLogin }: { onLogin: () => void }) {
               >
                 Continue <ArrowRight size={16} />
               </button>
+              <button
+                type="button"
+                className="mock-login-btn-secondary"
+                onClick={continueAsGuest}
+              >
+                <UserRound size={16} /> Continue as guest
+              </button>
             </div>
+
+            <p className="mock-login-guest-note">
+              Guest access skips 2FA and admin controls. Set up a full account
+              later from the sidebar.
+            </p>
           </div>
         ) : (
           <div className="mock-login-panel">

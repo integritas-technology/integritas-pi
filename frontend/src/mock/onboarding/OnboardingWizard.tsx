@@ -629,7 +629,7 @@ export function OnboardingWizard({
                     className="mock-onboarding-btn-secondary"
                     onClick={onSkip}
                   >
-                    Skip for now
+                    Continue as guest
                   </button>
                 ) : (
                   <span />

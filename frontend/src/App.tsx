@@ -2,7 +2,14 @@ import { useState } from "react";
 import type { NavId } from "./app/types";
 import { AppShell } from "./components/AppShell";
 import { OnboardingWizard, isOnboardingComplete, markOnboardingComplete, resetOnboarding } from "./mock/onboarding";
-import { LoginScreen, isLoggedIn, logout, markLoggedIn } from "./mock/login";
+import {
+  LoginScreen,
+  getSession,
+  logout,
+  markAdminLogin,
+  markGuestLogin,
+  type MockSession,
+} from "./mock/login";
 import { DashboardPage } from "./pages/DashboardPage";
 import { DataSourcesPage } from "./pages/DataSourcesPage";
 import { DiagnosticsPage } from "./pages/DiagnosticsPage";
@@ -44,40 +51,79 @@ function ActivePage({
 export default function App() {
   const [active, setActive] = useState<NavId>("dashboard");
   const [showOnboarding, setShowOnboarding] = useState(() => !isOnboardingComplete());
-  const [loggedIn, setLoggedIn] = useState(() => isLoggedIn());
+  const [session, setSession] = useState<MockSession | null>(() => getSession());
+
+  const syncSession = () => {
+    setSession(getSession());
+  };
 
   const finishOnboarding = () => {
     markOnboardingComplete();
+    markAdminLogin("admin");
+    syncSession();
     setShowOnboarding(false);
   };
 
-  const handleLogin = () => {
-    markLoggedIn();
-    setLoggedIn(true);
+  const skipOnboardingAsGuest = () => {
+    markOnboardingComplete();
+    markGuestLogin();
+    syncSession();
+    setShowOnboarding(false);
+  };
+
+  const handleAdminLogin = (username: string) => {
+    markAdminLogin(username);
+    syncSession();
+  };
+
+  const handleGuestLogin = () => {
+    markGuestLogin();
+    syncSession();
   };
 
   const handleSignOut = () => {
     logout();
-    setLoggedIn(false);
+    setSession(null);
   };
 
   const restartOnboarding = () => {
     resetOnboarding();
     logout();
-    setLoggedIn(false);
+    setSession(null);
+    setShowOnboarding(true);
+  };
+
+  const startAdminSetup = () => {
+    resetOnboarding();
     setShowOnboarding(true);
   };
 
   if (showOnboarding) {
-    return <OnboardingWizard onComplete={finishOnboarding} onSkip={finishOnboarding} />;
+    return (
+      <OnboardingWizard
+        onComplete={finishOnboarding}
+        onSkip={skipOnboardingAsGuest}
+      />
+    );
   }
 
-  if (!loggedIn) {
-    return <LoginScreen onLogin={handleLogin} />;
+  if (!session) {
+    return (
+      <LoginScreen
+        onAdminLogin={handleAdminLogin}
+        onGuestLogin={handleGuestLogin}
+      />
+    );
   }
 
   return (
-    <AppShell active={active} setActive={setActive}>
+    <AppShell
+      active={active}
+      setActive={setActive}
+      session={session}
+      onSignOut={handleSignOut}
+      onCreateAdminAccount={session.mode === "guest" ? startAdminSetup : undefined}
+    >
       <ActivePage
         active={active}
         setActive={setActive}

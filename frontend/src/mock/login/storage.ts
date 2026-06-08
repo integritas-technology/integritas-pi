@@ -1,25 +1,56 @@
-const LOGIN_KEY = "integritas-pi.mock-logged-in";
+export type MockSessionMode = "admin" | "guest";
 
-export function isLoggedIn(): boolean {
+export type MockSession = {
+  mode: MockSessionMode;
+  username?: string;
+};
+
+const SESSION_KEY = "integritas-pi.mock-session";
+
+function readSession(): MockSession | null {
   try {
-    return localStorage.getItem(LOGIN_KEY) === "true";
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as MockSession;
+    if (parsed.mode !== "admin" && parsed.mode !== "guest") return null;
+    return parsed;
   } catch {
-    return false;
+    return null;
   }
 }
 
-export function markLoggedIn(): void {
+function writeSession(session: MockSession | null): void {
   try {
-    localStorage.setItem(LOGIN_KEY, "true");
+    if (!session) {
+      localStorage.removeItem(SESSION_KEY);
+      return;
+    }
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
   } catch {
     // Ignore storage failures in prototype mockup.
   }
+}
+
+export function getSession(): MockSession | null {
+  return readSession();
+}
+
+export function isLoggedIn(): boolean {
+  return readSession() !== null;
+}
+
+export function markAdminLogin(username: string): void {
+  writeSession({ mode: "admin", username: username.trim() || "admin" });
+}
+
+export function markGuestLogin(): void {
+  writeSession({ mode: "guest" });
+}
+
+export function markLoggedIn(username = "admin"): void {
+  markAdminLogin(username);
 }
 
 export function logout(): void {
-  try {
-    localStorage.removeItem(LOGIN_KEY);
-  } catch {
-    // Ignore storage failures in prototype mockup.
-  }
+  writeSession(null);
 }

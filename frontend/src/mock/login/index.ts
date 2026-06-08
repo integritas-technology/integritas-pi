@@ -1,2 +1,11 @@
 export { LoginScreen } from "./LoginScreen";
-export { isLoggedIn, logout, markLoggedIn } from "./storage";
+export { SidebarUserBox } from "./SidebarUserBox";
+export {
+  getSession,
+  isLoggedIn,
+  logout,
+  markAdminLogin,
+  markGuestLogin,
+  markLoggedIn,
+} from "./storage";
+export type { MockSession, MockSessionMode } from "./storage";

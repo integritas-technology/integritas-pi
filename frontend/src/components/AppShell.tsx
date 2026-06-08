@@ -3,11 +3,27 @@ import { Layers3, ShieldCheck } from "lucide-react";
 import { nav } from "../app/nav";
 import type { NavId, StatusOverview } from "../app/types";
 import { cx } from "../lib/cx";
+import type { MockSession } from "../mock/login";
+import { SidebarUserBox } from "../mock/login";
 import { Card } from "./Card";
 import { Clock } from "./Clock";
 import { StatusBadge } from "./StatusBadge";
 
-export function AppShell({ active, setActive, children }: { active: NavId; setActive: (id: NavId) => void; children: React.ReactNode }) {
+export function AppShell({
+  active,
+  setActive,
+  session,
+  onSignOut,
+  onCreateAdminAccount,
+  children,
+}: {
+  active: NavId;
+  setActive: (id: NavId) => void;
+  session: MockSession;
+  onSignOut: () => void;
+  onCreateAdminAccount?: () => void;
+  children: React.ReactNode;
+}) {
   const activeItem = useMemo(() => nav.find((item) => item.id === active) ?? nav[0], [active]);
   const [overview, setOverview] = useState<StatusOverview | null>(null);
 
@@ -31,6 +47,12 @@ export function AppShell({ active, setActive, children }: { active: NavId; setAc
             <div className="brand-icon"><Layers3 size={24} /></div>
             <div><p>Minima Edge Stack</p><h1>Edge Workbench</h1></div>
           </div>
+
+          <SidebarUserBox
+            session={session}
+            onSignOut={onSignOut}
+            onCreateAdminAccount={onCreateAdminAccount}
+          />
 
           <nav className="nav-list">
             {nav.map(({ id, label, icon: Icon, badge }) => (
