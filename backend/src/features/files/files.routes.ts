@@ -1,7 +1,10 @@
 import { Router } from "express";
+import { requireRole } from "../auth/auth.middleware.js";
 import { listFiles } from "./files.service.js";
 
 export const filesRouter = Router();
+
+filesRouter.use(requireRole("admin"));
 
 filesRouter.get("/", async (req, res) => {
   const requestedPath = typeof req.query.path === "string" ? req.query.path : "/";

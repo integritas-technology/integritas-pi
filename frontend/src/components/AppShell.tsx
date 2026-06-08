@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Layers3, ShieldCheck } from "lucide-react";
 import { nav } from "../app/nav";
 import type { NavId, StatusOverview } from "../app/types";
+import { SidebarUserBox } from "../features/auth/SidebarUserBox";
+import type { AuthUser } from "../features/auth/types";
 import { cx } from "../lib/cx";
-import type { MockSession } from "../mock/login";
-import { SidebarUserBox } from "../mock/login";
 import { Card } from "./Card";
 import { Clock } from "./Clock";
 import { StatusBadge } from "./StatusBadge";
@@ -12,16 +12,14 @@ import { StatusBadge } from "./StatusBadge";
 export function AppShell({
   active,
   setActive,
-  session,
+  user,
   onSignOut,
-  onCreateAdminAccount,
   children,
 }: {
   active: NavId;
   setActive: (id: NavId) => void;
-  session: MockSession;
+  user: AuthUser;
   onSignOut: () => void;
-  onCreateAdminAccount?: () => void;
   children: React.ReactNode;
 }) {
   const activeItem = useMemo(() => nav.find((item) => item.id === active) ?? nav[0], [active]);
@@ -48,11 +46,7 @@ export function AppShell({
             <div><p>Minima Edge Stack</p><h1>Edge Workbench</h1></div>
           </div>
 
-          <SidebarUserBox
-            session={session}
-            onSignOut={onSignOut}
-            onCreateAdminAccount={onCreateAdminAccount}
-          />
+          <SidebarUserBox user={user} onSignOut={onSignOut} />
 
           <nav className="nav-list">
             {nav.map(({ id, label, icon: Icon, badge }) => (

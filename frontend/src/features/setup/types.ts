@@ -19,4 +19,4 @@ export type OnboardingFormState = {
   integritasApiKey: string;
 };
 
-export type MockCheckState = "idle" | "checking" | "ok" | "error";
+export type CheckState = "idle" | "checking" | "ok" | "error";

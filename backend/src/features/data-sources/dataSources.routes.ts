@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { requireRole } from "../auth/auth.middleware.js";
 import { createDataSourceRead } from "../data-reads/dataReads.repository.js";
 import { createDataSource, deleteDataSource, getDataSource, listDataSources, updateDataSourceReadResult } from "./dataSources.repository.js";
 import { parseJsonApiConfig, readJsonApiSource, serializeDataSource } from "./dataSources.service.js";
@@ -9,7 +10,7 @@ dataSourcesRouter.get("/", (_req, res) => {
   res.json({ items: listDataSources().map(serializeDataSource) });
 });
 
-dataSourcesRouter.post("/", (req, res) => {
+dataSourcesRouter.post("/", requireRole("admin"), (req, res) => {
   const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
   const type = typeof req.body?.type === "string" ? req.body.type : "json-api";
   const description = typeof req.body?.description === "string" ? req.body.description : "";
@@ -26,12 +27,12 @@ dataSourcesRouter.post("/", (req, res) => {
   }
 });
 
-dataSourcesRouter.delete("/:id", (req, res) => {
+dataSourcesRouter.delete("/:id", requireRole("admin"), (req, res) => {
   deleteDataSource(req.params.id);
   res.json({ deleted: true });
 });
 
-dataSourcesRouter.post("/:id/read", async (req, res) => {
+dataSourcesRouter.post("/:id/read", requireRole("admin"), async (req, res) => {
   const record = getDataSource(req.params.id);
   if (!record) return res.status(404).json({ error: "Data source not found" });
 

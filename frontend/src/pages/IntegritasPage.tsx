@@ -26,8 +26,7 @@ export function IntegritasPage() {
   }, []);
 
   async function refreshConfig() {
-    const response = await fetch("/api/integritas/config");
-    setConfig(await response.json() as IntegritasConfig);
+    setConfig(await getJson<IntegritasConfig>("/api/integritas/config"));
   }
 
   async function run(action: () => Promise<unknown>, showResult = true) {

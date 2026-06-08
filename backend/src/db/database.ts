@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { env } from "../config/env.js";
 
 export const db = new Database(env.databasePath);
+db.pragma("journal_mode = WAL");
 
 export function runMigrations() {
   db.exec(`
@@ -82,6 +83,48 @@ export function runMigrations() {
       FOREIGN KEY (data_source_id) REFERENCES data_sources(id) ON DELETE CASCADE,
       FOREIGN KEY (workflow_id) REFERENCES automation_workflows(id) ON DELETE SET NULL,
       FOREIGN KEY (integritas_proof_id) REFERENCES integritas_proofs(id) ON DELETE SET NULL
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      totp_secret TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'admin',
+      created_at TEXT NOT NULL,
+      last_login TEXT
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      token_hash TEXT UNIQUE NOT NULL,
+      created_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      last_seen_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS setup_pending (
+      id TEXT PRIMARY KEY,
+      totp_secret TEXT NOT NULL,
+      expires_at TEXT NOT NULL
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS audit_events (
+      id TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      user_id TEXT,
+      action TEXT NOT NULL,
+      detail TEXT
     )
   `);
 }

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { requireRole } from "../auth/auth.middleware.js";
 import { createAutomationWorkflow, deleteAutomationWorkflow, getAutomationWorkflow, listAutomationWorkflows, updateAutomationWorkflow } from "./automation.repository.js";
 import { runAutomationWorkflow, serializeAutomationWorkflow } from "./automation.service.js";
 import { getDataSource } from "../data-sources/dataSources.repository.js";
@@ -9,7 +10,7 @@ automationRouter.get("/workflows", (_req, res) => {
   res.json({ items: listAutomationWorkflows().map(serializeAutomationWorkflow) });
 });
 
-automationRouter.post("/workflows", (req, res) => {
+automationRouter.post("/workflows", requireRole("admin"), (req, res) => {
   const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
   const dataSourceId = typeof req.body?.dataSourceId === "string" ? req.body.dataSourceId : "";
   const pollingIntervalSeconds = Number(req.body?.pollingIntervalSeconds);
@@ -24,7 +25,7 @@ automationRouter.post("/workflows", (req, res) => {
   return res.json({ item: serializeAutomationWorkflow(workflow) });
 });
 
-automationRouter.patch("/workflows/:id", (req, res) => {
+automationRouter.patch("/workflows/:id", requireRole("admin"), (req, res) => {
   const current = getAutomationWorkflow(req.params.id);
   if (!current) return res.status(404).json({ error: "Automation workflow not found" });
 
@@ -37,12 +38,12 @@ automationRouter.patch("/workflows/:id", (req, res) => {
   return res.json({ item: serializeAutomationWorkflow(workflow!) });
 });
 
-automationRouter.delete("/workflows/:id", (req, res) => {
+automationRouter.delete("/workflows/:id", requireRole("admin"), (req, res) => {
   deleteAutomationWorkflow(req.params.id);
   res.json({ deleted: true });
 });
 
-automationRouter.post("/workflows/:id/run", async (req, res) => {
+automationRouter.post("/workflows/:id/run", requireRole("admin"), async (req, res) => {
   try {
     const result = await runAutomationWorkflow(req.params.id);
     return res.json(result);

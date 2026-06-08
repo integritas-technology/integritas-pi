@@ -1,21 +1,17 @@
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Layers3, LogIn, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, Layers3, LogIn } from "lucide-react";
+import { login } from "./api";
 import "./login.css";
 
 type LoginPhase = "credentials" | "twofa";
 
-export function LoginScreen({
-  onAdminLogin,
-  onGuestLogin,
-}: {
-  onAdminLogin: (username: string) => void;
-  onGuestLogin: () => void;
-}) {
+export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
   const [phase, setPhase] = useState<LoginPhase>("credentials");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const [signingIn, setSigningIn] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const credentialsValid =
     username.trim().length >= 2 && password.trim().length >= 1;
@@ -23,27 +19,34 @@ export function LoginScreen({
 
   const continueToTwoFactor = () => {
     if (!credentialsValid) return;
+    setError(null);
     setPhase("twofa");
     setTwoFactorCode("");
   };
 
-  const signIn = () => {
+  const signIn = async () => {
     if (!twoFactorValid || signingIn) return;
     setSigningIn(true);
-    window.setTimeout(() => {
+    setError(null);
+    try {
+      await login({
+        username: username.trim(),
+        password,
+        totpToken: twoFactorCode,
+      });
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign in failed");
+    } finally {
       setSigningIn(false);
-      onAdminLogin(username.trim() || "admin");
-    }, 700);
-  };
-
-  const continueAsGuest = () => {
-    onGuestLogin();
+    }
   };
 
   const backToCredentials = () => {
     setPhase("credentials");
     setTwoFactorCode("");
     setSigningIn(false);
+    setError(null);
   };
 
   return (
@@ -57,7 +60,6 @@ export function LoginScreen({
             <p>Minima Edge Stack</p>
             <h1>Edge Workbench</h1>
           </div>
-          <span className="mock-login-pill">UI mockup</span>
         </div>
 
         {phase === "credentials" ? (
@@ -102,19 +104,7 @@ export function LoginScreen({
               >
                 Continue <ArrowRight size={16} />
               </button>
-              <button
-                type="button"
-                className="mock-login-btn-secondary"
-                onClick={continueAsGuest}
-              >
-                <UserRound size={16} /> Continue as guest
-              </button>
             </div>
-
-            <p className="mock-login-guest-note">
-              Guest access skips 2FA and admin controls. Set up a full account
-              later from the sidebar.
-            </p>
           </div>
         ) : (
           <div className="mock-login-panel">
@@ -153,6 +143,8 @@ export function LoginScreen({
               </label>
             </div>
 
+            {error ? <p className="error-text">{error}</p> : null}
+
             <div className="mock-login-actions">
               <button
                 type="button"
@@ -171,10 +163,6 @@ export function LoginScreen({
             </div>
           </div>
         )}
-
-        <p className="mock-login-note">
-          Mock login only. Any username, password, and 6-digit code will work.
-        </p>
       </div>
     </div>
   );

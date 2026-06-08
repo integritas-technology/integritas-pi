@@ -7,7 +7,7 @@ This file is the **general** risk register for the whole app. Auth-specific thre
 ## Scope And Responsibility
 
 **In scope (application):**
-- API authentication and session security (in progress)
+- API authentication and session security (Phase 1 implemented)
 - Secrets handling within the backend (encrypted settings, hashed sessions)
 - Input validation and safe proxying to Integritas / Minima
 - Read-only host file access with path traversal controls
@@ -21,7 +21,7 @@ We document recommended setup in README; we cannot enforce it on the device.
 
 ## Current Security Posture
 
-- No authentication or authorization is implemented.
+- Admin authentication is implemented: password + TOTP login, stateful HttpOnly session cookies, protected `/api/*` routes.
 - The frontend is reachable on the LAN through `http://<pi-ip>:8080`.
 - Backend APIs are reachable through the frontend Nginx `/api` proxy.
 - The backend stores local settings in SQLite under `/data/integritas-pi.db`.
@@ -30,24 +30,26 @@ We document recommended setup in README; we cannot enforce it on the device.
 - The backend can read the configured host file directory through `/host-files:ro`.
 - Minima RPC is bound to `127.0.0.1` on the host by default, but is reachable by backend over the Docker network.
 
-**Auth (Phase 1 — planned):** Admin login with password + TOTP, stateful sessions (hashed in SQLite), protected `/api/*` routes, login rate limiting, audit log for secret changes. See `docs/auth-security.md`.
+**Auth (Phase 1 — implemented):** Admin login with password + TOTP, stateful sessions (hashed in SQLite), protected `/api/*` routes, login/setup rate limiting, audit log for secret changes. See `docs/auth-security.md`. Default HTTP LAN deploy uses `COOKIE_SECURE=false`; use HTTPS + `COOKIE_SECURE=true` on untrusted networks.
 
 ## High Priority Risks
 
-### No Authentication
+### Unauthenticated LAN Access (mitigated, residual HTTP risk)
 
-Risk: Anyone who can reach the web UI can use the app, browse allowed host files, save or clear the Integritas API key, request stamps, poll proofs, verify proofs, and read status information.
+Risk: On a trusted home LAN with default HTTP deploy, session cookies are not marked `Secure` and can be observed on the network.
 
-Impact: Unauthorized use of API quota, exposure of local filenames/metadata, configuration tampering, and operational visibility leakage.
+Impact: Session theft on untrusted networks; unauthorized admin access if credentials or cookies are intercepted.
 
-Plan:
+Controls (V1):
 
-- Add login before exposing beyond trusted local development.
-- Add session management with secure cookies.
-- Add role-based access for admin actions such as API key management and Docker/system status.
-- Add CSRF protection for state-changing routes.
+- Login required for all `/api/*` routes except health, setup, and login.
+- HttpOnly + `SameSite=Strict` session cookies; token hashes stored in SQLite.
+- TOTP required at setup and login.
+- Login/setup rate limiting and generic login errors.
 
-Status: In progress — see `docs/auth-implementation.md`.
+Residual gap: Use HTTPS and `COOKIE_SECURE=true` before internet or untrusted network exposure. CSRF tokens are a follow-up (`SameSite=Strict` is the V1 baseline).
+
+Status: Mitigated for trusted LAN; see `docs/auth-security.md` for gaps.
 
 ### Docker Socket Mount
 
@@ -63,20 +65,19 @@ Plan:
 
 Status: Open. Accepted only for prototype visibility.
 
-### API Key Management From Unauthenticated UI
+### API Key Management
 
-Risk: The UI allows saving and clearing the Integritas API key. Without authentication, any LAN user can replace or remove the key.
+Risk: Saving or clearing the Integritas API key is a high-impact mutation.
 
 Impact: Service disruption, billing/quota misuse, incorrect stamping under attacker-controlled credentials.
 
-Plan:
+Controls (V1):
 
-- Require admin authentication before API key write/delete.
-- Add audit log entries for secret changes.
-- Never return secret values to frontend.
-- Add key validation before saving.
+- `POST/DELETE /api/integritas/api-key` require an admin session.
+- Keys validated upstream before save; never returned to the frontend.
+- Audit events recorded on save/delete.
 
-Status: In progress — key write/delete will require admin session.
+Status: Mitigated.
 
 ### `APP_SECRET` Dependency
 
@@ -236,9 +237,9 @@ Risk: Endpoints can be called repeatedly.
 
 Impact: Local DoS, Integritas quota consumption, log noise.
 
-Plan: Login/setup rate limits in auth Phase 1; broader per-IP limits on stamp and automation endpoints after.
+Plan: Login/setup rate limits implemented; broader per-IP limits on stamp and automation endpoints after.
 
-Status: In progress — see `docs/auth-security.md`.
+Status: Partially mitigated — login/setup only.
 
 ### Error Response Detail
 
@@ -272,7 +273,7 @@ Status: Open. Auth test cases defined in `docs/auth-security.md`.
 
 ## Development Security Plan
 
-1. Add authentication and admin authorization.
+1. ~~Add authentication and admin authorization.~~ Done (Phase 1).
 2. Replace direct Docker socket mount with a safer monitoring path.
 3. Add HTTPS or a documented trusted-network-only mode.
 4. Add rate limiting and audit logs.

@@ -11,6 +11,10 @@ export function sha3HashHex(bytesOrString: string) {
   return crypto.createHash("sha3-256").update(bytesOrString, "utf8").digest("hex");
 }
 
+export function sha256Hex(bytesOrString: string | Buffer) {
+  return crypto.createHash("sha256").update(bytesOrString).digest("hex");
+}
+
 function encryptionKey() {
   return crypto.createHash("sha256").update(env.appSecret).digest();
 }

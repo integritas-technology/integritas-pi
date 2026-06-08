@@ -1,53 +1,41 @@
+import { getJson, postForm, postJson } from "../../lib/api";
 import type { IntegritasProofRecord } from "./integritasTypes";
 
 export async function getHistory() {
-  const response = await fetch("/api/integritas/history");
-  const parsed = await response.json();
-  if (!response.ok) throw new Error(parsed?.error || `HTTP ${response.status}`);
-  return parsed as { items: IntegritasProofRecord[] };
+  return getJson<{ items: IntegritasProofRecord[] }>("/api/integritas/history");
 }
 
 export async function stampFile(file: File) {
   const form = new FormData();
   form.append("file", file);
-  const response = await fetch("/api/integritas/stamp-file", { method: "POST", body: form });
-  const parsed = await response.json();
-  if (!response.ok) throw new Error(parsed?.error || `HTTP ${response.status}`);
-  return parsed as { record: IntegritasProofRecord };
+  return postForm<{ record: IntegritasProofRecord }>("/api/integritas/stamp-file", form);
 }
 
 export async function pollRecord(id: string) {
-  const response = await fetch(`/api/integritas/history/${id}/poll`, { method: "POST" });
-  const parsed = await response.json();
-  if (!response.ok) throw new Error(parsed?.error || `HTTP ${response.status}`);
-  return parsed as { record: IntegritasProofRecord };
+  return postJson<{ record: IntegritasProofRecord }>(`/api/integritas/history/${id}/poll`);
 }
 
 export async function verifyRecord(id: string) {
-  const response = await fetch(`/api/integritas/history/${id}/verify`, { method: "POST" });
-  const parsed = await response.json();
-  if (!response.ok) throw new Error(parsed?.error || `HTTP ${response.status}`);
-  return parsed as { record: IntegritasProofRecord; response: unknown };
+  return postJson<{ record: IntegritasProofRecord; response: unknown }>(`/api/integritas/history/${id}/verify`);
 }
 
 export async function verifyProofFile(file: File) {
   const form = new FormData();
   form.append("file", file);
-  const response = await fetch("/api/integritas/verify-proof-file", { method: "POST", body: form });
-  const parsed = await response.json();
-  if (!response.ok) throw new Error(parsed?.error || `HTTP ${response.status}`);
-  return parsed as { response: unknown };
+  return postForm<{ response: unknown }>("/api/integritas/verify-proof-file", form);
 }
 
 export async function deleteSelected(ids: string[]) {
-  const response = await fetch("/api/integritas/history/delete-selected", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) });
-  const parsed = await response.json();
-  if (!response.ok) throw new Error(parsed?.error || `HTTP ${response.status}`);
-  return parsed;
+  return postJson("/api/integritas/history/delete-selected", { ids });
 }
 
 export async function downloadSelected(ids: string[]) {
-  const response = await fetch("/api/integritas/history/export-selected", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) });
+  const response = await fetch("/api/integritas/history/export-selected", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids })
+  });
   if (!response.ok) {
     const parsed = await response.json();
     throw new Error(parsed?.error || `HTTP ${response.status}`);

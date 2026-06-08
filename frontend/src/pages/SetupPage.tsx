@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, LockKeyhole, LogOut, RadioTower, ShieldCheck, Sparkles } from "lucide-react";
+import { CheckCircle2, Circle, LockKeyhole, LogOut, RadioTower, ShieldCheck } from "lucide-react";
 import { Page } from "../components/Page";
 
 const setupSteps = [
@@ -10,13 +10,7 @@ const setupSteps = [
   { title: "Secure your data origination", description: "Stamp source data with Integritas.", complete: false, icon: ShieldCheck }
 ];
 
-export function SetupPage({
-  onRestartOnboarding,
-  onSignOut,
-}: {
-  onRestartOnboarding?: () => void;
-  onSignOut?: () => void;
-}) {
+export function SetupPage({ onSignOut }: { onSignOut?: () => void }) {
   const completed = setupSteps.filter((step) => step.complete).length;
 
   return (
@@ -25,18 +19,11 @@ export function SetupPage({
       title="Get your edge data workflow running"
       desc="Follow these steps to connect devices, collect data, and create verifiable Integritas records from the Pi."
       action={
-        onRestartOnboarding || onSignOut ? (
+        onSignOut ? (
           <div className="setup-page-actions">
-            {onSignOut ? (
-              <button type="button" className="setup-relaunch-button setup-signout-button" onClick={onSignOut}>
-                <LogOut size={16} /> Sign out (mock)
-              </button>
-            ) : null}
-            {onRestartOnboarding ? (
-              <button type="button" className="setup-relaunch-button" onClick={onRestartOnboarding}>
-                <Sparkles size={16} /> Preview setup wizard
-              </button>
-            ) : null}
+            <button type="button" className="setup-relaunch-button setup-signout-button" onClick={onSignOut}>
+              <LogOut size={16} /> Sign out
+            </button>
           </div>
         ) : undefined
       }

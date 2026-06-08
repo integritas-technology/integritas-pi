@@ -49,6 +49,7 @@ Read these first:
 
 Feature folders:
 
+- Auth: `backend/src/features/auth/`
 - Integritas: `backend/src/features/integritas/`
 - Data sources: `backend/src/features/data-sources/`
 - Automation: `backend/src/features/automation/`
@@ -66,6 +67,15 @@ Backend rules:
 - When adding a scheduler, start it from `backend/src/index.ts` after migrations.
 - Return useful error details from backend services, but never leak secrets.
 
+Auth rules:
+
+- Public routes: `GET /api/health`, `GET /api/setup/status`, `POST /api/setup/*`, `POST /api/auth/login`.
+- All other `/api/*` routes require `requireAuth` in `backend/src/app.ts`.
+- High-risk mutations also use `requireRole('admin')` (Integritas API key, files, automation/data-source mutations).
+- Session cookies: HttpOnly, `SameSite=Strict`, `Secure` when `COOKIE_SECURE=true`.
+- Never return password hashes, TOTP secrets, raw session tokens, or Integritas API keys.
+- CLI has no session auth in V1; document `401` for protected API calls.
+
 ## Frontend Work
 
 Read these first:
@@ -82,10 +92,14 @@ Page and feature folders:
 - Integritas UI/API/types: `frontend/src/features/integritas/`
 - Data Sources UI/API/types: `frontend/src/features/data-sources/`
 - Automation UI/API/types: `frontend/src/features/automation/`
+- Auth UI/API: `frontend/src/features/auth/`
+- First-run setup wizard: `frontend/src/features/setup/`
 
 Frontend rules:
 
 - Frontend calls backend API only; do not call Integritas directly from the browser.
+- All API fetches use `credentials: "include"` via `frontend/src/lib/api.ts`.
+- `AuthProvider` owns bootstrap: `GET /api/setup/status` → wizard vs `GET /api/auth/me` → app shell or login.
 - Keep UI state simple unless there is a clear need for a new state layer.
 - Use existing page/card/table/pill styles before inventing new patterns.
 - Show local and UTC time where workflow scheduling clarity matters.

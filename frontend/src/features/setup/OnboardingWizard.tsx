@@ -15,19 +15,11 @@ import {
   UserRound,
 } from "lucide-react";
 import { cx } from "../../lib/cx";
+import { completeSetup, initTotp, verifyIntegritasKey } from "./api";
+import { INTEGRITAS_STEP_REQUIRED } from "./config";
 import { onboardingSteps } from "./steps";
-import type {
-  MockCheckState,
-  OnboardingFormState,
-  OnboardingStepId,
-} from "./types";
+import type { CheckState, OnboardingFormState, OnboardingStepId } from "./types";
 import "./onboarding.css";
-
-const MOCK_2FA_SECRET = "JBSWY3DPEHPK3PXP";
-const MOCK_QR_PATTERN = [
-  1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
-  1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0,
-];
 
 const initialForm: OnboardingFormState = {
   username: "",
@@ -39,7 +31,7 @@ const initialForm: OnboardingFormState = {
 
 type PillTone = "neutral" | "good" | "warn" | "future";
 
-function MockPill({
+function Pill({
   children,
   tone = "neutral",
 }: {
@@ -47,9 +39,7 @@ function MockPill({
   tone?: PillTone;
 }) {
   return (
-    <span
-      className={cx("mock-onboarding-pill", `mock-onboarding-pill-${tone}`)}
-    >
+    <span className={cx("mock-onboarding-pill", `mock-onboarding-pill-${tone}`)}>
       {children}
     </span>
   );
@@ -97,22 +87,6 @@ function StepIcon({
   );
 }
 
-function MockQrCode() {
-  return (
-    <div className="mock-onboarding-qr" aria-hidden="true">
-      {MOCK_QR_PATTERN.map((on, index) => (
-        <span
-          key={index}
-          className={cx(
-            "mock-onboarding-qr-cell",
-            on === 1 && "mock-onboarding-qr-cell-on",
-          )}
-        />
-      ))}
-    </div>
-  );
-}
-
 function WelcomeStep() {
   return (
     <div className="mock-onboarding-panel">
@@ -150,11 +124,6 @@ function WelcomeStep() {
           </p>
         </article>
       </div>
-
-      <p className="mock-onboarding-note">
-        This is a UI mockup only. Nothing you enter here is saved or sent to the
-        backend yet.
-      </p>
     </div>
   );
 }
@@ -237,13 +206,15 @@ function AccountStep({
 function TwoFactorStep({
   form,
   setForm,
-  checkState,
-  onVerify,
+  qrCode,
+  loadingQr,
+  qrError,
 }: {
   form: OnboardingFormState;
   setForm: (patch: Partial<OnboardingFormState>) => void;
-  checkState: MockCheckState;
-  onVerify: () => void;
+  qrCode: string | null;
+  loadingQr: boolean;
+  qrError: string | null;
 }) {
   return (
     <div className="mock-onboarding-panel">
@@ -251,21 +222,23 @@ function TwoFactorStep({
       <h2>Set up two-factor authentication</h2>
       <p className="mock-onboarding-lead">
         Scan the QR code with your authenticator app, then enter the 6-digit
-        code to confirm setup.
+        code. It will be verified when you finish setup.
       </p>
 
       <div className="mock-onboarding-2fa-layout">
-        <MockQrCode />
-        <div className="mock-onboarding-form-grid">
-          <div>
-            <p className="mock-onboarding-muted m-0 mb-2 text-sm">
-              Or enter this key manually:
-            </p>
-            <code className="inline-block rounded-lg bg-slate-100 px-2.5 py-1.5 text-sm font-semibold text-slate-800">
-              {MOCK_2FA_SECRET}
-            </code>
-          </div>
+        {loadingQr ? (
+          <p className="mock-onboarding-muted">Generating QR code…</p>
+        ) : qrError ? (
+          <p className="error-text">{qrError}</p>
+        ) : qrCode ? (
+          <img
+            src={qrCode}
+            alt="TOTP QR code"
+            className="mock-onboarding-qr-image"
+          />
+        ) : null}
 
+        <div className="mock-onboarding-form-grid">
           <label className="mock-onboarding-label">
             Confirmation code
             <input
@@ -284,20 +257,6 @@ function TwoFactorStep({
               maxLength={6}
             />
           </label>
-
-          <div className="mock-onboarding-action-row">
-            <button
-              type="button"
-              className="mock-onboarding-btn-primary"
-              onClick={onVerify}
-              disabled={form.twoFactorCode.length !== 6 || checkState === "checking"}
-            >
-              {checkState === "checking" ? "Verifying…" : "Verify code"}
-            </button>
-            {checkState === "ok" && (
-              <MockPill tone="good">Confirmed (mock)</MockPill>
-            )}
-          </div>
         </div>
       </div>
     </div>
@@ -309,18 +268,24 @@ function IntegritasStep({
   setForm,
   checkState,
   onVerifyKey,
+  integritasSkipped,
+  onSkip,
 }: {
   form: OnboardingFormState;
   setForm: (patch: Partial<OnboardingFormState>) => void;
-  checkState: MockCheckState;
+  checkState: CheckState;
   onVerifyKey: () => void;
+  integritasSkipped: boolean;
+  onSkip: () => void;
 }) {
   return (
     <div className="mock-onboarding-panel">
       <p className="mock-onboarding-eyebrow">Step 3 of 3</p>
       <h2>Connect Integritas</h2>
       <p className="mock-onboarding-lead">
-        Paste your Integritas API key. You must verify it before continuing.
+        {INTEGRITAS_STEP_REQUIRED
+          ? "Paste your Integritas API key and verify it before continuing."
+          : "Paste your Integritas API key now, or skip and configure it later from the Integritas page."}
       </p>
 
       <div className="mock-onboarding-info-callout">
@@ -352,6 +317,7 @@ function IntegritasStep({
             }
             type="password"
             placeholder="Paste API key"
+            disabled={integritasSkipped}
           />
         </label>
       </div>
@@ -360,30 +326,34 @@ function IntegritasStep({
         <div className="mock-onboarding-status-row">
           <div>
             <strong>API key check</strong>
-            <p>Validates format and mock quota status.</p>
+            <p>Validates the key with Integritas.</p>
           </div>
-          <MockPill
+          <Pill
             tone={
-              checkState === "ok"
-                ? "good"
-                : checkState === "checking"
-                  ? "warn"
-                  : "neutral"
+              integritasSkipped
+                ? "neutral"
+                : checkState === "ok"
+                  ? "good"
+                  : checkState === "checking"
+                    ? "warn"
+                    : "neutral"
             }
           >
-            {checkState === "ok"
-              ? "Valid (mock)"
-              : checkState === "checking"
-                ? "Verifying…"
-                : "Not verified"}
-          </MockPill>
+            {integritasSkipped
+              ? "Skipped"
+              : checkState === "ok"
+                ? "Valid"
+                : checkState === "checking"
+                  ? "Verifying…"
+                  : "Not verified"}
+          </Pill>
         </div>
-        {checkState === "ok" && (
+        {checkState === "ok" && !integritasSkipped && (
           <div className="mock-onboarding-mock-result">
             <CheckCircle2 size={18} />
             <div>
-              <strong>Mock verification passed</strong>
-              <p>Plan: Pi Edge · Stamps remaining: 10,000</p>
+              <strong>API key verified</strong>
+              <p>Your key will be saved when you finish setup.</p>
             </div>
           </div>
         )}
@@ -392,24 +362,49 @@ function IntegritasStep({
             type="button"
             className="mock-onboarding-btn-primary"
             onClick={onVerifyKey}
-            disabled={!form.integritasApiKey || checkState === "checking"}
+            disabled={!form.integritasApiKey || checkState === "checking" || integritasSkipped}
           >
             {checkState === "checking" ? "Verifying…" : "Verify API key"}
           </button>
+          {!INTEGRITAS_STEP_REQUIRED ? (
+            <button
+              type="button"
+              className="mock-onboarding-btn-secondary"
+              onClick={onSkip}
+              disabled={integritasSkipped}
+            >
+              Skip for now
+            </button>
+          ) : null}
         </div>
       </div>
     </div>
   );
 }
 
-function CompleteStep({ form }: { form: OnboardingFormState }) {
+function CompleteStep({
+  form,
+  integritasSkipped,
+  integritasVerified,
+}: {
+  form: OnboardingFormState;
+  integritasSkipped: boolean;
+  integritasVerified: boolean;
+}) {
   const configured = [
     {
       label: "Admin account",
-      detail: form.username ? `User “${form.username}”` : "Not set",
+      detail: form.username ? `User "${form.username}"` : "Not set",
     },
-    { label: "Two-factor auth", detail: "Authenticator linked (mock)" },
-    { label: "Integritas", detail: "API key verified (mock)" },
+    { label: "Two-factor auth", detail: "Authenticator linked" },
+    {
+      label: "Integritas",
+      detail: integritasSkipped
+        ? "Skipped — configure later"
+        : integritasVerified
+          ? "API key verified"
+          : "Not configured",
+    },
   ];
 
   const automatic = [
@@ -455,27 +450,20 @@ function CompleteStep({ form }: { form: OnboardingFormState }) {
           </ul>
         </div>
       </div>
-
-      <p className="mock-onboarding-note">
-        Clicking finish marks setup complete in your browser only and opens the
-        main dashboard mockup.
-      </p>
     </div>
   );
 }
 
-export function OnboardingWizard({
-  onComplete,
-  onSkip,
-}: {
-  onComplete: () => void;
-  onSkip?: () => void;
-}) {
+export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [form, setFormState] = useState<OnboardingFormState>(initialForm);
-  const [twoFactorCheck, setTwoFactorCheck] = useState<MockCheckState>("idle");
-  const [integritasCheck, setIntegritasCheck] =
-    useState<MockCheckState>("idle");
+  const [integritasCheck, setIntegritasCheck] = useState<CheckState>("idle");
+  const [integritasSkipped, setIntegritasSkipped] = useState(false);
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [loadingQr, setLoadingQr] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -490,9 +478,32 @@ export function OnboardingWizard({
 
   const setForm = (patch: Partial<OnboardingFormState>) => {
     setFormState((prev) => ({ ...prev, ...patch }));
-    if ("twoFactorCode" in patch) setTwoFactorCheck("idle");
-    if ("integritasApiKey" in patch) setIntegritasCheck("idle");
+    if ("integritasApiKey" in patch) {
+      setIntegritasCheck("idle");
+      setIntegritasSkipped(false);
+    }
   };
+
+  useEffect(() => {
+    setQrCode(null);
+    setQrError(null);
+  }, [form.username]);
+
+  useEffect(() => {
+    if (currentStep.id !== "twofa") return;
+    if (qrCode || loadingQr) return;
+    if (form.username.trim().length < 2) {
+      setQrError("Enter a username on the account step first.");
+      return;
+    }
+
+    setLoadingQr(true);
+    setQrError(null);
+    initTotp(form.username.trim())
+      .then((result) => setQrCode(result.qrCodePngBase64))
+      .catch((err: Error) => setQrError(err.message))
+      .finally(() => setLoadingQr(false));
+  }, [currentStep.id, form.username, qrCode, loadingQr]);
 
   const canContinue = useMemo(() => {
     switch (currentStep.id) {
@@ -505,29 +516,54 @@ export function OnboardingWizard({
           form.password === form.confirmPassword
         );
       case "twofa":
-        return twoFactorCheck === "ok";
+        return form.twoFactorCode.length === 6 && Boolean(qrCode) && !qrError;
       case "integritas":
-        return integritasCheck === "ok";
+        if (INTEGRITAS_STEP_REQUIRED) return integritasCheck === "ok";
+        return integritasCheck === "ok" || integritasSkipped;
       case "complete":
         return true;
       default:
         return false;
     }
-  }, [currentStep.id, form, twoFactorCheck, integritasCheck]);
+  }, [currentStep.id, form, integritasCheck, integritasSkipped, qrCode, qrError]);
 
-  const goNext = () => {
-    if (stepIndex < onboardingSteps.length - 1)
+  const goNext = async () => {
+    if (currentStep.id === "complete") {
+      setSubmitting(true);
+      setSubmitError(null);
+      try {
+        await completeSetup({
+          username: form.username.trim(),
+          password: form.password,
+          totpToken: form.twoFactorCode,
+          integritasApiKey: integritasSkipped ? undefined : form.integritasApiKey || undefined,
+        });
+        onComplete();
+      } catch (err) {
+        setSubmitError(err instanceof Error ? err.message : "Setup failed");
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
+    if (stepIndex < onboardingSteps.length - 1) {
       setStepIndex((index) => index + 1);
-    else onComplete();
+    }
   };
 
   const goBack = () => {
     if (stepIndex > 0) setStepIndex((index) => index - 1);
   };
 
-  const mockDelay = (setter: (state: MockCheckState) => void) => {
-    setter("checking");
-    window.setTimeout(() => setter("ok"), 900);
+  const verifyIntegritas = async () => {
+    setIntegritasCheck("checking");
+    try {
+      await verifyIntegritasKey(form.integritasApiKey);
+      setIntegritasCheck("ok");
+    } catch {
+      setIntegritasCheck("error");
+    }
   };
 
   return (
@@ -547,7 +583,6 @@ export function OnboardingWizard({
               <h1>First-time setup</h1>
             </div>
           </div>
-          <MockPill tone="future">UI mockup</MockPill>
         </header>
 
         <div className="mock-onboarding-progress-track">
@@ -598,8 +633,9 @@ export function OnboardingWizard({
                 <TwoFactorStep
                   form={form}
                   setForm={setForm}
-                  checkState={twoFactorCheck}
-                  onVerify={() => mockDelay(setTwoFactorCheck)}
+                  qrCode={qrCode}
+                  loadingQr={loadingQr}
+                  qrError={qrError}
                 />
               )}
               {currentStep.id === "integritas" && (
@@ -607,11 +643,24 @@ export function OnboardingWizard({
                   form={form}
                   setForm={setForm}
                   checkState={integritasCheck}
-                  onVerifyKey={() => mockDelay(setIntegritasCheck)}
+                  onVerifyKey={() => void verifyIntegritas()}
+                  integritasSkipped={integritasSkipped}
+                  onSkip={() => {
+                    setIntegritasSkipped(true);
+                    setIntegritasCheck("idle");
+                  }}
                 />
               )}
-              {currentStep.id === "complete" && <CompleteStep form={form} />}
+              {currentStep.id === "complete" && (
+                <CompleteStep
+                  form={form}
+                  integritasSkipped={integritasSkipped}
+                  integritasVerified={integritasCheck === "ok"}
+                />
+              )}
             </div>
+
+            {submitError ? <p className="error-text px-6">{submitError}</p> : null}
 
             <footer className="mock-onboarding-footer">
               <div>
@@ -620,16 +669,9 @@ export function OnboardingWizard({
                     type="button"
                     className="mock-onboarding-btn-secondary"
                     onClick={goBack}
+                    disabled={submitting}
                   >
                     <ArrowLeft size={16} /> Back
-                  </button>
-                ) : onSkip ? (
-                  <button
-                    type="button"
-                    className="mock-onboarding-btn-secondary"
-                    onClick={onSkip}
-                  >
-                    Continue as guest
                   </button>
                 ) : (
                   <span />
@@ -642,13 +684,17 @@ export function OnboardingWizard({
                 <button
                   type="button"
                   className="mock-onboarding-btn-primary"
-                  disabled={!canContinue}
-                  onClick={goNext}
+                  disabled={!canContinue || submitting}
+                  onClick={() => void goNext()}
                 >
-                  {currentStep.id === "complete"
-                    ? "Enter Edge Workbench"
-                    : "Continue"}
-                  {currentStep.id !== "complete" && <ArrowRight size={16} />}
+                  {submitting
+                    ? "Finishing…"
+                    : currentStep.id === "complete"
+                      ? "Enter Edge Workbench"
+                      : "Continue"}
+                  {currentStep.id !== "complete" && !submitting && (
+                    <ArrowRight size={16} />
+                  )}
                 </button>
               </div>
             </footer>

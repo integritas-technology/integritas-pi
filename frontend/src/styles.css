@@ -21,6 +21,13 @@ body {
   margin: 0;
 }
 
+.app-loading-root {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  color: #475569;
+}
+
 button,
 input,
 textarea {

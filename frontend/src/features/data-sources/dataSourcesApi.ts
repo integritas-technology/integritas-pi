@@ -1,29 +1,18 @@
+import { deleteJson, getJson, postJson } from "../../lib/api";
 import type { DataSource } from "./dataSourceTypes";
 
 export async function listDataSources() {
-  const response = await fetch("/api/data-sources");
-  const parsed = await response.json();
-  if (!response.ok) throw new Error(parsed?.error || `HTTP ${response.status}`);
-  return parsed as { items: DataSource[] };
+  return getJson<{ items: DataSource[] }>("/api/data-sources");
 }
 
 export async function createDataSource(input: { name: string; type: DataSource["type"]; description: string; config: DataSource["config"] }) {
-  const response = await fetch("/api/data-sources", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
-  const parsed = await response.json();
-  if (!response.ok) throw new Error(parsed?.error || `HTTP ${response.status}`);
-  return parsed as { item: DataSource };
+  return postJson<{ item: DataSource }>("/api/data-sources", input);
 }
 
 export async function deleteDataSource(id: string) {
-  const response = await fetch(`/api/data-sources/${id}`, { method: "DELETE" });
-  const parsed = await response.json();
-  if (!response.ok) throw new Error(parsed?.error || `HTTP ${response.status}`);
-  return parsed;
+  return deleteJson(`/api/data-sources/${id}`);
 }
 
 export async function readDataSource(id: string) {
-  const response = await fetch(`/api/data-sources/${id}/read`, { method: "POST" });
-  const parsed = await response.json();
-  if (!response.ok) throw new Error(parsed?.error || `HTTP ${response.status}`);
-  return parsed as { item: DataSource; result: unknown };
+  return postJson<{ item: DataSource; result: unknown }>(`/api/data-sources/${id}/read`);
 }
