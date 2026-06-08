@@ -32,16 +32,17 @@ export async function getMinimaStatus() {
 
 export async function resyncMegammr() {
   const { megammrHost } = getMinimaConfig();
-  const url = new URL("megammrsync", env.minimaStatusUrl);
-  url.searchParams.set("action", "resync");
-  url.searchParams.set("host", megammrHost);
+  const command = `megammrsync action:resync host:${megammrHost}`;
+  const url = new URL(env.minimaStatusUrl);
+  url.pathname = `/${encodeURIComponent(command)}`;
+  url.search = "";
 
   const { response, body } = await fetchJsonWithTimeout(url.toString(), {}, 30000);
   return {
     ok: response.ok,
     status: response.status,
     source: url.toString(),
-    command: `megammrsync action:resync host:${megammrHost}`,
+    command,
     body
   };
 }
