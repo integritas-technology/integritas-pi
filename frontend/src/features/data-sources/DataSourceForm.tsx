@@ -2,7 +2,7 @@ import type { DataSource, DataSourceTemplate } from "./dataSourceTypes";
 
 export function DataSourceForm({ template, name, setName, description, setDescription, type, setType, url, setUrl, method, setMethod, onSubmit, busy }: { template: DataSourceTemplate | null; name: string; setName: (value: string) => void; description: string; setDescription: (value: string) => void; type: DataSource["type"]; setType: (value: DataSource["type"]) => void; url: string; setUrl: (value: string) => void; method: "GET" | "POST"; setMethod: (value: "GET" | "POST") => void; onSubmit: () => void; busy: boolean }) {
   return (
-    <section className="card form-card">
+    <section className="form-card data-source-form">
       <div className="status-row">
         <div>
           <strong>Add source</strong>
