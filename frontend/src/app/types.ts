@@ -8,6 +8,8 @@ export type Health = { status: string; service: string };
 export type FileItem = { name: string; type: "file" | "directory" | "other"; size?: number };
 export type FilesResponse = { path: string; items: FileItem[] };
 export type MinimaStatus = { ok: boolean; status?: number; source: string; body?: unknown; error?: string };
+export type MinimaConfig = { megammrHost: string; megammrHostSource: "database" | "default" };
+export type MinimaCommandResult = { ok: boolean; status?: number; source: string; command?: string; body?: unknown; error?: string };
 export type IntegritasConfig = { baseUrl: string; requestId: string; hasApiKey: boolean; apiKeySource: "database" | "environment" | "none" };
 export type StatusOverview = {
   generatedAt: string;

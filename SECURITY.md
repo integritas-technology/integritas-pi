@@ -139,6 +139,11 @@ Plan:
 
 Status: Partially mitigated by host-local bind and no arbitrary command proxy.
 
+Current Controls:
+
+- Backend exposes a narrow allowlisted Megammr resync action instead of a generic Minima command proxy.
+- The resync action always calls the configured Minima RPC endpoint over the Docker network and only passes the saved Megammr host value.
+
 ### Integritas Request Proxy
 
 Risk: Backend proxies stamp/status/verify calls to Integritas using a stored API key.

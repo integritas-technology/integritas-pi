@@ -526,6 +526,13 @@ code {
   min-width: min(100%, 360px);
 }
 
+.api-key-box label {
+  display: grid;
+  gap: 10px;
+  color: #334155;
+  font-weight: 700;
+}
+
 .history-card {
   display: grid;
   gap: 16px;
