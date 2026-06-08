@@ -1,105 +1,136 @@
-import { useEffect, useState } from "react";
-import { Activity } from "lucide-react";
-import type { Health, StatusOverview } from "../app/types";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "../components/Card";
-import { JsonPreview } from "../components/JsonPreview";
 import { Page } from "../components/Page";
-import { Pill } from "../components/Pill";
-import { Section } from "../components/Section";
-import { StatusBadge } from "../components/StatusBadge";
+import { listDataReads } from "../features/data-reads/dataReadsApi";
+import type { DataSourceRead } from "../features/data-reads/dataReadTypes";
+import { getHistory } from "../features/integritas/integritasApi";
+import type { IntegritasProofRecord } from "../features/integritas/integritasTypes";
+import { formatLocalTime } from "../lib/time";
+
+type ActivityItem = {
+  id: string;
+  createdAt: string;
+  category: string;
+  message: string;
+  status: string;
+  good: boolean;
+};
+
+const useCaseSteps = [
+  { number: "01", title: "Connect data", text: "Sensor, file, API, webhook, or device log" },
+  { number: "02", title: "Prove data", text: "Integritas timestamp, integrity check, and provenance" },
+  { number: "03", title: "Trigger action", text: "Run workflows from data, proofs, or token events" },
+  { number: "04", title: "Settle value", text: "Wallet payments, token access, and future marketplace revenue" }
+];
+
+const buildSteps = [
+  { number: "1", title: "Deploy Edge Stack", text: "Install the Raspberry Pi Edition bundle and open Edge Workbench." },
+  { number: "2", title: "Create wallet", text: "Create or import a Minima wallet for payments, tokens, and future marketplace revenue." },
+  { number: "3", title: "Connect data", text: "Bring in sensor streams, device logs, local files, or APIs." },
+  { number: "4", title: "Verify with Integritas", text: "Timestamp and attest selected data so it can be trusted." },
+  { number: "5", title: "Automate events", text: "Trigger actions when payments, tokens, data, or proofs change." },
+  { number: "6", title: "Build the use case", text: "Combine node, wallet, data, proof, and automation tools into a working edge workflow." }
+];
 
 export function DashboardPage() {
-  const [health, setHealth] = useState<Health | null>(null);
-  const [healthError, setHealthError] = useState<string | null>(null);
-  const [overview, setOverview] = useState<StatusOverview | null>(null);
-  const [overviewError, setOverviewError] = useState<string | null>(null);
+  const [proofs, setProofs] = useState<IntegritasProofRecord[]>([]);
+  const [reads, setReads] = useState<DataSourceRead[]>([]);
+  const [activityError, setActivityError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/health")
-      .then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json() as Promise<Health>;
+    Promise.all([getHistory(), listDataReads()])
+      .then(([proofHistory, readHistory]) => {
+        setProofs(proofHistory.items);
+        setReads(readHistory.items);
       })
-      .then(setHealth)
-      .catch((err: Error) => setHealthError(err.message));
-
-    fetch("/api/status/overview")
-      .then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json() as Promise<StatusOverview>;
-      })
-      .then(setOverview)
-      .catch((err: Error) => setOverviewError(err.message));
+      .catch((err: Error) => setActivityError(err.message));
   }, []);
 
-  const displayedServices = [
-    { name: "frontend", ok: true, status: "ok", details: { service: "integritas-pi-frontend", note: "UI loaded in browser" } },
-    ...(overview?.services ?? [])
-  ];
+  const activity = useMemo(() => buildActivity(proofs, reads), [proofs, reads]);
 
   return (
-    <Page eyebrow="Dashboard" title="Minima Edge Workbench" desc="A real-time overview of the services currently wired into this Raspberry Pi prototype.">
-      <section className="hero-card">
+    <Page eyebrow="Dashboard" title="Minima Edge Workbench" desc="A browser-first workspace for trusted data, proofs, automation, and value flows at the edge.">
+      <section className="hero-card use-case-hero">
         <div>
-          <div className="hero-pills"><Pill>Pi Edition</Pill><Pill>Edge Workbench</Pill><Pill>Prototype</Pill></div>
-          <h1>Trusted edge services from one browser UI</h1>
-          <p>Monitor the backend, Minima node, Integritas API connection, and Docker resource usage without dropping into the command line.</p>
+          <p className="eyebrow">Use case builder</p>
+          <h1>Data to value</h1>
+          <p>Connect. Prove. Trigger. Settle.</p>
         </div>
-        <div className="hero-panel">
-          <p>Backend health</p>
-          <h3>{health ? health.status : healthError ? "error" : "checking"}</h3>
-          <span>{health?.service ?? healthError ?? "Waiting for backend response"}</span>
+        <div className="use-case-grid">
+          {useCaseSteps.map((step) => (
+            <article className="use-case-step" key={step.number}>
+              <span>{step.number}</span>
+              <strong>{step.title}</strong>
+              <p>{step.text}</p>
+            </article>
+          ))}
         </div>
       </section>
 
-      <div className="metrics-grid">
-        {displayedServices.map((service) => (
-          <Card className="metric-card" key={service.name}>
-            <div className="metric-icon"><Activity size={21} /></div>
-            <p>{service.name}</p>
-            <h3>{service.status}</h3>
-            <StatusBadge ok={service.ok}>{service.ok ? "Online" : "Attention"}</StatusBadge>
-          </Card>
-        ))}
-      </div>
+      <Card className="build-flow-card">
+        <div>
+          <p className="eyebrow">Build flow</p>
+          <h3>From setup to trusted edge workflow</h3>
+          <p className="muted">Each step has one job: deploy, connect, prove, automate, then build.</p>
+        </div>
+        <div className="build-flow-grid">
+          {buildSteps.map((step) => (
+            <article className="build-flow-step" key={step.number}>
+              <span>{step.number}</span>
+              <div>
+                <strong>{step.title}</strong>
+                <p>{step.text}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </Card>
 
-      {overviewError && <Card><p className="error-text">{overviewError}</p></Card>}
-
-      <section className="two-column">
-        <Card>
-          <Section eyebrow="Services" title="Service details" />
-          <div className="status-grid">
-            {displayedServices.map((service) => (
-              <article className="status-card" key={service.name}>
-                <div className="status-row compact"><strong>{service.name}</strong><StatusBadge ok={service.ok}>{service.status}</StatusBadge></div>
-                {service.error && <p className="error-text">{service.error}</p>}
-                {service.details !== undefined && <JsonPreview value={service.details} />}
-              </article>
-            ))}
-          </div>
-        </Card>
-
-        <Card>
-          <Section eyebrow="Resources" title="Container usage" desc="Read from Docker when the backend can access the socket." />
-          {overview?.resources?.error && <p className="error-text">{overview.resources.error}</p>}
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Service</th><th>State</th><th>CPU</th><th>Memory</th><th>Image disk</th></tr></thead>
-              <tbody>
-                {overview?.resources?.containers?.map((container) => (
-                  <tr key={container.containerId}>
-                    <td>{container.service}</td>
-                    <td>{container.status}</td>
-                    <td>{container.cpuPercent === null ? "n/a" : `${container.cpuPercent}%`}</td>
-                    <td>{container.memory?.usage ?? "n/a"}</td>
-                    <td>{container.disk.rootFs ?? "n/a"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </section>
+      <Card className="live-activity-card">
+        <div>
+          <p className="eyebrow">Live activity</p>
+          <h3>Events, attestations, and actions</h3>
+          <p className="muted">A clear activity layer helps users understand what the Pi is doing in the background.</p>
+        </div>
+        {activityError && <p className="error-text">{activityError}</p>}
+        <div className="activity-list">
+          {activity.map((item) => (
+            <article className="activity-item" key={item.id}>
+              <div>
+                <strong>{item.category}</strong>
+                <p>{item.message}</p>
+              </div>
+              <time>{formatLocalTime(item.createdAt)}</time>
+              <span className={item.good ? "pill pill-good" : "pill pill-warn"}>{item.status}</span>
+            </article>
+          ))}
+        </div>
+        {activity.length === 0 && !activityError && <p className="muted">No Diagnostics history entries yet.</p>}
+      </Card>
     </Page>
   );
+}
+
+function buildActivity(proofs: IntegritasProofRecord[], reads: DataSourceRead[]) {
+  const proofItems: ActivityItem[] = proofs.map((proof) => ({
+    id: `proof-${proof.id}`,
+    createdAt: proof.created_at,
+    category: "Integritas API log",
+    message: `Attestation created for ${proof.file_name ?? proof.hash.slice(0, 16)}`,
+    status: proof.proof_status === "ready" ? "Success" : proof.proof_status === "failed" ? "Failed" : "Pending",
+    good: proof.proof_status !== "failed"
+  }));
+
+  const readItems: ActivityItem[] = reads.map((read) => ({
+    id: `read-${read.id}`,
+    createdAt: read.createdAt,
+    category: read.triggerType === "automation" ? "Trigger history" : "Data read log",
+    message: `${read.sourceName} ${read.triggerType === "automation" ? "automation poll" : "manual read"}`,
+    status: read.status === "success" ? "Success" : "Failed",
+    good: read.status === "success"
+  }));
+
+  return [...proofItems, ...readItems]
+    .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
+    .slice(0, 10);
 }

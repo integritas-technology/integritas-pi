@@ -384,6 +384,110 @@ button:disabled {
   font-size: 2rem;
 }
 
+.use-case-hero {
+  grid-template-columns: 1fr;
+}
+
+.use-case-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.use-case-step {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.use-case-step span {
+  color: #93c5fd;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.use-case-step strong {
+  color: #ffffff;
+}
+
+.use-case-step p {
+  margin: 0;
+}
+
+.build-flow-card,
+.live-activity-card {
+  display: grid;
+  gap: 20px;
+}
+
+.build-flow-card h3,
+.live-activity-card h3 {
+  margin: 8px 0;
+  color: #020617;
+  font-size: 1.55rem;
+}
+
+.build-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.build-flow-step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  background: #f8fafc;
+}
+
+.build-flow-step span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: #ffffff;
+  font-weight: 900;
+  border-radius: 13px;
+  background: #020617;
+}
+
+.build-flow-step p,
+.activity-item p {
+  margin: 6px 0 0;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.activity-list {
+  display: grid;
+  gap: 10px;
+}
+
+.activity-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.activity-item time {
+  color: #475569;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
