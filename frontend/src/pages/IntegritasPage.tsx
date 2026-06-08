@@ -13,6 +13,8 @@ export function IntegritasPage() {
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [stampUpload, setStampUpload] = useState<File | null>(null);
   const [verifyUpload, setVerifyUpload] = useState<File | null>(null);
+  const [stampResult, setStampResult] = useState<unknown>(null);
+  const [verifyResult, setVerifyResult] = useState<unknown>(null);
   const [result, setResult] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -26,12 +28,12 @@ export function IntegritasPage() {
     setConfig(await response.json() as IntegritasConfig);
   }
 
-  async function run(action: () => Promise<unknown>) {
+  async function run(action: () => Promise<unknown>, showResult = true) {
     setBusy(true);
     setError(null);
     try {
       const response = await action();
-      setResult(response);
+      if (showResult) setResult(response);
       return response;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -53,8 +55,8 @@ export function IntegritasPage() {
       />
 
       <div className="integritas-upload-grid">
-        <StampFilePanel file={stampUpload} setFile={setStampUpload} busy={busy} onStamp={() => run(async () => { if (!stampUpload) throw new Error("Select a file first"); const response = await stampFile(stampUpload); setStampUpload(null); return response; })} />
-        <VerifyProofPanel file={verifyUpload} setFile={setVerifyUpload} busy={busy} onVerifyFile={() => run(async () => { if (!verifyUpload) throw new Error("Select a proof JSON file first"); const response = await verifyProofFile(verifyUpload); setVerifyUpload(null); return response; })} />
+        <StampFilePanel file={stampUpload} setFile={(file) => { setStampUpload(file); setStampResult(null); }} busy={busy} result={stampResult} onStamp={() => run(async () => { if (!stampUpload) throw new Error("Select a file first"); const response = await stampFile(stampUpload); setStampUpload(null); setStampResult(response); setResult(null); return response; }, false)} />
+        <VerifyProofPanel file={verifyUpload} setFile={(file) => { setVerifyUpload(file); setVerifyResult(null); }} busy={busy} result={verifyResult} onVerifyFile={() => run(async () => { if (!verifyUpload) throw new Error("Select a proof JSON file first"); const response = await verifyProofFile(verifyUpload); setVerifyUpload(null); setVerifyResult(response); setResult(null); return response; }, false)} />
       </div>
 
       {error && <p className="error-text">{error}</p>}

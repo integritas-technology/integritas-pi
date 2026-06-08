@@ -500,6 +500,12 @@ code {
   display: none;
 }
 
+.drop-box-file-label {
+  display: grid;
+  gap: 10px;
+  cursor: pointer;
+}
+
 .api-key-box {
   display: grid;
   gap: 10px;
