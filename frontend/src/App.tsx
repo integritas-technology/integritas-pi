@@ -10,9 +10,9 @@ import { AutomationPage } from "./pages/AutomationPage";
 import { SetupPage } from "./pages/SetupPage";
 import { WalletPage } from "./pages/WalletPage";
 
-function ActivePage({ active }: { active: NavId }) {
+function ActivePage({ active, setActive }: { active: NavId; setActive: (id: NavId) => void }) {
   const pages: Record<NavId, React.ReactNode> = {
-    dashboard: <DashboardPage />,
+    dashboard: <DashboardPage onStartSetup={() => setActive("setup")} />,
     setup: <SetupPage />,
     node: <MinimaPage />,
     wallet: <WalletPage />,
@@ -26,5 +26,5 @@ function ActivePage({ active }: { active: NavId }) {
 
 export default function App() {
   const [active, setActive] = useState<NavId>("dashboard");
-  return <AppShell active={active} setActive={setActive}><ActivePage active={active} /></AppShell>;
+  return <AppShell active={active} setActive={setActive}><ActivePage active={active} setActive={setActive} /></AppShell>;
 }

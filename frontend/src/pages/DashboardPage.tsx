@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { Database, ShieldCheck, Wallet, Zap } from "lucide-react";
 import { Card } from "../components/Card";
 import { Page } from "../components/Page";
+import { Pill } from "../components/Pill";
 import { listDataReads } from "../features/data-reads/dataReadsApi";
 import type { DataSourceRead } from "../features/data-reads/dataReadTypes";
 import { getHistory } from "../features/integritas/integritasApi";
@@ -17,10 +19,10 @@ type ActivityItem = {
 };
 
 const useCaseSteps = [
-  { number: "01", title: "Connect data", text: "Sensor, file, API, webhook, or device log" },
-  { number: "02", title: "Prove data", text: "Integritas timestamp, integrity check, and provenance" },
-  { number: "03", title: "Trigger action", text: "Run workflows from data, proofs, or token events" },
-  { number: "04", title: "Settle value", text: "Wallet payments, token access, and future marketplace revenue" }
+  { number: "01", title: "Connect data", text: "Sensor, file, API, webhook, or device log", icon: Database },
+  { number: "02", title: "Prove data", text: "Integritas timestamp, integrity check, and provenance", icon: ShieldCheck },
+  { number: "03", title: "Trigger action", text: "Run workflows from data, proofs, or token events", icon: Zap },
+  { number: "04", title: "Settle value", text: "Wallet payments, token access, and future marketplace revenue", icon: Wallet }
 ];
 
 const buildSteps = [
@@ -32,7 +34,7 @@ const buildSteps = [
   { number: "6", title: "Build the use case", text: "Combine node, wallet, data, proof, and automation tools into a working edge workflow." }
 ];
 
-export function DashboardPage() {
+export function DashboardPage({ onStartSetup }: { onStartSetup: () => void }) {
   const [proofs, setProofs] = useState<IntegritasProofRecord[]>([]);
   const [reads, setReads] = useState<DataSourceRead[]>([]);
   const [activityError, setActivityError] = useState<string | null>(null);
@@ -51,17 +53,24 @@ export function DashboardPage() {
   return (
     <Page eyebrow="Dashboard" title="Minima Edge Workbench" desc="A browser-first workspace for trusted data, proofs, automation, and value flows at the edge.">
       <section className="hero-card use-case-hero">
-        <div>
-          <p className="eyebrow">Use case builder</p>
-          <h1>Data to value</h1>
-          <p>Connect. Prove. Trigger. Settle.</p>
+        <div className="hero-intro">
+          <div className="hero-pills"><Pill>Pi Edition</Pill><Pill>Edge Workbench</Pill><Pill>Minima Core only</Pill></div>
+          <h1>Minima Edge Workbench</h1>
+          <p>Turn a Raspberry Pi into a Minima-powered edge gateway. Run a node, manage wallet and token workflows, verify local data with Integritas, and automate trusted edge events from a simple browser UI.</p>
+          <div className="hero-actions"><button type="button" onClick={onStartSetup}>Start setup</button></div>
         </div>
-        <div className="use-case-grid">
+        <div className="use-case-panel">
+          <p className="eyebrow">Use case builder</p>
+          <h2>Data to value</h2>
+          <p>Connect. Prove. Trigger. Settle.</p>
           {useCaseSteps.map((step) => (
             <article className="use-case-step" key={step.number}>
+              <div className="use-case-icon"><step.icon size={18} /></div>
               <span>{step.number}</span>
-              <strong>{step.title}</strong>
-              <p>{step.text}</p>
+              <div>
+                <strong>{step.title}</strong>
+                <p>{step.text}</p>
+              </div>
             </article>
           ))}
         </div>
