@@ -115,6 +115,37 @@ cp .env.example .env
 
 For local development on a non-Pi machine, change `HOST_FILES_DIR` to a directory that exists on your machine.
 
+### Native frontend + backend (fast iteration)
+
+Use this when you want to change UI or API code without rebuilding Docker images.
+
+Start both servers from the repo root:
+
+```bash
+npm install
+npm run dev
+```
+
+That runs the backend API on port 3000 and the Vite dev server on port 5173 (which proxies `/api` to the backend). You can also run them separately with `npm run dev:backend` and `npm run dev:frontend` in two terminals.
+
+Open:
+
+```txt
+http://localhost:5173
+```
+
+The backend loads the repo-root `.env` automatically in dev. `DATABASE_PATH`, `DATA_DIR`, and `HOST_FILES_DIR` are resolved relative to the repo root.
+
+Optional: run Minima in Docker while developing natively:
+
+```bash
+docker compose up -d minima
+```
+
+Without Minima, the rest of the app still works; the status overview will report Minima as unavailable.
+
+### Full stack in Docker
+
 Start everything:
 
 ```bash
