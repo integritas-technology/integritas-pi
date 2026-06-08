@@ -2,8 +2,8 @@ import type { OnboardingStep } from "./types";
 
 export const onboardingSteps: OnboardingStep[] = [
   { id: "welcome", label: "Welcome", shortLabel: "Welcome" },
-  { id: "account", label: "Secure access", shortLabel: "Account" },
-  { id: "minima", label: "Minima node", shortLabel: "Minima" },
-  { id: "integritas", label: "Integritas stamping", shortLabel: "Integritas" },
+  { id: "account", label: "Admin account", shortLabel: "Account" },
+  { id: "twofa", label: "Two-factor auth", shortLabel: "2FA" },
+  { id: "integritas", label: "Integritas API key", shortLabel: "Integritas" },
   { id: "complete", label: "Ready to use", shortLabel: "Finish" },
 ];

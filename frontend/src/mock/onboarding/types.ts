@@ -1,7 +1,7 @@
 export type OnboardingStepId =
   | "welcome"
   | "account"
-  | "minima"
+  | "twofa"
   | "integritas"
   | "complete";
 
@@ -15,11 +15,8 @@ export type OnboardingFormState = {
   username: string;
   password: string;
   confirmPassword: string;
-  requireLocalAuth: boolean;
-  minimaMdsPassword: string;
-  minimaAutoConnect: boolean;
+  twoFactorCode: string;
   integritasApiKey: string;
-  skipIntegritas: boolean;
 };
 
 export type MockCheckState = "idle" | "checking" | "ok" | "error";

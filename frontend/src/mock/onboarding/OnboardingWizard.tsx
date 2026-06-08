@@ -4,14 +4,14 @@ import {
   ArrowRight,
   Check,
   CheckCircle2,
-  Circle,
   ExternalLink,
   KeyRound,
   Layers3,
   LockKeyhole,
-  RadioTower,
   ShieldCheck,
+  Smartphone,
   Sparkles,
+  Stamp,
   UserRound,
 } from "lucide-react";
 import { cx } from "../../lib/cx";
@@ -23,15 +23,18 @@ import type {
 } from "./types";
 import "./onboarding.css";
 
+const MOCK_2FA_SECRET = "JBSWY3DPEHPK3PXP";
+const MOCK_QR_PATTERN = [
+  1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
+  1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0,
+];
+
 const initialForm: OnboardingFormState = {
   username: "",
   password: "",
   confirmPassword: "",
-  requireLocalAuth: true,
-  minimaMdsPassword: "",
-  minimaAutoConnect: true,
+  twoFactorCode: "",
   integritasApiKey: "",
-  skipIntegritas: false,
 };
 
 type PillTone = "neutral" | "good" | "warn" | "future";
@@ -75,8 +78,8 @@ function StepIcon({
   const icons = {
     welcome: Sparkles,
     account: UserRound,
-    minima: RadioTower,
-    integritas: ShieldCheck,
+    twofa: Smartphone,
+    integritas: KeyRound,
     complete: CheckCircle2,
   };
   const Icon = complete ? Check : icons[id];
@@ -94,40 +97,56 @@ function StepIcon({
   );
 }
 
+function MockQrCode() {
+  return (
+    <div className="mock-onboarding-qr" aria-hidden="true">
+      {MOCK_QR_PATTERN.map((on, index) => (
+        <span
+          key={index}
+          className={cx(
+            "mock-onboarding-qr-cell",
+            on === 1 && "mock-onboarding-qr-cell-on",
+          )}
+        />
+      ))}
+    </div>
+  );
+}
+
 function WelcomeStep() {
   return (
     <div className="mock-onboarding-panel">
       <p className="mock-onboarding-eyebrow">First-time setup</p>
       <h2>Welcome to Edge Workbench</h2>
       <p className="mock-onboarding-lead">
-        This wizard walks you through securing your Pi gateway, confirming the
-        Minima node, and connecting Integritas stamping — similar to a Debian or
-        Ubuntu desktop installer.
+        Edge Workbench runs on your Raspberry Pi to stamp data proofs, monitor
+        local services, and automate integrity checks — all from one dashboard on
+        your network.
       </p>
 
       <div className="mock-onboarding-feature-grid">
         <article className="mock-onboarding-feature-card">
           <LockKeyhole size={22} />
-          <h3>Protect the dashboard</h3>
+          <h3>Secure access</h3>
           <p>
-            Create a local admin account so only authorised users can change
-            settings on your network.
+            Sign in with a local admin account and two-factor authentication to
+            protect configuration on your LAN.
           </p>
         </article>
         <article className="mock-onboarding-feature-card">
-          <RadioTower size={22} />
-          <h3>Confirm Minima</h3>
+          <Stamp size={22} />
+          <h3>Stamp proofs</h3>
           <p>
-            Minima is the embedded blockchain node that anchors proofs. We will
-            check the local node and set access credentials.
+            Hash files and API responses, then anchor them on your embedded
+            Minima node through Integritas.
           </p>
         </article>
         <article className="mock-onboarding-feature-card">
           <ShieldCheck size={22} />
-          <h3>Connect Integritas</h3>
+          <h3>Run at the edge</h3>
           <p>
-            Integritas stamps data hashes to Minima so you can prove when files
-            and API responses existed.
+            Poll data sources, track stamp history, and keep services healthy
+            without leaving your Pi.
           </p>
         </article>
       </div>
@@ -156,8 +175,7 @@ function AccountStep({
       <p className="mock-onboarding-eyebrow">Step 1 of 3</p>
       <h2>Create your admin account</h2>
       <p className="mock-onboarding-lead">
-        Set the username and password used to sign in to Edge Workbench. This
-        protects configuration, API keys, and operational controls.
+        Choose the username and password used to sign in to Edge Workbench.
       </p>
 
       <div className="mock-onboarding-form-grid">
@@ -170,9 +188,6 @@ function AccountStep({
             placeholder="admin"
             autoComplete="username"
           />
-          <span className="mock-onboarding-muted">
-            Lowercase letters and numbers recommended.
-          </span>
         </label>
 
         <label className="mock-onboarding-label">
@@ -214,124 +229,76 @@ function AccountStep({
             </span>
           )}
         </label>
-
-        <label className="mock-onboarding-check-row">
-          <input
-            type="checkbox"
-            checked={form.requireLocalAuth}
-            onChange={(event) =>
-              setForm({ requireLocalAuth: event.target.checked })
-            }
-          />
-          <span>
-            <strong>Require sign-in on the local network</strong>
-            <span className="mock-onboarding-muted">
-              Recommended for Pi devices reachable from more than one machine.
-            </span>
-          </span>
-        </label>
       </div>
     </div>
   );
 }
 
-function MinimaStep({
+function TwoFactorStep({
   form,
   setForm,
   checkState,
-  onTestConnection,
+  onVerify,
 }: {
   form: OnboardingFormState;
   setForm: (patch: Partial<OnboardingFormState>) => void;
   checkState: MockCheckState;
-  onTestConnection: () => void;
+  onVerify: () => void;
 }) {
   return (
     <div className="mock-onboarding-panel">
       <p className="mock-onboarding-eyebrow">Step 2 of 3</p>
-      <h2>Configure Minima</h2>
+      <h2>Set up two-factor authentication</h2>
       <p className="mock-onboarding-lead">
-        Minima runs as a lightweight full node on your Pi. Integritas uses it to
-        anchor stamp proofs. Confirm the bundled node is reachable and set the
-        MiniDapp System password.
+        Scan the QR code with your authenticator app, then enter the 6-digit
+        code to confirm setup.
       </p>
 
-      <div className="mock-onboarding-status-card">
-        <div className="mock-onboarding-status-row">
+      <div className="mock-onboarding-2fa-layout">
+        <MockQrCode />
+        <div className="mock-onboarding-form-grid">
           <div>
-            <strong>Local Minima container</strong>
-            <p>Docker service: minima (ports 9001–9003)</p>
+            <p className="mock-onboarding-muted m-0 mb-2 text-sm">
+              Or enter this key manually:
+            </p>
+            <code className="inline-block rounded-lg bg-slate-100 px-2.5 py-1.5 text-sm font-semibold text-slate-800">
+              {MOCK_2FA_SECRET}
+            </code>
           </div>
-          <MockPill
-            tone={
-              checkState === "ok"
-                ? "good"
-                : checkState === "checking"
-                  ? "warn"
-                  : "neutral"
-            }
-          >
-            {checkState === "ok"
-              ? "Reachable"
-              : checkState === "checking"
-                ? "Checking…"
-                : "Not tested"}
-          </MockPill>
-        </div>
-        {checkState === "ok" && (
-          <div className="mock-onboarding-mock-result">
-            <CheckCircle2 size={18} />
-            <div>
-              <strong>Mock connection successful</strong>
-              <p>Node version 1.0.42 · Peers: 4 · Chain height: 1,284,901</p>
-            </div>
+
+          <label className="mock-onboarding-label">
+            Confirmation code
+            <input
+              className="mock-onboarding-code-input"
+              value={form.twoFactorCode}
+              onChange={(event) =>
+                setForm({
+                  twoFactorCode: event.target.value
+                    .replace(/\D/g, "")
+                    .slice(0, 6),
+                })
+              }
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="000000"
+              maxLength={6}
+            />
+          </label>
+
+          <div className="mock-onboarding-action-row">
+            <button
+              type="button"
+              className="mock-onboarding-btn-primary"
+              onClick={onVerify}
+              disabled={form.twoFactorCode.length !== 6 || checkState === "checking"}
+            >
+              {checkState === "checking" ? "Verifying…" : "Verify code"}
+            </button>
+            {checkState === "ok" && (
+              <MockPill tone="good">Confirmed (mock)</MockPill>
+            )}
           </div>
-        )}
-        <div className="mock-onboarding-action-row">
-          <button
-            type="button"
-            className="mock-onboarding-btn-primary"
-            onClick={onTestConnection}
-            disabled={checkState === "checking"}
-          >
-            {checkState === "checking" ? "Testing…" : "Test Minima connection"}
-          </button>
         </div>
-      </div>
-
-      <div className="mock-onboarding-form-grid">
-        <label className="mock-onboarding-label">
-          MDS password
-          <input
-            className="mock-onboarding-input"
-            value={form.minimaMdsPassword}
-            onChange={(event) =>
-              setForm({ minimaMdsPassword: event.target.value })
-            }
-            type="password"
-            placeholder="MiniDapp System password"
-          />
-          <span className="mock-onboarding-muted">
-            Used to access Minima miniDapps and RPC from this workbench.
-          </span>
-        </label>
-
-        <label className="mock-onboarding-check-row">
-          <input
-            type="checkbox"
-            checked={form.minimaAutoConnect}
-            onChange={(event) =>
-              setForm({ minimaAutoConnect: event.target.checked })
-            }
-          />
-          <span>
-            <strong>Auto-connect to default peers</strong>
-            <span className="mock-onboarding-muted">
-              Join the Minima network using bundled peer list
-              (megammr.minima.global).
-            </span>
-          </span>
-        </label>
       </div>
     </div>
   );
@@ -353,9 +320,7 @@ function IntegritasStep({
       <p className="mock-onboarding-eyebrow">Step 3 of 3</p>
       <h2>Connect Integritas</h2>
       <p className="mock-onboarding-lead">
-        Integritas hashes your files and API data, then anchors those hashes on
-        Minima. You need an API key from Integritas to stamp and verify proofs
-        from this Pi.
+        Paste your Integritas API key. You must verify it before continuing.
       </p>
 
       <div className="mock-onboarding-info-callout">
@@ -371,128 +336,86 @@ function IntegritasStep({
             >
               integritas.technology <ExternalLink size={14} />
             </a>{" "}
-            and paste the key below. You can skip this step and configure it
-            later in the Integritas page.
+            if you do not have one yet.
           </p>
         </div>
       </div>
 
-      <label className="mock-onboarding-check-row mock-onboarding-skip-row">
-        <input
-          type="checkbox"
-          checked={form.skipIntegritas}
-          onChange={(event) =>
-            setForm({ skipIntegritas: event.target.checked })
-          }
-        />
-        <span>
-          <strong>Skip for now</strong>
-          <span className="mock-onboarding-muted">
-            Finish setup without stamping enabled. Manual stamps and automation
-            will stay disabled.
-          </span>
-        </span>
-      </label>
+      <div className="mock-onboarding-form-grid">
+        <label className="mock-onboarding-label">
+          Integritas API key
+          <input
+            className="mock-onboarding-input"
+            value={form.integritasApiKey}
+            onChange={(event) =>
+              setForm({ integritasApiKey: event.target.value })
+            }
+            type="password"
+            placeholder="Paste API key"
+          />
+        </label>
+      </div>
 
-      {!form.skipIntegritas && (
-        <>
-          <div className="mock-onboarding-form-grid">
-            <label className="mock-onboarding-label">
-              Integritas API key
-              <input
-                className="mock-onboarding-input"
-                value={form.integritasApiKey}
-                onChange={(event) =>
-                  setForm({ integritasApiKey: event.target.value })
-                }
-                type="password"
-                placeholder="Paste API key"
-              />
-            </label>
+      <div className="mock-onboarding-status-card">
+        <div className="mock-onboarding-status-row">
+          <div>
+            <strong>API key check</strong>
+            <p>Validates format and mock quota status.</p>
           </div>
-
-          <div className="mock-onboarding-status-card">
-            <div className="mock-onboarding-status-row">
-              <div>
-                <strong>API key check</strong>
-                <p>Validates format and mock quota status.</p>
-              </div>
-              <MockPill
-                tone={
-                  checkState === "ok"
-                    ? "good"
-                    : checkState === "checking"
-                      ? "warn"
-                      : "neutral"
-                }
-              >
-                {checkState === "ok"
-                  ? "Valid (mock)"
-                  : checkState === "checking"
-                    ? "Verifying…"
-                    : "Not verified"}
-              </MockPill>
-            </div>
-            {checkState === "ok" && (
-              <div className="mock-onboarding-mock-result">
-                <CheckCircle2 size={18} />
-                <div>
-                  <strong>Mock verification passed</strong>
-                  <p>Plan: Pi Edge · Stamps remaining: 10,000 · Region: EU</p>
-                </div>
-              </div>
-            )}
-            <div className="mock-onboarding-action-row">
-              <button
-                type="button"
-                className="mock-onboarding-btn-primary"
-                onClick={onVerifyKey}
-                disabled={!form.integritasApiKey || checkState === "checking"}
-              >
-                {checkState === "checking" ? "Verifying…" : "Verify API key"}
-              </button>
+          <MockPill
+            tone={
+              checkState === "ok"
+                ? "good"
+                : checkState === "checking"
+                  ? "warn"
+                  : "neutral"
+            }
+          >
+            {checkState === "ok"
+              ? "Valid (mock)"
+              : checkState === "checking"
+                ? "Verifying…"
+                : "Not verified"}
+          </MockPill>
+        </div>
+        {checkState === "ok" && (
+          <div className="mock-onboarding-mock-result">
+            <CheckCircle2 size={18} />
+            <div>
+              <strong>Mock verification passed</strong>
+              <p>Plan: Pi Edge · Stamps remaining: 10,000</p>
             </div>
           </div>
-        </>
-      )}
+        )}
+        <div className="mock-onboarding-action-row">
+          <button
+            type="button"
+            className="mock-onboarding-btn-primary"
+            onClick={onVerifyKey}
+            disabled={!form.integritasApiKey || checkState === "checking"}
+          >
+            {checkState === "checking" ? "Verifying…" : "Verify API key"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
-function CompleteStep({
-  form,
-  minimaOk,
-  integritasOk,
-}: {
-  form: OnboardingFormState;
-  minimaOk: boolean;
-  integritasOk: boolean;
-}) {
-  const items = [
+function CompleteStep({ form }: { form: OnboardingFormState }) {
+  const configured = [
     {
       label: "Admin account",
       detail: form.username ? `User “${form.username}”` : "Not set",
-      ok: Boolean(form.username && form.password),
     },
-    {
-      label: "Local sign-in",
-      detail: form.requireLocalAuth ? "Required on LAN" : "Optional",
-      ok: true,
-    },
-    {
-      label: "Minima node",
-      detail: minimaOk ? "Connection tested (mock)" : "Not tested yet",
-      ok: minimaOk,
-    },
-    {
-      label: "Integritas stamping",
-      detail: form.skipIntegritas
-        ? "Skipped — configure later"
-        : integritasOk
-          ? "API key verified (mock)"
-          : "Key not verified",
-      ok: form.skipIntegritas || integritasOk,
-    },
+    { label: "Two-factor auth", detail: "Authenticator linked (mock)" },
+    { label: "Integritas", detail: "API key verified (mock)" },
+  ];
+
+  const automatic = [
+    "Minima node health and peer connectivity",
+    "Wallet lock and local security defaults",
+    "Background services and stamp polling",
   ];
 
   return (
@@ -500,27 +423,18 @@ function CompleteStep({
       <p className="mock-onboarding-eyebrow">All done</p>
       <h2>Your edge gateway is ready</h2>
       <p className="mock-onboarding-lead">
-        Review the summary below, then enter Edge Workbench. You can revisit any
-        setting from the Setup and feature pages once real backend wiring is
-        added.
+        You have finished the required setup. Edge Workbench will initialise
+        everything else silently when you continue.
       </p>
 
       <ul className="mock-onboarding-summary-list">
-        {items.map((item) => (
+        {configured.map((item) => (
           <li
             key={item.label}
-            className={cx(
-              "mock-onboarding-summary-item",
-              item.ok && "mock-onboarding-summary-item-ok",
-            )}
+            className="mock-onboarding-summary-item mock-onboarding-summary-item-ok"
           >
-            <span
-              className={cx(
-                "mock-onboarding-summary-icon",
-                item.ok && "mock-onboarding-summary-icon-ok",
-              )}
-            >
-              {item.ok ? <Check size={16} /> : <Circle size={16} />}
+            <span className="mock-onboarding-summary-icon mock-onboarding-summary-icon-ok">
+              <Check size={16} />
             </span>
             <div>
               <strong>{item.label}</strong>
@@ -530,9 +444,21 @@ function CompleteStep({
         ))}
       </ul>
 
+      <div className="mock-onboarding-info-callout">
+        <Sparkles size={20} />
+        <div>
+          <strong>Configures automatically</strong>
+          <ul className="mock-onboarding-muted m-0 mt-2 pl-4 text-sm leading-relaxed">
+            {automatic.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
       <p className="mock-onboarding-note">
-        Clicking finish will mark setup complete in your browser only and open
-        the main dashboard mockup.
+        Clicking finish marks setup complete in your browser only and opens the
+        main dashboard mockup.
       </p>
     </div>
   );
@@ -547,7 +473,7 @@ export function OnboardingWizard({
 }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [form, setFormState] = useState<OnboardingFormState>(initialForm);
-  const [minimaCheck, setMinimaCheck] = useState<MockCheckState>("idle");
+  const [twoFactorCheck, setTwoFactorCheck] = useState<MockCheckState>("idle");
   const [integritasCheck, setIntegritasCheck] =
     useState<MockCheckState>("idle");
 
@@ -564,8 +490,8 @@ export function OnboardingWizard({
 
   const setForm = (patch: Partial<OnboardingFormState>) => {
     setFormState((prev) => ({ ...prev, ...patch }));
-    if ("integritasApiKey" in patch || "skipIntegritas" in patch)
-      setIntegritasCheck("idle");
+    if ("twoFactorCode" in patch) setTwoFactorCheck("idle");
+    if ("integritasApiKey" in patch) setIntegritasCheck("idle");
   };
 
   const canContinue = useMemo(() => {
@@ -578,16 +504,16 @@ export function OnboardingWizard({
           form.password.length >= 8 &&
           form.password === form.confirmPassword
         );
-      case "minima":
-        return form.minimaMdsPassword.length >= 4;
+      case "twofa":
+        return twoFactorCheck === "ok";
       case "integritas":
-        return form.skipIntegritas || form.integritasApiKey.length >= 8;
+        return integritasCheck === "ok";
       case "complete":
         return true;
       default:
         return false;
     }
-  }, [currentStep.id, form]);
+  }, [currentStep.id, form, twoFactorCheck, integritasCheck]);
 
   const goNext = () => {
     if (stepIndex < onboardingSteps.length - 1)
@@ -668,12 +594,12 @@ export function OnboardingWizard({
               {currentStep.id === "account" && (
                 <AccountStep form={form} setForm={setForm} />
               )}
-              {currentStep.id === "minima" && (
-                <MinimaStep
+              {currentStep.id === "twofa" && (
+                <TwoFactorStep
                   form={form}
                   setForm={setForm}
-                  checkState={minimaCheck}
-                  onTestConnection={() => mockDelay(setMinimaCheck)}
+                  checkState={twoFactorCheck}
+                  onVerify={() => mockDelay(setTwoFactorCheck)}
                 />
               )}
               {currentStep.id === "integritas" && (
@@ -684,13 +610,7 @@ export function OnboardingWizard({
                   onVerifyKey={() => mockDelay(setIntegritasCheck)}
                 />
               )}
-              {currentStep.id === "complete" && (
-                <CompleteStep
-                  form={form}
-                  minimaOk={minimaCheck === "ok"}
-                  integritasOk={integritasCheck === "ok"}
-                />
-              )}
+              {currentStep.id === "complete" && <CompleteStep form={form} />}
             </div>
 
             <footer className="mock-onboarding-footer">
