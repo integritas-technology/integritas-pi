@@ -1,14 +1,27 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Layers3, ShieldCheck } from "lucide-react";
 import { nav } from "../app/nav";
-import type { NavId } from "../app/types";
+import type { NavId, StatusOverview } from "../app/types";
 import { cx } from "../lib/cx";
 import { Card } from "./Card";
 import { Clock } from "./Clock";
-import { Pill } from "./Pill";
+import { StatusBadge } from "./StatusBadge";
 
 export function AppShell({ active, setActive, children }: { active: NavId; setActive: (id: NavId) => void; children: React.ReactNode }) {
   const activeItem = useMemo(() => nav.find((item) => item.id === active) ?? nav[0], [active]);
+  const [overview, setOverview] = useState<StatusOverview | null>(null);
+
+  useEffect(() => {
+    fetch("/api/status/overview")
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json() as Promise<StatusOverview>;
+      })
+      .then(setOverview)
+      .catch(() => setOverview(null));
+  }, []);
+
+  const serviceIsOk = (name: string) => Boolean(overview?.services.find((service) => service.name === name)?.ok);
 
   return (
     <div className="app-root">
@@ -38,10 +51,13 @@ export function AppShell({ active, setActive, children }: { active: NavId; setAc
           <header className="topbar">
             <div className="topbar-left">
               <div className="topbar-title">
-                <div className="mobile-brand-icon"><Layers3 size={22} /></div>
                 <div><p>Current section</p><h2>{activeItem.label}</h2></div>
               </div>
-              <div className="topbar-pills"><Pill tone="neutral">Pi Edition</Pill><Pill tone="neutral">Prototype</Pill></div>
+              <div className="topbar-pills">
+                <StatusBadge ok={serviceIsOk("backend")}>Node online</StatusBadge>
+                <StatusBadge ok={serviceIsOk("minima")}>Wallet ready</StatusBadge>
+                <StatusBadge ok={serviceIsOk("integritas")}>Integritas connected</StatusBadge>
+              </div>
             </div>
             <div className="topbar-right"><Clock /></div>
           </header>
