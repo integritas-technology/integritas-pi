@@ -2,6 +2,23 @@
 
 This project is a learning prototype. It is not production-ready and should only be run on a trusted local network while these risks are understood and actively managed.
 
+This file is the **general** risk register for the whole app. Auth-specific threat model, controls, and Phase 1 checklist live in `docs/auth-security.md` (implementation: `docs/auth-implementation.md`).
+
+## Scope And Responsibility
+
+**In scope (application):**
+- API authentication and session security (in progress)
+- Secrets handling within the backend (encrypted settings, hashed sessions)
+- Input validation and safe proxying to Integritas / Minima
+- Read-only host file access with path traversal controls
+
+**Out of scope (operator / environment):**
+- OS hardening, firewall, SSH, physical device security
+- Network topology (router, VPN, cellular)
+- Full-disk encryption and device attestation
+
+We document recommended setup in README; we cannot enforce it on the device.
+
 ## Current Security Posture
 
 - No authentication or authorization is implemented.
@@ -12,6 +29,8 @@ This project is a learning prototype. It is not production-ready and should only
 - The backend mounts `/var/run/docker.sock:ro` for prototype resource monitoring.
 - The backend can read the configured host file directory through `/host-files:ro`.
 - Minima RPC is bound to `127.0.0.1` on the host by default, but is reachable by backend over the Docker network.
+
+**Auth (Phase 1 — planned):** Admin login with password + TOTP, stateful sessions (hashed in SQLite), protected `/api/*` routes, login rate limiting, audit log for secret changes. See `docs/auth-security.md`.
 
 ## High Priority Risks
 
@@ -28,7 +47,7 @@ Plan:
 - Add role-based access for admin actions such as API key management and Docker/system status.
 - Add CSRF protection for state-changing routes.
 
-Status: Open.
+Status: In progress — see `docs/auth-implementation.md`.
 
 ### Docker Socket Mount
 
@@ -57,7 +76,7 @@ Plan:
 - Never return secret values to frontend.
 - Add key validation before saving.
 
-Status: Open.
+Status: In progress — key write/delete will require admin session.
 
 ### `APP_SECRET` Dependency
 
@@ -88,7 +107,7 @@ Plan:
 - Consider Caddy or Traefik reverse proxy with local certificates.
 - At minimum, warn users not to submit secrets over untrusted networks.
 
-Status: Open.
+Status: Open. Target: HTTPS + `COOKIE_SECURE=true` for field deployments; HTTP acceptable on trusted home LAN only until then.
 
 ### File Browser Metadata Exposure
 
@@ -103,7 +122,7 @@ Plan:
 - Add per-user allowlists or explicit directory selection later.
 - Avoid mounting `/home/pi` in production unless required.
 
-Status: Partially mitigated by read-only mount and path traversal checks.
+Status: Partially mitigated by read-only mount and path traversal checks. Auth will gate `/api/files/*` (see `docs/auth-security.md`).
 
 ### Path Traversal And Symlink Escape
 
@@ -217,9 +236,9 @@ Risk: Endpoints can be called repeatedly.
 
 Impact: Local DoS, Integritas quota consumption, log noise.
 
-Plan: Add per-IP and per-session rate limits after auth/session design.
+Plan: Login/setup rate limits in auth Phase 1; broader per-IP limits on stamp and automation endpoints after.
 
-Status: Open.
+Status: In progress — see `docs/auth-security.md`.
 
 ### Error Response Detail
 
@@ -249,7 +268,7 @@ Impact: Regressions may go unnoticed.
 
 Plan: Add automated tests for file traversal, auth once added, Integritas key storage, encryption/decryption, and API error handling.
 
-Status: Open.
+Status: Open. Auth test cases defined in `docs/auth-security.md`.
 
 ## Development Security Plan
 
