@@ -92,7 +92,7 @@ export function createSetupPending(totpSecretEncrypted: string, expiresAt: strin
   deleteExpiredSetupPending();
   clearSetupPending();
   const id = crypto.randomUUID();
-  db.prepare("INSERT INTO setup_pending (id, totp_secret, expires_at) VALUES (?, ?, ?)").run(
+  db.prepare("INSERT INTO setup_pending (id, totp_secret, expires_at, verified_at) VALUES (?, ?, ?, NULL)").run(
     id,
     totpSecretEncrypted,
     expiresAt
@@ -100,10 +100,18 @@ export function createSetupPending(totpSecretEncrypted: string, expiresAt: strin
   return id;
 }
 
+export function markSetupPendingVerified(id: string, verifiedAt: string, expiresAt: string) {
+  db.prepare("UPDATE setup_pending SET verified_at = ?, expires_at = ? WHERE id = ?").run(
+    verifiedAt,
+    expiresAt,
+    id
+  );
+}
+
 export function getLatestSetupPending() {
   deleteExpiredSetupPending();
   return db.prepare("SELECT * FROM setup_pending ORDER BY expires_at DESC LIMIT 1").get() as
-    | { id: string; totp_secret: string; expires_at: string }
+    | { id: string; totp_secret: string; expires_at: string; verified_at: string | null }
     | undefined;
 }
 

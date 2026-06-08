@@ -118,9 +118,17 @@ export function runMigrations() {
     CREATE TABLE IF NOT EXISTS setup_pending (
       id TEXT PRIMARY KEY,
       totp_secret TEXT NOT NULL,
-      expires_at TEXT NOT NULL
+      expires_at TEXT NOT NULL,
+      verified_at TEXT
     )
   `);
+
+  const setupPendingColumns = db
+    .prepare("PRAGMA table_info(setup_pending)")
+    .all() as { name: string }[];
+  if (!setupPendingColumns.some((column) => column.name === "verified_at")) {
+    db.exec("ALTER TABLE setup_pending ADD COLUMN verified_at TEXT");
+  }
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS audit_events (

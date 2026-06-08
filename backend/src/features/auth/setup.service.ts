@@ -6,7 +6,8 @@ import {
   createSetupPending,
   createUser,
   getLatestSetupPending,
-  clearSetupPending
+  clearSetupPending,
+  markSetupPendingVerified
 } from "./auth.repository.js";
 import { validateIntegritasApiKey } from "./integritas-validation.service.js";
 import { hashPassword } from "./password.service.js";
@@ -21,6 +22,7 @@ import {
 } from "./totp.service.js";
 
 const SETUP_PENDING_TTL_MS = 15 * 60 * 1000;
+const SETUP_PENDING_VERIFIED_TTL_MS = 30 * 60 * 1000;
 
 export function isSetupComplete() {
   return countUsers() > 0;
@@ -59,6 +61,31 @@ export async function initSetupTotp(username: string) {
   return { qrCodePngBase64, expiresAt };
 }
 
+export async function verifySetupTotp(totpToken: string) {
+  assertSetupNotComplete();
+
+  const token = totpToken.trim();
+  if (!/^\d{6}$/.test(token)) {
+    throw new SetupError("totpToken must be a 6-digit code", 400);
+  }
+
+  const pending = getLatestSetupPending();
+  if (!pending) {
+    throw new SetupError("TOTP setup expired or not initialized", 400);
+  }
+
+  const totpSecret = decryptTotpSecret(pending.totp_secret);
+  if (!verifyToken(totpSecret, token)) {
+    throw new SetupError("Invalid TOTP code", 400);
+  }
+
+  const verifiedAt = new Date().toISOString();
+  const expiresAt = new Date(Date.now() + SETUP_PENDING_VERIFIED_TTL_MS).toISOString();
+  markSetupPendingVerified(pending.id, verifiedAt, expiresAt);
+
+  return { valid: true };
+}
+
 export async function verifySetupIntegritasKey(apiKey: string) {
   assertSetupNotComplete();
   const result = await validateIntegritasApiKey(apiKey);
@@ -71,26 +98,23 @@ export async function verifySetupIntegritasKey(apiKey: string) {
 export async function completeSetup(input: {
   username: string;
   password: string;
-  totpToken: string;
   integritasApiKey?: string;
 }) {
   assertSetupNotComplete();
 
   const username = input.username.trim();
   const password = input.password;
-  const totpToken = input.totpToken.trim();
 
   if (username.length < 2) throw new SetupError("username must be at least 2 characters", 400);
   if (password.length < 8) throw new SetupError("password must be at least 8 characters", 400);
-  if (!/^\d{6}$/.test(totpToken)) throw new SetupError("totpToken must be a 6-digit code", 400);
 
   const pending = getLatestSetupPending();
   if (!pending) throw new SetupError("TOTP setup expired or not initialized", 400);
+  if (!pending.verified_at) {
+    throw new SetupError("TOTP must be verified before completing setup", 400);
+  }
 
   const totpSecret = decryptTotpSecret(pending.totp_secret);
-  if (!verifyToken(totpSecret, totpToken)) {
-    throw new SetupError("Invalid TOTP code", 400);
-  }
 
   const integritasApiKey = input.integritasApiKey?.trim() ?? "";
   if (integritasApiKey) {

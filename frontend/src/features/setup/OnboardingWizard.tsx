@@ -15,7 +15,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { cx } from "../../lib/cx";
-import { completeSetup, initTotp, verifyIntegritasKey } from "./api";
+import { completeSetup, initTotp, verifyIntegritasKey, verifyTotp } from "./api";
 import { INTEGRITAS_STEP_REQUIRED } from "./config";
 import { onboardingSteps } from "./steps";
 import type { CheckState, OnboardingFormState, OnboardingStepId } from "./types";
@@ -209,20 +209,24 @@ function TwoFactorStep({
   qrCode,
   loadingQr,
   qrError,
+  checkState,
+  onVerifyCode,
 }: {
   form: OnboardingFormState;
   setForm: (patch: Partial<OnboardingFormState>) => void;
   qrCode: string | null;
   loadingQr: boolean;
   qrError: string | null;
+  checkState: CheckState;
+  onVerifyCode: () => void;
 }) {
   return (
     <div className="mock-onboarding-panel">
       <p className="mock-onboarding-eyebrow">Step 2 of 3</p>
       <h2>Set up two-factor authentication</h2>
       <p className="mock-onboarding-lead">
-        Scan the QR code with your authenticator app, then enter the 6-digit
-        code. It will be verified when you finish setup.
+        Scan the QR code with your authenticator app, then enter the current
+        6-digit code to confirm it is working.
       </p>
 
       <div className="mock-onboarding-2fa-layout">
@@ -257,6 +261,53 @@ function TwoFactorStep({
               maxLength={6}
             />
           </label>
+        </div>
+      </div>
+
+      <div className="mock-onboarding-status-card">
+        <div className="mock-onboarding-status-row">
+          <div>
+            <strong>Authenticator check</strong>
+            <p>Confirms your app is generating valid codes.</p>
+          </div>
+          <Pill
+            tone={
+              checkState === "ok"
+                ? "good"
+                : checkState === "checking"
+                  ? "warn"
+                  : checkState === "error"
+                    ? "warn"
+                    : "neutral"
+            }
+          >
+            {checkState === "ok"
+              ? "Verified"
+              : checkState === "checking"
+                ? "Verifying…"
+                : checkState === "error"
+                  ? "Invalid code"
+                  : "Not verified"}
+          </Pill>
+        </div>
+        {checkState === "ok" && (
+          <div className="mock-onboarding-mock-result">
+            <CheckCircle2 size={18} />
+            <div>
+              <strong>Authenticator linked</strong>
+              <p>You can continue with the rest of setup.</p>
+            </div>
+          </div>
+        )}
+        <div className="mock-onboarding-action-row">
+          <button
+            type="button"
+            className="mock-onboarding-btn-primary"
+            onClick={onVerifyCode}
+            disabled={form.twoFactorCode.length !== 6 || checkState === "checking" || !qrCode}
+          >
+            {checkState === "checking" ? "Verifying…" : "Verify code"}
+          </button>
         </div>
       </div>
     </div>
@@ -384,10 +435,12 @@ function IntegritasStep({
 
 function CompleteStep({
   form,
+  totpVerified,
   integritasSkipped,
   integritasVerified,
 }: {
   form: OnboardingFormState;
+  totpVerified: boolean;
   integritasSkipped: boolean;
   integritasVerified: boolean;
 }) {
@@ -396,7 +449,10 @@ function CompleteStep({
       label: "Admin account",
       detail: form.username ? `User "${form.username}"` : "Not set",
     },
-    { label: "Two-factor auth", detail: "Authenticator linked" },
+    {
+      label: "Two-factor auth",
+      detail: totpVerified ? "Authenticator linked" : "Not verified",
+    },
     {
       label: "Integritas",
       detail: integritasSkipped
@@ -457,6 +513,7 @@ function CompleteStep({
 export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [form, setFormState] = useState<OnboardingFormState>(initialForm);
+  const [totpCheck, setTotpCheck] = useState<CheckState>("idle");
   const [integritasCheck, setIntegritasCheck] = useState<CheckState>("idle");
   const [integritasSkipped, setIntegritasSkipped] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
@@ -478,6 +535,9 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
 
   const setForm = (patch: Partial<OnboardingFormState>) => {
     setFormState((prev) => ({ ...prev, ...patch }));
+    if ("twoFactorCode" in patch) {
+      setTotpCheck("idle");
+    }
     if ("integritasApiKey" in patch) {
       setIntegritasCheck("idle");
       setIntegritasSkipped(false);
@@ -487,6 +547,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   useEffect(() => {
     setQrCode(null);
     setQrError(null);
+    setTotpCheck("idle");
   }, [form.username]);
 
   useEffect(() => {
@@ -516,7 +577,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
           form.password === form.confirmPassword
         );
       case "twofa":
-        return form.twoFactorCode.length === 6 && Boolean(qrCode) && !qrError;
+        return totpCheck === "ok" && Boolean(qrCode) && !qrError;
       case "integritas":
         if (INTEGRITAS_STEP_REQUIRED) return integritasCheck === "ok";
         return integritasCheck === "ok" || integritasSkipped;
@@ -525,7 +586,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
       default:
         return false;
     }
-  }, [currentStep.id, form, integritasCheck, integritasSkipped, qrCode, qrError]);
+  }, [currentStep.id, form, totpCheck, integritasCheck, integritasSkipped, qrCode, qrError]);
 
   const goNext = async () => {
     if (currentStep.id === "complete") {
@@ -535,7 +596,6 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
         await completeSetup({
           username: form.username.trim(),
           password: form.password,
-          totpToken: form.twoFactorCode,
           integritasApiKey: integritasSkipped ? undefined : form.integritasApiKey || undefined,
         });
         onComplete();
@@ -554,6 +614,16 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
 
   const goBack = () => {
     if (stepIndex > 0) setStepIndex((index) => index - 1);
+  };
+
+  const verifyTotpCode = async () => {
+    setTotpCheck("checking");
+    try {
+      await verifyTotp(form.twoFactorCode);
+      setTotpCheck("ok");
+    } catch {
+      setTotpCheck("error");
+    }
   };
 
   const verifyIntegritas = async () => {
@@ -636,6 +706,8 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   qrCode={qrCode}
                   loadingQr={loadingQr}
                   qrError={qrError}
+                  checkState={totpCheck}
+                  onVerifyCode={() => void verifyTotpCode()}
                 />
               )}
               {currentStep.id === "integritas" && (
@@ -654,6 +726,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
               {currentStep.id === "complete" && (
                 <CompleteStep
                   form={form}
+                  totpVerified={totpCheck === "ok"}
                   integritasSkipped={integritasSkipped}
                   integritasVerified={integritasCheck === "ok"}
                 />

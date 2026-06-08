@@ -6,7 +6,8 @@ import {
   initSetupTotp,
   isSetupComplete,
   SetupError,
-  verifySetupIntegritasKey
+  verifySetupIntegritasKey,
+  verifySetupTotp
 } from "./setup.service.js";
 import { sessionCookieOptions } from "./session.service.js";
 
@@ -29,6 +30,19 @@ setupRouter.post("/totp/init", authRateLimiter, async (req, res) => {
   }
 });
 
+setupRouter.post("/totp/verify", authRateLimiter, async (req, res) => {
+  try {
+    const totpToken = typeof req.body?.totpToken === "string" ? req.body.totpToken : "";
+    const result = await verifySetupTotp(totpToken);
+    return res.json(result);
+  } catch (error) {
+    if (error instanceof SetupError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    return res.status(500).json({ error: "Failed to verify TOTP code" });
+  }
+});
+
 setupRouter.post("/integritas/verify", authRateLimiter, async (req, res) => {
   try {
     const apiKey = typeof req.body?.apiKey === "string" ? req.body.apiKey : "";
@@ -46,11 +60,10 @@ setupRouter.post("/complete", authRateLimiter, async (req, res) => {
   try {
     const username = typeof req.body?.username === "string" ? req.body.username : "";
     const password = typeof req.body?.password === "string" ? req.body.password : "";
-    const totpToken = typeof req.body?.totpToken === "string" ? req.body.totpToken : "";
     const integritasApiKey =
       typeof req.body?.integritasApiKey === "string" ? req.body.integritasApiKey : undefined;
 
-    const result = await completeSetup({ username, password, totpToken, integritasApiKey });
+    const result = await completeSetup({ username, password, integritasApiKey });
     res.cookie(env.sessionCookieName, result.sessionToken, sessionCookieOptions());
     return res.json({ success: true, user: result.user });
   } catch (error) {
