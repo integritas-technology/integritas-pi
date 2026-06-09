@@ -72,8 +72,8 @@ export async function runAutomationWorkflow(id: string) {
   }
 }
 
-function formatIntegritasStampError(stamp: { status: number; error: string; responseBody: unknown }) {
-  return `${stamp.error}: HTTP ${stamp.status} ${JSON.stringify(stamp.responseBody)}`;
+function formatIntegritasStampError(stamp: { status: number; error: string; errorCode: string; responseBody: unknown }) {
+  return `${stamp.error} (${stamp.errorCode}): HTTP ${stamp.status} ${JSON.stringify(stamp.responseBody)}`;
 }
 
 export function startAutomationScheduler() {

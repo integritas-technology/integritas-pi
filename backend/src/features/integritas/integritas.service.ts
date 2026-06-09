@@ -6,7 +6,16 @@ import crypto from "node:crypto";
 import { sha3HashHex } from "../../shared/crypto.js";
 import { parseResponseBody } from "../../shared/http.js";
 import { getIntegritasApiKey, integritasApiKeySource } from "../settings/secrets.service.js";
-import type { IntegritasStatusItem } from "./integritas.types.js";
+import type { IntegritasApiFailure, IntegritasErrorCode, IntegritasOperation, IntegritasStatusItem } from "./integritas.types.js";
+
+const TRANSIENT_RETRY_DELAYS_MS = [1000, 3000];
+const MAX_INTEGRITAS_ATTEMPTS = 3;
+
+const OPERATION_ERRORS: Record<IntegritasOperation, string> = {
+  stamp: "Integritas stamp failed",
+  status: "Integritas status check failed",
+  verify: "Integritas verification failed"
+};
 
 export function getIntegritasConfig() {
   return {
@@ -43,60 +52,161 @@ export function proofPayloadFromStatusItem(item: IntegritasStatusItem) {
   return [{ address: item.address || "", data: item.data || "", proof: item.proof || "", root: item.root || "" }];
 }
 
-export async function requestProofUid({ apiKey, hash }: { apiKey: string; hash: string }) {
-  const response = await fetch(`${env.integritasBaseUrl}/v1/timestamp/post`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-request-id": env.integritasRequestId, "x-api-key": apiKey },
-    body: JSON.stringify({ hash })
-  });
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-  const responseText = await response.text();
-  const parsed = parseResponseBody(responseText);
+function classifyErrorCode(status: number, operation: IntegritasOperation): IntegritasErrorCode {
+  if (status === 401 || status === 403) return "unauthorized";
+  if (status === 429) return "rate_limited";
+  if (status === 502 || status === 503) return "upstream_unavailable";
+  if (operation === "stamp") return "stamp_failed";
+  if (operation === "status") return "status_failed";
+  return "verify_failed";
+}
 
-  if (!response.ok) {
-    return { ok: false as const, status: response.status, error: "Integritas stamp failed", responseBody: parsed };
+function isTransientIntegritasFailure(status: number | null, error: unknown) {
+  if (error instanceof Error && error.name === "AbortError") return true;
+  if (status === 429 || status === 502 || status === 503) return true;
+  return false;
+}
+
+function retryDelayMs(attempt: number, retryAfterHeader: string | null) {
+  if (retryAfterHeader) {
+    const seconds = Number(retryAfterHeader);
+    if (!Number.isNaN(seconds) && seconds > 0) return seconds * 1000;
+  }
+  return TRANSIENT_RETRY_DELAYS_MS[attempt] ?? 3000;
+}
+
+function buildIntegritasFailure(input: {
+  status: number;
+  operation: IntegritasOperation;
+  responseBody: unknown;
+  retryAfter?: string | null;
+}): IntegritasApiFailure {
+  const errorCode = classifyErrorCode(input.status, input.operation);
+  return {
+    ok: false,
+    status: input.status,
+    error: OPERATION_ERRORS[input.operation],
+    errorCode,
+    responseBody: input.responseBody,
+    ...(input.retryAfter ? { retryAfter: input.retryAfter } : {})
+  };
+}
+
+async function integritasFetch(
+  path: string,
+  input: { apiKey: string; method?: string; headers?: Record<string, string>; body?: string },
+  operation: IntegritasOperation
+) {
+  const url = `${env.integritasBaseUrl}${path}`;
+
+  for (let attempt = 0; attempt < MAX_INTEGRITAS_ATTEMPTS; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), env.integritasRequestTimeoutMs);
+
+    try {
+      const response = await fetch(url, {
+        method: input.method ?? "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-request-id": env.integritasRequestId,
+          "x-api-key": input.apiKey,
+          ...input.headers
+        },
+        body: input.body,
+        signal: controller.signal
+      });
+
+      const responseText = await response.text();
+      const parsed = parseResponseBody(responseText);
+      const retryAfter = response.headers.get("Retry-After");
+
+      if (response.ok) {
+        return { ok: true as const, status: response.status, parsed, response };
+      }
+
+      const failure = buildIntegritasFailure({
+        status: response.status,
+        operation,
+        responseBody: parsed,
+        retryAfter
+      });
+
+      if (!isTransientIntegritasFailure(response.status, null) || attempt === MAX_INTEGRITAS_ATTEMPTS - 1) {
+        return failure;
+      }
+
+      await sleep(retryDelayMs(attempt, retryAfter));
+    } catch (error) {
+      if (!isTransientIntegritasFailure(null, error) || attempt === MAX_INTEGRITAS_ATTEMPTS - 1) {
+        return buildIntegritasFailure({
+          status: 502,
+          operation,
+          responseBody: error instanceof Error ? error.message : "Integritas request failed"
+        });
+      }
+
+      await sleep(retryDelayMs(attempt, null));
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
-  const uid = typeof parsed === "object" && parsed && "data" in parsed ? (parsed as { data?: { uid?: string } }).data?.uid : "";
-  return { ok: true as const, hash, proofUid: uid || "", proofStatus: "pending", response: parsed };
+  return buildIntegritasFailure({ status: 502, operation, responseBody: "Integritas request failed" });
+}
+
+export async function requestProofUid({ apiKey, hash }: { apiKey: string; hash: string }) {
+  const result = await integritasFetch(
+    "/v1/timestamp/post",
+    { apiKey, body: JSON.stringify({ hash }) },
+    "stamp"
+  );
+
+  if (!result.ok) return result;
+
+  const uid = typeof result.parsed === "object" && result.parsed && "data" in result.parsed
+    ? (result.parsed as { data?: { uid?: string } }).data?.uid
+    : "";
+
+  return { ok: true as const, hash, proofUid: uid || "", proofStatus: "pending", response: result.parsed };
 }
 
 export async function pollProofStatus({ apiKey, uids }: { apiKey: string; uids: string[] }) {
-  const response = await fetch(`${env.integritasBaseUrl}/v1/timestamp/status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-request-id": env.integritasRequestId, "x-api-key": apiKey },
-    body: JSON.stringify({ uids })
-  });
+  const result = await integritasFetch(
+    "/v1/timestamp/status",
+    { apiKey, body: JSON.stringify({ uids }) },
+    "status"
+  );
 
-  const responseText = await response.text();
-  const parsed = parseResponseBody(responseText);
+  if (!result.ok) return result;
 
-  if (!response.ok) {
-    return { ok: false as const, status: response.status, error: "Integritas status check failed", responseBody: parsed };
-  }
-
-  const data = typeof parsed === "object" && parsed && "data" in parsed && Array.isArray((parsed as { data?: unknown }).data)
-    ? (parsed as { data: IntegritasStatusItem[] }).data
+  const data = typeof result.parsed === "object" && result.parsed && "data" in result.parsed && Array.isArray((result.parsed as { data?: unknown }).data)
+    ? (result.parsed as { data: IntegritasStatusItem[] }).data
     : [];
 
-  return { ok: true as const, items: data, proofPayloads: data.map((item) => ({ uid: item.uid, proofPayload: proofPayloadFromStatusItem(item) })) };
+  return {
+    ok: true as const,
+    items: data,
+    proofPayloads: data.map((item) => ({ uid: item.uid, proofPayload: proofPayloadFromStatusItem(item) }))
+  };
 }
 
 export async function verifyProof({ apiKey, proofPayload }: { apiKey: string; proofPayload: unknown[] }) {
-  const response = await fetch(`${env.integritasBaseUrl}/v1/verify/post-lite-pdf`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-request-id": env.integritasRequestId, "x-report-required": "true", "x-api-key": apiKey },
-    body: JSON.stringify(proofPayload)
-  });
+  const result = await integritasFetch(
+    "/v1/verify/post-lite-pdf",
+    {
+      apiKey,
+      headers: { "x-report-required": "true" },
+      body: JSON.stringify(proofPayload)
+    },
+    "verify"
+  );
 
-  const responseText = await response.text();
-  const parsed = parseResponseBody(responseText);
-
-  if (!response.ok) {
-    return { ok: false as const, status: response.status, error: "Integritas verification failed", responseBody: parsed };
-  }
-
-  return { ok: true as const, response: parsed };
+  if (!result.ok) return result;
+  return { ok: true as const, response: result.parsed };
 }
 
 export function parseProofPayload(value: string | null) {

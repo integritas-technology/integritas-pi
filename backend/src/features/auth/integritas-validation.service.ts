@@ -9,7 +9,7 @@ export async function validateIntegritasApiKey(apiKey: string) {
 
   const result = await requestProofUid({ apiKey: apiKey.trim(), hash: VALIDATION_HASH });
   if (!result.ok) {
-    if (result.status === 401 || result.status === 403) {
+    if (result.errorCode === "unauthorized") {
       return { ok: false as const, error: "Invalid Integritas API key" };
     }
     return { ok: false as const, error: "Integritas API key validation failed" };

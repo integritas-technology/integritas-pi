@@ -9,9 +9,19 @@ import { deleteIntegritasApiKey, getIntegritasApiKey, saveIntegritasApiKey } fro
 import { env } from "../../config/env.js";
 import { createProofRecord, deleteProofRecords, getProofRecord, listProofRecords, updateProofStatus, updateVerifyResponse } from "./integritas.repository.js";
 import { getIntegritasConfig, hashCanonicalBytes, parseProofPayload, pollProofStatus, requestProofUid, sha3HashFile, verifyProof, writeProofExport } from "./integritas.service.js";
+import type { IntegritasApiFailure } from "./integritas.types.js";
 import { upload } from "./upload.middleware.js";
 
 export const integritasRouter = Router();
+
+function sendIntegritasError(res: Response, result: IntegritasApiFailure) {
+  return res.status(result.status).json({
+    error: result.error,
+    errorCode: result.errorCode,
+    responseBody: result.responseBody,
+    ...(result.retryAfter ? { retryAfter: result.retryAfter } : {})
+  });
+}
 
 function requireIntegritasApiKey(res: Response) {
   const apiKey = getIntegritasApiKey();
@@ -58,7 +68,7 @@ integritasRouter.post("/stamp", async (req, res) => {
   if (!hash) return res.status(400).json({ error: "hash or canonicalBytes is required" });
 
   const result = await requestProofUid({ apiKey, hash });
-  if (!result.ok) return res.status(result.status).json({ error: result.error, responseBody: result.responseBody });
+  if (!result.ok) return sendIntegritasError(res, result);
   return res.json(result);
 });
 
@@ -70,7 +80,7 @@ integritasRouter.post("/stamp-file", upload.single("file"), async (req, res) => 
   try {
     const hash = await sha3HashFile(req.file.path);
     const result = await requestProofUid({ apiKey, hash });
-    if (!result.ok) return res.status(result.status).json({ error: result.error, responseBody: result.responseBody });
+    if (!result.ok) return sendIntegritasError(res, result);
     const record = createProofRecord({ fileName: req.file.originalname, fileSize: req.file.size, hash, proofUid: result.proofUid, proofStatus: "pending" });
     return res.json({ record, stamp: result });
   } finally {
@@ -106,7 +116,7 @@ integritasRouter.post("/history/:id/poll", async (req, res) => {
 
   try {
     const result = await pollProofStatus({ apiKey, uids: [record.proof_uid] });
-    if (!result.ok) return res.status(result.status).json({ error: result.error, responseBody: result.responseBody });
+    if (!result.ok) return sendIntegritasError(res, result);
     const payload = result.proofPayloads.find((item) => item.uid === record.proof_uid)?.proofPayload ?? null;
     const statusItem = result.items.find((item) => item.uid === record.proof_uid);
     const proofStatus = payload ? "ready" : statusItem?.error || statusItem?.status === false ? "failed" : "pending";
@@ -126,7 +136,7 @@ integritasRouter.post("/history/:id/verify", async (req, res) => {
   const proofPayload = parseProofPayload(record.proof_payload);
   if (!proofPayload) return res.status(400).json({ error: "Proof record has no proof payload" });
   const result = await verifyProof({ apiKey, proofPayload });
-  if (!result.ok) return res.status(result.status).json({ error: result.error, responseBody: result.responseBody });
+  if (!result.ok) return sendIntegritasError(res, result);
   const updated = updateVerifyResponse(req.params.id, result.response);
   return res.json({ record: updated, currentHash: record.hash, response: result.response });
 });
@@ -141,7 +151,7 @@ integritasRouter.post("/verify-proof-file", upload.single("file"), async (req, r
     const proofPayload = JSON.parse(text) as unknown;
     if (!Array.isArray(proofPayload) || proofPayload.length === 0) return res.status(400).json({ error: "proof JSON must be a non-empty array" });
     const result = await verifyProof({ apiKey, proofPayload });
-    if (!result.ok) return res.status(result.status).json({ error: result.error, responseBody: result.responseBody });
+    if (!result.ok) return sendIntegritasError(res, result);
     return res.json({ response: result.response });
   } finally {
     await fs.rm(req.file.path, { force: true });
@@ -157,7 +167,7 @@ integritasRouter.post("/status", async (req, res) => {
 
   try {
     const result = await pollProofStatus({ apiKey, uids });
-    if (!result.ok) return res.status(result.status).json({ error: result.error, responseBody: result.responseBody });
+    if (!result.ok) return sendIntegritasError(res, result);
     return res.json(result);
   } catch (error) {
     return res.status(502).json({ error: error instanceof Error ? error.message : "Integritas proof status failed" });
@@ -179,6 +189,6 @@ integritasRouter.post("/verify", async (req, res) => {
   if (!Array.isArray(proofPayload) || proofPayload.length === 0) return res.status(400).json({ error: "proofPayload must be a non-empty array" });
 
   const result = await verifyProof({ apiKey, proofPayload });
-  if (!result.ok) return res.status(result.status).json({ error: result.error, responseBody: result.responseBody });
+  if (!result.ok) return sendIntegritasError(res, result);
   return res.json({ currentHash, response: result.response });
 });

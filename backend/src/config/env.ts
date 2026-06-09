@@ -42,6 +42,7 @@ export const env = {
   minimaStatusUrl: resolveMinimaStatusUrl(),
   integritasBaseUrl: process.env.INTEGRITAS_BASE_URL ?? "https://integritas.technology/core",
   integritasRequestId: process.env.INTEGRITAS_REQUEST_ID ?? "integritas-pi",
+  integritasRequestTimeoutMs: Number(process.env.INTEGRITAS_REQUEST_TIMEOUT_MS ?? 15000),
   integritasApiKeyFallback: process.env.INTEGRITAS_API_KEY ?? "",
   databasePath: resolveDatabasePath(),
   dataDir: process.env.DATA_DIR_IN_CONTAINER ?? "/data",
