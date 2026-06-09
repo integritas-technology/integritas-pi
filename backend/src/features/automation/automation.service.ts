@@ -2,7 +2,12 @@ import { getDataSource, updateDataSourceReadResult } from "../data-sources/dataS
 import { parseJsonApiConfig, readJsonApiSource, serializeDataSource } from "../data-sources/dataSources.service.js";
 import { createDataSourceRead, linkDataSourceReadProof } from "../data-reads/dataReads.repository.js";
 import { createProofRecord } from "../integritas/integritas.repository.js";
-import { requestProofUid } from "../integritas/integritas.service.js";
+import {
+  isIntegritasUnauthorizedErrorCode,
+  isTransientIntegritasErrorCode,
+  requestProofUid
+} from "../integritas/integritas.service.js";
+import type { IntegritasApiFailure } from "../integritas/integritas.types.js";
 import { getIntegritasApiKey } from "../settings/secrets.service.js";
 import { getAutomationWorkflow, listDueAutomationWorkflows, updateAutomationRunError, updateAutomationRunSuccess, type AutomationWorkflowRecord } from "./automation.repository.js";
 
@@ -52,8 +57,14 @@ export async function runAutomationWorkflow(id: string) {
     if (workflow.stamp_with_integritas) {
       const apiKey = getIntegritasApiKey();
       if (!apiKey) throw new Error("Integritas API key is not configured");
+
       const stamp = await requestProofUid({ apiKey, hash: readResult.bytesHash });
-      if (!stamp.ok) throw new Error(formatIntegritasStampError(stamp));
+      if (!stamp.ok) {
+        const stampFailure = handleAutomationStampFailure(id, stamp, readResult.bytesHash, updatedSource);
+        if (stampFailure) return stampFailure;
+        throw new Error(formatIntegritasStampError(stamp));
+      }
+
       const proof = createProofRecord({ fileName: `Automation: ${dataSource.name}`, fileSize: Buffer.byteLength(readResult.canonicalBytes, "utf8"), hash: readResult.bytesHash, proofUid: stamp.proofUid, proofStatus: "pending" });
       proofId = proof.id;
       linkDataSourceReadProof(readId, proof.id);
@@ -72,7 +83,36 @@ export async function runAutomationWorkflow(id: string) {
   }
 }
 
-function formatIntegritasStampError(stamp: { status: number; error: string; errorCode: string; responseBody: unknown }) {
+function handleAutomationStampFailure(
+  workflowId: string,
+  stamp: IntegritasApiFailure,
+  hash: string,
+  updatedSource: ReturnType<typeof updateDataSourceReadResult>
+) {
+  const message = formatIntegritasStampError(stamp);
+
+  if (isTransientIntegritasErrorCode(stamp.errorCode)) {
+    const updatedWorkflow = updateAutomationRunSuccess(workflowId, {
+      hash,
+      proofId: null,
+      lastError: `${message} Stamp will retry on the next scheduled run.`
+    });
+    return { workflow: serializeAutomationWorkflow(updatedWorkflow), dataSource: serializeDataSource(updatedSource), proofId: null, stampRetryPending: true };
+  }
+
+  if (isIntegritasUnauthorizedErrorCode(stamp.errorCode)) {
+    const updatedWorkflow = updateAutomationRunSuccess(workflowId, {
+      hash,
+      proofId: null,
+      lastError: "Integritas API key rejected. Update the API key before stamping can succeed."
+    });
+    return { workflow: serializeAutomationWorkflow(updatedWorkflow), dataSource: serializeDataSource(updatedSource), proofId: null, stampRetryPending: false };
+  }
+
+  return null;
+}
+
+function formatIntegritasStampError(stamp: IntegritasApiFailure) {
   return `${stamp.error} (${stamp.errorCode}): HTTP ${stamp.status} ${JSON.stringify(stamp.responseBody)}`;
 }
 

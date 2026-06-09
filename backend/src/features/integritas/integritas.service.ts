@@ -6,7 +6,7 @@ import crypto from "node:crypto";
 import { sha3HashHex } from "../../shared/crypto.js";
 import { parseResponseBody } from "../../shared/http.js";
 import { getIntegritasApiKey, integritasApiKeySource } from "../settings/secrets.service.js";
-import { getProofRecord, updateProofStatus } from "./integritas.repository.js";
+import { getProofRecord, updateProofStatus, type IntegritasProofRecord } from "./integritas.repository.js";
 import type { IntegritasApiFailure, IntegritasErrorCode, IntegritasOperation, IntegritasStatusItem } from "./integritas.types.js";
 
 export type IntegritasPollSuccess = {
@@ -69,15 +69,25 @@ export function applyPollResultToRecord(recordId: string, proofUid: string, resu
 }
 
 export async function refreshProofRecord(apiKey: string, recordId: string) {
-  const record = getProofRecord(recordId);
-  if (!record?.proof_uid) {
+  const existing = getProofRecord(recordId);
+  if (!existing?.proof_uid) {
     return { ok: false as const, notFound: true as const, error: "Proof record not found" };
   }
 
-  const result = await pollProofStatus({ apiKey, uids: [record.proof_uid] });
+  const record = expirePendingProofIfTimedOut(existing);
+  const proofUid = record.proof_uid;
+  if (!proofUid) {
+    return { ok: false as const, notFound: true as const, error: "Proof record not found" };
+  }
+
+  if (record.proof_status === "failed" && record.proof_error === "On-chain confirmation timed out") {
+    return { ok: true as const, record, status: null, timedOut: true as const };
+  }
+
+  const result = await pollProofStatus({ apiKey, uids: [proofUid] });
   if (!result.ok) return { ok: false as const, notFound: false as const, upstream: result };
 
-  const updated = applyPollResultToRecord(recordId, record.proof_uid, result);
+  const updated = applyPollResultToRecord(recordId, proofUid, result);
   return { ok: true as const, record: updated, status: result };
 }
 
@@ -92,6 +102,29 @@ function classifyErrorCode(status: number, operation: IntegritasOperation): Inte
   if (operation === "stamp") return "stamp_failed";
   if (operation === "status") return "status_failed";
   return "verify_failed";
+}
+
+export function isTransientIntegritasErrorCode(errorCode: IntegritasErrorCode) {
+  return errorCode === "upstream_unavailable" || errorCode === "rate_limited";
+}
+
+export function isIntegritasUnauthorizedErrorCode(errorCode: IntegritasErrorCode) {
+  return errorCode === "unauthorized";
+}
+
+export function isProofPollExpired(createdAt: string) {
+  const timeoutMs = env.integritasProofPollTimeoutMinutes * 60 * 1000;
+  return Date.now() - new Date(createdAt).getTime() > timeoutMs;
+}
+
+export function expirePendingProofIfTimedOut(record: IntegritasProofRecord) {
+  if (record.proof_status !== "pending" || !record.proof_uid) return record;
+  if (!isProofPollExpired(record.created_at)) return record;
+
+  return updateProofStatus(record.id, {
+    proofStatus: "failed",
+    proofError: "On-chain confirmation timed out"
+  });
 }
 
 function isTransientIntegritasFailure(status: number | null, error: unknown) {
