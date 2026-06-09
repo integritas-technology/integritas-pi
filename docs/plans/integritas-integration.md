@@ -4,6 +4,45 @@ Backend Integritas proof API integration, proof lifecycle automation, and relate
 
 Companion docs: [README.md](../../README.md), [SECURITY.md](../../SECURITY.md), [AGENTS.md](../../AGENTS.md). Prior art: [auth-implementation.md](../auth-implementation.md).
 
+**External API (authoritative):** Use the official Integritas docs when implementing or changing upstream calls — not ticket placeholders.
+
+- API hub: [integritas.technology API Documentation](https://docs.integritas.technology/docs/technical-docs/api-docs/)
+- **v1 (this project):** [Overview (v1)](https://docs.integritas.technology/docs/technical-docs/api-docs/v1/) — base URL `https://integritas.technology/core`, API-key auth via `x-api-key` and `x-request-id` headers.
+
+---
+
+## External Integritas API reference (v1)
+
+`integritas-pi` proxies Integritas **v1** only. v2 exists for full-file stamping shortcuts; defer unless explicitly requested.
+
+### Stamping flow (per official docs)
+
+```txt
+1. Hash data     → POST /v1/file/hash          (optional; we hash locally instead)
+2. Get UID       → POST /v1/timestamp/post     (submit SHA3-256 hash)
+3. Get proof     → POST /v1/timestamp/status   (poll UID until onchain: true)
+4. Verify        → POST /v1/verify/post-lite   (proof JSON; see note below)
+```
+
+[Get proof](https://docs.integritas.technology/docs/technical-docs/api-docs/v1/get-proof/) documents that `onchain: false` means the transaction is still pending — retry after a short wait (docs cite up to ~3 minutes). Phase 2 background polling aligns with this contract.
+
+### v1 endpoint index
+
+| Upstream path | Official doc | Used in `integritas-pi` | Local proxy / caller |
+|---|---|---|---|
+| `POST /v1/file/hash` | [Send File and Get Hash](https://docs.integritas.technology/docs/technical-docs/api-docs/v1/send-file-hash/) | **Not called** — we SHA3-256 hash locally (`POST /api/integritas/hash`, `stamp-file`) | — |
+| `POST /v1/timestamp/post` | [Send Hash and Get UID](https://docs.integritas.technology/docs/technical-docs/api-docs/v1/send-hash-uid/) | **Yes** — `requestProofUid()` | `POST /api/integritas/stamp`, `stamp-file`, automation |
+| `POST /v1/timestamp/status` | [Get Proof](https://docs.integritas.technology/docs/technical-docs/api-docs/v1/get-proof/) | **Yes** — `pollProofStatus()` | `POST /api/integritas/history/:id/poll`, `POST /status` |
+| `POST /v1/verify/post` | [Verify Data (Using Source Data)](https://docs.integritas.technology/docs/technical-docs/api-docs/v1/verify-data/) | **No** | — |
+| `POST /v1/verify/post-lite` | [Verify Hashed Data (Using Only Proof File)](https://docs.integritas.technology/docs/technical-docs/api-docs/v1/verify-hash/) | **Yes (variant)** — see note | `POST /api/integritas/verify`, `verify-proof-file`, `history/:id/verify` |
+| `GET /v1/web/check/health` | *(health probe; not in v1 quick reference table)* | **Yes** — status overview | `GET /api/status/overview` |
+
+**Verify path note:** Official v1 docs describe `POST /v1/verify/post-lite` with `multipart/form-data` (`jsonproof` file upload). This repo calls `POST /v1/verify/post-lite-pdf` with a JSON proof array body and `x-report-required: true`. Treat the running upstream behaviour as source of truth; if verification fails after API changes, re-check [Verify Hashed Data](https://docs.integritas.technology/docs/technical-docs/api-docs/v1/verify-hash/) and the v1 response schema linked from the [v1 overview](https://docs.integritas.technology/docs/technical-docs/api-docs/v1/).
+
+**API keys:** Obtain from [integritas.technology](https://integritas.technology/) (also stated in the [v1 overview](https://docs.integritas.technology/docs/technical-docs/api-docs/v1/)).
+
+When adding new Integritas capabilities, start from the [API hub](https://docs.integritas.technology/docs/technical-docs/api-docs/), confirm the v1 page, then add a narrow backend action — do not expose a generic upstream proxy (see `AGENTS.md`).
+
 ---
 
 ## Verdict
@@ -24,7 +63,7 @@ The ticket checklist is treated as a **capability list**, not a route spec. Stat
 
 | Capability | Status | Route(s) / location |
 |---|---|---|
-| Integritas external API reviewed | **Done** | Upstream: `POST /v1/timestamp/post`, `POST /v1/timestamp/status`, `POST /v1/verify/post-lite-pdf`, `GET /v1/web/check/health` in `integritas.service.ts` and `status.routes.ts`. |
+| Integritas external API reviewed | **Done** | v1 upstream paths per [External Integritas API reference](#external-integritas-api-reference-v1); implemented in `integritas.service.ts` and `status.routes.ts`. |
 | API key save + validate | **Done** | `POST /api/integritas/api-key`, `DELETE /api/integritas/api-key` (admin); setup: `POST /api/setup/integritas/verify`. Validation via `validateIntegritasApiKey()` (test stamp). |
 | Hash content | **Done** | `POST /api/integritas/hash` |
 | Submit stamp (hash → proof UID) | **Done** | `POST /api/integritas/stamp` |
@@ -35,7 +74,7 @@ The ticket checklist is treated as a **capability list**, not a route spec. Stat
 | Verify proof | **Done** | `POST /api/integritas/verify`, `POST /api/integritas/history/:id/verify`, `POST /api/integritas/verify-proof-file` |
 | Runtime config + upstream health | **Done** | `GET /api/integritas/config` (local config, key presence); `GET /api/status/overview` (Integritas health probe when key exists) |
 | History maintenance | **Done** | `POST /api/integritas/history/delete-selected`, `POST /api/integritas/history/export-selected` |
-| Error handling (rate limits, unavailability, proof failure) | **Partial** | Upstream HTTP status forwarded; poll exceptions → `502`; terminal errors → `proof_status: failed`. **Missing:** explicit `429` handling, fetch timeouts on Integritas calls, structured `errorCode`, retry-after respect. |
+| Error handling (rate limits, unavailability, proof failure) | **Done (Phase 1)** | `integritasFetch`: timeouts, transient retry, `errorCode` on API failures, `retryAfter` when upstream sends `429`. Poll route exceptions still → `502`; terminal proof errors → `proof_status: failed`. |
 
 **Summary:** Core stamping and history flows are complete on the current routes. Gaps are reliability (timeouts, retries, auto-poll) and operator-facing error detail — not missing endpoints.
 
