@@ -75,13 +75,15 @@ export function DataSourcesPage() {
     resetForm();
   }
 
-  async function run(action: () => Promise<unknown>) {
+  async function run(action: () => Promise<unknown>, successTitle?: string) {
     setBusy(true);
     try {
       await action();
       await refresh();
+      if (successTitle) showToast({ tone: "success", title: successTitle });
     } catch (err) {
       showToast({ tone: "error", title: "Data source action failed", message: err instanceof Error ? err.message : "Unknown error" });
+      await refresh().catch(() => undefined);
     } finally {
       setBusy(false);
     }
@@ -112,7 +114,7 @@ export function DataSourcesPage() {
               await createDataSource({ name, description, type, config: { url, method, healthStatusUrl: healthStatusUrl.trim() || undefined, headers: {} } });
               setFormOpen(false);
               resetForm();
-            })}
+            }, "Source added")}
           />
         </Modal>
       )}
@@ -121,8 +123,8 @@ export function DataSourcesPage() {
         items={items}
         healthStatuses={healthStatuses}
         busy={busy}
-        onRead={(source) => run(() => readDataSource(source.id))}
-        onDelete={(source) => run(() => deleteDataSource(source.id))}
+        onRead={(source) => run(() => readDataSource(source.id), "Manual read completed")}
+        onDelete={(source) => run(() => deleteDataSource(source.id), "Source deleted")}
       />
     </Page>
   );

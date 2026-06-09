@@ -58,7 +58,7 @@ export function DataSourcesList({
                   {source.lastPreview ? (
                     <JsonPreview value={source.lastPreview} />
                   ) : source.lastError ? (
-                    <p className="error-text">{source.lastError}</p>
+                    <span className="health-cell"><span className="health-status"><span className="health-dot error" />Read failed</span><JsonPreview value={{ error: source.lastError }} label="View error" /></span>
                   ) : (
                     <span className="muted">No preview</span>
                   )}
@@ -100,7 +100,7 @@ function HealthCell({ source, status }: { source: DataSource; status?: DataSourc
   return (
     <div className="health-cell">
       <span className="health-status"><span className={`health-dot ${status.ok ? "ok" : "error"}`} />{status.ok ? "Online" : "Error"}{status.status ? ` HTTP ${status.status}` : ""}</span>
-      {status.body !== undefined ? <JsonPreview value={status.body} label="View response" /> : status.error ? <p className="error-text">{status.error}</p> : null}
+      {status.body !== undefined ? <JsonPreview value={status.body} label="View response" /> : status.error ? <JsonPreview value={{ error: status.error }} label="View error" /> : null}
     </div>
   );
 }
