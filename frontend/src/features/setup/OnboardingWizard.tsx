@@ -4,7 +4,10 @@ import {
   ArrowRight,
   Check,
   CheckCircle2,
+  Copy,
   ExternalLink,
+  Eye,
+  EyeOff,
   KeyRound,
   Layers3,
   LockKeyhole,
@@ -207,6 +210,7 @@ function TwoFactorStep({
   form,
   setForm,
   qrCode,
+  totpSecret,
   loadingQr,
   qrError,
   checkState,
@@ -215,18 +219,34 @@ function TwoFactorStep({
   form: OnboardingFormState;
   setForm: (patch: Partial<OnboardingFormState>) => void;
   qrCode: string | null;
+  totpSecret: string | null;
   loadingQr: boolean;
   qrError: string | null;
   checkState: CheckState;
   onVerifyCode: () => void;
 }) {
+  const [showManualKey, setShowManualKey] = useState(false);
+  const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
+
+  const copyManualKey = async () => {
+    if (!totpSecret) return;
+    try {
+      await navigator.clipboard.writeText(totpSecret);
+      setCopyState("copied");
+      window.setTimeout(() => setCopyState("idle"), 2000);
+    } catch {
+      setCopyState("idle");
+    }
+  };
+
   return (
     <div className="mock-onboarding-panel">
       <p className="mock-onboarding-eyebrow">Step 2 of 3</p>
       <h2>Set up two-factor authentication</h2>
       <p className="mock-onboarding-lead">
-        Scan the QR code with your authenticator app, then enter the current
-        6-digit code to confirm it is working.
+        Scan the QR code with your authenticator app, or enter the setup key
+        manually if scanning fails. Then enter the current 6-digit code to
+        confirm it is working.
       </p>
 
       <div className="mock-onboarding-2fa-layout">
@@ -243,6 +263,48 @@ function TwoFactorStep({
         ) : null}
 
         <div className="mock-onboarding-form-grid">
+          {totpSecret ? (
+            <div className="mock-onboarding-manual-key">
+              <div className="mock-onboarding-manual-key-header">
+                <label className="mock-onboarding-label m-0" htmlFor="setup-manual-key">
+                  Manual setup key
+                </label>
+                <button
+                  type="button"
+                  className="mock-onboarding-btn-secondary mock-onboarding-btn-compact"
+                  onClick={() => setShowManualKey((visible) => !visible)}
+                  aria-pressed={showManualKey}
+                >
+                  {showManualKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showManualKey ? "Hide key" : "Show key"}
+                </button>
+              </div>
+              <p className="mock-onboarding-muted text-sm">
+                Use issuer <strong>Integritas Pi</strong> and account{" "}
+                <strong>{form.username.trim() || "admin"}</strong> if your app
+                asks for them.
+              </p>
+              <div className="mock-onboarding-manual-key-row">
+                <input
+                  id="setup-manual-key"
+                  className="mock-onboarding-input mock-onboarding-manual-key-input"
+                  readOnly
+                  value={showManualKey ? totpSecret : "•".repeat(Math.min(totpSecret.length, 32))}
+                  aria-label="Authenticator setup key"
+                />
+                <button
+                  type="button"
+                  className="mock-onboarding-btn-secondary mock-onboarding-btn-compact"
+                  onClick={() => void copyManualKey()}
+                  title="Copy setup key"
+                >
+                  <Copy size={16} />
+                  {copyState === "copied" ? "Copied" : "Copy"}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           <label className="mock-onboarding-label">
             Confirmation code
             <input
@@ -517,6 +579,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const [integritasCheck, setIntegritasCheck] = useState<CheckState>("idle");
   const [integritasSkipped, setIntegritasSkipped] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [totpSecret, setTotpSecret] = useState<string | null>(null);
   const [loadingQr, setLoadingQr] = useState(false);
   const [qrError, setQrError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -546,6 +609,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
 
   useEffect(() => {
     setQrCode(null);
+    setTotpSecret(null);
     setQrError(null);
     setTotpCheck("idle");
   }, [form.username]);
@@ -561,7 +625,10 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
     setLoadingQr(true);
     setQrError(null);
     initTotp(form.username.trim())
-      .then((result) => setQrCode(result.qrCodePngBase64))
+      .then((result) => {
+        setQrCode(result.qrCodePngBase64);
+        setTotpSecret(result.secret);
+      })
       .catch((err: Error) => setQrError(err.message))
       .finally(() => setLoadingQr(false));
   }, [currentStep.id, form.username, qrCode, loadingQr]);
@@ -704,6 +771,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   form={form}
                   setForm={setForm}
                   qrCode={qrCode}
+                  totpSecret={totpSecret}
                   loadingQr={loadingQr}
                   qrError={qrError}
                   checkState={totpCheck}

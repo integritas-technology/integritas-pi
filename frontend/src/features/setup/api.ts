@@ -1,7 +1,10 @@
 import { postJson } from "../../lib/api";
 
 export async function initTotp(username: string) {
-  return postJson<{ qrCodePngBase64: string; expiresAt: string }>("/api/setup/totp/init", { username });
+  return postJson<{ qrCodePngBase64: string; expiresAt: string; secret: string }>(
+    "/api/setup/totp/init",
+    { username }
+  );
 }
 
 export async function verifyTotp(totpToken: string) {

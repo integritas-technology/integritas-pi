@@ -284,6 +284,26 @@
   .mock-onboarding-code-input {
     @apply w-full max-w-[12rem] px-3 py-2.5 text-center text-lg tracking-[0.35em] font-semibold text-slate-950 border border-slate-300 rounded-xl bg-slate-50;
   }
+
+  .mock-onboarding-manual-key {
+    @apply grid gap-2;
+  }
+
+  .mock-onboarding-manual-key-header {
+    @apply flex flex-wrap items-center justify-between gap-2;
+  }
+
+  .mock-onboarding-manual-key-row {
+    @apply flex flex-wrap items-stretch gap-2;
+  }
+
+  .mock-onboarding-manual-key-input {
+    @apply min-w-0 flex-1 font-mono text-sm tracking-wide;
+  }
+
+  .mock-onboarding-btn-compact {
+    @apply inline-flex items-center gap-1.5 px-3 py-2 text-sm;
+  }
 }
 
 @media (max-height: 700px) {

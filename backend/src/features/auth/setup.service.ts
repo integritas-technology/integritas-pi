@@ -58,7 +58,7 @@ export async function initSetupTotp(username: string) {
   const otpAuthUrl = getOtpAuthUrl(secret, trimmedUsername);
   const qrCodePngBase64 = await renderQrPngBase64(otpAuthUrl);
 
-  return { qrCodePngBase64, expiresAt };
+  return { qrCodePngBase64, expiresAt, secret };
 }
 
 export async function verifySetupTotp(totpToken: string) {
