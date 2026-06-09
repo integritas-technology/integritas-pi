@@ -1,5 +1,6 @@
 import { db } from "../../db/database.js";
 import { saveIntegritasApiKey } from "../settings/secrets.service.js";
+import { LOCAL_ADMIN_DISPLAY_NAME, LOCAL_ADMIN_USERNAME, TOTP_ACCOUNT_LABEL } from "./auth.constants.js";
 import { recordAuditEvent } from "./audit.service.js";
 import {
   countUsers,
@@ -42,20 +43,15 @@ export class SetupError extends Error {
   }
 }
 
-export async function initSetupTotp(username: string) {
+export async function initSetupTotp() {
   assertSetupNotComplete();
-
-  const trimmedUsername = username.trim();
-  if (trimmedUsername.length < 2) {
-    throw new SetupError("username must be at least 2 characters", 400);
-  }
 
   const secret = generateSecret();
   const encrypted = encryptTotpSecret(secret);
   const expiresAt = new Date(Date.now() + SETUP_PENDING_TTL_MS).toISOString();
   createSetupPending(encrypted, expiresAt);
 
-  const otpAuthUrl = getOtpAuthUrl(secret, trimmedUsername);
+  const otpAuthUrl = getOtpAuthUrl(secret, TOTP_ACCOUNT_LABEL);
   const qrCodePngBase64 = await renderQrPngBase64(otpAuthUrl);
 
   return { qrCodePngBase64, expiresAt, secret };
@@ -96,16 +92,13 @@ export async function verifySetupIntegritasKey(apiKey: string) {
 }
 
 export async function completeSetup(input: {
-  username: string;
   password: string;
   integritasApiKey?: string;
 }) {
   assertSetupNotComplete();
 
-  const username = input.username.trim();
   const password = input.password;
 
-  if (username.length < 2) throw new SetupError("username must be at least 2 characters", 400);
   if (password.length < 8) throw new SetupError("password must be at least 8 characters", 400);
 
   const pending = getLatestSetupPending();
@@ -129,7 +122,7 @@ export async function completeSetup(input: {
     if (countUsers() > 0) throw new SetupError("Setup is already complete", 403);
 
     const userId = createUser({
-      username,
+      username: LOCAL_ADMIN_USERNAME,
       passwordHash,
       totpSecretEncrypted
     });
@@ -140,7 +133,7 @@ export async function completeSetup(input: {
     }
 
     clearSetupPending();
-    recordAuditEvent("setup.complete", { userId, detail: username });
+    recordAuditEvent("setup.complete", { userId, detail: LOCAL_ADMIN_DISPLAY_NAME });
 
     return userId;
   });
@@ -150,6 +143,6 @@ export async function completeSetup(input: {
 
   return {
     sessionToken,
-    user: { username, role: "admin" as const }
+    user: { displayName: LOCAL_ADMIN_DISPLAY_NAME, role: "admin" as const }
   };
 }

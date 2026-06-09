@@ -5,16 +5,16 @@ import "./login.css";
 
 type LoginPhase = "credentials" | "twofa";
 
+const TOTP_ACCOUNT_LABEL = "Edge Workbench";
+
 export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
   const [phase, setPhase] = useState<LoginPhase>("credentials");
-  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const credentialsValid =
-    username.trim().length >= 2 && password.trim().length >= 1;
+  const credentialsValid = password.trim().length >= 1;
   const twoFactorValid = twoFactorCode.length === 6;
 
   const continueToTwoFactor = () => {
@@ -30,7 +30,6 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
     setError(null);
     try {
       await login({
-        username: username.trim(),
         password,
         totpToken: twoFactorCode,
       });
@@ -67,21 +66,10 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
             <p className="mock-login-eyebrow">Sign in</p>
             <h2>Welcome back</h2>
             <p className="mock-login-lead">
-              Enter your admin username and password to continue.
+              Enter your admin password to continue.
             </p>
 
             <div className="mock-login-form">
-              <label className="mock-login-label">
-                Username
-                <input
-                  className="mock-login-input"
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                  placeholder="admin"
-                  autoComplete="username"
-                />
-              </label>
-
               <label className="mock-login-label">
                 Password
                 <input
@@ -120,7 +108,7 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
             <h2>Enter your code</h2>
             <p className="mock-login-lead">
               Open your authenticator app and enter the 6-digit code for{" "}
-              <strong>{username.trim() || "your account"}</strong>.
+              <strong>{TOTP_ACCOUNT_LABEL}</strong>.
             </p>
 
             <div className="mock-login-form">

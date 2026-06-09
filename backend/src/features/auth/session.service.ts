@@ -9,6 +9,7 @@ import {
   findUserById,
   updateSessionLastSeen
 } from "./auth.repository.js";
+import { LOCAL_ADMIN_DISPLAY_NAME } from "./auth.constants.js";
 import type { SessionUser } from "./auth.types.js";
 
 function sessionMaxAgeMs() {
@@ -53,7 +54,7 @@ export function validateSession(rawToken: string): SessionUser | null {
 
   return {
     id: user.id,
-    username: user.username,
+    displayName: LOCAL_ADMIN_DISPLAY_NAME,
     role: user.role,
     lastLogin: user.last_login
   };

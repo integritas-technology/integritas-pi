@@ -1,5 +1,5 @@
 export type AuthUser = {
-  username: string;
+  displayName: string;
   role: "admin";
   lastLogin?: string | null;
 };

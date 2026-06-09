@@ -1,10 +1,8 @@
 import { postJson } from "../../lib/api";
+import type { AuthUser } from "../auth/types";
 
-export async function initTotp(username: string) {
-  return postJson<{ qrCodePngBase64: string; expiresAt: string; secret: string }>(
-    "/api/setup/totp/init",
-    { username }
-  );
+export async function initTotp() {
+  return postJson<{ qrCodePngBase64: string; expiresAt: string; secret: string }>("/api/setup/totp/init");
 }
 
 export async function verifyTotp(totpToken: string) {
@@ -16,9 +14,8 @@ export async function verifyIntegritasKey(apiKey: string) {
 }
 
 export async function completeSetup(input: {
-  username: string;
   password: string;
   integritasApiKey?: string;
 }) {
-  return postJson<{ success: boolean; user: { username: string; role: "admin" } }>("/api/setup/complete", input);
+  return postJson<{ success: boolean; user: AuthUser }>("/api/setup/complete", input);
 }

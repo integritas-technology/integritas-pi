@@ -12,7 +12,6 @@ export type OnboardingStep = {
 };
 
 export type OnboardingFormState = {
-  username: string;
   password: string;
   confirmPassword: string;
   twoFactorCode: string;

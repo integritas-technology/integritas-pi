@@ -9,11 +9,10 @@ export const authPublicRouter = Router();
 export const authProtectedRouter = Router();
 
 authPublicRouter.post("/login", authRateLimiter, async (req, res) => {
-  const username = typeof req.body?.username === "string" ? req.body.username : "";
   const password = typeof req.body?.password === "string" ? req.body.password : "";
   const totpToken = typeof req.body?.totpToken === "string" ? req.body.totpToken : "";
 
-  const result = await login({ username, password, totpToken });
+  const result = await login({ password, totpToken });
   if (!result.ok) {
     return res.status(401).json({ error: "Invalid credentials" });
   }
@@ -27,7 +26,7 @@ authProtectedRouter.post("/logout", (req, res) => {
   if (rawToken) {
     deleteSession(rawToken);
     if (req.user) {
-      recordAuditEvent("logout", { userId: req.user.id, detail: req.user.username });
+      recordAuditEvent("logout", { userId: req.user.id, detail: req.user.displayName });
     }
   }
 
@@ -46,7 +45,7 @@ authProtectedRouter.get("/me", (req, res) => {
   }
 
   return res.json({
-    username: req.user.username,
+    displayName: req.user.displayName,
     role: req.user.role,
     lastLogin: req.user.lastLogin
   });

@@ -15,7 +15,7 @@ export function SidebarUserBox({
           <UserRound size={18} />
         </div>
         <div className="sidebar-user-box-copy">
-          <strong>{user.username}</strong>
+          <strong>{user.displayName}</strong>
           <p>Administrator</p>
         </div>
       </div>

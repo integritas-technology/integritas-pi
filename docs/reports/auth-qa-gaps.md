@@ -93,7 +93,7 @@ Until then, treat auth as **feature-complete, security-incomplete**.
 
 **QA work — manual checklist (run on fresh `DATA_DIR`):**
 
-- [ ] Wizard: account → 2FA QR → verify code → skip Integritas → complete → dashboard
+- [ ] Wizard: set password → 2FA QR → verify code → skip Integritas → complete → dashboard
 - [ ] Wizard with Integritas key: verify key → complete → key shows configured (masked)
 - [ ] Browser reload: still logged in (cookie persists)
 - [ ] Sign out: protected API returns `401`; login screen shown
@@ -244,11 +244,11 @@ Until then, treat auth as **feature-complete, security-incomplete**.
 
 ### GAP-13 — Audit log hygiene
 
-**Current:** `login.failure` stores username in `audit_events.detail`.
+**Current:** `login.failure` stores `"failed"` in `audit_events.detail` (no user input).
 
 **QA work:**
 
-- [ ] Stop storing raw username on failure (use `"failed"` or hashed identifier).
+- [x] Stop storing raw username on failure (use `"failed"` or hashed identifier).
 - [ ] Confirm audit rows never contain passwords, TOTP, tokens, or API keys.
 
 ---

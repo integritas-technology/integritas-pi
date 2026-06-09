@@ -9,7 +9,7 @@ export async function getMe() {
   return getJson<AuthUser>("/api/auth/me");
 }
 
-export async function login(input: { username: string; password: string; totpToken: string }) {
+export async function login(input: { password: string; totpToken: string }) {
   return postJson<{ success: boolean; user: AuthUser }>("/api/auth/login", input);
 }
 

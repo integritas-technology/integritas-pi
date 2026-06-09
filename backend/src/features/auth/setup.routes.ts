@@ -17,10 +17,9 @@ setupRouter.get("/status", (_req, res) => {
   res.json({ setupComplete: isSetupComplete() });
 });
 
-setupRouter.post("/totp/init", authRateLimiter, async (req, res) => {
+setupRouter.post("/totp/init", authRateLimiter, async (_req, res) => {
   try {
-    const username = typeof req.body?.username === "string" ? req.body.username : "";
-    const result = await initSetupTotp(username);
+    const result = await initSetupTotp();
     return res.json(result);
   } catch (error) {
     if (error instanceof SetupError) {
@@ -58,12 +57,11 @@ setupRouter.post("/integritas/verify", authRateLimiter, async (req, res) => {
 
 setupRouter.post("/complete", authRateLimiter, async (req, res) => {
   try {
-    const username = typeof req.body?.username === "string" ? req.body.username : "";
     const password = typeof req.body?.password === "string" ? req.body.password : "";
     const integritasApiKey =
       typeof req.body?.integritasApiKey === "string" ? req.body.integritasApiKey : undefined;
 
-    const result = await completeSetup({ username, password, integritasApiKey });
+    const result = await completeSetup({ password, integritasApiKey });
     res.cookie(env.sessionCookieName, result.sessionToken, sessionCookieOptions());
     return res.json({ success: true, user: result.user });
   } catch (error) {

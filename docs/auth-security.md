@@ -59,7 +59,7 @@ Living doc for **auth implementation** risks and controls. Implementation detail
 **Controls (V1):**
 - Rate limit `POST /api/auth/login` and `POST /api/setup/*` by IP (e.g. 5 failures / 15 min)
 - Generic error always: `"Invalid credentials"`
-- Constant-time login path: run bcrypt even when username missing
+- Constant-time login path: run bcrypt even when no user exists
 
 **Later:** Broader per-IP / per-session limits on stamp and automation endpoints.
 
@@ -110,7 +110,7 @@ Living doc for **auth implementation** risks and controls. Implementation detail
 **Controls:**
 - Reject setup if any user exists
 - `setup_pending` TOTP rows: 15 min TTL, rate limited
-- `POST /api/setup/totp/init` requires `{ username }` from account step
+- `POST /api/setup/totp/init` uses fixed TOTP label (no user-chosen username)
 - Setup complete in transaction where practical
 - TOTP verified only on `POST /api/setup/complete` (no separate verify endpoint in V1)
 
@@ -247,7 +247,7 @@ No passwords, tokens, or key values in audit rows.
 **Frontend (wizard + auth together)**
 - [ ] `lib/api.ts`: `credentials: "include"` on all requests
 - [ ] `AuthProvider` bootstrap flow
-- [ ] Wizard wired: `totp/init` (with username) → `setup/complete`
+- [ ] Wizard wired: `totp/init` → `totp/verify` → `setup/complete`
 - [ ] Integritas step Skip + `INTEGRITAS_STEP_REQUIRED` toggle
 - [ ] Remove mock login/onboarding + localStorage gates
 - [ ] `SetupPage`: real logout; no "Preview setup wizard"

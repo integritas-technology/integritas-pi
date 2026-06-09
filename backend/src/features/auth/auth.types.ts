@@ -14,7 +14,7 @@ export type UserRecord = {
 
 export type SessionUser = {
   id: string;
-  username: string;
+  displayName: string;
   role: UserRole;
   lastLogin: string | null;
 };

@@ -168,12 +168,12 @@ docker compose logs -f
 
 On first launch with an empty database, Edge Workbench shows a setup wizard:
 
-1. Create the admin username and password (minimum 8 characters)
+1. Set the admin password (minimum 8 characters)
 2. Scan the TOTP QR code and enter a 6-digit code
 3. Optionally verify an Integritas API key (or skip and configure later)
 4. Finish setup — you are signed in via an HttpOnly session cookie
 
-After setup, sign in with username, password, and TOTP. Sessions persist across browser reloads until logout or expiry.
+After setup, sign in with password and TOTP. There is a single local admin account (no username to enter). Sessions persist across browser reloads until logout or expiry.
 
 Public API routes (no session required):
 

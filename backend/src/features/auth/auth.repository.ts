@@ -7,8 +7,8 @@ export function countUsers() {
   return row.count;
 }
 
-export function findUserByUsername(username: string): UserRecord | undefined {
-  return db.prepare("SELECT * FROM users WHERE username = ?").get(username) as UserRecord | undefined;
+export function findTheUser(): UserRecord | undefined {
+  return db.prepare("SELECT * FROM users LIMIT 1").get() as UserRecord | undefined;
 }
 
 export function findUserById(id: string): UserRecord | undefined {

@@ -24,8 +24,9 @@ import { onboardingSteps } from "./steps";
 import type { CheckState, OnboardingFormState, OnboardingStepId } from "./types";
 import "./onboarding.css";
 
+const TOTP_ACCOUNT_LABEL = "Edge Workbench";
+
 const initialForm: OnboardingFormState = {
-  username: "",
   password: "",
   confirmPassword: "",
   twoFactorCode: "",
@@ -145,23 +146,12 @@ function AccountStep({
   return (
     <div className="mock-onboarding-panel">
       <p className="mock-onboarding-eyebrow">Step 1 of 3</p>
-      <h2>Create your admin account</h2>
+      <h2>Set your admin password</h2>
       <p className="mock-onboarding-lead">
-        Choose the username and password used to sign in to Edge Workbench.
+        Choose the password used to sign in to Edge Workbench.
       </p>
 
       <div className="mock-onboarding-form-grid">
-        <label className="mock-onboarding-label">
-          Username
-          <input
-            className="mock-onboarding-input"
-            value={form.username}
-            onChange={(event) => setForm({ username: event.target.value })}
-            placeholder="admin"
-            autoComplete="username"
-          />
-        </label>
-
         <label className="mock-onboarding-label">
           Password
           <input
@@ -281,8 +271,7 @@ function TwoFactorStep({
               </div>
               <p className="mock-onboarding-muted text-sm">
                 Use issuer <strong>Integritas Pi</strong> and account{" "}
-                <strong>{form.username.trim() || "admin"}</strong> if your app
-                asks for them.
+                <strong>{TOTP_ACCOUNT_LABEL}</strong> if your app asks for them.
               </p>
               <div className="mock-onboarding-manual-key-row">
                 <input
@@ -496,20 +485,20 @@ function IntegritasStep({
 }
 
 function CompleteStep({
-  form,
+  passwordSet,
   totpVerified,
   integritasSkipped,
   integritasVerified,
 }: {
-  form: OnboardingFormState;
+  passwordSet: boolean;
   totpVerified: boolean;
   integritasSkipped: boolean;
   integritasVerified: boolean;
 }) {
   const configured = [
     {
-      label: "Admin account",
-      detail: form.username ? `User "${form.username}"` : "Not set",
+      label: "Admin password",
+      detail: passwordSet ? "Configured" : "Not set",
     },
     {
       label: "Two-factor auth",
@@ -608,30 +597,19 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   };
 
   useEffect(() => {
-    setQrCode(null);
-    setTotpSecret(null);
-    setQrError(null);
-    setTotpCheck("idle");
-  }, [form.username]);
-
-  useEffect(() => {
     if (currentStep.id !== "twofa") return;
     if (qrCode || loadingQr) return;
-    if (form.username.trim().length < 2) {
-      setQrError("Enter a username on the account step first.");
-      return;
-    }
 
     setLoadingQr(true);
     setQrError(null);
-    initTotp(form.username.trim())
+    initTotp()
       .then((result) => {
         setQrCode(result.qrCodePngBase64);
         setTotpSecret(result.secret);
       })
       .catch((err: Error) => setQrError(err.message))
       .finally(() => setLoadingQr(false));
-  }, [currentStep.id, form.username, qrCode, loadingQr]);
+  }, [currentStep.id, qrCode, loadingQr]);
 
   const canContinue = useMemo(() => {
     switch (currentStep.id) {
@@ -639,7 +617,6 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
         return true;
       case "account":
         return (
-          form.username.trim().length >= 2 &&
           form.password.length >= 8 &&
           form.password === form.confirmPassword
         );
@@ -661,7 +638,6 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
       setSubmitError(null);
       try {
         await completeSetup({
-          username: form.username.trim(),
           password: form.password,
           integritasApiKey: integritasSkipped ? undefined : form.integritasApiKey || undefined,
         });
@@ -793,7 +769,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
               )}
               {currentStep.id === "complete" && (
                 <CompleteStep
-                  form={form}
+                  passwordSet={form.password.length >= 8}
                   totpVerified={totpCheck === "ok"}
                   integritasSkipped={integritasSkipped}
                   integritasVerified={integritasCheck === "ok"}

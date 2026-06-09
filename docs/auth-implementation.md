@@ -291,7 +291,7 @@ Default `COOKIE_SECURE=false` in `.env.example` with a comment that TLS + `COOKI
 
 **`POST /api/setup/totp/init`** (only when `setupComplete === false`)
 
-Body: `{ "username": "admin" }` — username from account step (labels the QR / otpauth URL).
+No request body required. TOTP QR uses fixed label `Edge Workbench` (issuer `Integritas Pi`).
 
 - Generate TOTP secret, store encrypted row in `setup_pending` (15 min TTL)
 - Return `{ qrCodePngBase64, expiresAt }` — **never** return raw secret in JSON
@@ -303,12 +303,12 @@ Body:
 
 ```json
 {
-  "username": "admin",
   "password": "…",
-  "totpToken": "123456",
   "integritasApiKey": "…"
 }
 ```
+
+TOTP must be verified via `POST /api/setup/totp/verify` before complete. User row stores fixed internal username `admin`.
 
 Steps:
 
@@ -319,7 +319,7 @@ Steps:
 5. If `integritasApiKey` non-empty → validate with lightweight upstream check, then `saveIntegritasApiKey()` (not `.env`)
 6. Delete `setup_pending` rows; write `audit_events` row (`setup.complete`)
 7. `createSession` (new token — no session fixation), set cookie
-8. Return `{ success: true, user: { username, role } }`
+8. Return `{ success: true, user: { displayName: "Administrator", role } }`
 
 Integritas API key is **optional** at setup — wizard Integritas step has a **Skip** button (see Phase 8). Key can be saved later on the Integritas page.
 
@@ -327,9 +327,9 @@ Integritas API key is **optional** at setup — wizard Integritas step has a **S
 
 **`POST /api/auth/login`**
 
-Body: `{ username, password, totpToken }`
+Body: `{ password, totpToken }`
 
-1. Lookup user by username
+1. Load the single local user (`findTheUser()`)
 2. `verifyPassword` + `verifyToken` (decrypt stored totp)
 3. Any failure → `401 { error: "Invalid credentials" }` (same message always)
 4. Update `last_login`
@@ -343,7 +343,7 @@ Body: `{ username, password, totpToken }`
 **`GET /api/auth/me`** (protected)
 
 ```json
-{ "username": "admin", "role": "admin", "lastLogin": "2026-06-08T12:00:00.000Z" }
+{ "displayName": "Administrator", "role": "admin", "lastLogin": "2026-06-08T12:00:00.000Z" }
 ```
 
 ---
@@ -398,8 +398,8 @@ Keep existing UI/CSS; remove mock-only copy (`UI mockup`, `MOCK_2FA_SECRET`, pat
 | Step | Wired behavior |
 |---|---|
 | Welcome | Static — unchanged |
-| Account | Local validation (username min 2, password min 8, confirm match) |
-| 2FA | On step enter: `POST /api/setup/totp/init` with `{ username }`; show `qrCodePngBase64`; require 6-digit code entered (real verify on **complete**) |
+| Set password | Local validation (password min 8, confirm match) |
+| 2FA | On step enter: `POST /api/setup/totp/init`; show `qrCodePngBase64`; verify via `POST /api/setup/totp/verify` before continue |
 | Integritas | Optional — verify button if key entered; **Skip** to continue without key |
 | Complete | `POST /api/setup/complete` with full form → `AuthProvider.refreshSession()` → AppShell |
 
@@ -415,7 +415,7 @@ export const INTEGRITAS_STEP_REQUIRED = false;
 ### 8d — Login — migrate `mock/login` → `features/auth/LoginPage.tsx`
 
 - Keep two-phase UI (credentials → TOTP)
-- `POST /api/auth/login` with `{ username, password, totpToken }`
+- `POST /api/auth/login` with `{ password, totpToken }`
 - Remove guest login
 
 ### 8e — Cleanup
