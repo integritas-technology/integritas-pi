@@ -3,9 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev": "concurrently -n backend,frontend -c magenta,cyan \"npm run dev:backend\" \"npm run dev:frontend\"",
     "typecheck": "npm --prefix backend run typecheck && npm --prefix frontend run typecheck",
     "build": "npm --prefix backend run build && npm --prefix frontend run build",
     "audit:moderate": "npm --prefix backend audit --audit-level=moderate && npm --prefix frontend audit --audit-level=moderate",
-    "check": "npm run typecheck && npm run audit:moderate"
+    "check": "npm run typecheck && npm run audit:moderate",
+    "postinstall": "npm i --prefix backend && npm i --prefix frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
   }
 }

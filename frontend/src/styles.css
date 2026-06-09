@@ -1,7 +1,16 @@
+@import "tailwindcss";
+
 :root {
   color: #020617;
   background: #f1f5f9;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 }
 
 * {
@@ -10,6 +19,13 @@
 
 body {
   margin: 0;
+}
+
+.app-loading-root {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  color: #475569;
 }
 
 button,
@@ -85,10 +101,114 @@ button:disabled {
   font-size: 1rem;
 }
 
+.sidebar-user-box {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.sidebar-user-box-guest {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.sidebar-user-box-main {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.sidebar-user-box-avatar {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  border-radius: 12px;
+  background: #020617;
+}
+
+.sidebar-user-box-avatar-guest {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.sidebar-user-box-copy strong {
+  display: block;
+  font-size: 0.92rem;
+}
+
+.sidebar-user-box-copy p {
+  margin: 2px 0 0;
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.sidebar-user-box-meta {
+  display: flex;
+}
+
+.sidebar-user-box-pill {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 4px 8px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  border-radius: 999px;
+}
+
+.sidebar-user-box-pill-good {
+  color: #047857;
+  background: #d1fae5;
+}
+
+.sidebar-user-box-pill-warn {
+  color: #b45309;
+  background: #fef3c7;
+}
+
+.sidebar-user-box-cta {
+  width: 100%;
+  padding: 10px 12px;
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: 0;
+  border-radius: 12px;
+  background: #020617;
+  cursor: pointer;
+}
+
+.sidebar-user-box-signout {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  align-self: flex-start;
+  padding: 0;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sidebar-user-box-signout:hover {
+  color: #020617;
+}
+
 .nav-list {
   display: grid;
   gap: 4px;
-  margin-top: 24px;
+  margin-top: 12px;
 }
 
 .nav-item {
@@ -102,7 +222,9 @@ button:disabled {
   border: 0;
   border-radius: 16px;
   background: transparent;
-  transition: background 150ms ease, color 150ms ease;
+  transition:
+    background 150ms ease,
+    color 150ms ease;
 }
 
 .nav-item span:first-child {
@@ -226,7 +348,8 @@ button:disabled {
 .clock-card strong,
 .time-stack strong {
   color: #020617;
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
   font-size: 0.86rem;
 }
 
@@ -552,10 +675,22 @@ button:disabled {
   border-radius: 999px;
 }
 
-.pill-neutral { color: #334155; background: #f1f5f9; }
-.pill-good { color: #047857; background: #d1fae5; }
-.pill-warn { color: #b45309; background: #fef3c7; }
-.pill-future { color: #6d28d9; background: #ede9fe; }
+.pill-neutral {
+  color: #334155;
+  background: #f1f5f9;
+}
+.pill-good {
+  color: #047857;
+  background: #d1fae5;
+}
+.pill-warn {
+  color: #b45309;
+  background: #fef3c7;
+}
+.pill-future {
+  color: #6d28d9;
+  background: #ede9fe;
+}
 
 .metrics-grid,
 .status-grid {
@@ -758,7 +893,9 @@ code {
 .data-source-template {
   display: grid;
   gap: 12px;
-  transition: transform 150ms ease, box-shadow 150ms ease;
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease;
 }
 
 .data-source-template:hover {
@@ -950,7 +1087,8 @@ select {
 
 textarea {
   resize: vertical;
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
 }
 
 .button-row button,
@@ -1177,4 +1315,28 @@ th {
     grid-template-columns: 1fr;
     flex-direction: column;
   }
+}
+
+.setup-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.setup-relaunch-button {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 16px;
+  color: #ffffff;
+  font-weight: 700;
+  border: 0;
+  border-radius: 16px;
+  background: #020617;
+  cursor: pointer;
+}
+
+.setup-signout-button {
+  color: #334155;
+  background: #f1f5f9;
 }

@@ -1,6 +1,9 @@
 import { Router } from "express";
 import type { Response } from "express";
 import fs from "node:fs/promises";
+import { recordAuditEvent } from "../auth/audit.service.js";
+import { requireRole } from "../auth/auth.middleware.js";
+import { validateIntegritasApiKey } from "../auth/integritas-validation.service.js";
 import { sha3HashHex } from "../../shared/crypto.js";
 import { deleteIntegritasApiKey, getIntegritasApiKey, saveIntegritasApiKey } from "../settings/secrets.service.js";
 import { env } from "../../config/env.js";
@@ -21,16 +24,21 @@ integritasRouter.get("/config", (_req, res) => {
   res.json(getIntegritasConfig());
 });
 
-integritasRouter.post("/api-key", (req, res) => {
+integritasRouter.post("/api-key", requireRole("admin"), async (req, res) => {
   const apiKey = typeof req.body?.apiKey === "string" ? req.body.apiKey.trim() : "";
   if (!apiKey) return res.status(400).json({ error: "apiKey is required" });
 
+  const validation = await validateIntegritasApiKey(apiKey);
+  if (!validation.ok) return res.status(400).json({ error: validation.error });
+
   saveIntegritasApiKey(apiKey);
+  recordAuditEvent("integritas_api_key.save", { userId: req.user?.id, detail: "via integritas page" });
   return res.json({ hasApiKey: true, apiKeySource: "database" });
 });
 
-integritasRouter.delete("/api-key", (_req, res) => {
+integritasRouter.delete("/api-key", requireRole("admin"), (req, res) => {
   deleteIntegritasApiKey();
+  recordAuditEvent("integritas_api_key.delete", { userId: req.user?.id });
   res.json({ hasApiKey: Boolean(env.integritasApiKeyFallback), apiKeySource: env.integritasApiKeyFallback ? "environment" : "none" });
 });
 

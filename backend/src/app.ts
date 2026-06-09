@@ -1,4 +1,8 @@
+import cookieParser from "cookie-parser";
 import express from "express";
+import { authProtectedRouter, authPublicRouter } from "./features/auth/auth.routes.js";
+import { requireAuth } from "./features/auth/auth.middleware.js";
+import { setupRouter } from "./features/auth/setup.routes.js";
 import { automationRouter } from "./features/automation/automation.routes.js";
 import { dataReadsRouter } from "./features/data-reads/dataReads.routes.js";
 import { filesRouter } from "./features/files/files.routes.js";
@@ -12,10 +16,18 @@ import { requestLogger } from "./middleware/requestLogger.js";
 export function createApp() {
   const app = express();
 
+  app.set("trust proxy", 1);
   app.use(express.json({ limit: "2mb" }));
+  app.use(cookieParser());
   app.use(requestLogger);
 
   app.use("/api/health", healthRouter);
+  app.use("/api/setup", setupRouter);
+  app.use("/api/auth", authPublicRouter);
+
+  app.use(requireAuth);
+
+  app.use("/api/auth", authProtectedRouter);
   app.use("/api/status", statusRouter);
   app.use("/api/minima", minimaRouter);
   app.use("/api/integritas", integritasRouter);

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { NavId } from "./app/types";
 import { AppShell } from "./components/AppShell";
+import { AuthProvider, useAuth } from "./features/auth";
 import { DashboardPage } from "./pages/DashboardPage";
 import { DataSourcesPage } from "./pages/DataSourcesPage";
 import { DiagnosticsPage } from "./pages/DiagnosticsPage";
@@ -10,10 +11,18 @@ import { AutomationPage } from "./pages/AutomationPage";
 import { SetupPage } from "./pages/SetupPage";
 import { WalletPage } from "./pages/WalletPage";
 
-function ActivePage({ active, setActive }: { active: NavId; setActive: (id: NavId) => void }) {
+function ActivePage({
+  active,
+  setActive,
+  onSignOut,
+}: {
+  active: NavId;
+  setActive: (id: NavId) => void;
+  onSignOut: () => void;
+}) {
   const pages: Record<NavId, React.ReactNode> = {
     dashboard: <DashboardPage onStartSetup={() => setActive("setup")} />,
-    setup: <SetupPage />,
+    setup: <SetupPage onSignOut={onSignOut} />,
     node: <MinimaPage />,
     wallet: <WalletPage />,
     integritas: <IntegritasPage />,
@@ -24,7 +33,32 @@ function ActivePage({ active, setActive }: { active: NavId; setActive: (id: NavI
   return <>{pages[active]}</>;
 }
 
-export default function App() {
+function AppContent() {
   const [active, setActive] = useState<NavId>("dashboard");
-  return <AppShell active={active} setActive={setActive}><ActivePage active={active} setActive={setActive} /></AppShell>;
+  const { user, signOut } = useAuth();
+
+  if (!user) return null;
+
+  return (
+    <AppShell
+      active={active}
+      setActive={setActive}
+      user={user}
+      onSignOut={() => void signOut()}
+    >
+      <ActivePage
+        active={active}
+        setActive={setActive}
+        onSignOut={() => void signOut()}
+      />
+    </AppShell>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
 }

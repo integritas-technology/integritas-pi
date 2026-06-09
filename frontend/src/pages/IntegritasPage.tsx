@@ -3,7 +3,7 @@ import type { IntegritasConfig } from "../app/types";
 import { JsonPreview } from "../components/JsonPreview";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
-import { postJson } from "../lib/api";
+import { getJson, postJson } from "../lib/api";
 import { stampFile, verifyProofFile } from "../features/integritas/integritasApi";
 import { IntegritasRuntimeConfig } from "../features/integritas/IntegritasRuntimeConfig";
 import { StampFilePanel } from "../features/integritas/StampFilePanel";
@@ -26,8 +26,7 @@ export function IntegritasPage() {
   }, []);
 
   async function refreshConfig() {
-    const response = await fetch("/api/integritas/config");
-    setConfig(await response.json() as IntegritasConfig);
+    setConfig(await getJson<IntegritasConfig>("/api/integritas/config"));
   }
 
   async function run(action: () => Promise<unknown>, showResult = true) {

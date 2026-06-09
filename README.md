@@ -64,6 +64,9 @@ MINIMA_RPC_PORT=9005
 INTEGRITAS_BASE_URL=https://integritas.technology/core
 INTEGRITAS_API_KEY=
 INTEGRITAS_REQUEST_ID=integritas-pi
+COOKIE_SECURE=false
+SESSION_MAX_AGE_DAYS=7
+SESSION_IDLE_HOURS=24
 ```
 
 `HOST_FILES_DIR` is mounted into the backend container as `/host-files:ro`. The `:ro` flag is intentional for this prototype.
@@ -92,6 +95,10 @@ Minima RPC commands should be transmitted as a single percent-encoded URL path c
 http://minima:9005/megammrsync%20action%3Aresync%20host%3Amegammr.minima.global%3A9001
 ```
 
+`COOKIE_SECURE` controls the session cookie `Secure` flag. Leave `false` for the default HTTP LAN deploy (`http://<pi-ip>:8080`). Set `true` when serving the UI over HTTPS.
+
+`SESSION_MAX_AGE_DAYS` and `SESSION_IDLE_HOURS` control session lifetime (default 7 days max, 24 hours idle).
+
 To install with another file root or port:
 
 ```bash
@@ -107,6 +114,37 @@ cp .env.example .env
 ```
 
 For local development on a non-Pi machine, change `HOST_FILES_DIR` to a directory that exists on your machine.
+
+### Native frontend + backend (fast iteration)
+
+Use this when you want to change UI or API code without rebuilding Docker images.
+
+Start both servers from the repo root:
+
+```bash
+npm install
+npm run dev
+```
+
+That runs the backend API on port 3000 and the Vite dev server on port 5173 (which proxies `/api` to the backend). You can also run them separately with `npm run dev:backend` and `npm run dev:frontend` in two terminals.
+
+Open:
+
+```txt
+http://localhost:5173
+```
+
+The backend loads the repo-root `.env` automatically in dev. `DATABASE_PATH`, `DATA_DIR`, and `HOST_FILES_DIR` are resolved relative to the repo root.
+
+Optional: run Minima in Docker while developing natively:
+
+```bash
+docker compose up -d minima
+```
+
+Without Minima, the rest of the app still works; the status overview will report Minima as unavailable.
+
+### Full stack in Docker
 
 Start everything:
 
@@ -125,6 +163,28 @@ View logs:
 ```bash
 docker compose logs -f
 ```
+
+## Authentication
+
+On first launch with an empty database, Edge Workbench shows a setup wizard:
+
+1. Set the admin password (minimum 8 characters)
+2. Scan the TOTP QR code and enter a 6-digit code
+3. Optionally verify an Integritas API key (or skip and configure later)
+4. Finish setup — you are signed in via an HttpOnly session cookie
+
+After setup, sign in with password and TOTP. There is a single local admin account (no username to enter). Sessions persist across browser reloads until logout or expiry.
+
+Public API routes (no session required):
+
+- `GET /api/health`
+- `GET /api/setup/status`
+- `POST /api/setup/*`
+- `POST /api/auth/login`
+
+All other `/api/*` routes require a valid session cookie.
+
+The CLI does not send session cookies in V1. Operational CLI commands that call protected APIs return `401 Unauthorized` until a future CLI auth story is added. Use the browser UI for authenticated operations.
 
 ## CLI
 
@@ -352,7 +412,8 @@ See [`SECURITY.md`](./SECURITY.md) for the current risk register, known vulnerab
 - Minima RPC binds to `127.0.0.1` by default
 - Integritas API key is backend-only and encrypted at rest in SQLite when saved from the UI
 - Backend mounts `/var/run/docker.sock:ro` to read container status and resource usage for the App status page. This is useful for the prototype, but Docker socket access is sensitive and should be replaced with a narrower monitoring approach before production.
-- Authentication is not implemented yet
+- Admin authentication with password + TOTP and HttpOnly session cookies (see [Authentication](#authentication))
+- Set `COOKIE_SECURE=true` when exposing the UI over HTTPS on untrusted networks
 
 ## Future Services
 
@@ -360,8 +421,7 @@ The Docker Compose file is intentionally simple so more services can be added la
 
 - Database
 - File storage
-- Auth
-- Admin UI
+- CLI session or API token auth
 - System commands through an allowlist
 - Auto updates
 

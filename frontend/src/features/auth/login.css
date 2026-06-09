@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+@layer components {
+  .mock-login-root {
+    @apply fixed inset-0 z-50 flex min-h-0 items-center justify-center overflow-auto overscroll-contain bg-slate-50 p-4 sm:p-6;
+  }
+
+  .mock-login-card {
+    @apply grid w-full max-w-[420px] gap-5 rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-900/10 sm:p-8;
+  }
+
+  .mock-login-brand {
+    @apply grid gap-3 justify-items-center text-center;
+  }
+
+  .mock-login-brand-icon {
+    @apply flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white;
+  }
+
+  .mock-login-brand p {
+    @apply m-0 text-sm text-slate-500;
+  }
+
+  .mock-login-brand h1 {
+    @apply m-0 text-xl text-slate-950;
+  }
+
+  .mock-login-pill {
+    @apply inline-flex w-fit items-center self-center px-2.5 py-1 text-xs font-bold rounded-full text-violet-700 bg-violet-100;
+  }
+
+  .mock-login-panel {
+    @apply grid gap-3;
+  }
+
+  .mock-login-eyebrow {
+    @apply m-0 text-xs font-extrabold tracking-[0.18em] text-slate-500 uppercase;
+  }
+
+  .mock-login-panel h2 {
+    @apply m-0 text-xl leading-tight text-slate-950;
+  }
+
+  .mock-login-lead {
+    @apply m-0 text-sm leading-relaxed text-slate-600;
+  }
+
+  .mock-login-form {
+    @apply grid gap-2.5;
+  }
+
+  .mock-login-label {
+    @apply grid gap-2 font-bold text-slate-700;
+  }
+
+  .mock-login-input {
+    @apply w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-950;
+  }
+
+  .mock-login-code-input {
+    @apply w-full max-w-none rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-center text-lg font-semibold tracking-[0.35em] text-slate-950;
+  }
+
+  .mock-login-muted {
+    @apply text-sm font-medium text-slate-500;
+  }
+
+  .mock-login-actions {
+    @apply grid gap-2.5 pt-1;
+  }
+
+  .mock-login-btn-primary {
+    @apply inline-flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-slate-950 px-4 py-2.5 text-sm font-bold text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-45;
+  }
+
+  .mock-login-btn-secondary {
+    @apply inline-flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-700 cursor-pointer;
+  }
+
+  .mock-login-guest-note {
+    @apply m-0 text-center text-xs leading-relaxed text-slate-500;
+  }
+
+  .mock-login-note {
+    @apply m-0 rounded-xl bg-slate-100 p-2.5 text-center text-xs text-slate-500;
+  }
+
+  .mock-login-back {
+    @apply inline-flex items-center gap-1.5 self-start border-0 bg-transparent p-0 text-sm font-bold text-slate-600 cursor-pointer;
+  }
+}

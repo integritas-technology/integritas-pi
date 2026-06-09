@@ -11,6 +11,9 @@ services:
       INTEGRITAS_REQUEST_ID: ${INTEGRITAS_REQUEST_ID:-integritas-pi}
       DATABASE_PATH: /data/integritas-pi.db
       APP_SECRET: ${APP_SECRET:-dev-change-me}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SESSION_MAX_AGE_DAYS: ${SESSION_MAX_AGE_DAYS:-7}
+      SESSION_IDLE_HOURS: ${SESSION_IDLE_HOURS:-24}
       DOCKER_SOCKET_PATH: /var/run/docker.sock
     volumes:
       - ${HOST_FILES_DIR:-/home/pi}:/host-files:ro

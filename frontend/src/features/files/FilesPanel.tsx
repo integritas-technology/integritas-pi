@@ -15,7 +15,7 @@ export function FilesPanel() {
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-    fetch(`/api/files?path=${encodeURIComponent(currentPath)}`, { signal: controller.signal })
+    fetch(`/api/files?path=${encodeURIComponent(currentPath)}`, { credentials: "include", signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error(`Could not load files: HTTP ${response.status}`);
         return response.json() as Promise<FilesResponse>;

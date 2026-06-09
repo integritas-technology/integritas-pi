@@ -34,6 +34,7 @@ Do not implement business logic separately in the frontend or CLI. Put shared be
 Always start with:
 
 - `README.md` for install, runtime, API, and operational expectations.
+- `CHANGELOG.md` for what changed recently and how releases are recorded.
 - `SECURITY.md` for security boundaries and known prototype risks.
 - `docker-compose.yml` for service topology, mounts, ports, and container constraints.
 - `.env.example` for supported runtime configuration.
@@ -49,6 +50,7 @@ Read these first:
 
 Feature folders:
 
+- Auth: `backend/src/features/auth/`
 - Integritas: `backend/src/features/integritas/`
 - Data sources: `backend/src/features/data-sources/`
 - Automation: `backend/src/features/automation/`
@@ -66,6 +68,15 @@ Backend rules:
 - When adding a scheduler, start it from `backend/src/index.ts` after migrations.
 - Return useful error details from backend services, but never leak secrets.
 
+Auth rules:
+
+- Public routes: `GET /api/health`, `GET /api/setup/status`, `POST /api/setup/*`, `POST /api/auth/login`.
+- All other `/api/*` routes require `requireAuth` in `backend/src/app.ts`.
+- High-risk mutations also use `requireRole('admin')` (Integritas API key, files, automation/data-source mutations).
+- Session cookies: HttpOnly, `SameSite=Strict`, `Secure` when `COOKIE_SECURE=true`.
+- Never return password hashes, TOTP secrets, raw session tokens, or Integritas API keys.
+- CLI has no session auth in V1; document `401` for protected API calls.
+
 ## Frontend Work
 
 Read these first:
@@ -82,10 +93,14 @@ Page and feature folders:
 - Integritas UI/API/types: `frontend/src/features/integritas/`
 - Data Sources UI/API/types: `frontend/src/features/data-sources/`
 - Automation UI/API/types: `frontend/src/features/automation/`
+- Auth UI/API: `frontend/src/features/auth/`
+- First-run setup wizard: `frontend/src/features/setup/`
 
 Frontend rules:
 
 - Frontend calls backend API only; do not call Integritas directly from the browser.
+- All API fetches use `credentials: "include"` via `frontend/src/lib/api.ts`.
+- `AuthProvider` owns bootstrap: `GET /api/setup/status` → wizard vs `GET /api/auth/me` → app shell or login.
 - Keep UI state simple unless there is a clear need for a new state layer.
 - Use existing page/card/table/pill styles before inventing new patterns.
 - Show local and UTC time where workflow scheduling clarity matters.
@@ -186,8 +201,21 @@ When finishing a task, summarize:
 
 Update project documentation when behavior changes:
 
+- Update `CHANGELOG.md` for every user-facing or operator-facing change (see below).
 - Update `README.md` for installation, usage, CLI commands, runtime config, API expectations, or operational workflow changes.
 - Update `SECURITY.md` for security-sensitive changes, new exposure, new credentials/secrets behavior, host access, or risk tradeoffs.
 - Update `AGENTS.md` for architecture, process, or agent workflow guidance changes.
 
 Do not leave undocumented behavior changes that affect installation, deployment, API usage, CLI usage, or operational workflows.
+
+## Changelog
+
+Keep `CHANGELOG.md` up to date as part of finishing work, not as a follow-up task.
+
+- Follow [Keep a Changelog](https://keepachangelog.com/) sections: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
+- Add new entries under `## [Unreleased]` while work is in progress on a branch.
+- When a branch or release is completed, move `Unreleased` items into a dated version section (for example `## [0.2.0] - 2026-06-09`) and leave a fresh empty `## [Unreleased]` section at the top.
+- Write entries for operators and users: what changed, not which files were touched.
+- Include auth, API, UI, config/env, Docker/install, CLI, and security-impacting changes.
+- A one-line entry is fine for small fixes; larger features deserve a short bullet group.
+- If a change is already described in `README.md` or `SECURITY.md`, the changelog should still note it briefly and point to those docs when helpful.
