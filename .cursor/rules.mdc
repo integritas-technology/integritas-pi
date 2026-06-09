@@ -1,0 +1,34 @@
+---
+description: Point agents at project docs; do not duplicate rules here
+alwaysApply: true
+---
+
+# Project rules
+
+`AGENTS.md` and `SECURITY.md` are the source of truth for how to work on this repo. Read them before editing. Do not restate or duplicate their content in Cursor rules, chat, or new docs unless the user asks.
+
+## Before you edit
+
+1. `AGENTS.md` — architecture, feature layout, auth/API conventions, verification, documenting work
+2. `SECURITY.md` — security boundaries, risk register, secrets and exposure
+3. `README.md` — install, runtime config, CLI, operator-facing behavior (when touching those areas)
+
+For auth work, also read `docs/auth-implementation.md` and `docs/auth-security.md`.
+
+## When to update project docs (not Cursor rules)
+
+Update `AGENTS.md` when you change or establish:
+
+- Architecture or API-first boundaries (where logic lives, route registration, feature folders)
+- Agent or contributor workflow (read-first paths, verification commands, process)
+- Cross-cutting conventions that apply across backend, frontend, or CLI
+
+Update `SECURITY.md` when you change or introduce:
+
+- New attack surface, exposure, or trust assumptions
+- Credentials, sessions, secrets storage, or host/file access behavior
+- Security tradeoffs that operators should understand
+
+Update `README.md` for install, deployment, CLI, env vars, or user-visible API/ops changes.
+
+Do **not** add parallel rules to `.cursor/rules.mdc`. If guidance belongs in the project long-term, put it in `AGENTS.md` or `SECURITY.md`.
