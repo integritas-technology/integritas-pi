@@ -15,6 +15,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setMounted(true);
+    return () => {
+      timers.current.forEach((timer) => window.clearTimeout(timer));
+      timers.current.clear();
+    };
   }, []);
 
   function dismissToast(id: string) {
@@ -32,7 +36,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }
 
   function showToast({ title, message, tone = "info", timeoutMs = 6000 }: ToastInput) {
-    const id = crypto.randomUUID();
+    const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     setToasts((current) => [...current, { id, title, message, tone }]);
     timers.current.set(id, window.setTimeout(() => dismissToast(id), timeoutMs));
   }
