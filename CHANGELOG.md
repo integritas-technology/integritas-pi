@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Data sources can now store an optional health status URL; the Added data sources table polls it once per minute through the backend and shows a green/red status indicator with the latest response.
+
+### Changed
+
+- Data source template cards now use the clearer `Add source` call to action instead of `Use template`.
+
 ## [0.2.0] - 2026-06-09
 
 Branch: `auth-permissions` — authentication, first-run setup, and related UI/platform work merged on top of `main`.

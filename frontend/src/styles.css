@@ -933,6 +933,40 @@ code {
   margin: 0;
 }
 
+.health-cell {
+  display: grid;
+  gap: 8px;
+}
+
+.health-status {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: #475569;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.health-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #94a3b8;
+}
+
+.health-dot.ok {
+  background: #16a34a;
+}
+
+.health-dot.error {
+  background: #dc2626;
+}
+
+.health-dot.pending {
+  background: #f59e0b;
+}
+
 .data-read-list {
   display: grid;
   gap: 16px;

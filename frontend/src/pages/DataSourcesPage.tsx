@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
-import { createDataSource, deleteDataSource, listDataSources, readDataSource } from "../features/data-sources/dataSourcesApi";
+import { checkDataSourceHealth, createDataSource, deleteDataSource, listDataSources, readDataSource } from "../features/data-sources/dataSourcesApi";
 import { DataSourceForm } from "../features/data-sources/DataSourceForm";
 import { DataSourcesList } from "../features/data-sources/DataSourcesList";
 import { DataSourceTemplates } from "../features/data-sources/DataSourceTemplates";
-import type { DataSource, DataSourceTemplate } from "../features/data-sources/dataSourceTypes";
+import type { DataSource, DataSourceHealthStatus, DataSourceTemplate } from "../features/data-sources/dataSourceTypes";
 
 export function DataSourcesPage() {
   const [items, setItems] = useState<DataSource[]>([]);
@@ -15,7 +15,9 @@ export function DataSourcesPage() {
   const [description, setDescription] = useState("");
   const [type, setType] = useState<DataSource["type"]>("json-api");
   const [url, setUrl] = useState("");
+  const [healthStatusUrl, setHealthStatusUrl] = useState("");
   const [method, setMethod] = useState<"GET" | "POST">("GET");
+  const [healthStatuses, setHealthStatuses] = useState<Record<string, DataSourceHealthStatus>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,9 +25,26 @@ export function DataSourcesPage() {
     refresh().catch((err: Error) => setError(err.message));
   }, []);
 
+  useEffect(() => {
+    refreshHealthStatuses();
+    const interval = window.setInterval(refreshHealthStatuses, 60000);
+    return () => window.clearInterval(interval);
+  }, [items]);
+
   async function refresh() {
     const response = await listDataSources();
     setItems(response.items);
+  }
+
+  function refreshHealthStatuses() {
+    const sourcesWithHealth = items.filter((source) => source.config.healthStatusUrl);
+    if (sourcesWithHealth.length === 0) return;
+
+    sourcesWithHealth.forEach((source) => {
+      checkDataSourceHealth(source.id)
+        .then((status) => setHealthStatuses((current) => ({ ...current, [source.id]: status })))
+        .catch((err: Error) => setHealthStatuses((current) => ({ ...current, [source.id]: { ok: false, error: err.message } })));
+    });
   }
 
   function applyTemplate(nextTemplate: DataSourceTemplate) {
@@ -34,6 +53,7 @@ export function DataSourcesPage() {
     setDescription(nextTemplate.description);
     setType(nextTemplate.type);
     setUrl(nextTemplate.config.url);
+    setHealthStatusUrl(nextTemplate.config.healthStatusUrl ?? "");
     setMethod(nextTemplate.config.method);
     setFormOpen(true);
   }
@@ -44,6 +64,7 @@ export function DataSourcesPage() {
     setDescription("");
     setType("json-api");
     setUrl("");
+    setHealthStatusUrl("");
     setMethod("GET");
   }
 
@@ -82,11 +103,13 @@ export function DataSourcesPage() {
             setType={setType}
             url={url}
             setUrl={setUrl}
+            healthStatusUrl={healthStatusUrl}
+            setHealthStatusUrl={setHealthStatusUrl}
             method={method}
             setMethod={setMethod}
             busy={busy}
             onSubmit={() => run(async () => {
-              await createDataSource({ name, description, type, config: { url, method, headers: {} } });
+              await createDataSource({ name, description, type, config: { url, method, healthStatusUrl: healthStatusUrl.trim() || undefined, headers: {} } });
               setFormOpen(false);
               resetForm();
             })}
@@ -99,6 +122,7 @@ export function DataSourcesPage() {
 
       <DataSourcesList
         items={items}
+        healthStatuses={healthStatuses}
         busy={busy}
         onRead={(source) => run(() => readDataSource(source.id))}
         onDelete={(source) => run(() => deleteDataSource(source.id))}

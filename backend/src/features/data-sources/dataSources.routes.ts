@@ -2,7 +2,7 @@ import { Router } from "express";
 import { requireRole } from "../auth/auth.middleware.js";
 import { createDataSourceRead } from "../data-reads/dataReads.repository.js";
 import { createDataSource, deleteDataSource, getDataSource, listDataSources, updateDataSourceReadResult } from "./dataSources.repository.js";
-import { parseJsonApiConfig, readJsonApiSource, serializeDataSource } from "./dataSources.service.js";
+import { checkDataSourceHealth, parseJsonApiConfig, readJsonApiSource, serializeDataSource } from "./dataSources.service.js";
 
 export const dataSourcesRouter = Router();
 
@@ -30,6 +30,19 @@ dataSourcesRouter.post("/", requireRole("admin"), (req, res) => {
 dataSourcesRouter.delete("/:id", requireRole("admin"), (req, res) => {
   deleteDataSource(req.params.id);
   res.json({ deleted: true });
+});
+
+dataSourcesRouter.get("/:id/health", async (req, res) => {
+  const record = getDataSource(req.params.id);
+  if (!record) return res.status(404).json({ error: "Data source not found" });
+
+  try {
+    const config = parseJsonApiConfig(JSON.parse(record.config) as unknown);
+    const result = await checkDataSourceHealth(config);
+    return res.status(result.ok ? 200 : 502).json(result);
+  } catch (error) {
+    return res.status(502).json({ ok: false, error: error instanceof Error ? error.message : "Failed to check data source health" });
+  }
 });
 
 dataSourcesRouter.post("/:id/read", requireRole("admin"), async (req, res) => {

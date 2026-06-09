@@ -3,7 +3,7 @@ import { Card } from "../../components/Card";
 import type { DataSourceTemplate } from "./dataSourceTypes";
 
 export const dataSourceTemplates: DataSourceTemplate[] = [
-  { title: "Internal source", description: "JSON from another service on this Pi or Docker network", type: "internal-json-api", config: { url: "http://backend:3000/api/health", method: "GET", headers: {} } },
+  { title: "Internal source", description: "JSON from another service on this Pi or Docker network", type: "internal-json-api", config: { url: "http://backend:3000/api/health", healthStatusUrl: "http://backend:3000/api/health", method: "GET", headers: {} } },
   { title: "API source", description: "JSON from an HTTP API endpoint", type: "json-api", config: { url: "https://example.com/data.json", method: "GET", headers: {} } }
 ];
 
@@ -17,7 +17,7 @@ export function DataSourceTemplates({ onSelect }: { onSelect: (template: DataSou
             <Icon size={24} />
             <h3>{template.title}</h3>
             <p>{template.description}</p>
-            <button type="button" onClick={() => onSelect(template)}>Use template</button>
+            <button type="button" onClick={() => onSelect(template)}>Add source</button>
           </Card>
         );
       })}

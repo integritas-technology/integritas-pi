@@ -299,6 +299,7 @@ backend container
   - GET /api/minima/status
 - Integritas hash, stamp, status, verify endpoints
 - Data source APIs and historic read log at `/api/data-sources` and `/api/data-reads`
+  - Data sources can include an optional health status URL. The browser polls saved health URLs once per minute through the backend and shows the latest status in the Added data sources table.
   - Reads /host-files only
   - Reads Minima status from http://minima:9005/status
   - Calls https://integritas.technology/core with backend-only API key

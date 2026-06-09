@@ -165,6 +165,25 @@ Current Controls:
 - The Megammr resync action always calls the configured Minima RPC endpoint over the Docker network and only passes the saved Megammr host value.
 - The wallet balance action only calls the Minima `balance` command and returns its response through the backend.
 
+### Data Source URL Fetching
+
+Risk: Saved data source URLs and optional health status URLs are fetched by the backend. In this prototype, an admin can configure URLs that cause the backend to make outbound or Docker-network HTTP requests.
+
+Impact: Misconfigured or malicious URLs could probe internal services, create repeated outbound traffic, or expose upstream response details in the UI.
+
+Current Controls:
+
+- URLs must be saved on a data source before the health poll endpoint will fetch them.
+- Data-source mutation routes require admin role.
+- Health status polling is narrow and read-only, and the frontend polls saved health URLs once per minute.
+
+Plan:
+
+- Add URL allowlists or network egress policy for production.
+- Consider per-source health polling controls and rate limits.
+
+Status: Accepted prototype risk.
+
 ### Integritas Request Proxy
 
 Risk: Backend proxies stamp/status/verify calls to Integritas using a stored API key.

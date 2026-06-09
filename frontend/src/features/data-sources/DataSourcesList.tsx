@@ -1,13 +1,15 @@
 import { JsonPreview } from "../../components/JsonPreview";
-import type { DataSource } from "./dataSourceTypes";
+import type { DataSource, DataSourceHealthStatus } from "./dataSourceTypes";
 
 export function DataSourcesList({
   items,
+  healthStatuses,
   busy,
   onRead,
   onDelete,
 }: {
   items: DataSource[];
+  healthStatuses: Record<string, DataSourceHealthStatus>;
   busy: boolean;
   onRead: (source: DataSource) => void;
   onDelete: (source: DataSource) => void;
@@ -25,6 +27,7 @@ export function DataSourcesList({
               <th>Name</th>
               <th>Type</th>
               <th>URL</th>
+              <th>Health</th>
               <th>Last hash</th>
               <th>Last preview</th>
               <th>Actions</th>
@@ -40,6 +43,9 @@ export function DataSourcesList({
                 <td>{source.type}</td>
                 <td>
                   <code>{source.config.url}</code>
+                </td>
+                <td>
+                  <HealthCell source={source} status={healthStatuses[source.id]} />
                 </td>
                 <td>
                   {source.lastHash ? (
@@ -84,5 +90,17 @@ export function DataSourcesList({
         <p className="muted">No data sources added yet.</p>
       )}
     </section>
+  );
+}
+
+function HealthCell({ source, status }: { source: DataSource; status?: DataSourceHealthStatus }) {
+  if (!source.config.healthStatusUrl) return <span className="muted">Not configured</span>;
+  if (!status) return <span className="health-status"><span className="health-dot pending" />Checking</span>;
+
+  return (
+    <div className="health-cell">
+      <span className="health-status"><span className={`health-dot ${status.ok ? "ok" : "error"}`} />{status.ok ? "Online" : "Error"}{status.status ? ` HTTP ${status.status}` : ""}</span>
+      {status.body !== undefined ? <JsonPreview value={status.body} label="View response" /> : status.error ? <p className="error-text">{status.error}</p> : null}
+    </div>
   );
 }

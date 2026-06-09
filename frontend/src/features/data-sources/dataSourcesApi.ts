@@ -1,5 +1,5 @@
 import { deleteJson, getJson, postJson } from "../../lib/api";
-import type { DataSource } from "./dataSourceTypes";
+import type { DataSource, DataSourceHealthStatus } from "./dataSourceTypes";
 
 export async function listDataSources() {
   return getJson<{ items: DataSource[] }>("/api/data-sources");
@@ -15,4 +15,9 @@ export async function deleteDataSource(id: string) {
 
 export async function readDataSource(id: string) {
   return postJson<{ item: DataSource; result: unknown }>(`/api/data-sources/${id}/read`);
+}
+
+export async function checkDataSourceHealth(id: string) {
+  const response = await fetch(`/api/data-sources/${id}/health`, { credentials: "include" });
+  return await response.json() as DataSourceHealthStatus;
 }
