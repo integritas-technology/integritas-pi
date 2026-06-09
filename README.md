@@ -136,6 +136,8 @@ http://localhost:5173
 
 The backend loads the repo-root `.env` automatically in dev. `DATABASE_PATH`, `DATA_DIR`, and `HOST_FILES_DIR` are resolved relative to the repo root.
 
+Frontend styling direction: component and page styling should use Tailwind utilities going forward. Plain CSS should be limited to root/body/base global rules, with existing component-level CSS migrated incrementally as frontend files are touched.
+
 Optional: run Minima in Docker while developing natively:
 
 ```bash

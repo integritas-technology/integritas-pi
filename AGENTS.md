@@ -103,6 +103,7 @@ Frontend rules:
 - `AuthProvider` owns bootstrap: `GET /api/setup/status` → wizard vs `GET /api/auth/me` → app shell or login.
 - Keep UI state simple unless there is a clear need for a new state layer.
 - Use existing page/card/table/pill styles before inventing new patterns.
+- Styling direction: use Tailwind utilities for component and page styling going forward. Keep plain CSS limited to root/body/base global rules and migrate existing component-level CSS to Tailwind incrementally as files are touched.
 - Show local and UTC time where workflow scheduling clarity matters.
 
 ## CLI Work

@@ -9,7 +9,7 @@ export function JsonPreview({ value, label = "View JSON" }: { value: unknown; la
       <button type="button" className="json-link" onClick={() => setOpen(true)}>{label}</button>
       {open && (
         <Modal title="JSON preview" onClose={() => setOpen(false)}>
-          <pre className="json-preview">{JSON.stringify(value, null, 2)}</pre>
+          <pre className="json-preview !m-0 !max-h-none !max-w-none !overflow-visible !whitespace-pre-wrap [overflow-wrap:anywhere]">{JSON.stringify(value, null, 2)}</pre>
         </Modal>
       )}
     </>
