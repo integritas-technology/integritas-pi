@@ -34,6 +34,15 @@ export function createDataSource(input: { name: string; type: string; descriptio
   return getDataSource(id)!;
 }
 
+export function updateDataSource(id: string, input: { name: string; type: string; description?: string; config: unknown }) {
+  db.prepare(`
+    UPDATE data_sources
+    SET updated_at = ?, name = ?, type = ?, description = ?, config = ?
+    WHERE id = ?
+  `).run(new Date().toISOString(), input.name, input.type, input.description ?? null, JSON.stringify(input.config), id);
+  return getDataSource(id);
+}
+
 export function deleteDataSource(id: string) {
   db.prepare("DELETE FROM data_sources WHERE id = ?").run(id);
 }

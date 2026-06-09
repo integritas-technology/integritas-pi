@@ -922,6 +922,26 @@ code {
   background: #020617;
 }
 
+.data-source-list button.icon-action-button {
+  display: inline-grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  padding: 0;
+  color: #020617;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.data-source-list button.icon-action-button:hover {
+  background: #f8fafc;
+}
+
+.data-source-list button.icon-action-button.danger {
+  color: #b91c1c;
+}
+
 .data-source-list {
   display: grid;
   gap: 16px;

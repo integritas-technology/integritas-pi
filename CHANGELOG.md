@@ -10,10 +10,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Data sources can now store an optional health status URL; the Added data sources table polls it once per minute through the backend and shows a green/red status indicator with the latest response.
 - Shared frontend toast system for transient API/action errors, starting with Data Sources actions.
+- Data sources can now be edited from the Added data sources table.
 
 ### Changed
 
 - Data source template cards now use the clearer `Add source` call to action instead of `Use template`.
+- Added data source row actions now use accessible icon buttons for manual trigger, edit, and delete.
 
 ## [0.2.0] - 2026-06-09
 

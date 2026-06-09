@@ -1,3 +1,4 @@
+import { Pencil, Play, Trash2 } from "lucide-react";
 import { JsonPreview } from "../../components/JsonPreview";
 import type { DataSource, DataSourceHealthStatus } from "./dataSourceTypes";
 
@@ -6,12 +7,14 @@ export function DataSourcesList({
   healthStatuses,
   busy,
   onRead,
+  onEdit,
   onDelete,
 }: {
   items: DataSource[];
   healthStatuses: Record<string, DataSourceHealthStatus>;
   busy: boolean;
   onRead: (source: DataSource) => void;
+  onEdit: (source: DataSource) => void;
   onDelete: (source: DataSource) => void;
 }) {
   return (
@@ -66,18 +69,34 @@ export function DataSourcesList({
                 <td>
                   <div className="row-actions">
                     <button
+                      className="icon-action-button"
                       type="button"
                       disabled={busy}
+                      title="Trigger manually"
+                      aria-label={`Trigger ${source.name} manually`}
                       onClick={() => onRead(source)}
                     >
-                      Trigger manually
+                      <Play size={16} />
                     </button>
                     <button
+                      className="icon-action-button"
                       type="button"
                       disabled={busy}
+                      title="Edit source"
+                      aria-label={`Edit ${source.name}`}
+                      onClick={() => onEdit(source)}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      className="icon-action-button danger"
+                      type="button"
+                      disabled={busy}
+                      title="Delete source"
+                      aria-label={`Delete ${source.name}`}
                       onClick={() => onDelete(source)}
                     >
-                      Delete Data Source
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </td>

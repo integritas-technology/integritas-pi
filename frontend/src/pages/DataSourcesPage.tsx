@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
 import { useToast } from "../components/ToastProvider";
-import { checkDataSourceHealth, createDataSource, deleteDataSource, listDataSources, readDataSource } from "../features/data-sources/dataSourcesApi";
+import { checkDataSourceHealth, createDataSource, deleteDataSource, listDataSources, readDataSource, updateDataSource } from "../features/data-sources/dataSourcesApi";
 import { DataSourceForm } from "../features/data-sources/DataSourceForm";
 import { DataSourcesList } from "../features/data-sources/DataSourcesList";
 import { DataSourceTemplates } from "../features/data-sources/DataSourceTemplates";
@@ -12,6 +12,7 @@ export function DataSourcesPage() {
   const { showToast } = useToast();
   const [items, setItems] = useState<DataSource[]>([]);
   const [template, setTemplate] = useState<DataSourceTemplate | null>(null);
+  const [editingSource, setEditingSource] = useState<DataSource | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -49,6 +50,7 @@ export function DataSourcesPage() {
   }
 
   function applyTemplate(nextTemplate: DataSourceTemplate) {
+    setEditingSource(null);
     setTemplate(nextTemplate);
     setName(nextTemplate.title);
     setDescription(nextTemplate.description);
@@ -59,8 +61,21 @@ export function DataSourcesPage() {
     setFormOpen(true);
   }
 
+  function editSource(source: DataSource) {
+    setEditingSource(source);
+    setTemplate(null);
+    setName(source.name);
+    setDescription(source.description ?? "");
+    setType(source.type);
+    setUrl(source.config.url);
+    setHealthStatusUrl(source.config.healthStatusUrl ?? "");
+    setMethod(source.config.method);
+    setFormOpen(true);
+  }
+
   function resetForm() {
     setTemplate(null);
+    setEditingSource(null);
     setName("");
     setDescription("");
     setType("json-api");
@@ -94,7 +109,7 @@ export function DataSourcesPage() {
       <DataSourceTemplates onSelect={applyTemplate} />
 
       {formOpen && (
-        <Modal title="Add source" onClose={closeForm}>
+        <Modal title={editingSource ? "Edit source" : "Add source"} onClose={closeForm}>
           <DataSourceForm
             template={template}
             name={name}
@@ -110,11 +125,14 @@ export function DataSourcesPage() {
             method={method}
             setMethod={setMethod}
             busy={busy}
+            submitLabel={editingSource ? "Save source" : "Add source"}
             onSubmit={() => run(async () => {
-              await createDataSource({ name, description, type, config: { url, method, healthStatusUrl: healthStatusUrl.trim() || undefined, headers: {} } });
+              const input = { name, description, type, config: { url, method, healthStatusUrl: healthStatusUrl.trim() || undefined, headers: {} } };
+              if (editingSource) await updateDataSource(editingSource.id, input);
+              else await createDataSource(input);
               setFormOpen(false);
               resetForm();
-            }, "Source added")}
+            }, editingSource ? "Source updated" : "Source added")}
           />
         </Modal>
       )}
@@ -124,6 +142,7 @@ export function DataSourcesPage() {
         healthStatuses={healthStatuses}
         busy={busy}
         onRead={(source) => run(() => readDataSource(source.id), "Manual read completed")}
+        onEdit={editSource}
         onDelete={(source) => run(() => deleteDataSource(source.id), "Source deleted")}
       />
     </Page>

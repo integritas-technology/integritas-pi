@@ -1,4 +1,4 @@
-import { deleteJson, getJson, postJson } from "../../lib/api";
+import { deleteJson, getJson, patchJson, postJson } from "../../lib/api";
 import type { DataSource, DataSourceHealthStatus } from "./dataSourceTypes";
 
 export async function listDataSources() {
@@ -7,6 +7,10 @@ export async function listDataSources() {
 
 export async function createDataSource(input: { name: string; type: DataSource["type"]; description: string; config: DataSource["config"] }) {
   return postJson<{ item: DataSource }>("/api/data-sources", input);
+}
+
+export async function updateDataSource(id: string, input: { name: string; type: DataSource["type"]; description: string; config: DataSource["config"] }) {
+  return patchJson<{ item: DataSource }>(`/api/data-sources/${id}`, input);
 }
 
 export async function deleteDataSource(id: string) {
