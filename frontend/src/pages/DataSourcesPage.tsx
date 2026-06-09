@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
+import { useToast } from "../components/ToastProvider";
 import { checkDataSourceHealth, createDataSource, deleteDataSource, listDataSources, readDataSource } from "../features/data-sources/dataSourcesApi";
 import { DataSourceForm } from "../features/data-sources/DataSourceForm";
 import { DataSourcesList } from "../features/data-sources/DataSourcesList";
@@ -8,6 +9,7 @@ import { DataSourceTemplates } from "../features/data-sources/DataSourceTemplate
 import type { DataSource, DataSourceHealthStatus, DataSourceTemplate } from "../features/data-sources/dataSourceTypes";
 
 export function DataSourcesPage() {
+  const { showToast } = useToast();
   const [items, setItems] = useState<DataSource[]>([]);
   const [template, setTemplate] = useState<DataSourceTemplate | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -19,10 +21,9 @@ export function DataSourcesPage() {
   const [method, setMethod] = useState<"GET" | "POST">("GET");
   const [healthStatuses, setHealthStatuses] = useState<Record<string, DataSourceHealthStatus>>({});
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    refresh().catch((err: Error) => setError(err.message));
+    refresh().catch((err: Error) => showToast({ tone: "error", title: "Could not load data sources", message: err.message }));
   }, []);
 
   useEffect(() => {
@@ -76,12 +77,11 @@ export function DataSourcesPage() {
 
   async function run(action: () => Promise<unknown>) {
     setBusy(true);
-    setError(null);
     try {
       await action();
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      showToast({ tone: "error", title: "Data source action failed", message: err instanceof Error ? err.message : "Unknown error" });
     } finally {
       setBusy(false);
     }
@@ -114,11 +114,8 @@ export function DataSourcesPage() {
               resetForm();
             })}
           />
-          {error && <p className="error-text">{error}</p>}
         </Modal>
       )}
-
-      {!formOpen && error && <p className="error-text">{error}</p>}
 
       <DataSourcesList
         items={items}

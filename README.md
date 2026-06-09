@@ -138,6 +138,8 @@ The backend loads the repo-root `.env` automatically in dev. `DATABASE_PATH`, `D
 
 Frontend styling direction: component and page styling should use Tailwind utilities going forward. Plain CSS should be limited to root/body/base global rules, with existing component-level CSS migrated incrementally as frontend files are touched.
 
+Transient frontend errors should use the shared toast system (`ToastProvider` / `useToast`) instead of duplicating inline messages across modals and pages. Keep inline errors for form validation, row-level status, and persistent context-specific details.
+
 Optional: run Minima in Docker while developing natively:
 
 ```bash

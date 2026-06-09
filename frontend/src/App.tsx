@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { NavId } from "./app/types";
 import { AppShell } from "./components/AppShell";
+import { ToastProvider } from "./components/ToastProvider";
 import { AuthProvider, useAuth } from "./features/auth";
 import { DashboardPage } from "./pages/DashboardPage";
 import { DataSourcesPage } from "./pages/DataSourcesPage";
@@ -57,8 +58,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ToastProvider>
   );
 }
