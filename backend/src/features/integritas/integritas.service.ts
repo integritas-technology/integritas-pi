@@ -6,7 +6,14 @@ import crypto from "node:crypto";
 import { sha3HashHex } from "../../shared/crypto.js";
 import { parseResponseBody } from "../../shared/http.js";
 import { getIntegritasApiKey, integritasApiKeySource } from "../settings/secrets.service.js";
+import { getProofRecord, updateProofStatus } from "./integritas.repository.js";
 import type { IntegritasApiFailure, IntegritasErrorCode, IntegritasOperation, IntegritasStatusItem } from "./integritas.types.js";
+
+export type IntegritasPollSuccess = {
+  ok: true;
+  items: IntegritasStatusItem[];
+  proofPayloads: { uid?: string; proofPayload: unknown[] | null }[];
+};
 
 const TRANSIENT_RETRY_DELAYS_MS = [1000, 3000];
 const MAX_INTEGRITAS_ATTEMPTS = 3;
@@ -42,14 +49,36 @@ export function sha3HashFile(filePath: string) {
 
 export function proofPayloadFromStatusItem(item: IntegritasStatusItem) {
   if (!item?.uid) return null;
-
-  if (item.proof === "[ERROR]" || item.status === false || item.error) {
-    throw new Error(item.error || `Integritas proof failed for uid ${item.uid}`);
-  }
-
+  if (item.proof === "[ERROR]" || item.status === false || item.error) return null;
   if (!item.onchain) return null;
 
   return [{ address: item.address || "", data: item.data || "", proof: item.proof || "", root: item.root || "" }];
+}
+
+export function applyPollResultToRecord(recordId: string, proofUid: string, result: IntegritasPollSuccess) {
+  const statusItem = result.items.find((item) => item.uid === proofUid);
+  const payload = result.proofPayloads.find((item) => item.uid === proofUid)?.proofPayload ?? null;
+  const proofStatus = payload ? "ready" : statusItem?.error || statusItem?.status === false ? "failed" : "pending";
+
+  return updateProofStatus(recordId, {
+    proofStatus,
+    proofPayload: payload ?? undefined,
+    statusResponse: result,
+    proofError: statusItem?.error ?? null
+  });
+}
+
+export async function refreshProofRecord(apiKey: string, recordId: string) {
+  const record = getProofRecord(recordId);
+  if (!record?.proof_uid) {
+    return { ok: false as const, notFound: true as const, error: "Proof record not found" };
+  }
+
+  const result = await pollProofStatus({ apiKey, uids: [record.proof_uid] });
+  if (!result.ok) return { ok: false as const, notFound: false as const, upstream: result };
+
+  const updated = applyPollResultToRecord(recordId, record.proof_uid, result);
+  return { ok: true as const, record: updated, status: result };
 }
 
 function sleep(ms: number) {

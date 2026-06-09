@@ -64,6 +64,8 @@ MINIMA_RPC_PORT=9005
 INTEGRITAS_BASE_URL=https://integritas.technology/core
 INTEGRITAS_API_KEY=
 INTEGRITAS_REQUEST_ID=integritas-pi
+INTEGRITAS_REQUEST_TIMEOUT_MS=15000
+INTEGRITAS_POLL_INTERVAL_SECONDS=30
 COOKIE_SECURE=false
 SESSION_MAX_AGE_DAYS=7
 SESSION_IDLE_HOURS=24
@@ -82,6 +84,8 @@ SESSION_IDLE_HOURS=24
 `DOCKER_GID` lets the non-root backend user read Docker status through `/var/run/docker.sock`. The installer detects this automatically from the socket group id.
 
 `INTEGRITAS_API_KEY` is optional. You can leave it empty and save the API key from the Integritas page in the UI. The key is sent to the backend once, encrypted, and stored in SQLite. It is never exposed in the frontend bundle.
+
+The backend polls Integritas for pending proof UIDs in the background (`INTEGRITAS_POLL_INTERVAL_SECONDS`, default 30). Manual poll in Diagnostics still works and uses the same refresh logic.
 
 The Minima page also stores its Megammr host URL in SQLite through the Configure Minima modal. If no value has been saved, it defaults to `megammr.minima.global:9001`.
 

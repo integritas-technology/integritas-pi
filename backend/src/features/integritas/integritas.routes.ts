@@ -7,8 +7,8 @@ import { validateIntegritasApiKey } from "../auth/integritas-validation.service.
 import { sha3HashHex } from "../../shared/crypto.js";
 import { deleteIntegritasApiKey, getIntegritasApiKey, saveIntegritasApiKey } from "../settings/secrets.service.js";
 import { env } from "../../config/env.js";
-import { createProofRecord, deleteProofRecords, getProofRecord, listProofRecords, updateProofStatus, updateVerifyResponse } from "./integritas.repository.js";
-import { getIntegritasConfig, hashCanonicalBytes, parseProofPayload, pollProofStatus, requestProofUid, sha3HashFile, verifyProof, writeProofExport } from "./integritas.service.js";
+import { createProofRecord, deleteProofRecords, getProofRecord, listProofRecords, updateVerifyResponse } from "./integritas.repository.js";
+import { getIntegritasConfig, hashCanonicalBytes, parseProofPayload, pollProofStatus, refreshProofRecord, requestProofUid, sha3HashFile, verifyProof, writeProofExport } from "./integritas.service.js";
 import type { IntegritasApiFailure } from "./integritas.types.js";
 import { upload } from "./upload.middleware.js";
 
@@ -111,21 +111,11 @@ integritasRouter.post("/history/export-selected", async (req, res) => {
 integritasRouter.post("/history/:id/poll", async (req, res) => {
   const apiKey = requireIntegritasApiKey(res);
   if (!apiKey) return;
-  const record = getProofRecord(req.params.id);
-  if (!record?.proof_uid) return res.status(404).json({ error: "Proof record not found" });
 
-  try {
-    const result = await pollProofStatus({ apiKey, uids: [record.proof_uid] });
-    if (!result.ok) return sendIntegritasError(res, result);
-    const payload = result.proofPayloads.find((item) => item.uid === record.proof_uid)?.proofPayload ?? null;
-    const statusItem = result.items.find((item) => item.uid === record.proof_uid);
-    const proofStatus = payload ? "ready" : statusItem?.error || statusItem?.status === false ? "failed" : "pending";
-    const updated = updateProofStatus(req.params.id, { proofStatus, proofPayload: payload ?? undefined, statusResponse: result, proofError: statusItem?.error ?? null });
-    return res.json({ record: updated, status: result });
-  } catch (error) {
-    const updated = updateProofStatus(req.params.id, { proofStatus: "failed", proofError: error instanceof Error ? error.message : "Integritas proof status failed" });
-    return res.status(502).json({ error: updated.proof_error, record: updated });
-  }
+  const result = await refreshProofRecord(apiKey, req.params.id);
+  if (result.notFound) return res.status(404).json({ error: result.error });
+  if (!result.ok) return sendIntegritasError(res, result.upstream);
+  return res.json({ record: result.record, status: result.status });
 });
 
 integritasRouter.post("/history/:id/verify", async (req, res) => {
