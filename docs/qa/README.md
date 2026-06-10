@@ -5,9 +5,10 @@
 
 This document is the **single entry point** for work deferred to QA: automated tests, manual checklists, and security hardening that should not block ongoing feature development.
 
-Detailed auth backlog: [reports/auth-qa-gaps.md](./reports/auth-qa-gaps.md)  
-Integritas feature plan: [plans/integritas-integration.md](./plans/integritas-integration.md)  
-Security model: [auth-security.md](./auth-security.md), [SECURITY.md](../SECURITY.md)
+Docs index: [README.md](../README.md)  
+Detailed auth backlog: [auth-gaps.md](./auth-gaps.md)  
+Integritas feature plan: [integritas-integration.md](../plans/integritas-integration.md)  
+Security model: [auth-security.md](../plans/auth-security.md), [SECURITY.md](../../SECURITY.md)
 
 ---
 
@@ -25,7 +26,7 @@ Do **not** block Phase 5 Integritas UI or other product work on completing QA �
 
 ## QA exit criteria (project-level)
 
-- [ ] Auth P0 gaps closed or accepted — see [auth-qa-gaps.md](./reports/auth-qa-gaps.md#exit-criteria-auth-qa-sign-off)
+- [ ] Auth P0 gaps closed or accepted — see [auth-gaps.md](./auth-gaps.md#exit-criteria-auth-qa-sign-off)
 - [ ] Integritas sandbox integration tests passing locally with `INTEGRITAS_SANDBOX_API_KEY` (optional in CI)
 - [ ] Integritas manual checklist below passed on a Pi or dev stack with a real API key
 - [ ] `npm run check` + `docker compose build` clean
@@ -39,17 +40,17 @@ Do **not** block Phase 5 Integritas UI or other product work on completing QA �
 
 | Priority | Topic | Detail doc |
 |---|---|---|
-| **P0** | HTTPS / `COOKIE_SECURE` / HSTS | [GAP-01](./reports/auth-qa-gaps.md#gap-01--transport-security-https--secure-cookies) |
-| **P0** | Automated auth route tests (401, rate limit, setup guard) | [GAP-02](./reports/auth-qa-gaps.md#gap-02--automated-auth-security-tests) |
-| **P0** | Manual wizard + login E2E checklist | [GAP-03](./reports/auth-qa-gaps.md#gap-03--manual-end-to-end-auth-test-script) |
-| **P0** | `APP_SECRET` production validation | [GAP-04](./reports/auth-qa-gaps.md#gap-04--app_secret-startup-validation) |
-| **P0** | TOTP secret in setup API (decision + doc) | [GAP-05](./reports/auth-qa-gaps.md#gap-05--totp-secret-in-setup-api-response) |
-| **P0** | CSRF posture (SameSite-only vs tokens) | [GAP-06](./reports/auth-qa-gaps.md#gap-06--csrf-baseline-for-mutations) |
-| **P0** | Security headers (CSP, frame deny, etc.) | [GAP-07](./reports/auth-qa-gaps.md#gap-07--security-headers-xss-defense-in-depth) |
-| **P1** | Session cleanup, rate limits on stamp/automation, `zod` validation, `requireRole` on Integritas mutations | [GAP-08–13](./reports/auth-qa-gaps.md#p1--complete-during-qa-phase-recommended) |
-| **P2** | Argon2, CLI auth, pen test | [GAP-14–18](./reports/auth-qa-gaps.md#p2--post-qa-hardening-does-not-block-other-features) |
+| **P0** | HTTPS / `COOKIE_SECURE` / HSTS | [GAP-01](./auth-gaps.md#gap-01--transport-security-https--secure-cookies) |
+| **P0** | Automated auth route tests (401, rate limit, setup guard) | [GAP-02](./auth-gaps.md#gap-02--automated-auth-security-tests) |
+| **P0** | Manual wizard + login E2E checklist | [GAP-03](./auth-gaps.md#gap-03--manual-end-to-end-auth-test-script) |
+| **P0** | `APP_SECRET` production validation | [GAP-04](./auth-gaps.md#gap-04--app_secret-startup-validation) |
+| **P0** | TOTP secret in setup API (decision + doc) | [GAP-05](./auth-gaps.md#gap-05--totp-secret-in-setup-api-response) |
+| **P0** | CSRF posture (SameSite-only vs tokens) | [GAP-06](./auth-gaps.md#gap-06--csrf-baseline-for-mutations) |
+| **P0** | Security headers (CSP, frame deny, etc.) | [GAP-07](./auth-gaps.md#gap-07--security-headers-xss-defense-in-depth) |
+| **P1** | Session cleanup, rate limits on stamp/automation, `zod` validation, `requireRole` on Integritas mutations | [GAP-08–13](./auth-gaps.md#p1--complete-during-qa-phase-recommended) |
+| **P2** | Argon2, CLI auth, pen test | [GAP-14–18](./auth-gaps.md#p2--post-qa-hardening-does-not-block-other-features) |
 
-**Suggested order:** Follow [auth-qa-gaps.md § Suggested QA phase order](./reports/auth-qa-gaps.md#suggested-qa-phase-order).
+**Suggested order:** Follow [auth-gaps.md § Suggested QA phase order](./auth-gaps.md#suggested-qa-phase-order).
 
 ---
 

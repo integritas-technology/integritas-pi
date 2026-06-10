@@ -1,8 +1,15 @@
 # Integritas Integration Plan
 
+| | |
+|---|---|
+| **Status** | **In progress** |
+| **Done** | Backend Phases 1–3 (HTTP client, poller, retry policy) |
+| **Next** | Phase 5 frontend UX |
+| **Deferred** | Sandbox tests → [qa/README.md](../qa/README.md) |
+
 Backend Integritas proof API integration, proof lifecycle automation, and related frontend polish for `integritas-pi`.
 
-Companion docs: [README.md](../../README.md), [SECURITY.md](../../SECURITY.md), [AGENTS.md](../../AGENTS.md). Prior art: [auth-implementation.md](../auth-implementation.md). QA backlog: [qa-phase.md](../qa-phase.md).
+Companion docs: [README.md](../README.md) (docs index), [project README.md](../../README.md), [SECURITY.md](../../SECURITY.md), [AGENTS.md](../../AGENTS.md). Prior art: [auth-implementation.md](./auth-implementation.md). QA: [qa/README.md](../qa/README.md).
 
 **External API (authoritative):** Use the official Integritas docs when implementing or changing upstream calls — not ticket placeholders.
 
@@ -49,7 +56,7 @@ When adding new Integritas capabilities, start from the [API hub](https://docs.i
 
 The **core Integritas backend integration is largely done**. Stamping, hashing, status polling, verification, API key management, SQLite history, automation stamping, and manual UI flows all exist under `backend/src/features/integritas/` with a matching frontend feature folder.
 
-What remains for **feature work** is **targeted frontend UX** on the Integritas page and config modal (Phase 5). **Sandbox integration tests** and broader **auth/security QA** are deferred to [qa-phase.md](../qa-phase.md). Future ticket items (usage dashboards in-app, OAuth connector) stay out of scope.
+What remains for **feature work** is **targeted frontend UX** on the Integritas page and config modal (Phase 5). **Sandbox integration tests** and broader **auth/security QA** are deferred to [qa/README.md](../qa/README.md). Future ticket items (usage dashboards in-app, OAuth connector) stay out of scope.
 
 **API naming:** The ticket used placeholder route names with no fixed schema. **This plan uses the routes already in the repo** as the canonical API. All new work extends those endpoints and services in place — no renames, no compatibility aliases.
 
@@ -84,7 +91,7 @@ The ticket checklist is treated as a **capability list**, not a route spec. Stat
 |---|---|---|
 | Retry logic for failed stamps | **Done (Phase 3)** | Transient automation stamp failures defer to next run; pending proofs time out via `INTEGRITAS_PROOF_POLL_TIMEOUT_MINUTES`. |
 | Automate proof status fetching | **Done (Phase 2)** | Background poller in `integritas-poll.service.ts`. |
-| Integration tests against Integritas sandbox | **Deferred → QA** | See [qa-phase.md § Workstream B](../qa-phase.md#workstream-b--integritas-sandbox-integration-tests). Not blocking Phase 5. |
+| Integration tests against Integritas sandbox | **Deferred → QA** | See [qa/README.md § Workstream B](../qa/README.md#workstream-b--integritas-sandbox-integration-tests). Not blocking Phase 5. |
 
 ### Frontend — remaining (not started)
 
@@ -190,7 +197,7 @@ Frontend must NOT call integritas.technology directly.
 1. ~~No background proof polling.~~ **Done (Phase 2).**
 2. ~~No retry on transient upstream or stamp failures (automation stamp path).~~ **Done (Phase 3).**
 3. ~~Integritas upstream calls lack timeout/retry taxonomy.~~ **Done (Phase 1).**
-4. No integration tests — **deferred to [qa-phase.md](../qa-phase.md)**.
+4. No integration tests — **deferred to [qa/README.md](../qa/README.md)**.
 5. Integritas page stamp result is raw JSON, not a friendly on-chain status message.
 6. No portal link in Integritas config modal.
 7. Frontend does not auto-refresh proof status after background poll (reload or manual action required).
@@ -284,7 +291,7 @@ last_stamp_error TEXT
 
 ### Phase 4 — Integration tests (sandbox) — **deferred to QA**
 
-**Status:** Not scheduled during feature implementation. Moved to [qa-phase.md § Workstream B](../qa-phase.md#workstream-b--integritas-sandbox-integration-tests).
+**Status:** Not scheduled during feature implementation. Moved to [qa/README.md § Workstream B](../qa/README.md#workstream-b--integritas-sandbox-integration-tests).
 
 **Goal (when QA runs):** Catch Integritas API contract drift using a sandbox key without blocking default CI.
 
@@ -362,7 +369,7 @@ Next (feature work):
   Phase 5 (Integritas page UX)
   Phase 6 (docs for shipped behavior)
 
-Deferred to QA phase (see qa-phase.md):
+Deferred to QA phase (see qa/README.md):
   Phase 4 (sandbox integration tests)
   Auth security hardening + auth automated tests
 ```
@@ -378,7 +385,7 @@ Phase 5 can proceed without Phase 4.
 | `INTEGRITAS_POLL_INTERVAL_SECONDS` | `30` | Background pending-proof poll interval |
 | `INTEGRITAS_REQUEST_TIMEOUT_MS` | `15000` | Upstream fetch timeout |
 | `INTEGRITAS_PORTAL_URL` | empty | External portal link for usage monitoring |
-| `INTEGRITAS_SANDBOX_API_KEY` | empty | QA sandbox tests only (see [qa-phase.md](../qa-phase.md)) |
+| `INTEGRITAS_SANDBOX_API_KEY` | empty | QA sandbox tests only (see [qa/README.md](../qa/README.md)) |
 
 ---
 
@@ -398,7 +405,7 @@ Manual:
 3. Automation workflow with stamp enabled → proof row linked in data reads.
 4. Invalid key → stamp returns clear `unauthorized` error, no retry loop.
 
-Sandbox integration tests: deferred to QA — see [qa-phase.md](../qa-phase.md).
+Sandbox integration tests: deferred to QA — see [qa/README.md](../qa/README.md).
 
 ---
 
@@ -428,6 +435,6 @@ Sandbox integration tests: deferred to QA — see [qa-phase.md](../qa-phase.md).
 
 ## Risk notes
 
-- **External API contract** remains the main risk; sandbox integration tests in [qa-phase.md](../qa-phase.md) are the mitigation when QA runs.
+- **External API contract** remains the main risk; sandbox integration tests in [qa/README.md](../qa/README.md) are the mitigation when QA runs.
 - **Polling frequency** must respect Integritas rate limits; batch UIDs, use Phase 1 backoff, keep default interval ≥ 30s.
 - **API key validation** currently performs a real stamp with a zero hash; document that behavior in SECURITY.md if not already — validation consumes quota.

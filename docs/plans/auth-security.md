@@ -1,6 +1,13 @@
 # Auth & Permissions — Security Model (Phase 1)
 
-Living doc for **auth implementation** risks and controls. Implementation details: [auth-implementation.md](./auth-implementation.md). General project risks: [../SECURITY.md](../SECURITY.md).
+| | |
+|---|---|
+| **Status** | **Complete** (Phase 1 design & delivery) |
+| **Shipped** | [0.2.0](../CHANGELOG.md#020---2026-06-09) |
+| **Implementation** | [auth-implementation.md](./auth-implementation.md) |
+| **QA hardening gaps** | [auth-gaps.md](../qa/auth-gaps.md) — not blockers for new features |
+
+Threat model and controls for Phase 1 auth. General project risks: [SECURITY.md](../SECURITY.md).
 
 ---
 
@@ -35,7 +42,7 @@ Living doc for **auth implementation** risks and controls. Implementation detail
 - Remove frontend mock guest/localStorage auth
 - Wizard gated by `GET /api/setup/status` (not `localStorage`); no re-run after admin exists
 
-**Status:** Planned — see auth-implementation.md
+**Status:** Implemented (0.2.0). Residual hardening → [auth-gaps.md](../qa/auth-gaps.md)
 
 ---
 

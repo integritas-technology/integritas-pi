@@ -2,8 +2,8 @@
 
 **Status:** Open — track in QA phase before treating auth as complete  
 **Created:** 2026-06-09  
-**Hub:** [qa-phase.md](../qa-phase.md) — project QA entry point (auth + Integritas tests)  
-**Related:** [auth-implementation-audit.md](./auth-implementation-audit.md), [auth-security.md](../auth-security.md), [SECURITY.md](../../SECURITY.md)
+**Hub:** [README.md](./README.md) — project QA entry point (auth + Integritas tests)  
+**Related:** [auth-implementation-audit.md](../reports/auth-implementation-audit.md), [auth-security.md](../plans/auth-security.md), [SECURITY.md](../../SECURITY.md)
 
 ## Purpose
 
@@ -138,7 +138,7 @@ Until then, treat auth as **feature-complete, security-incomplete**.
 | Option | Action |
 |--------|--------|
 | **A (stricter)** | Remove `secret` from API; QR-only enrollment. Update wizard UI. |
-| **B (document)** | Keep manual key UX; require HTTPS + document accepted risk in `SECURITY.md` and `auth-security.md`. |
+| **B (document)** | Keep manual key UX; require HTTPS + document accepted risk in `SECURITY.md` and [auth-security.md](../plans/auth-security.md). |
 
 **Acceptance:** Decision recorded in `SECURITY.md`; QA verifies chosen behavior.
 

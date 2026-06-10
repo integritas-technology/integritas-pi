@@ -2,7 +2,7 @@
 
 **Generated:** 2026-06-09  
 **Scope:** Phase 1 authentication, session management, first-run setup wizard, and route protection  
-**References:** [auth-implementation.md](../auth-implementation.md), [auth-security.md](../auth-security.md), [SECURITY.md](../../SECURITY.md)
+**References:** [auth-implementation.md](../plans/auth-implementation.md), [auth-security.md](../plans/auth-security.md), [auth-gaps.md](../qa/auth-gaps.md), [SECURITY.md](../../SECURITY.md)
 
 This report summarizes what was implemented (from git history and current code), lists every file to audit, breaks down frontend/backend changes, and records security findings for review.
 
@@ -29,7 +29,7 @@ Phase 1 auth is **implemented and wired end-to-end**:
 
 | Date | Commit | Summary |
 |------|--------|---------|
-| (earlier) | `f73a8de` | Added `docs/auth-implementation.md`, `docs/auth-security.md`; updated `SECURITY.md` |
+| (earlier) | `f73a8de` | Added `docs/plans/auth-implementation.md`, `docs/plans/auth-security.md`; updated `SECURITY.md` |
 | (earlier) | `640de47` | Refined auth/onboarding plan docs |
 | 2026-06-08 | `704e575` | **Main implementation:** backend auth feature, DB migrations, `requireAuth`, frontend `AuthProvider`, wizard/login migration from mocks, docs/README/SECURITY updates |
 | 2026-06-08 | `715921c` | Added `POST /api/setup/totp/verify`, `verified_at` on `setup_pending`, setup must verify TOTP before complete |
@@ -179,8 +179,8 @@ Use this checklist to review files one by one. **Priority** indicates suggested 
 |---|------|------|
 | 43 | `.env.example` | `COOKIE_SECURE`, session TTLs |
 | 44 | `backend/package.json` | bcrypt, otpauth, qrcode, cookie-parser, express-rate-limit |
-| 45 | `docs/auth-implementation.md` | Implementation plan |
-| 46 | `docs/auth-security.md` | Threat model |
+| 45 | `docs/plans/auth-implementation.md` | Implementation plan |
+| 46 | `docs/plans/auth-security.md` | Threat model |
 | 47 | `SECURITY.md` | Updated risk register |
 | 48 | `README.md` | Auth/setup/CLI 401 docs |
 | 49 | `AGENTS.md` | Agent guidance for auth |
@@ -324,7 +324,7 @@ Severity: **Critical** > **High** > **Medium** > **Low** > **Info**
 
 **Location:** `setup.service.ts` → `setup.routes.ts` → `frontend/src/features/setup/api.ts`
 
-The plan in `auth-implementation.md` states the init endpoint must **never** return the raw secret in JSON. Current code returns `{ qrCodePngBase64, expiresAt, secret }` so the wizard can show/copy a manual setup key.
+The plan in `docs/plans/auth-implementation.md` states the init endpoint must **never** return the raw secret in JSON. Current code returns `{ qrCodePngBase64, expiresAt, secret }` so the wizard can show/copy a manual setup key.
 
 **Risk:** Any observer on the LAN (HTTP) or XSS during setup could capture the long-term TOTP secret before the account exists.
 
