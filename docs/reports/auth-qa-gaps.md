@@ -2,6 +2,7 @@
 
 **Status:** Open — track in QA phase before treating auth as complete  
 **Created:** 2026-06-09  
+**Hub:** [qa-phase.md](../qa-phase.md) — project QA entry point (auth + Integritas tests)  
 **Related:** [auth-implementation-audit.md](./auth-implementation-audit.md), [auth-security.md](../auth-security.md), [SECURITY.md](../../SECURITY.md)
 
 ## Purpose

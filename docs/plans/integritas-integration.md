@@ -2,7 +2,7 @@
 
 Backend Integritas proof API integration, proof lifecycle automation, and related frontend polish for `integritas-pi`.
 
-Companion docs: [README.md](../../README.md), [SECURITY.md](../../SECURITY.md), [AGENTS.md](../../AGENTS.md). Prior art: [auth-implementation.md](../auth-implementation.md).
+Companion docs: [README.md](../../README.md), [SECURITY.md](../../SECURITY.md), [AGENTS.md](../../AGENTS.md). Prior art: [auth-implementation.md](../auth-implementation.md). QA backlog: [qa-phase.md](../qa-phase.md).
 
 **External API (authoritative):** Use the official Integritas docs when implementing or changing upstream calls — not ticket placeholders.
 
@@ -49,7 +49,7 @@ When adding new Integritas capabilities, start from the [API hub](https://docs.i
 
 The **core Integritas backend integration is largely done**. Stamping, hashing, status polling, verification, API key management, SQLite history, automation stamping, and manual UI flows all exist under `backend/src/features/integritas/` with a matching frontend feature folder.
 
-What remains is **retry policy** (Phase 3), **sandbox integration tests** (Phase 4), and **targeted frontend UX** on the Integritas page and config modal (Phase 5). Future ticket items (usage dashboards in-app, OAuth connector) should stay out of this phase.
+What remains for **feature work** is **targeted frontend UX** on the Integritas page and config modal (Phase 5). **Sandbox integration tests** and broader **auth/security QA** are deferred to [qa-phase.md](../qa-phase.md). Future ticket items (usage dashboards in-app, OAuth connector) stay out of scope.
 
 **API naming:** The ticket used placeholder route names with no fixed schema. **This plan uses the routes already in the repo** as the canonical API. All new work extends those endpoints and services in place — no renames, no compatibility aliases.
 
@@ -76,15 +76,15 @@ The ticket checklist is treated as a **capability list**, not a route spec. Stat
 | History maintenance | **Done** | `POST /api/integritas/history/delete-selected`, `POST /api/integritas/history/export-selected` |
 | Error handling (rate limits, unavailability, proof failure) | **Done (Phase 1)** | `integritasFetch`: timeouts, transient retry, `errorCode` on API failures, `retryAfter` when upstream sends `429`. Poll route exceptions still → `502`; terminal proof errors → `proof_status: failed`. |
 
-**Summary:** Core stamping and history flows are complete on the current routes. Gaps are reliability (timeouts, retries, auto-poll) and operator-facing error detail — not missing endpoints.
+**Summary:** Backend Integritas integration (Phases 1–3) is complete on the current routes. Remaining product gap is operator-facing UX on the Integritas page (Phase 5).
 
 ### Backend — remaining
 
-| Ticket item | Makes sense? | Notes |
+| Ticket item | Status | Notes |
 |---|---|---|
-| Retry logic for failed stamps | **Yes** | Automation currently fails the whole workflow on a single stamp error (`automation.service.ts`). Phase 3. |
-| Automate proof status fetching | **Done (Phase 2)** | Background poller in `integritas-poll.service.ts`; pending rows update in SQLite without manual Diagnostics poll. |
-| Integration tests against Integritas sandbox | **Yes** | No tests exist today (`npm run check` is typecheck + audit only). Sandbox tests behind an env flag keep CI green without secrets. |
+| Retry logic for failed stamps | **Done (Phase 3)** | Transient automation stamp failures defer to next run; pending proofs time out via `INTEGRITAS_PROOF_POLL_TIMEOUT_MINUTES`. |
+| Automate proof status fetching | **Done (Phase 2)** | Background poller in `integritas-poll.service.ts`. |
+| Integration tests against Integritas sandbox | **Deferred → QA** | See [qa-phase.md § Workstream B](../qa-phase.md#workstream-b--integritas-sandbox-integration-tests). Not blocking Phase 5. |
 
 ### Frontend — remaining (not started)
 
@@ -188,9 +188,9 @@ Frontend must NOT call integritas.technology directly.
 ### Gaps
 
 1. ~~No background proof polling.~~ **Done (Phase 2).**
-2. No retry on transient upstream or stamp failures (automation stamp path).
+2. ~~No retry on transient upstream or stamp failures (automation stamp path).~~ **Done (Phase 3).**
 3. ~~Integritas upstream calls lack timeout/retry taxonomy.~~ **Done (Phase 1).**
-4. No integration tests.
+4. No integration tests — **deferred to [qa-phase.md](../qa-phase.md)**.
 5. Integritas page stamp result is raw JSON, not a friendly on-chain status message.
 6. No portal link in Integritas config modal.
 7. Frontend does not auto-refresh proof status after background poll (reload or manual action required).
@@ -199,7 +199,7 @@ Frontend must NOT call integritas.technology directly.
 
 ## Implementation plan
 
-### Phase 1 — Harden Integritas HTTP client (backend)
+### Phase 1 — Harden Integritas HTTP client (backend) — **complete**
 
 **Goal:** Centralize upstream reliability before adding schedulers or retries that depend on it.
 
@@ -222,7 +222,7 @@ Frontend must NOT call integritas.technology directly.
 
 ---
 
-### Phase 2 — Automate proof status fetching (backend)
+### Phase 2 — Automate proof status fetching (backend) — **complete**
 
 **Goal:** Pending proofs become `ready` or `failed` without manual Diagnostics polling.
 
@@ -253,7 +253,7 @@ startIntegritasProofPoller()
 
 ---
 
-### Phase 3 — Retry logic for failed stamps and polls (backend)
+### Phase 3 — Retry logic for failed stamps and polls (backend) — **complete**
 
 **Goal:** Distinguish **transient** failures (retry) from **terminal** failures (mark failed, stop).
 
@@ -282,20 +282,13 @@ last_stamp_error TEXT
 
 ---
 
-### Phase 4 — Integration tests (sandbox)
+### Phase 4 — Integration tests (sandbox) — **deferred to QA**
 
-**Goal:** Catch contract drift against Integritas sandbox without blocking default CI.
+**Status:** Not scheduled during feature implementation. Moved to [qa-phase.md § Workstream B](../qa-phase.md#workstream-b--integritas-sandbox-integration-tests).
 
-**Approach:**
+**Goal (when QA runs):** Catch Integritas API contract drift using a sandbox key without blocking default CI.
 
-1. Add `backend` test runner (e.g. `node:test` — already Node-native, no new framework).
-2. `backend/src/features/integritas/integritas.integration.test.ts`:
-   - `describe.skip` or `if (!process.env.INTEGRITAS_SANDBOX_API_KEY) return`
-   - Exercise service layer (same code paths as `POST /stamp`, `POST /status`, `POST /verify`): validate key → stamp known hash → poll until `onchain` or timeout (60s) → optional verify if payload ready.
-3. Script: `npm --prefix backend run test:integritas` (document in README).
-4. Root `npm run check` **does not** run integration tests (no secrets in CI).
-
-**Files:** `backend/package.json`, test file, `.env.example`, `README.md`.
+**Outline:** `node:test` + `INTEGRITAS_SANDBOX_API_KEY` → stamp → poll → optional verify; `npm --prefix backend run test:integritas`; not part of `npm run check`.
 
 ---
 
@@ -360,15 +353,21 @@ Update when phases ship:
 ## Suggested implementation order
 
 ```txt
-Phase 1 (HTTP hardening)
-  → Phase 2 (proof poller)     ← highest user-visible value
-  → Phase 3 (retry policy)
-  → Phase 4 (sandbox tests)    ← lock contract before more changes
-  → Phase 5 (frontend polish)
-  → Phase 6 (docs)
+Done:
+  Phase 1 (HTTP hardening)
+  Phase 2 (proof poller)
+  Phase 3 (retry policy)
+
+Next (feature work):
+  Phase 5 (Integritas page UX)
+  Phase 6 (docs for shipped behavior)
+
+Deferred to QA phase (see qa-phase.md):
+  Phase 4 (sandbox integration tests)
+  Auth security hardening + auth automated tests
 ```
 
-Phases 1–2 can be one PR; Phase 3–4 a second; Phase 5 a third.
+Phase 5 can proceed without Phase 4.
 
 ---
 
@@ -379,7 +378,7 @@ Phases 1–2 can be one PR; Phase 3–4 a second; Phase 5 a third.
 | `INTEGRITAS_POLL_INTERVAL_SECONDS` | `30` | Background pending-proof poll interval |
 | `INTEGRITAS_REQUEST_TIMEOUT_MS` | `15000` | Upstream fetch timeout |
 | `INTEGRITAS_PORTAL_URL` | empty | External portal link for usage monitoring |
-| `INTEGRITAS_SANDBOX_API_KEY` | empty | Integration tests only (local/CI secret) |
+| `INTEGRITAS_SANDBOX_API_KEY` | empty | QA sandbox tests only (see [qa-phase.md](../qa-phase.md)) |
 
 ---
 
@@ -399,11 +398,7 @@ Manual:
 3. Automation workflow with stamp enabled → proof row linked in data reads.
 4. Invalid key → stamp returns clear `unauthorized` error, no retry loop.
 
-With sandbox key:
-
-```bash
-INTEGRITAS_SANDBOX_API_KEY=... npm --prefix backend run test:integritas
-```
+Sandbox integration tests: deferred to QA — see [qa-phase.md](../qa-phase.md).
 
 ---
 
@@ -433,6 +428,6 @@ INTEGRITAS_SANDBOX_API_KEY=... npm --prefix backend run test:integritas
 
 ## Risk notes
 
-- **External API contract** remains the main risk; sandbox integration tests (Phase 4) are the mitigation.
+- **External API contract** remains the main risk; sandbox integration tests in [qa-phase.md](../qa-phase.md) are the mitigation when QA runs.
 - **Polling frequency** must respect Integritas rate limits; batch UIDs, use Phase 1 backoff, keep default interval ≥ 30s.
 - **API key validation** currently performs a real stamp with a zero hash; document that behavior in SECURITY.md if not already — validation consumes quota.

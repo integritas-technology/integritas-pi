@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Data source template cards now use the clearer `Add source` call to action instead of `Use template`.
 - Added data source row actions now use accessible icon buttons for manual trigger, edit, and delete.
+- Integritas sandbox integration tests moved from feature Phase 4 to the planned QA phase; see `docs/qa-phase.md`.
 
 ## [0.2.0] - 2026-06-09
 
