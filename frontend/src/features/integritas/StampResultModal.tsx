@@ -3,12 +3,12 @@ import { JsonPreview } from "../../components/JsonPreview";
 import { Modal } from "../../components/Modal";
 import { StatusBadge } from "../../components/StatusBadge";
 import { useToast } from "../../components/ToastProvider";
-import { pollRecord } from "./integritasApi";
+import { getHistory } from "./integritasApi";
 import { integritasErrorToast } from "./integritasErrors";
 import type { IntegritasProofRecord } from "./integritasTypes";
 
-const POLL_INTERVAL_MS = 30_000;
-const POLL_TIMEOUT_MS = 5 * 60_000;
+const REFRESH_INTERVAL_MS = 15_000;
+const REFRESH_TIMEOUT_MS = 5 * 60_000;
 
 function statusBadge(record: IntegritasProofRecord) {
   if (record.proof_status === "ready") {
@@ -27,7 +27,7 @@ function statusMessage(record: IntegritasProofRecord) {
   if (record.proof_status === "failed") {
     return record.proof_error ?? "Integritas could not complete this proof. Check Diagnostics for details or try stamping again.";
   }
-  return "Proof requested. On-chain confirmation usually completes within a few minutes. You can close this dialog and check Diagnostics later.";
+  return "Proof requested. Status updates automatically here and on Diagnostics (usually within a few minutes).";
 }
 
 export function StampResultModal({
@@ -57,12 +57,14 @@ export function StampResultModal({
     let cancelled = false;
     const startedAt = Date.now();
 
-    async function refresh() {
+    async function refreshFromHistory() {
       try {
-        const response = await pollRecord(record.id);
+        const response = await getHistory();
         if (cancelled) return;
-        setRecord(response.record);
-        if (response.record.proof_status !== "pending") {
+        const updated = response.items.find((item) => item.id === record.id);
+        if (!updated) return;
+        setRecord(updated);
+        if (updated.proof_status !== "pending") {
           setPolling(false);
         }
       } catch (error) {
@@ -75,25 +77,21 @@ export function StampResultModal({
       }
     }
 
-    const initialPoll = window.setTimeout(() => {
-      void refresh();
-    }, 5000);
-
+    void refreshFromHistory();
     const interval = window.setInterval(() => {
-      if (Date.now() - startedAt >= POLL_TIMEOUT_MS) {
+      if (Date.now() - startedAt >= REFRESH_TIMEOUT_MS) {
         setPolling(false);
         window.clearInterval(interval);
         return;
       }
-      void refresh();
-    }, POLL_INTERVAL_MS);
+      void refreshFromHistory();
+    }, REFRESH_INTERVAL_MS);
 
     return () => {
       cancelled = true;
-      window.clearTimeout(initialPoll);
       window.clearInterval(interval);
     };
-  }, [record.id, record.proof_status]);
+  }, [record.id, record.proof_status, showToast]);
 
   return (
     <Modal title="Timestamp proof submitted" onClose={onClose}>

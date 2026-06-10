@@ -9,6 +9,7 @@ import type { DataSourceRead } from "../features/data-reads/dataReadTypes";
 import { deleteSelected, downloadSelected, getHistory, pollRecord, verifyRecord } from "../features/integritas/integritasApi";
 import { IntegritasHistoryTable } from "../features/integritas/IntegritasHistoryTable";
 import type { IntegritasProofRecord } from "../features/integritas/integritasTypes";
+import { useIntegritasHistoryAutoRefresh } from "../features/integritas/useIntegritasHistoryAutoRefresh";
 
 type DiagnosticsTab = "proofs" | "reads";
 
@@ -26,6 +27,8 @@ export function DiagnosticsPage() {
     refreshProofs().catch((err: Error) => setError(err.message));
     refreshReads().catch((err: Error) => setError(err.message));
   }, []);
+
+  useIntegritasHistoryAutoRefresh(records, setRecords, { enabled: activeTab === "proofs" });
 
   async function refreshProofs() {
     const response = await getHistory();

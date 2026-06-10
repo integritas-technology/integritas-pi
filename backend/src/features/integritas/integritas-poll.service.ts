@@ -54,9 +54,12 @@ export function startIntegritasProofPoller() {
   if (poller) return;
 
   const intervalMs = env.integritasPollIntervalSeconds * 1000;
-  poller = setInterval(() => {
+  const runPoll = () => {
     pollPendingProofRecords().catch((error) => {
       console.error("Integritas proof poller failed:", error instanceof Error ? error.message : error);
     });
-  }, intervalMs);
+  };
+
+  runPoll();
+  poller = setInterval(runPoll, intervalMs);
 }

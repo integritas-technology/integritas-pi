@@ -7,6 +7,7 @@ import { listDataReads } from "../features/data-reads/dataReadsApi";
 import type { DataSourceRead } from "../features/data-reads/dataReadTypes";
 import { getHistory } from "../features/integritas/integritasApi";
 import type { IntegritasProofRecord } from "../features/integritas/integritasTypes";
+import { useIntegritasHistoryAutoRefresh } from "../features/integritas/useIntegritasHistoryAutoRefresh";
 import { formatLocalTime } from "../lib/time";
 
 type ActivityItem = {
@@ -47,6 +48,8 @@ export function DashboardPage({ onStartSetup }: { onStartSetup: () => void }) {
       })
       .catch((err: Error) => setActivityError(err.message));
   }, []);
+
+  useIntegritasHistoryAutoRefresh(proofs, setProofs);
 
   const activity = useMemo(() => buildActivity(proofs, reads), [proofs, reads]);
 

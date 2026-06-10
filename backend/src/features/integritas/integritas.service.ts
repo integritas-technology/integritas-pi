@@ -50,17 +50,26 @@ export function sha3HashFile(filePath: string) {
   });
 }
 
+function normalizeProofUid(uid?: string) {
+  return uid?.trim().toLowerCase() ?? "";
+}
+
+function isOnchain(value: unknown) {
+  return value === true || value === "true" || value === 1;
+}
+
 export function proofPayloadFromStatusItem(item: IntegritasStatusItem) {
   if (!item?.uid) return null;
   if (item.proof === "[ERROR]" || item.status === false || item.error) return null;
-  if (!item.onchain) return null;
+  if (!isOnchain(item.onchain)) return null;
 
   return [{ address: item.address || "", data: item.data || "", proof: item.proof || "", root: item.root || "" }];
 }
 
 export function applyPollResultToRecord(recordId: string, proofUid: string, result: IntegritasPollSuccess) {
-  const statusItem = result.items.find((item) => item.uid === proofUid);
-  const payload = result.proofPayloads.find((item) => item.uid === proofUid)?.proofPayload ?? null;
+  const normalizedUid = normalizeProofUid(proofUid);
+  const statusItem = result.items.find((item) => normalizeProofUid(item.uid) === normalizedUid);
+  const payload = result.proofPayloads.find((item) => normalizeProofUid(item.uid) === normalizedUid)?.proofPayload ?? null;
   const proofStatus = payload ? "ready" : statusItem?.error || statusItem?.status === false ? "failed" : "pending";
 
   return updateProofStatus(recordId, {
