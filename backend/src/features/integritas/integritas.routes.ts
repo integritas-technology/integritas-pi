@@ -8,6 +8,7 @@ import { sha3HashHex } from "../../shared/crypto.js";
 import { deleteIntegritasApiKey, getIntegritasApiKey, saveIntegritasApiKey } from "../settings/secrets.service.js";
 import { env } from "../../config/env.js";
 import { createProofRecord, deleteProofRecords, getProofRecord, listProofRecords, updateVerifyResponse } from "./integritas.repository.js";
+import { pollPendingProofRecords } from "./integritas-poll.service.js";
 import { getIntegritasConfig, hashCanonicalBytes, parseProofPayload, pollProofStatus, refreshProofRecord, requestProofUid, sha3HashFile, verifyProof, writeProofExport } from "./integritas.service.js";
 import type { IntegritasApiFailure } from "./integritas.types.js";
 import { upload } from "./upload.middleware.js";
@@ -108,6 +109,14 @@ integritasRouter.post("/history/export-selected", async (req, res) => {
   if (merged.length === 0) return res.status(400).json({ error: "Selected rows do not contain proof payloads" });
   const filePath = await writeProofExport(merged);
   res.download(filePath);
+});
+
+integritasRouter.post("/history/poll-pending", async (_req, res) => {
+  const apiKey = requireIntegritasApiKey(res);
+  if (!apiKey) return;
+
+  await pollPendingProofRecords();
+  return res.json({ items: listProofRecords() });
 });
 
 integritasRouter.post("/history/:id/poll", async (req, res) => {

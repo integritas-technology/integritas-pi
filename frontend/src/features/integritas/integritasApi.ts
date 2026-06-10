@@ -11,8 +11,8 @@ export async function stampFile(file: File) {
   return postForm<{ record: IntegritasProofRecord }>("/api/integritas/stamp-file", form);
 }
 
-export async function pollRecord(id: string) {
-  return postJson<{ record: IntegritasProofRecord }>(`/api/integritas/history/${id}/poll`);
+export async function pollPendingRecords() {
+  return postJson<{ items: IntegritasProofRecord[] }>("/api/integritas/history/poll-pending");
 }
 
 export async function verifyRecord(id: string) {

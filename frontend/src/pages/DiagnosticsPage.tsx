@@ -6,7 +6,7 @@ import { integritasErrorToast } from "../features/integritas/integritasErrors";
 import { listDataReads } from "../features/data-reads/dataReadsApi";
 import { DataReadsHistoryTable } from "../features/data-reads/DataReadsHistoryTable";
 import type { DataSourceRead } from "../features/data-reads/dataReadTypes";
-import { deleteSelected, downloadSelected, getHistory, pollRecord, verifyRecord } from "../features/integritas/integritasApi";
+import { deleteSelected, downloadSelected, getHistory, pollPendingRecords, verifyRecord } from "../features/integritas/integritasApi";
 import { IntegritasHistoryTable } from "../features/integritas/IntegritasHistoryTable";
 import type { IntegritasProofRecord } from "../features/integritas/integritasTypes";
 import { useIntegritasHistoryAutoRefresh } from "../features/integritas/useIntegritasHistoryAutoRefresh";
@@ -75,7 +75,11 @@ export function DiagnosticsPage() {
           selectedIds={selectedIds}
           busy={busy}
           onToggle={toggleSelected}
-          onPoll={(record) => run(() => pollRecord(record.id))}
+          onRefreshPending={() => run(async () => {
+            const response = await pollPendingRecords();
+            setRecords(response.items);
+            return response;
+          })}
           onVerify={(record) => run(() => verifyRecord(record.id))}
           onDeleteSelected={() => run(async () => { const response = await deleteSelected(selectedIds); setSelectedIds([]); return response; })}
           onDownloadSelected={() => run(() => downloadSelected(selectedIds))}
