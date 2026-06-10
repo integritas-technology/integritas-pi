@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Background Integritas proof poller: pending proof records are status-checked on an interval (`INTEGRITAS_POLL_INTERVAL_SECONDS`, default 30s) without manual Diagnostics polling.
 - Integritas retry policy: automation treats transient stamp failures as deferred retries; pending proofs time out after `INTEGRITAS_PROOF_POLL_TIMEOUT_MINUTES` (default 5) if on-chain confirmation never completes.
 - Integritas page UX: friendly stamp-result modal after file upload (proof UID, hash, on-chain status with optional live poll); portal link in Integritas config modal via `INTEGRITAS_PORTAL_URL` / `GET /api/integritas/config` `portalUrl`.
+- `docs/reports/integritas-integration-audit.md` — implementation audit for Integritas Phases 1–3, 5–6.
 
 ### Changed
 

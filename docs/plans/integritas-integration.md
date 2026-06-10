@@ -9,7 +9,7 @@
 
 Backend Integritas proof API integration, proof lifecycle automation, and related frontend polish for `integritas-pi`.
 
-Companion docs: [README.md](../README.md) (docs index), [project README.md](../../README.md), [SECURITY.md](../../SECURITY.md), [AGENTS.md](../../AGENTS.md). Prior art: [auth-implementation.md](./auth-implementation.md). QA: [qa/README.md](../qa/README.md).
+Companion docs: [README.md](../README.md) (docs index), [project README.md](../../README.md), [SECURITY.md](../../SECURITY.md), [AGENTS.md](../../AGENTS.md). Audit: [integritas-integration-audit.md](../reports/integritas-integration-audit.md). Prior art: [auth-implementation.md](./auth-implementation.md). QA: [qa/README.md](../qa/README.md).
 
 **External API (authoritative):** Use the official Integritas docs when implementing or changing upstream calls — not ticket placeholders.
 

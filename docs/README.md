@@ -58,6 +58,7 @@ Integritas sandbox tests and manual checklists are in [qa/README.md](./qa/README
 | Document | Purpose |
 |----------|---------|
 | [reports/auth-implementation-audit.md](./reports/auth-implementation-audit.md) | Phase 1 auth audit (2026-06-09): plan vs code, security findings |
+| [reports/integritas-integration-audit.md](./reports/integritas-integration-audit.md) | Integritas integration audit (2026-06-10): Phases 1–3, 5–6 plan vs code |
 
 Add new reports when completing a major milestone or external review; do not grow reports into task trackers.
 
@@ -69,6 +70,6 @@ Add new reports when completing a major milestone or external review; do not gro
 |------------|------|
 | Implement auth (already done) | [plans/auth-implementation.md](./plans/auth-implementation.md) + [reports/auth-implementation-audit.md](./reports/auth-implementation-audit.md) |
 | Understand auth risks | [plans/auth-security.md](./plans/auth-security.md) → [qa/auth-gaps.md](./qa/auth-gaps.md) for open items |
-| Continue Integritas work | [plans/integritas-integration.md](./plans/integritas-integration.md) |
+| Review Integritas delivery | [plans/integritas-integration.md](./plans/integritas-integration.md) + [reports/integritas-integration-audit.md](./reports/integritas-integration-audit.md) |
 | Run QA / hardening | [qa/README.md](./qa/README.md) |
 | Install or operate the app | [README.md](../README.md) |
