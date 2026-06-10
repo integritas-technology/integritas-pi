@@ -6,9 +6,11 @@ import { Page } from '../components/Page';
 import { useToast } from '../components/ToastProvider';
 import { deleteJson, getJson, postJson } from '../lib/api';
 import {
+  checkIntegritasApiKey,
   stampFile,
   verifyProofFile,
 } from '../features/integritas/integritasApi';
+import type { IntegritasApiKeyCheck } from '../features/integritas/integritasTypes';
 import { integritasErrorToast } from '../features/integritas/integritasErrors';
 import { IntegritasRuntimeConfig } from '../features/integritas/IntegritasRuntimeConfig';
 import { StampFilePanel } from '../features/integritas/StampFilePanel';
@@ -30,6 +32,8 @@ export function IntegritasPage() {
   const [result, setResult] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
+  const [keyCheck, setKeyCheck] = useState<IntegritasApiKeyCheck | null>(null);
+  const [keyCheckBusy, setKeyCheckBusy] = useState(false);
 
   useEffect(() => {
     refreshConfig().catch((err: Error) => {
@@ -44,6 +48,37 @@ export function IntegritasPage() {
   async function refreshConfig() {
     setConfig(await getJson<IntegritasConfig>('/api/integritas/config'));
   }
+
+  async function runKeyCheck() {
+    setKeyCheckBusy(true);
+    try {
+      setKeyCheck(await checkIntegritasApiKey());
+    } catch (err) {
+      setKeyCheck(null);
+      showToast({
+        tone: 'error',
+        title: 'Could not check Integritas API key',
+        message: err instanceof Error ? err.message : 'Unknown error',
+      });
+    } finally {
+      setKeyCheckBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!configOpen) {
+      setKeyCheck(null);
+      setKeyCheckBusy(false);
+      return;
+    }
+
+    if (!config?.hasApiKey) {
+      setKeyCheck(null);
+      return;
+    }
+
+    void runKeyCheck();
+  }, [configOpen, config?.hasApiKey]);
 
   function showIntegritasError(error: unknown) {
     const { title, message } = integritasErrorToast(error);
@@ -92,7 +127,10 @@ export function IntegritasPage() {
             config={config}
             apiKeyInput={apiKeyInput}
             setApiKeyInput={setApiKeyInput}
+            keyCheck={keyCheck}
+            keyCheckBusy={keyCheckBusy}
             busy={busy}
+            onCheckKey={() => void runKeyCheck()}
             onSave={() =>
               run(async () => {
                 const response = await postJson('/api/integritas/api-key', {
@@ -100,6 +138,7 @@ export function IntegritasPage() {
                 });
                 setApiKeyInput('');
                 await refreshConfig();
+                await runKeyCheck();
                 showToast({
                   tone: 'success',
                   title: 'Integritas API key saved',
@@ -109,8 +148,15 @@ export function IntegritasPage() {
             }
             onClear={() =>
               run(async () => {
-                await deleteJson('/api/integritas/api-key');
+                const result = await deleteJson<{ hasApiKey: boolean }>(
+                  '/api/integritas/api-key',
+                );
                 await refreshConfig();
+                if (result.hasApiKey) {
+                  await runKeyCheck();
+                } else {
+                  setKeyCheck(null);
+                }
                 showToast({
                   tone: 'success',
                   title: 'Integritas API key cleared',

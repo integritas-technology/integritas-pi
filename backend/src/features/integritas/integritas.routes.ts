@@ -5,7 +5,7 @@ import { recordAuditEvent } from "../auth/audit.service.js";
 import { requireRole } from "../auth/auth.middleware.js";
 import { validateIntegritasApiKey } from "../auth/integritas-validation.service.js";
 import { sha3HashHex } from "../../shared/crypto.js";
-import { deleteIntegritasApiKey, getIntegritasApiKey, saveIntegritasApiKey } from "../settings/secrets.service.js";
+import { deleteIntegritasApiKey, getIntegritasApiKey, integritasApiKeySource, saveIntegritasApiKey } from "../settings/secrets.service.js";
 import { env } from "../../config/env.js";
 import { createProofRecord, deleteProofRecords, getProofRecord, listProofRecords, updateVerifyResponse } from "./integritas.repository.js";
 import { pollPendingProofRecords } from "./integritas-poll.service.js";
@@ -35,6 +35,30 @@ function requireIntegritasApiKey(res: Response) {
 
 integritasRouter.get("/config", (_req, res) => {
   res.json(getIntegritasConfig());
+});
+
+integritasRouter.post("/api-key/check", requireRole("admin"), async (_req, res) => {
+  const checkedAt = new Date().toISOString();
+  const apiKeySource = integritasApiKeySource();
+  const apiKey = getIntegritasApiKey();
+
+  if (!apiKey) {
+    return res.json({ configured: false, valid: false, checkedAt, apiKeySource });
+  }
+
+  const validation = await validateIntegritasApiKey(apiKey);
+  if (!validation.ok) {
+    return res.json({
+      configured: true,
+      valid: false,
+      checkedAt,
+      apiKeySource,
+      error: validation.error,
+      ...("errorCode" in validation && validation.errorCode ? { errorCode: validation.errorCode } : {})
+    });
+  }
+
+  return res.json({ configured: true, valid: true, checkedAt, apiKeySource });
 });
 
 integritasRouter.post("/api-key", requireRole("admin"), async (req, res) => {
