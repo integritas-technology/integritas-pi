@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Data source template cards now use the clearer `Add source` call to action instead of `Use template`.
 - Added data source row actions now use accessible icon buttons for manual trigger, edit, and delete.
+- Integritas upstream API key rejection no longer logs the user out: session `401` stays separate from Integritas `errorCode: unauthorized` (HTTP 403 + toast). Invalid keys show a non-destructive error and open Configure Integritas when stamping.
 - Integritas sandbox integration tests moved from feature Phase 4 to the planned QA phase; see `docs/qa/README.md`.
 - Documentation layout: `docs/plans/` (implementation plans with status), `docs/qa/` (open gaps and checklists), `docs/reports/` (audits only); index at `docs/README.md`. Auth plans marked **Complete**; Integritas plan **In progress**.
 

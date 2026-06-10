@@ -3,8 +3,10 @@ import type { IntegritasConfig } from "../app/types";
 import { JsonPreview } from "../components/JsonPreview";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
-import { getJson, postJson } from "../lib/api";
+import { useToast } from "../components/ToastProvider";
+import { deleteJson, getJson, postJson } from "../lib/api";
 import { stampFile, verifyProofFile } from "../features/integritas/integritasApi";
+import { integritasErrorToast } from "../features/integritas/integritasErrors";
 import { IntegritasRuntimeConfig } from "../features/integritas/IntegritasRuntimeConfig";
 import { StampFilePanel } from "../features/integritas/StampFilePanel";
 import { StampResultModal } from "../features/integritas/StampResultModal";
@@ -12,6 +14,7 @@ import type { IntegritasProofRecord } from "../features/integritas/integritasTyp
 import { VerifyProofPanel } from "../features/integritas/VerifyProofPanel";
 
 export function IntegritasPage() {
+  const { showToast } = useToast();
   const [config, setConfig] = useState<IntegritasConfig | null>(null);
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [stampUpload, setStampUpload] = useState<File | null>(null);
@@ -20,27 +23,36 @@ export function IntegritasPage() {
   const [stampModalDetails, setStampModalDetails] = useState<unknown>(null);
   const [verifyResult, setVerifyResult] = useState<unknown>(null);
   const [result, setResult] = useState<unknown>(null);
-  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
 
   useEffect(() => {
-    refreshConfig().catch((err: Error) => setError(err.message));
+    refreshConfig().catch((err: Error) => {
+      showToast({ tone: "error", title: "Could not load Integritas config", message: err.message });
+    });
   }, []);
 
   async function refreshConfig() {
     setConfig(await getJson<IntegritasConfig>("/api/integritas/config"));
   }
 
+  function showIntegritasError(error: unknown) {
+    const { title, message } = integritasErrorToast(error);
+    showToast({ tone: "error", title, message, timeoutMs: 9000 });
+    const err = error as { errorCode?: string };
+    if (err.errorCode === "unauthorized") {
+      setConfigOpen(true);
+    }
+  }
+
   async function run(action: () => Promise<unknown>, showResult = true) {
     setBusy(true);
-    setError(null);
     try {
       const response = await action();
       if (showResult) setResult(response);
       return response;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      showIntegritasError(err);
       return null;
     } finally {
       setBusy(false);
@@ -56,8 +68,19 @@ export function IntegritasPage() {
             apiKeyInput={apiKeyInput}
             setApiKeyInput={setApiKeyInput}
             busy={busy}
-            onSave={() => run(async () => { const response = await postJson("/api/integritas/api-key", { apiKey: apiKeyInput }); setApiKeyInput(""); await refreshConfig(); return response; }, false)}
-            onClear={() => run(async () => { const response = await fetch("/api/integritas/api-key", { method: "DELETE" }); const parsed = await response.json(); if (!response.ok) throw new Error(parsed?.error || `HTTP ${response.status}`); await refreshConfig(); return parsed; }, false)}
+            onSave={() => run(async () => {
+              const response = await postJson("/api/integritas/api-key", { apiKey: apiKeyInput });
+              setApiKeyInput("");
+              await refreshConfig();
+              showToast({ tone: "success", title: "Integritas API key saved" });
+              return response;
+            }, false)}
+            onClear={() => run(async () => {
+              await deleteJson("/api/integritas/api-key");
+              await refreshConfig();
+              showToast({ tone: "success", title: "Integritas API key cleared" });
+              return null;
+            }, false)}
           />
         </Modal>
       )}
@@ -90,7 +113,6 @@ export function IntegritasPage() {
         <VerifyProofPanel file={verifyUpload} setFile={(file) => { setVerifyUpload(file); setVerifyResult(null); }} busy={busy} result={verifyResult} onVerifyFile={() => run(async () => { if (!verifyUpload) throw new Error("Select a proof JSON file first"); const response = await verifyProofFile(verifyUpload); setVerifyUpload(null); setVerifyResult(response); setResult(null); return response; }, false)} />
       </div>
 
-      {error && <p className="error-text">{error}</p>}
       {result !== null && <JsonPreview value={result} />}
     </Page>
   );

@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { JsonPreview } from "../../components/JsonPreview";
 import { Modal } from "../../components/Modal";
 import { StatusBadge } from "../../components/StatusBadge";
+import { useToast } from "../../components/ToastProvider";
 import { pollRecord } from "./integritasApi";
+import { integritasErrorToast } from "./integritasErrors";
 import type { IntegritasProofRecord } from "./integritasTypes";
 
 const POLL_INTERVAL_MS = 30_000;
@@ -37,6 +39,7 @@ export function StampResultModal({
   technicalDetails?: unknown;
   onClose: () => void;
 }) {
+  const { showToast } = useToast();
   const [record, setRecord] = useState(initialRecord);
   const [polling, setPolling] = useState(initialRecord.proof_status === "pending");
 
@@ -62,8 +65,13 @@ export function StampResultModal({
         if (response.record.proof_status !== "pending") {
           setPolling(false);
         }
-      } catch {
-        // Background refresh only; operator can use Diagnostics if needed.
+      } catch (error) {
+        const err = error as { errorCode?: string };
+        if (err.errorCode === "unauthorized") {
+          setPolling(false);
+          const { title, message } = integritasErrorToast(error);
+          showToast({ tone: "error", title, message, timeoutMs: 9000 });
+        }
       }
     }
 

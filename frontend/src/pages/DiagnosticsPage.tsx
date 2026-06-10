@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { JsonPreview } from "../components/JsonPreview";
 import { Page } from "../components/Page";
+import { useToast } from "../components/ToastProvider";
+import { integritasErrorToast } from "../features/integritas/integritasErrors";
 import { listDataReads } from "../features/data-reads/dataReadsApi";
 import { DataReadsHistoryTable } from "../features/data-reads/DataReadsHistoryTable";
 import type { DataSourceRead } from "../features/data-reads/dataReadTypes";
@@ -11,6 +13,7 @@ import type { IntegritasProofRecord } from "../features/integritas/integritasTyp
 type DiagnosticsTab = "proofs" | "reads";
 
 export function DiagnosticsPage() {
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<DiagnosticsTab>("proofs");
   const [records, setRecords] = useState<IntegritasProofRecord[]>([]);
   const [reads, setReads] = useState<DataSourceRead[]>([]);
@@ -43,7 +46,9 @@ export function DiagnosticsPage() {
       await refreshProofs();
       return response;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      const { title, message } = integritasErrorToast(err);
+      showToast({ tone: "error", title, message, timeoutMs: 9000 });
+      setError(message);
       return null;
     } finally {
       setBusy(false);

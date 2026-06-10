@@ -15,7 +15,9 @@ import { upload } from "./upload.middleware.js";
 export const integritasRouter = Router();
 
 function sendIntegritasError(res: Response, result: IntegritasApiFailure) {
-  return res.status(result.status).json({
+  // Reserve HTTP 401 for browser session auth; upstream key rejection is an app error.
+  const status = result.errorCode === "unauthorized" ? 403 : result.status;
+  return res.status(status).json({
     error: result.error,
     errorCode: result.errorCode,
     responseBody: result.responseBody,
