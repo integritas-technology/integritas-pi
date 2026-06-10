@@ -7,6 +7,8 @@ import { getJson, postJson } from "../lib/api";
 import { stampFile, verifyProofFile } from "../features/integritas/integritasApi";
 import { IntegritasRuntimeConfig } from "../features/integritas/IntegritasRuntimeConfig";
 import { StampFilePanel } from "../features/integritas/StampFilePanel";
+import { StampResultModal } from "../features/integritas/StampResultModal";
+import type { IntegritasProofRecord } from "../features/integritas/integritasTypes";
 import { VerifyProofPanel } from "../features/integritas/VerifyProofPanel";
 
 export function IntegritasPage() {
@@ -14,7 +16,8 @@ export function IntegritasPage() {
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [stampUpload, setStampUpload] = useState<File | null>(null);
   const [verifyUpload, setVerifyUpload] = useState<File | null>(null);
-  const [stampResult, setStampResult] = useState<unknown>(null);
+  const [stampModalRecord, setStampModalRecord] = useState<IntegritasProofRecord | null>(null);
+  const [stampModalDetails, setStampModalDetails] = useState<unknown>(null);
   const [verifyResult, setVerifyResult] = useState<unknown>(null);
   const [result, setResult] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,14 +56,37 @@ export function IntegritasPage() {
             apiKeyInput={apiKeyInput}
             setApiKeyInput={setApiKeyInput}
             busy={busy}
-            onSave={() => run(async () => { const response = await postJson("/api/integritas/api-key", { apiKey: apiKeyInput }); setApiKeyInput(""); await refreshConfig(); return response; })}
-            onClear={() => run(async () => { const response = await fetch("/api/integritas/api-key", { method: "DELETE" }); const parsed = await response.json(); if (!response.ok) throw new Error(parsed?.error || `HTTP ${response.status}`); await refreshConfig(); return parsed; })}
+            onSave={() => run(async () => { const response = await postJson("/api/integritas/api-key", { apiKey: apiKeyInput }); setApiKeyInput(""); await refreshConfig(); return response; }, false)}
+            onClear={() => run(async () => { const response = await fetch("/api/integritas/api-key", { method: "DELETE" }); const parsed = await response.json(); if (!response.ok) throw new Error(parsed?.error || `HTTP ${response.status}`); await refreshConfig(); return parsed; }, false)}
           />
         </Modal>
       )}
 
+      {stampModalRecord && (
+        <StampResultModal
+          record={stampModalRecord}
+          technicalDetails={stampModalDetails ?? undefined}
+          onClose={() => {
+            setStampModalRecord(null);
+            setStampModalDetails(null);
+          }}
+        />
+      )}
+
       <div className="integritas-upload-grid">
-        <StampFilePanel file={stampUpload} setFile={(file) => { setStampUpload(file); setStampResult(null); }} busy={busy} result={stampResult} onStamp={() => run(async () => { if (!stampUpload) throw new Error("Select a file first"); const response = await stampFile(stampUpload); setStampUpload(null); setStampResult(response); setResult(null); return response; }, false)} />
+        <StampFilePanel
+          file={stampUpload}
+          setFile={setStampUpload}
+          busy={busy}
+          onStamp={() => run(async () => {
+            if (!stampUpload) throw new Error("Select a file first");
+            const response = await stampFile(stampUpload);
+            setStampUpload(null);
+            setStampModalRecord(response.record);
+            setStampModalDetails(response);
+            return response;
+          }, false)}
+        />
         <VerifyProofPanel file={verifyUpload} setFile={(file) => { setVerifyUpload(file); setVerifyResult(null); }} busy={busy} result={verifyResult} onVerifyFile={() => run(async () => { if (!verifyUpload) throw new Error("Select a proof JSON file first"); const response = await verifyProofFile(verifyUpload); setVerifyUpload(null); setVerifyResult(response); setResult(null); return response; }, false)} />
       </div>
 

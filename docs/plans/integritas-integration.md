@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **In progress** |
-| **Done** | Backend Phases 1–3 (HTTP client, poller, retry policy) |
-| **Next** | Phase 5 frontend UX |
+| **Status** | **Complete** (feature work; Phase 4 tests deferred to QA) |
+| **Done** | Backend Phases 1–3; Phase 5 frontend UX |
+| **Next** | Phase 6 docs only if gaps remain; QA Phase 4 sandbox tests |
 | **Deferred** | Sandbox tests → [qa/README.md](../qa/README.md) |
 
 Backend Integritas proof API integration, proof lifecycle automation, and related frontend polish for `integritas-pi`.
@@ -93,15 +93,13 @@ The ticket checklist is treated as a **capability list**, not a route spec. Stat
 | Automate proof status fetching | **Done (Phase 2)** | Background poller in `integritas-poll.service.ts`. |
 | Integration tests against Integritas sandbox | **Deferred → QA** | See [qa/README.md § Workstream B](../qa/README.md#workstream-b--integritas-sandbox-integration-tests). Not blocking Phase 5. |
 
-### Frontend — remaining (not started)
-
-Sanity check (current repo): **none of these are implemented yet.** `IntegritasPage` still shows raw JSON via `FileDropBox` / `JsonPreview` after stamp; `IntegritasRuntimeConfig` has no portal link; no dedicated stamp-result modal.
+### Frontend — Phase 5 (complete)
 
 | Ticket item | Status | What it means (aligned) |
 |---|---|---|
-| Reusable settings/config components | **Not started** | **Not** a Phase 5 goal to extract a generic `RuntimeConfigPanel` abstraction. When building Integritas UI, **prefer existing primitives** (`Card`, `Modal`, `StatusBadge`, `FileDropBox`, `Page`, existing config-card styles) so the GUI stays consistent and avoids bloat. Only introduce a new shared component when the same pattern is clearly needed again. |
-| Use UID to check the hash has arrived on-chain message | **Not started** | **Integritas page only**, after the user uploads a file and stamps it (`POST /api/integritas/stamp-file`). Today the drop box offers a “View results” link that expands **raw JSON**. Replace or supplement that with a **user-friendly stamp result** (e.g. proof UID, hash, “submitted — waiting for on-chain confirmation” vs ready/failed) — ideally in a **modal**, not a raw payload dump. Backend poller may update status in DB later; initial message is from the stamp response; optional follow-up poll/message can reflect `onchain` when implemented. **Out of scope for V1:** rewriting Diagnostics history table or Dashboard activity as the primary target. |
-| Redirect to cloud Portal for usage monitoring | **Not started** | Add an **external link** in the **Integritas config modal** (`IntegritasRuntimeConfig`) to the Integritas cloud user portal so operators can check API usage. No in-app usage dashboard. URL via `INTEGRITAS_PORTAL_URL` (exposed on `GET /api/integritas/config` as `portalUrl`) with a sensible default to [integritas.technology](https://integritas.technology/) if unset. |
+| Reusable settings/config components | **Done** | Reused `Card`, `Modal`, `StatusBadge`, `FileDropBox`, `JsonPreview` — no generic `RuntimeConfigPanel` abstraction. |
+| Use UID to check the hash has arrived on-chain message | **Done** | `StampResultModal` on Integritas page after `stamp-file`; optional client poll via `POST /history/:id/poll` until ready/failed. |
+| Redirect to cloud Portal for usage monitoring | **Done** | External link in `IntegritasRuntimeConfig`; `portalUrl` on `GET /api/integritas/config` from `INTEGRITAS_PORTAL_URL` (default `https://integritas.technology/`). |
 
 ### Future — defer
 
@@ -198,9 +196,9 @@ Frontend must NOT call integritas.technology directly.
 2. ~~No retry on transient upstream or stamp failures (automation stamp path).~~ **Done (Phase 3).**
 3. ~~Integritas upstream calls lack timeout/retry taxonomy.~~ **Done (Phase 1).**
 4. No integration tests — **deferred to [qa/README.md](../qa/README.md)**.
-5. Integritas page stamp result is raw JSON, not a friendly on-chain status message.
-6. No portal link in Integritas config modal.
-7. Frontend does not auto-refresh proof status after background poll (reload or manual action required).
+5. ~~Integritas page stamp result is raw JSON.~~ **Done (Phase 5).**
+6. ~~No portal link in Integritas config modal.~~ **Done (Phase 5).**
+7. Frontend does not auto-refresh proof status on Diagnostics/Dashboard after background poll (reload or manual action required).
 
 ---
 
@@ -299,7 +297,7 @@ last_stamp_error TEXT
 
 ---
 
-### Phase 5 — Integritas page UX (frontend)
+### Phase 5 — Integritas page UX (frontend) — **complete**
 
 **Goal:** Clear post-stamp feedback on the Integritas page and a portal link in config — without new abstractions or in-app usage dashboards.
 
@@ -365,9 +363,11 @@ Done:
   Phase 2 (proof poller)
   Phase 3 (retry policy)
 
-Next (feature work):
+Done:
   Phase 5 (Integritas page UX)
-  Phase 6 (docs for shipped behavior)
+
+Next:
+  Phase 6 (docs for shipped behavior — largely done with Phase 5)
 
 Deferred to QA phase (see qa/README.md):
   Phase 4 (sandbox integration tests)

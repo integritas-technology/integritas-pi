@@ -24,12 +24,15 @@ const OPERATION_ERRORS: Record<IntegritasOperation, string> = {
   verify: "Integritas verification failed"
 };
 
+const DEFAULT_INTEGRITAS_PORTAL_URL = "https://integritas.technology/profile?tab=apilogs";
+
 export function getIntegritasConfig() {
   return {
     baseUrl: env.integritasBaseUrl,
     requestId: env.integritasRequestId,
     hasApiKey: Boolean(getIntegritasApiKey()),
-    apiKeySource: integritasApiKeySource()
+    apiKeySource: integritasApiKeySource(),
+    portalUrl: env.integritasPortalUrl.trim() || DEFAULT_INTEGRITAS_PORTAL_URL
   };
 }
 

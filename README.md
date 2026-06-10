@@ -67,6 +67,7 @@ INTEGRITAS_REQUEST_ID=integritas-pi
 INTEGRITAS_REQUEST_TIMEOUT_MS=15000
 INTEGRITAS_POLL_INTERVAL_SECONDS=30
 INTEGRITAS_PROOF_POLL_TIMEOUT_MINUTES=5
+INTEGRITAS_PORTAL_URL=
 COOKIE_SECURE=false
 SESSION_MAX_AGE_DAYS=7
 SESSION_IDLE_HOURS=24
@@ -87,6 +88,8 @@ SESSION_IDLE_HOURS=24
 `INTEGRITAS_API_KEY` is optional. You can leave it empty and save the API key from the Integritas page in the UI. The key is sent to the backend once, encrypted, and stored in SQLite. It is never exposed in the frontend bundle.
 
 The backend polls Integritas for pending proof UIDs in the background (`INTEGRITAS_POLL_INTERVAL_SECONDS`, default 30). Pending proofs that never reach on-chain status are marked failed after `INTEGRITAS_PROOF_POLL_TIMEOUT_MINUTES` (default 5). Automation workflows retry Integritas stamps on the next run after transient upstream errors. Manual poll in Diagnostics still works and uses the same refresh logic.
+
+On the Integritas page, stamping a file opens a result modal with proof UID, hash, and on-chain status (with optional live status refresh). The Configure Integritas modal links to the cloud portal API logs tab (`INTEGRITAS_PORTAL_URL`, default `https://integritas.technology/profile?tab=apilogs`).
 
 The Minima page also stores its Megammr host URL in SQLite through the Configure Minima modal. If no value has been saved, it defaults to `megammr.minima.global:9001`.
 

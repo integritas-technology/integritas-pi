@@ -45,6 +45,7 @@ export const env = {
   integritasRequestTimeoutMs: Number(process.env.INTEGRITAS_REQUEST_TIMEOUT_MS ?? 15000),
   integritasPollIntervalSeconds: Number(process.env.INTEGRITAS_POLL_INTERVAL_SECONDS ?? 30),
   integritasProofPollTimeoutMinutes: Number(process.env.INTEGRITAS_PROOF_POLL_TIMEOUT_MINUTES ?? 5),
+  integritasPortalUrl: process.env.INTEGRITAS_PORTAL_URL ?? "",
   integritasApiKeyFallback: process.env.INTEGRITAS_API_KEY ?? "",
   databasePath: resolveDatabasePath(),
   dataDir: process.env.DATA_DIR_IN_CONTAINER ?? "/data",
