@@ -1,6 +1,13 @@
 # Auth Implementation Plan (aligned with integritas-pi)
 
-**Phase 1** of auth & permissions. Security model and pre-coding checklist: [auth-security.md](./auth-security.md). General risks: [../SECURITY.md](../SECURITY.md).
+| | |
+|---|---|
+| **Status** | **Complete** |
+| **Shipped** | [0.2.0](../CHANGELOG.md#020---2026-06-09) (2026-06-09) |
+| **Audit** | [auth-implementation-audit.md](../reports/auth-implementation-audit.md) |
+| **QA follow-up** | [auth-gaps.md](../qa/auth-gaps.md) |
+
+**Phase 1** of auth & permissions. Security model: [auth-security.md](./auth-security.md). General risks: [SECURITY.md](../SECURITY.md).
 
 Revised from the original auth spec to match this repo’s architecture, conventions, and existing security primitives.
 

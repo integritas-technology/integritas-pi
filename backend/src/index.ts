@@ -3,6 +3,7 @@ import { env } from "./config/env.js";
 import { runMigrations } from "./db/database.js";
 import { createApp } from "./app.js";
 import { startAutomationScheduler } from "./features/automation/automation.service.js";
+import { startIntegritasProofPoller } from "./features/integritas/integritas-poll.service.js";
 
 if (env.appSecret === "dev-change-me") {
   console.warn("WARNING: APP_SECRET is set to the default dev-change-me value. Change it before production use.");
@@ -10,6 +11,7 @@ if (env.appSecret === "dev-change-me") {
 
 runMigrations();
 startAutomationScheduler();
+startIntegritasProofPoller();
 
 const app = createApp();
 

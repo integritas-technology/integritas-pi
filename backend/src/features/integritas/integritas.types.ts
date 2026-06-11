@@ -8,3 +8,22 @@ export type IntegritasStatusItem = {
   status?: boolean;
   error?: string;
 };
+
+export type IntegritasErrorCode =
+  | "upstream_unavailable"
+  | "rate_limited"
+  | "unauthorized"
+  | "stamp_failed"
+  | "status_failed"
+  | "verify_failed";
+
+export type IntegritasOperation = "stamp" | "status" | "verify";
+
+export type IntegritasApiFailure = {
+  ok: false;
+  status: number;
+  error: string;
+  errorCode: IntegritasErrorCode;
+  responseBody: unknown;
+  retryAfter?: string;
+};

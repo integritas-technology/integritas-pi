@@ -135,6 +135,7 @@ CLI rules:
 - Automation currently stamps every poll when enabled, not only changed data.
 - Automated history rows should remain identifiable, e.g. `Automation: <source name>`.
 - Proof status is initially `pending`; proof polling updates readiness/failure.
+- Start `startIntegritasProofPoller()` from `backend/src/index.ts` after migrations (same pattern as the automation scheduler). The poller batches pending UIDs and reuses `refreshProofRecord` / `applyPollResultToRecord` from `integritas.service.ts`.
 
 ## Data Source Rules
 

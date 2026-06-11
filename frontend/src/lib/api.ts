@@ -1,4 +1,4 @@
-type ApiError = Error & { status?: number };
+export type ApiError = Error & { status?: number; errorCode?: string };
 
 let onUnauthorized: (() => void) | null = null;
 
@@ -14,16 +14,24 @@ function isPublicAuthPath(url: string) {
   );
 }
 
+function shouldForceLogin(status: number, url: string, parsed: Record<string, unknown>) {
+  if (status !== 401 || isPublicAuthPath(url)) return false;
+  // Integritas and other app errors carry errorCode — not an expired browser session.
+  if (typeof parsed.errorCode === "string") return false;
+  return true;
+}
+
 async function parseResponse<T>(response: Response): Promise<T> {
-  const parsed = await response.json().catch(() => ({}));
+  const parsed = (await response.json().catch(() => ({}))) as Record<string, unknown>;
   if (!response.ok) {
-    if (response.status === 401 && onUnauthorized && !isPublicAuthPath(response.url)) {
+    if (onUnauthorized && shouldForceLogin(response.status, response.url, parsed)) {
       onUnauthorized();
     }
     const error = new Error(
-      typeof parsed?.error === "string" ? parsed.error : `HTTP ${response.status}`
+      typeof parsed.error === "string" ? parsed.error : `HTTP ${response.status}`
     ) as ApiError;
     error.status = response.status;
+    if (typeof parsed.errorCode === "string") error.errorCode = parsed.errorCode;
     throw error;
   }
   return parsed as T;

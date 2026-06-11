@@ -13,7 +13,7 @@ alwaysApply: true
 2. `SECURITY.md` — security boundaries, risk register, secrets and exposure
 3. `README.md` — install, runtime config, CLI, operator-facing behavior (when touching those areas)
 
-For auth work, also read `docs/auth-implementation.md` and `docs/auth-security.md`.
+For auth work, also read `docs/plans/auth-implementation.md` and `docs/plans/auth-security.md`. Docs layout: `docs/README.md`.
 
 ## When to update project docs (not Cursor rules)
 

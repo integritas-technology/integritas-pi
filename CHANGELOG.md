@@ -8,14 +8,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Integritas runtime config: **Check key** button and validity badge via `POST /api/integritas/api-key/check` (admin). Uses the stored key server-side only; auto-checks when the modal opens if a key is configured.
 - Data sources can now store an optional health status URL; the Added data sources table polls it once per minute through the backend and shows a green/red status indicator with the latest response.
 - Shared frontend toast system for transient API/action errors, starting with Data Sources actions.
 - Data sources can now be edited from the Added data sources table.
+- Integritas upstream HTTP client hardening: request timeouts (`INTEGRITAS_REQUEST_TIMEOUT_MS`), transient retry with backoff for `429`/`502`/`503` and network errors, and structured `errorCode` on failed stamp/status/verify API responses.
+- Background Integritas proof poller: pending proof records are status-checked on an interval (`INTEGRITAS_POLL_INTERVAL_SECONDS`, default 30s) without manual Diagnostics polling.
+- Integritas retry policy: automation treats transient stamp failures as deferred retries; pending proofs time out after `INTEGRITAS_PROOF_POLL_TIMEOUT_MINUTES` (default 5) if on-chain confirmation never completes.
+- Integritas page UX: friendly stamp-result modal after file upload (proof UID, hash, on-chain status with optional live poll); portal link in Integritas config modal via `INTEGRITAS_PORTAL_URL` / `GET /api/integritas/config` `portalUrl`.
+- `docs/reports/integritas-integration-audit.md` — implementation audit for Integritas Phases 1–3, 5–6.
 
 ### Changed
 
+- Integritas runtime config modal: runtime details, portal link, and API key controls each sit in separate cards; key validity and last-checked time share one row.
 - Data source template cards now use the clearer `Add source` call to action instead of `Use template`.
 - Added data source row actions now use accessible icon buttons for manual trigger, edit, and delete.
+- Integritas upstream API key rejection no longer logs the user out: session `401` stays separate from Integritas `errorCode: unauthorized` (HTTP 403 + toast). Invalid keys show a non-destructive error and open Configure Integritas when stamping.
+- Integritas proof status UX: backend poller runs immediately on startup; Diagnostics, Dashboard, and the stamp-result modal auto-refresh history while proofs are pending (no manual page reload).
+- Diagnostics proof history: per-row Poll removed; single **Refresh pending** header action calls `POST /api/integritas/history/poll-pending` (same batched upstream logic as the background poller).
+- Integritas sandbox integration tests moved from feature Phase 4 to the planned QA phase; see `docs/qa/README.md`.
+- Documentation layout: `docs/plans/` (implementation plans with status), `docs/qa/` (open gaps and checklists), `docs/reports/` (audits only); index at `docs/README.md`. Auth plans marked **Complete**; Integritas plan **In progress**.
 
 ## [0.2.0] - 2026-06-09
 

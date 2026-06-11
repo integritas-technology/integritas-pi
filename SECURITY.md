@@ -2,7 +2,7 @@
 
 This project is a learning prototype. It is not production-ready and should only be run on a trusted local network while these risks are understood and actively managed.
 
-This file is the **general** risk register for the whole app. Auth-specific threat model, controls, and Phase 1 checklist live in `docs/auth-security.md` (implementation: `docs/auth-implementation.md`).
+This file is the **general** risk register for the whole app. Auth-specific threat model, controls, and Phase 1 checklist live in `docs/plans/auth-security.md` (implementation: `docs/plans/auth-implementation.md`). Open QA hardening: `docs/qa/auth-gaps.md`. Docs index: `docs/README.md`.
 
 ## Scope And Responsibility
 
@@ -30,7 +30,7 @@ We document recommended setup in README; we cannot enforce it on the device.
 - The backend can read the configured host file directory through `/host-files:ro`.
 - Minima RPC is bound to `127.0.0.1` on the host by default, but is reachable by backend over the Docker network.
 
-**Auth (Phase 1 — implemented):** Admin login with password + TOTP, stateful sessions (hashed in SQLite), protected `/api/*` routes, login/setup rate limiting, audit log for secret changes. See `docs/auth-security.md`. Default HTTP LAN deploy uses `COOKIE_SECURE=false`; use HTTPS + `COOKIE_SECURE=true` on untrusted networks.
+**Auth (Phase 1 — implemented):** Admin login with password + TOTP, stateful sessions (hashed in SQLite), protected `/api/*` routes, login/setup rate limiting, audit log for secret changes. See `docs/plans/auth-security.md`. Default HTTP LAN deploy uses `COOKIE_SECURE=false`; use HTTPS + `COOKIE_SECURE=true` on untrusted networks.
 
 ## High Priority Risks
 
@@ -49,7 +49,7 @@ Controls (V1):
 
 Residual gap: Use HTTPS and `COOKIE_SECURE=true` before internet or untrusted network exposure. CSRF tokens are a follow-up (`SameSite=Strict` is the V1 baseline).
 
-Status: Mitigated for trusted LAN; see `docs/auth-security.md` for gaps.
+Status: Mitigated for trusted LAN; see `docs/qa/auth-gaps.md` for gaps.
 
 ### Docker Socket Mount
 
@@ -123,7 +123,7 @@ Plan:
 - Add per-user allowlists or explicit directory selection later.
 - Avoid mounting `/home/pi` in production unless required.
 
-Status: Partially mitigated by read-only mount and path traversal checks. Auth will gate `/api/files/*` (see `docs/auth-security.md`).
+Status: Partially mitigated by read-only mount and path traversal checks. Auth will gate `/api/files/*` (see `docs/plans/auth-security.md`).
 
 ### Path Traversal And Symlink Escape
 
@@ -288,7 +288,7 @@ Impact: Regressions may go unnoticed.
 
 Plan: Add automated tests for file traversal, auth once added, Integritas key storage, encryption/decryption, and API error handling.
 
-Status: Open. Auth test cases defined in `docs/auth-security.md`.
+Status: Open. Auth test cases and gaps: `docs/qa/auth-gaps.md` (model: `docs/plans/auth-security.md`).
 
 ## Development Security Plan
 

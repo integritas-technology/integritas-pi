@@ -1,5 +1,9 @@
 import { getJson, postForm, postJson } from "../../lib/api";
-import type { IntegritasProofRecord } from "./integritasTypes";
+import type { IntegritasApiKeyCheck, IntegritasProofRecord } from "./integritasTypes";
+
+export async function checkIntegritasApiKey() {
+  return postJson<IntegritasApiKeyCheck>("/api/integritas/api-key/check");
+}
 
 export async function getHistory() {
   return getJson<{ items: IntegritasProofRecord[] }>("/api/integritas/history");
@@ -11,8 +15,8 @@ export async function stampFile(file: File) {
   return postForm<{ record: IntegritasProofRecord }>("/api/integritas/stamp-file", form);
 }
 
-export async function pollRecord(id: string) {
-  return postJson<{ record: IntegritasProofRecord }>(`/api/integritas/history/${id}/poll`);
+export async function pollPendingRecords() {
+  return postJson<{ items: IntegritasProofRecord[] }>("/api/integritas/history/poll-pending");
 }
 
 export async function verifyRecord(id: string) {

@@ -30,6 +30,14 @@ export function listProofRecords() {
   return db.prepare("SELECT * FROM integritas_proofs ORDER BY created_at DESC").all() as IntegritasProofRecord[];
 }
 
+export function listPendingProofRecords(limit?: number) {
+  const sql = limit
+    ? "SELECT * FROM integritas_proofs WHERE proof_status = 'pending' AND proof_uid IS NOT NULL ORDER BY created_at ASC LIMIT ?"
+    : "SELECT * FROM integritas_proofs WHERE proof_status = 'pending' AND proof_uid IS NOT NULL ORDER BY created_at ASC";
+
+  return (limit ? db.prepare(sql).all(limit) : db.prepare(sql).all()) as IntegritasProofRecord[];
+}
+
 export function getProofRecord(id: string) {
   return db.prepare("SELECT * FROM integritas_proofs WHERE id = ?").get(id) as IntegritasProofRecord | undefined;
 }
