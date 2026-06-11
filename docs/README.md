@@ -7,6 +7,7 @@ How `docs/` is organized and when to use each folder.
 ```txt
 docs/
 ├── README.md                 ← you are here
+├── templates/                ← copy-paste scaffolds for plans & QA gaps
 ├── plans/                    ← implementation plans (what to build)
 ├── qa/                       ← open gaps, checklists, deferred tests
 └── reports/                  ← point-in-time audits (what was built / reviewed)
@@ -33,8 +34,23 @@ Root-level operator docs stay outside this tree: [README.md](../README.md), [SEC
 | [auth-implementation.md](./plans/auth-implementation.md) | **Complete** | Phase 1 auth; shipped in [0.2.0](../CHANGELOG.md#020---2026-06-09) |
 | [auth-security.md](./plans/auth-security.md) | **Complete** | Phase 1 threat model & controls (design); hardening gaps → [qa/auth-gaps.md](./qa/auth-gaps.md) |
 | [integritas-integration.md](./plans/integritas-integration.md) | **Complete** | Phases 1–3 backend + Phase 5 UX; sandbox tests deferred to QA |
+| [minima-node.md](./plans/minima-node.md) | **Complete** | Phases 1–3 shipped; live RPC integration tests in QA |
 
-When starting a new feature, add a plan here before large diffs. Mark it **Complete** when shipped and move follow-up testing/hardening to `qa/`.
+When starting a new feature, copy [templates/feature-plan.md](./templates/feature-plan.md) into `plans/` before large diffs. Mark it **Complete** when shipped and move follow-up testing/hardening to `qa/`.
+
+---
+
+## `templates/` — plan & QA scaffolds
+
+**Use for:** starting new feature plans and gap reports with a consistent layout.
+
+| Template | Purpose |
+|----------|---------|
+| [templates/README.md](./templates/README.md) | How to copy, name, and link new docs |
+| [templates/feature-plan.md](./templates/feature-plan.md) | Phased implementation plan (from [minima-node.md](./plans/minima-node.md)) |
+| [templates/qa-gaps.md](./templates/qa-gaps.md) | P0–P2 QA backlog (from [minima-gaps.md](./qa/minima-gaps.md)) |
+
+Reference implementations: [minima-node.md](./plans/minima-node.md), [minima-gaps.md](./qa/minima-gaps.md).
 
 ---
 
@@ -46,8 +62,9 @@ When starting a new feature, add a plan here before large diffs. Mark it **Compl
 |----------|---------|
 | [qa/README.md](./qa/README.md) | QA phase hub: exit criteria, workstreams, sign-off template |
 | [qa/auth-gaps.md](./qa/auth-gaps.md) | Auth security & testing backlog (P0–P2) |
+| [qa/minima-gaps.md](./qa/minima-gaps.md) | Minima node manual QA, auth gates, live RPC tests (P0–P2) |
 
-Integritas sandbox tests and manual checklists are in [qa/README.md](./qa/README.md) (Workstreams B–C), deferred from [integritas-integration.md](./plans/integritas-integration.md).
+Integritas sandbox tests: [qa/README.md](./qa/README.md) Workstreams B–C. Minima QA: Workstream E + [minima-gaps.md](./qa/minima-gaps.md).
 
 ---
 
@@ -72,4 +89,6 @@ Add new reports when completing a major milestone or external review; do not gro
 | Understand auth risks | [plans/auth-security.md](./plans/auth-security.md) → [qa/auth-gaps.md](./qa/auth-gaps.md) for open items |
 | Review Integritas delivery | [plans/integritas-integration.md](./plans/integritas-integration.md) + [reports/integritas-integration-audit.md](./reports/integritas-integration-audit.md) |
 | Run QA / hardening | [qa/README.md](./qa/README.md) |
+| Start a new feature plan | [templates/feature-plan.md](./templates/feature-plan.md) |
+| Start a QA gaps doc | [templates/qa-gaps.md](./templates/qa-gaps.md) |
 | Install or operate the app | [README.md](../README.md) |

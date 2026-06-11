@@ -1,5 +1,16 @@
 import { Router } from "express";
-import { getMinimaConfig, getMinimaStatus, getWalletBalance, resyncMegammr, saveMinimaConfig } from "./minima.service.js";
+import { recordAuditEvent } from "../auth/audit.service.js";
+import { requireRole } from "../auth/auth.middleware.js";
+import {
+  addMinimaPeers,
+  getMinimaConfig,
+  getMinimaNodeStatus,
+  getMinimaPeers,
+  getWalletBalance,
+  resyncMegammr,
+  restartMinimaContainer,
+  saveMinimaConfig
+} from "./minima.service.js";
 
 export const minimaRouter = Router();
 
@@ -18,11 +29,49 @@ minimaRouter.post("/config", (req, res) => {
 
 minimaRouter.get("/status", async (_req, res) => {
   try {
-    const status = await getMinimaStatus();
-    res.status(status.ok ? 200 : 502).json(status);
+    res.json(await getMinimaNodeStatus());
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    res.status(502).json({ ok: false, source: "minima", error: message });
+    res.status(502).json({ error: message });
+  }
+});
+
+minimaRouter.get("/peers", async (_req, res) => {
+  try {
+    const result = await getMinimaPeers();
+    res.status(result.ok ? 200 : 502).json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    res.status(502).json({ ok: false, error: message });
+  }
+});
+
+minimaRouter.post("/peers/add", requireRole("admin"), async (req, res) => {
+  try {
+    const peerslist = typeof req.body?.peerslist === "string" ? req.body.peerslist : "";
+    const result = await addMinimaPeers(peerslist);
+    recordAuditEvent("minima.peers.add", {
+      userId: req.user?.id,
+      detail: peerslist.trim()
+    });
+    res.status(result.ok ? 200 : 502).json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    res.status(400).json({ ok: false, error: message });
+  }
+});
+
+minimaRouter.post("/restart", requireRole("admin"), async (req, res) => {
+  try {
+    const result = await restartMinimaContainer();
+    recordAuditEvent("minima.container.restart", {
+      userId: req.user?.id,
+      detail: result.containerId
+    });
+    res.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    res.status(502).json({ ok: false, error: message });
   }
 });
 

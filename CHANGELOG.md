@@ -6,6 +6,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- Minima status no longer shows raw `fetch failed` during resync/restart when last-known stats are still shown; transient RPC blips are suppressed and post-operation refresh retries until Minima is back.
+- Minima UX: removed duplicate Peer connections section (configured peer list vs active P2P count were different metrics); health card now shows **Active peers** from status RPC; add-peers moved to Configure Minima.
+- Megammr resync now automatically restarts the Minima container when Minima reports a restart is required.
+- Minima container restart control moved to a header icon on the Container card.
+- Modal dialogs (including JSON preview on Minima resync) now render via a document portal, fixing incorrect positioning and hover flicker inside cards that use CSS transforms.
+- Minima status parsing now reads `chain.time`, `network.connected`, and `memory.ram` / `memory.disk` from the live `status` RPC response; falls back to allowlisted `block` / `peers` commands when needed.
+- Minima resync UX: pause health polling during resync, keep last known stats when RPC blips, derive sync status as Active/Stale/Syncing, and show accurate resync toasts (including restart hint when Minima reports resync finished).
+
+### Changed
+
+- Minima Core page layout aligned with the Edge Workbench mock: three summary cards (node, sync, storage) and a Node health stat grid.
+- Minima Core splits **Node health** (RPC: node memory, peers, blocks) from **Container** (Docker: CPU, container memory, state, runtime); node memory no longer falls back to Docker stats.
+
+### Added
+
+- Minima Phase 3: `POST /api/minima/restart` (admin, Docker container restart with audit log), `GET /api/minima/peers`, `POST /api/minima/peers/add` (admin, allowlisted `peers action:addpeers`), Minima Core UI for restart and peer list/add, and `node:test` fixtures for `minima.parse.ts`.
+- Backend Minima health poller: detects chain stalls on an interval (`MINIMA_HEALTH_POLL_INTERVAL_SECONDS`), exposes `monitoring` on `GET /api/minima/status`, and optionally triggers Megammr auto-resync when `MINIMA_AUTO_RESYNC=true`.
+- Minima Core UI shows a stall warning when `monitoring.stallDetected` is true.
+- Minima node status API returns a normalized operator view: container state, chain block/age, peer count, CPU/memory, and container disk (`GET /api/minima/status`).
+- Minima Core page shows structured node health cards with 30s auto-refresh; RPC debug JSON is collapsible. Megammr resync failures surface via toast.
+
+### Changed
+
+- `GET /api/status/overview` Minima service check now uses the same normalized node status logic as `/api/minima/status`.
+
 ## [0.3.0] - 2026-06-11
 
 Integritas integration hardening and proof polling, plus data-source health/editing, shared toast notifications, and runtime config UX on `main`.
