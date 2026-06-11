@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Integritas runtime config: **Check key** button and validity badge via `POST /api/integritas/api-key/check` (admin). Uses the stored key server-side only; auto-checks when the modal opens if a key is configured.
 - Data sources can now store an optional health status URL; the Added data sources table polls it once per minute through the backend and shows a green/red status indicator with the latest response.
 - Shared frontend toast system for transient API/action errors, starting with Data Sources actions.
 - Data sources can now be edited from the Added data sources table.
@@ -19,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Integritas runtime config modal: runtime details, portal link, and API key controls each sit in separate cards; key validity and last-checked time share one row.
 - Data source template cards now use the clearer `Add source` call to action instead of `Use template`.
 - Added data source row actions now use accessible icon buttons for manual trigger, edit, and delete.
 - Integritas upstream API key rejection no longer logs the user out: session `401` stays separate from Integritas `errorCode: unauthorized` (HTTP 403 + toast). Invalid keys show a non-destructive error and open Configure Integritas when stamping.

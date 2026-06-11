@@ -389,6 +389,7 @@ Integritas:
 
 ```http
 GET /api/integritas/config
+POST /api/integritas/api-key/check
 POST /api/integritas/api-key
 DELETE /api/integritas/api-key
 POST /api/integritas/hash
