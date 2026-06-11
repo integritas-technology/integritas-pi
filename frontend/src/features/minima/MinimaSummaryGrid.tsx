@@ -1,12 +1,7 @@
 import { HardDrive, Layers3, RefreshCw } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import type {
-  MinimaCommandResult,
-  MinimaConfig,
-  MinimaNodeStatus,
-} from '../../app/types';
+import type { MinimaNodeStatus } from '../../app/types';
 import { Card } from '../../components/Card';
-import { JsonPreview } from '../../components/JsonPreview';
 import { cx } from '../../lib/cx';
 import { formatNodeState, formatSyncStatus } from './minimaFormat';
 
@@ -33,23 +28,15 @@ function SummaryCard({
 
 export function MinimaSummaryGrid({
   status,
-  config,
   loading,
   busy,
-  result,
   onResync,
 }: {
   status: MinimaNodeStatus | null;
-  config: MinimaConfig | null;
   loading: boolean;
   busy: boolean;
-  result: MinimaCommandResult | null;
   onResync: () => void;
 }) {
-  const megammrHost =
-    config?.megammrHost ??
-    status?.config.megammrHost ??
-    'megammr.minima.global:9001';
   const chainDataLabel = status?.storage.chainDataDisk
     ? `${status.storage.chainDataDisk} chain data`
     : status?.node.memoryDisk
@@ -74,24 +61,14 @@ export function MinimaSummaryGrid({
         title='Sync status'
         text={formatSyncStatus(status?.sync.status, loading)}
       >
-        <div className='mt-4 grid gap-2'>
-          <p className='m-0 text-xs leading-5 text-slate-500'>
-            Megammr host <code className='text-slate-700'>{megammrHost}</code>
-          </p>
-          <div className='flex flex-wrap items-center gap-3'>
-            <button
-              type='button'
-              className='w-fit rounded-[14px] border-0 bg-slate-950 px-3.5 py-2 text-sm font-medium text-white disabled:opacity-60'
-              disabled={busy}
-              onClick={onResync}
-            >
-              Resync
-            </button>
-            {result && (
-              <JsonPreview value={result} label='View resync result' />
-            )}
-          </div>
-        </div>
+        <button
+          type='button'
+          className='mt-4 w-fit rounded-[14px] border-0 bg-slate-950 px-3.5 py-2 text-sm font-medium text-white disabled:opacity-60'
+          disabled={busy}
+          onClick={onResync}
+        >
+          Resync
+        </button>
       </SummaryCard>
 
       <SummaryCard icon={HardDrive} title='Local storage' text={chainDataLabel}>

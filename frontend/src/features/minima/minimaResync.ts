@@ -9,12 +9,15 @@ export function parseMegammrResyncResult(result: MinimaCommandResult) {
   const message = typeof response?.message === "string" ? response.message.trim() : "";
   const rpcOk = envelope?.status === true && result.ok;
   const needsRestart = /restart/i.test(message);
-  const finished = /finish/i.test(message);
+  const finished = /finish|fininshed/i.test(message);
 
   return { rpcOk, message, needsRestart, finished };
 }
 
-export function resyncToastForResult(result: MinimaCommandResult) {
+export function resyncToastForResult(
+  result: MinimaCommandResult,
+  options?: { restartedContainer?: boolean }
+) {
   const parsed = parseMegammrResyncResult(result);
 
   if (!parsed.rpcOk) {
@@ -25,11 +28,19 @@ export function resyncToastForResult(result: MinimaCommandResult) {
     };
   }
 
+  if (options?.restartedContainer) {
+    return {
+      tone: "success" as const,
+      title: "Resync complete",
+      message: "Minima container restarted. Node health will update shortly."
+    };
+  }
+
   if (parsed.needsRestart) {
     return {
       tone: "info" as const,
       title: "Megammr resync complete",
-      message: parsed.message || "Restart the Minima container to apply the resync."
+      message: "Restarting the Minima container…"
     };
   }
 

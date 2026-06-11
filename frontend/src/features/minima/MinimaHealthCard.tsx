@@ -14,7 +14,8 @@ export function MinimaHealthCard({
   loading: boolean;
 }) {
   const memoryLabel = status?.node.memoryRam ?? (loading ? "Checking…" : "—");
-  const peerLabel = status?.health.peerCount != null ? String(status.health.peerCount) : loading ? "Checking…" : "—";
+  const peerLabel =
+    status?.health.peerCount != null ? String(status.health.peerCount) : loading ? "Checking…" : "—";
   const blockAgeLabel =
     status?.sync.blockAgeSeconds != null
       ? formatBlockAge(status.sync.blockAgeSeconds)
@@ -31,8 +32,18 @@ export function MinimaHealthCard({
 
   const monitoring = status?.monitoring;
 
+  const footer = (
+    <>
+      {error && <p className="mb-2 text-sm text-amber-800">{error}</p>}
+      {status?.rpc.error && <p className="error-text mb-2">{status.rpc.error}</p>}
+      {status?.rpc.raw !== undefined ? (
+        <JsonPreview value={status.rpc.raw} label="View RPC debug" />
+      ) : null}
+    </>
+  );
+
   return (
-    <div className="grid gap-4">
+    <div className="flex h-full flex-col gap-4">
       {monitoring?.stallDetected && (
         <p className="mb-0 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           Chain stall detected — last block is older than {monitoring.stallThresholdSeconds}s.
@@ -44,19 +55,14 @@ export function MinimaHealthCard({
         </p>
       )}
 
-      <MinimaStatGrid title="Node health" description={checkedLine}>
-        <MinimaStatCell label="Node memory" value={memoryLabel} />
-        <MinimaStatCell label="Peer connections" value={peerLabel} />
-        <MinimaStatCell label="Last block" value={blockAgeLabel} />
-        <MinimaStatCell label="Current block" value={currentBlockLabel} />
-      </MinimaStatGrid>
-
-      {error && <p className="mb-0 text-sm text-amber-800">{error}</p>}
-      {status?.rpc.error && <p className="error-text">{status.rpc.error}</p>}
-
-      {status?.rpc.raw !== undefined && (
-        <JsonPreview value={status.rpc.raw} label="View RPC debug" />
-      )}
+      <div className="min-h-0 flex-1">
+        <MinimaStatGrid title="Node health" description={checkedLine} footer={footer}>
+          <MinimaStatCell label="Node memory" value={memoryLabel} />
+          <MinimaStatCell label="Active peers" value={peerLabel} />
+          <MinimaStatCell label="Last block" value={blockAgeLabel} />
+          <MinimaStatCell label="Current block" value={currentBlockLabel} />
+        </MinimaStatGrid>
+      </div>
     </div>
   );
 }

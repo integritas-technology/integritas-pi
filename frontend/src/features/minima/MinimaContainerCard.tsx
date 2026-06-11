@@ -31,33 +31,25 @@ export function MinimaContainerCard({
   const stateLabel = formatContainerState(container?.state) ?? unavailable;
   const runtimeLabel = container?.status ?? unavailable;
 
-  return (
-    <div className="grid gap-4">
-      <MinimaStatGrid
-        title="Container"
-        description="Docker runtime for the Minima service. CPU is only available from Docker."
-      >
-        <MinimaStatCell label="CPU load" value={cpuLabel} />
-        <MinimaStatCell label="Container memory" value={memoryLabel} />
-        <MinimaStatCell label="State" value={stateLabel} />
-        <MinimaStatCell label="Runtime" value={runtimeLabel} />
-      </MinimaStatGrid>
+  const restartButton = onRestart ? (
+    <button
+      type="button"
+      className="shrink-0 rounded-[14px] border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-950 disabled:opacity-60"
+      disabled={busy}
+      onClick={onRestart}
+    >
+      Restart
+    </button>
+  ) : null;
 
-      {onRestart && (
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            className="w-fit rounded-[14px] border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-950 disabled:opacity-60"
-            disabled={busy}
-            onClick={onRestart}
-          >
-            Restart container
-          </button>
-          <p className="m-0 text-xs leading-5 text-slate-500">
-            Restarts the Minima Docker service. RPC may be unavailable for a short time.
-          </p>
-        </div>
-      )}
+  return (
+    <div className="h-full">
+    <MinimaStatGrid title="Container" headerAction={restartButton}>
+      <MinimaStatCell label="CPU load" value={cpuLabel} />
+      <MinimaStatCell label="Container memory" value={memoryLabel} />
+      <MinimaStatCell label="State" value={stateLabel} />
+      <MinimaStatCell label="Runtime" value={runtimeLabel} />
+    </MinimaStatGrid>
     </div>
   );
 }

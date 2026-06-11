@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Minima UX: removed duplicate Peer connections section (configured peer list vs active P2P count were different metrics); health card now shows **Active peers** from status RPC; add-peers moved to Configure Minima.
+- Megammr resync now automatically restarts the Minima container when Minima reports a restart is required.
+- Minima container restart control moved to a header icon on the Container card.
 - Modal dialogs (including JSON preview on Minima resync) now render via a document portal, fixing incorrect positioning and hover flicker inside cards that use CSS transforms.
 - Minima status parsing now reads `chain.time`, `network.connected`, and `memory.ram` / `memory.disk` from the live `status` RPC response; falls back to allowlisted `block` / `peers` commands when needed.
 - Minima resync UX: pause health polling during resync, keep last known stats when RPC blips, derive sync status as Active/Stale/Syncing, and show accurate resync toasts (including restart hint when Minima reports resync finished).

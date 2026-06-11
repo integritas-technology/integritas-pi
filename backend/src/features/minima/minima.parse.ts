@@ -171,9 +171,10 @@ export function parsePeersListResponse(body: unknown): MinimaPeersInfo {
   const response = asRecord(envelope.response);
   if (response) {
     const peers = readPeersList(response);
-    if (typeof response.size === "number") return { count: response.size, peers };
+    // `size` / peerslist length is configured/known peers, not live P2P connections (use status.network.connected for that).
     if (typeof response.connected === "number") return { count: response.connected, peers };
     if (peers.length > 0) return { count: peers.length, peers };
+    if (typeof response.size === "number") return { count: response.size, peers };
   }
 
   if (Array.isArray(envelope.response)) {
