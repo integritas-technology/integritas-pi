@@ -1,6 +1,6 @@
 import { getSetting, saveSetting } from "../settings/settings.repository.js";
 import { getMinimaContainerStats, getMinimaStorageInfo } from "./minima.docker.js";
-import { parseBlockCommandResponse, parsePeersResponse, parseStatusResponse } from "./minima.parse.js";
+import { deriveSyncStatus, parseBlockCommandResponse, parsePeersResponse, parseStatusResponse } from "./minima.parse.js";
 import { fetchMinimaStatus, runMinimaPathCommand } from "./minima.rpc.js";
 import type { MinimaNodeState, MinimaNodeStatus } from "./minima.types.js";
 
@@ -34,7 +34,7 @@ function deriveNodeState(
 
 function emptyNodeStatusFields() {
   return {
-    sync: { synced: null, block: null, blockTime: null, blockAgeSeconds: null },
+    sync: { synced: null, status: "unavailable" as const, block: null, blockTime: null, blockAgeSeconds: null },
     health: { peerCount: null, peersKnown: null },
     node: { memoryRam: null, memoryDisk: null }
   };
@@ -74,9 +74,11 @@ export async function getMinimaNodeStatus(): Promise<MinimaNodeStatus> {
   }
 
   const parsed = parseStatusResponse(rpcResult.body);
-  let { block, blockTime, blockAgeSeconds } = parsed;
+  let { block, blockTime, blockAgeSeconds, syncStatus } = parsed;
+  let synced = parsed.synced;
   let peerCount = parsed.peerCount;
   let peersKnown: number | null = null;
+  const connectingCount = parsed.connectingCount;
 
   if (blockAgeSeconds === null && parsed.rpcOk && block !== null) {
     try {
@@ -102,6 +104,16 @@ export async function getMinimaNodeStatus(): Promise<MinimaNodeStatus> {
     }
   }
 
+  const sync = deriveSyncStatus({
+    rpcOk: parsed.rpcOk,
+    blockAgeSeconds,
+    peerCount,
+    connectingCount,
+    explicitSynced: parsed.explicitSynced
+  });
+  synced = sync.synced;
+  syncStatus = sync.status;
+
   const rpcReachable = rpcResult.ok;
   const state = deriveNodeState(containerStats, rpcReachable, parsed.rpcOk);
 
@@ -122,7 +134,8 @@ export async function getMinimaNodeStatus(): Promise<MinimaNodeStatus> {
       raw: rpcResult.body
     },
     sync: {
-      synced: parsed.synced,
+      synced,
+      status: syncStatus,
       block,
       blockTime,
       blockAgeSeconds

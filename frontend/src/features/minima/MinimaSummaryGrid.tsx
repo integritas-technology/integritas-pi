@@ -8,7 +8,7 @@ import type {
 import { Card } from '../../components/Card';
 import { JsonPreview } from '../../components/JsonPreview';
 import { cx } from '../../lib/cx';
-import { formatNodeState, formatSyncState } from './minimaFormat';
+import { formatNodeState, formatSyncStatus } from './minimaFormat';
 
 function SummaryCard({
   icon: Icon,
@@ -69,7 +69,7 @@ export function MinimaSummaryGrid({
       <SummaryCard
         icon={RefreshCw}
         title='Sync status'
-        text={formatSyncState(status?.sync.synced, loading)}
+        text={formatSyncStatus(status?.sync.status, loading)}
       >
         <div className='mt-4 grid gap-2'>
           <p className='m-0 text-xs leading-5 text-slate-500'>

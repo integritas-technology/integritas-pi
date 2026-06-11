@@ -1,4 +1,5 @@
 export type MinimaNodeState = "running" | "stopped" | "error";
+export type MinimaSyncStatus = "active" | "stale" | "syncing" | "unavailable";
 
 export type MinimaNodeStatus = {
   checkedAt: string;
@@ -16,6 +17,7 @@ export type MinimaNodeStatus = {
   };
   sync: {
     synced: boolean | null;
+    status: MinimaSyncStatus;
     block: number | null;
     blockTime: string | null;
     blockAgeSeconds: number | null;

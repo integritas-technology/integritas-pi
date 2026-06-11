@@ -1,4 +1,4 @@
-import type { MinimaNodeState } from "../../app/types";
+import type { MinimaNodeState, MinimaSyncStatus } from "../../app/types";
 
 export function formatBlockAge(seconds: number | null) {
   if (seconds === null) return "—";
@@ -16,10 +16,12 @@ export function formatNodeState(state: MinimaNodeState | null, loading = false) 
   return "Error";
 }
 
-export function formatSyncState(synced: boolean | null | undefined, loading = false) {
-  if (loading) return "Checking…";
-  if (synced === null || synced === undefined) return "Unknown";
-  return synced ? "Synced" : "Syncing";
+export function formatSyncStatus(status: MinimaSyncStatus | null | undefined, loading = false) {
+  if (loading && !status) return "Checking…";
+  if (!status || status === "unavailable") return "Unavailable";
+  if (status === "active") return "Active";
+  if (status === "stale") return "Stale";
+  return "Syncing";
 }
 
 export function nodeStateIsHealthy(state: MinimaNodeState | null) {

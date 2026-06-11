@@ -8,6 +8,7 @@ export type Health = { status: string; service: string };
 export type FileItem = { name: string; type: "file" | "directory" | "other"; size?: number };
 export type FilesResponse = { path: string; items: FileItem[] };
 export type MinimaNodeState = "running" | "stopped" | "error";
+export type MinimaSyncStatus = "active" | "stale" | "syncing" | "unavailable";
 export type MinimaNodeStatus = {
   checkedAt: string;
   state: MinimaNodeState;
@@ -24,6 +25,7 @@ export type MinimaNodeStatus = {
   };
   sync: {
     synced: boolean | null;
+    status: MinimaSyncStatus;
     block: number | null;
     blockTime: string | null;
     blockAgeSeconds: number | null;

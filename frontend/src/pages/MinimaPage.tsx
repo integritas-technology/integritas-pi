@@ -6,6 +6,8 @@ import { useToast } from "../components/ToastProvider";
 import { getMinimaConfig, resyncMegammr, saveMinimaConfig } from "../features/minima/minimaApi";
 import { MinimaContainerCard } from "../features/minima/MinimaContainerCard";
 import { MinimaHealthCard } from "../features/minima/MinimaHealthCard";
+import { mergeMinimaStatus } from "../features/minima/mergeMinimaStatus";
+import { resyncToastForResult } from "../features/minima/minimaResync";
 import { MinimaRuntimeConfig } from "../features/minima/MinimaRuntimeConfig";
 import { MinimaSummaryGrid } from "../features/minima/MinimaSummaryGrid";
 import { useMinimaStatusRefresh } from "../features/minima/useMinimaStatusRefresh";
@@ -21,9 +23,10 @@ export function MinimaPage() {
   const [configError, setConfigError] = useState<string | null>(null);
   const [actionResult, setActionResult] = useState<MinimaCommandResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const [resyncing, setResyncing] = useState(false);
 
   const handleStatus = useCallback((status: MinimaNodeStatus) => {
-    setNodeStatus(status);
+    setNodeStatus((previous) => mergeMinimaStatus(previous, status));
     setStatusError(null);
     setStatusLoading(false);
   }, []);
@@ -33,7 +36,7 @@ export function MinimaPage() {
     setStatusLoading(false);
   }, []);
 
-  useMinimaStatusRefresh(handleStatus, handleStatusError);
+  const { refresh } = useMinimaStatusRefresh(handleStatus, handleStatusError, { enabled: !resyncing });
 
   useEffect(() => {
     refreshConfig().catch((err: Error) => setConfigError(err.message));
@@ -62,16 +65,22 @@ export function MinimaPage() {
 
   async function runResync() {
     setBusy(true);
+    setResyncing(true);
     setActionResult(null);
+    setStatusError("Megammr resync in progress. Minima RPC may be briefly unavailable.");
+
     try {
       const parsed = await resyncMegammr();
       setActionResult(parsed);
-      showToast({ tone: "success", title: "Megammr resync started", message: "Check node health for sync progress.", timeoutMs: 6000 });
+      const toast = resyncToastForResult(parsed);
+      showToast({ ...toast, timeoutMs: toast.tone === "info" ? 12000 : 8000 });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Resync failed";
       showToast({ tone: "error", title: "Megammr resync failed", message, timeoutMs: 9000 });
     } finally {
       setBusy(false);
+      setResyncing(false);
+      await refresh();
     }
   }
 
@@ -104,14 +113,14 @@ export function MinimaPage() {
       <MinimaSummaryGrid
         status={nodeStatus}
         config={config}
-        loading={statusLoading}
+        loading={statusLoading && !nodeStatus}
         busy={busy}
         result={actionResult}
         onResync={runResync}
       />
       <section className="grid gap-4 lg:grid-cols-2">
-        <MinimaHealthCard status={nodeStatus} error={statusError} loading={statusLoading} />
-        <MinimaContainerCard status={nodeStatus} loading={statusLoading} />
+        <MinimaHealthCard status={nodeStatus} error={statusError} loading={statusLoading && !nodeStatus} />
+        <MinimaContainerCard status={nodeStatus} loading={statusLoading && !nodeStatus} />
       </section>
     </Page>
   );

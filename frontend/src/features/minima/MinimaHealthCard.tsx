@@ -38,7 +38,7 @@ export function MinimaHealthCard({
         <MinimaStatCell label="Current block" value={currentBlockLabel} />
       </MinimaStatGrid>
 
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="mb-0 text-sm text-amber-800">{error}</p>}
       {status?.rpc.error && <p className="error-text">{status.rpc.error}</p>}
 
       {status?.rpc.raw !== undefined && (

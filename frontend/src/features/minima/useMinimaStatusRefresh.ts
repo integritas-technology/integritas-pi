@@ -1,8 +1,18 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { MinimaNodeStatus } from "../../app/types";
 import { getMinimaNodeStatus } from "./minimaApi";
 
 const DEFAULT_INTERVAL_MS = 30_000;
+
+function formatRefreshError(error: unknown) {
+  if (error instanceof Error) {
+    if (error.message === "fetch failed" || error.name === "AbortError") {
+      return "Minima RPC is temporarily unavailable. Showing last known stats.";
+    }
+    return error.message;
+  }
+  return "Could not load Minima status";
+}
 
 export function useMinimaStatusRefresh(
   onStatus: (status: MinimaNodeStatus) => void,
@@ -11,29 +21,28 @@ export function useMinimaStatusRefresh(
 ) {
   const intervalMs = options?.intervalMs ?? DEFAULT_INTERVAL_MS;
   const enabled = options?.enabled ?? true;
+  const onStatusRef = useRef(onStatus);
+  const onErrorRef = useRef(onError);
+
+  onStatusRef.current = onStatus;
+  onErrorRef.current = onError;
+
+  const refresh = useCallback(async () => {
+    try {
+      const status = await getMinimaNodeStatus();
+      onStatusRef.current(status);
+    } catch (error) {
+      onErrorRef.current(formatRefreshError(error));
+    }
+  }, []);
 
   useEffect(() => {
     if (!enabled) return;
 
-    let cancelled = false;
-
-    async function refresh() {
-      try {
-        const status = await getMinimaNodeStatus();
-        if (!cancelled) onStatus(status);
-      } catch (error) {
-        if (!cancelled) {
-          onError(error instanceof Error ? error.message : "Could not load Minima status");
-        }
-      }
-    }
-
     void refresh();
     const interval = window.setInterval(() => void refresh(), intervalMs);
+    return () => window.clearInterval(interval);
+  }, [enabled, intervalMs, refresh]);
 
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, [enabled, intervalMs, onError, onStatus]);
+  return { refresh };
 }
