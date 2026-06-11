@@ -33,6 +33,7 @@ Root-level operator docs stay outside this tree: [README.md](../README.md), [SEC
 | [auth-implementation.md](./plans/auth-implementation.md) | **Complete** | Phase 1 auth; shipped in [0.2.0](../CHANGELOG.md#020---2026-06-09) |
 | [auth-security.md](./plans/auth-security.md) | **Complete** | Phase 1 threat model & controls (design); hardening gaps → [qa/auth-gaps.md](./qa/auth-gaps.md) |
 | [integritas-integration.md](./plans/integritas-integration.md) | **Complete** | Phases 1–3 backend + Phase 5 UX; sandbox tests deferred to QA |
+| [minima-node.md](./plans/minima-node.md) | **In progress** | RPC + resync shipped; Phase 1 status/health + Minima Core UX next |
 
 When starting a new feature, add a plan here before large diffs. Mark it **Complete** when shipped and move follow-up testing/hardening to `qa/`.
 
