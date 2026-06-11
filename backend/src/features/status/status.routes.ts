@@ -2,6 +2,7 @@ import { Router } from "express";
 import { env } from "../../config/env.js";
 import { getIntegritasApiKey } from "../settings/secrets.service.js";
 import { fetchJsonWithTimeout } from "../../shared/http.js";
+import { getMinimaNodeStatus } from "../minima/minima.service.js";
 import { dockerServiceResources, diskUsage } from "./docker.service.js";
 
 type ServiceStatus = {
@@ -29,13 +30,12 @@ statusRouter.get("/overview", async (_req, res) => {
   ];
 
   try {
-    const { response, body } = await fetchJsonWithTimeout(env.minimaStatusUrl);
-    const minimaBody = body as { status?: boolean; response?: unknown } | null;
+    const nodeStatus = await getMinimaNodeStatus();
     services.push({
       name: "minima",
-      ok: response.ok && minimaBody?.status === true,
-      status: response.ok && minimaBody?.status === true ? "ok" : `HTTP ${response.status}`,
-      details: body
+      ok: nodeStatus.state === "running",
+      status: nodeStatus.state === "running" ? "ok" : nodeStatus.state,
+      details: { sync: nodeStatus.sync, health: nodeStatus.health, container: nodeStatus.container }
     });
   } catch (error) {
     services.push({ name: "minima", ok: false, status: "error", error: error instanceof Error ? error.message : "Unknown error" });

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getMinimaConfig, getMinimaStatus, getWalletBalance, resyncMegammr, saveMinimaConfig } from "./minima.service.js";
+import { getMinimaConfig, getMinimaNodeStatus, getWalletBalance, resyncMegammr, saveMinimaConfig } from "./minima.service.js";
 
 export const minimaRouter = Router();
 
@@ -18,11 +18,10 @@ minimaRouter.post("/config", (req, res) => {
 
 minimaRouter.get("/status", async (_req, res) => {
   try {
-    const status = await getMinimaStatus();
-    res.status(status.ok ? 200 : 502).json(status);
+    res.json(await getMinimaNodeStatus());
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    res.status(502).json({ ok: false, source: "minima", error: message });
+    res.status(502).json({ error: message });
   }
 });
 

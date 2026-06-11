@@ -1,6 +1,8 @@
-import { env } from "../../config/env.js";
-import { fetchJsonWithTimeout } from "../../shared/http.js";
 import { getSetting, saveSetting } from "../settings/settings.repository.js";
+import { getMinimaContainerStats, getMinimaStorageInfo } from "./minima.docker.js";
+import { parsePeersResponse, parseStatusResponse } from "./minima.parse.js";
+import { fetchMinimaStatus, runMinimaPathCommand } from "./minima.rpc.js";
+import type { MinimaNodeState, MinimaNodeStatus } from "./minima.types.js";
 
 const megammrHostSetting = "minima_megammr_host";
 const defaultMegammrHost = "megammr.minima.global:9001";
@@ -9,7 +11,7 @@ export function getMinimaConfig() {
   const storedMegammrHost = getSetting(megammrHostSetting).trim();
   return {
     megammrHost: storedMegammrHost || defaultMegammrHost,
-    megammrHostSource: storedMegammrHost ? "database" : "default"
+    megammrHostSource: storedMegammrHost ? ("database" as const) : ("default" as const)
   };
 }
 
@@ -20,28 +22,89 @@ export function saveMinimaConfig({ megammrHost }: { megammrHost: string }) {
   return getMinimaConfig();
 }
 
-export async function getMinimaStatus() {
-  const { response, body } = await fetchJsonWithTimeout(env.minimaStatusUrl);
-  return {
-    ok: response.ok,
-    status: response.status,
-    source: env.minimaStatusUrl,
-    body
-  };
+function deriveNodeState(
+  container: { state: string } | null,
+  rpcReachable: boolean,
+  rpcOk: boolean
+): MinimaNodeState {
+  if (container && container.state !== "running") return "stopped";
+  if (!rpcReachable || !rpcOk) return "error";
+  return "running";
 }
 
-async function runMinimaPathCommand(command: string, timeoutMs = 5000) {
-  const url = new URL(env.minimaStatusUrl);
-  url.pathname = `/${encodeURIComponent(command)}`;
-  url.search = "";
+export async function getMinimaNodeStatus(): Promise<MinimaNodeStatus> {
+  const checkedAt = new Date().toISOString();
+  const config = getMinimaConfig();
 
-  const { response, body } = await fetchJsonWithTimeout(url.toString(), {}, timeoutMs);
+  const [containerStats, rpcResult] = await Promise.all([
+    getMinimaContainerStats().catch(() => null),
+    fetchMinimaStatus().catch((error) => ({
+      failed: true as const,
+      error: error instanceof Error ? error.message : "Unknown error"
+    }))
+  ]);
+
+  if ("failed" in rpcResult) {
+    const state = containerStats && containerStats.state !== "running" ? "stopped" : "error";
+    return {
+      checkedAt,
+      state,
+      container: containerStats
+        ? {
+            state: containerStats.state,
+            status: containerStats.status,
+            cpuPercent: containerStats.cpuPercent,
+            memory: containerStats.memory
+          }
+        : null,
+      rpc: { ok: false, error: rpcResult.error },
+      sync: { synced: null, block: null, blockTime: null, blockAgeSeconds: null },
+      health: { peerCount: null },
+      storage: getMinimaStorageInfo(containerStats?.containerDisk),
+      config
+    };
+  }
+
+  const parsed = parseStatusResponse(rpcResult.body);
+  let peerCount = parsed.peerCount;
+
+  if (peerCount === null && parsed.rpcOk) {
+    try {
+      const peersResult = await runMinimaPathCommand("peers");
+      peerCount = parsePeersResponse(peersResult.body);
+    } catch {
+      peerCount = null;
+    }
+  }
+
+  const rpcReachable = rpcResult.ok;
+  const state = deriveNodeState(containerStats, rpcReachable, parsed.rpcOk);
+
   return {
-    ok: response.ok,
-    status: response.status,
-    source: url.toString(),
-    command,
-    body
+    checkedAt,
+    state,
+    container: containerStats
+      ? {
+          state: containerStats.state,
+          status: containerStats.status,
+          cpuPercent: containerStats.cpuPercent,
+          memory: containerStats.memory
+        }
+      : null,
+    rpc: {
+      ok: rpcReachable && parsed.rpcOk,
+      error: !rpcReachable ? `HTTP ${rpcResult.status}` : parsed.rpcOk ? undefined : "Minima RPC returned status: false",
+      raw: rpcResult.body
+    },
+    sync: {
+      synced: parsed.synced,
+      block: parsed.block,
+      blockTime: parsed.blockTime,
+      blockAgeSeconds: parsed.blockAgeSeconds
+    },
+    health: { peerCount },
+    storage: getMinimaStorageInfo(containerStats?.containerDisk),
+    config
   };
 }
 

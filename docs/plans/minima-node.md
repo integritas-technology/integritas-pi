@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **In progress** (foundation shipped; structured status/health + UI remaining) |
-| **Done** | RPC interface, raw status, balance, Megammr resync, config persistence, overview probe |
-| **Next** | Phase 1 — normalized status DTO + Minima Core page UX |
+| **Status** | **In progress** (Phase 1 shipped; Phase 2+ remaining) |
+| **Done** | Phase 1 — normalized status DTO, Minima Core UX, overview alignment |
+| **Next** | Phase 2 — backend health poller + auto-resync (flag-gated) |
 | **Deferred** | Auto-resync (Phase 2), restart/peers (Phase 3), tests → QA |
 
 Backend service for the local Minima node (Docker container + HTTP RPC), exposing node status, health metrics, and operational controls to the browser UI.
@@ -256,7 +256,7 @@ type MinimaNodeStatus = {
 
 ## Implementation plan
 
-### Phase 1 — Structured status + Minima Core UX — **next**
+### Phase 1 — Structured status + Minima Core UX — **complete**
 
 **Goal:** Operators see node state, sync, block, peers, and container resources without reading raw JSON. Smallest useful slice; no backend poller, no auto-resync.
 
@@ -374,14 +374,14 @@ Align with `mock/MinimaEdgeWorkbench.tsx` Node section — implemented increment
 
 ## Verification checklist (Phase 1 exit)
 
-- [ ] `GET /api/minima/status` returns normalized DTO with `state`, `sync`, `health`, `container`
-- [ ] Minima Core page shows structured stats (not only raw JSON)
-- [ ] Page refreshes status on interval while mounted
-- [ ] Resync failures surface via toast
-- [ ] Stopped Minima container → `state: stopped` in API and UI
-- [ ] `npm run check` passes
-- [ ] `CHANGELOG.md` updated under `[Unreleased]`
-- [ ] `README.md` API section updated if response shape changes materially
+- [x] `GET /api/minima/status` returns normalized DTO with `state`, `sync`, `health`, `container`
+- [x] Minima Core page shows structured stats (not only raw JSON)
+- [x] Page refreshes status on interval while mounted
+- [x] Resync failures surface via toast
+- [ ] Stopped Minima container → `state: stopped` in API and UI (manual audit)
+- [x] `npm run check` passes (typecheck; pre-existing npm audit advisory unrelated)
+- [x] `CHANGELOG.md` updated under `[Unreleased]`
+- [x] `README.md` API section updated if response shape changes materially
 
 ---
 
@@ -403,19 +403,19 @@ Use this as the living checkbox list aligned to this plan:
 **Backend**
 
 - [x] Define local daemon interface (HTTP RPC, path-encoded)
-- [ ] `GET /api/minima/status` — normalized Running/Stopped/Error, sync, storage (Phase 1)
-- [ ] Health metrics — peer count, block age (Phase 1, nested in status)
+- [x] `GET /api/minima/status` — normalized Running/Stopped/Error, sync, storage (Phase 1)
+- [x] Health metrics — peer count, block age (Phase 1, nested in status)
 - [x] Resync (`POST /api/minima/megammrsync/resync`)
 - [ ] Automate resync on block stall (Phase 2, flag-gated)
-- [ ] Health polling loop — frontend Phase 1; backend Phase 2
-- [x] Graceful RPC/container failure handling (extend with structured states in Phase 1)
+- [x] Health polling loop — frontend Phase 1 (30s on Minima page); backend Phase 2
+- [x] Graceful RPC/container failure handling (structured states in Phase 1)
 
 **Frontend**
 
-- [ ] Structured sync/health on Minima Core page (Phase 1)
-- [ ] Current/last block + age (Phase 1)
-- [ ] Live resource stats (Phase 1)
-- [x] Reuse Modal (done); Toast for resync (Phase 1)
+- [x] Structured sync/health on Minima Core page (Phase 1)
+- [x] Current/last block + age (Phase 1)
+- [x] Live resource stats (Phase 1)
+- [x] Reuse Modal; Toast for resync (Phase 1)
 
 **Future**
 

@@ -7,7 +7,39 @@ export type NavItem = { id: NavId; label: string; icon: LucideIcon; badge?: stri
 export type Health = { status: string; service: string };
 export type FileItem = { name: string; type: "file" | "directory" | "other"; size?: number };
 export type FilesResponse = { path: string; items: FileItem[] };
-export type MinimaStatus = { ok: boolean; status?: number; source: string; body?: unknown; error?: string };
+export type MinimaNodeState = "running" | "stopped" | "error";
+export type MinimaNodeStatus = {
+  checkedAt: string;
+  state: MinimaNodeState;
+  container: {
+    state: string;
+    status: string;
+    cpuPercent: number | null;
+    memory: { usage: string | null; limit: string | null } | null;
+  } | null;
+  rpc: {
+    ok: boolean;
+    error?: string;
+    raw?: unknown;
+  };
+  sync: {
+    synced: boolean | null;
+    block: number | null;
+    blockTime: string | null;
+    blockAgeSeconds: number | null;
+  };
+  health: {
+    peerCount: number | null;
+  };
+  storage: {
+    dataPath: string;
+    containerDisk: string | null;
+  };
+  config: {
+    megammrHost: string;
+    megammrHostSource: "database" | "default";
+  };
+};
 export type MinimaConfig = { megammrHost: string; megammrHostSource: "database" | "default" };
 export type MinimaCommandResult = { ok: boolean; status?: number; source: string; command?: string; body?: unknown; error?: string };
 export type IntegritasConfig = { baseUrl: string; requestId: string; hasApiKey: boolean; apiKeySource: "database" | "environment" | "none"; portalUrl: string };

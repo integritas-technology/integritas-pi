@@ -1,36 +1,45 @@
-import { useEffect, useState } from "react";
-import type { MinimaCommandResult, MinimaConfig, MinimaStatus } from "../app/types";
-import { Card } from "../components/Card";
-import { JsonPreview } from "../components/JsonPreview";
+import { useCallback, useEffect, useState } from "react";
+import type { MinimaCommandResult, MinimaConfig, MinimaNodeStatus } from "../app/types";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
-import { StatusBadge } from "../components/StatusBadge";
+import { useToast } from "../components/ToastProvider";
 import { MinimaActionCards } from "../features/minima/MinimaActionCards";
+import { getMinimaConfig, resyncMegammr, saveMinimaConfig } from "../features/minima/minimaApi";
 import { MinimaRuntimeConfig } from "../features/minima/MinimaRuntimeConfig";
+import { MinimaStatusPanel } from "../features/minima/MinimaStatusPanel";
+import { useMinimaStatusRefresh } from "../features/minima/useMinimaStatusRefresh";
 
 export function MinimaPage() {
+  const { showToast } = useToast();
   const [config, setConfig] = useState<MinimaConfig | null>(null);
   const [megammrHostInput, setMegammrHostInput] = useState("megammr.minima.global:9001");
   const [configOpen, setConfigOpen] = useState(false);
-  const [minimaStatus, setMinimaStatus] = useState<MinimaStatus | null>(null);
-  const [minimaError, setMinimaError] = useState<string | null>(null);
+  const [nodeStatus, setNodeStatus] = useState<MinimaNodeStatus | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [statusLoading, setStatusLoading] = useState(true);
   const [configError, setConfigError] = useState<string | null>(null);
   const [actionResult, setActionResult] = useState<MinimaCommandResult | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const handleStatus = useCallback((status: MinimaNodeStatus) => {
+    setNodeStatus(status);
+    setStatusError(null);
+    setStatusLoading(false);
+  }, []);
+
+  const handleStatusError = useCallback((message: string) => {
+    setStatusError(message);
+    setStatusLoading(false);
+  }, []);
+
+  useMinimaStatusRefresh(handleStatus, handleStatusError);
 
   useEffect(() => {
     refreshConfig().catch((err: Error) => setConfigError(err.message));
-    fetch("/api/minima/status")
-      .then((response) => response.json() as Promise<MinimaStatus>)
-      .then(setMinimaStatus)
-      .catch((err: Error) => setMinimaError(err.message));
   }, []);
 
   async function refreshConfig() {
-    const response = await fetch("/api/minima/config");
-    const parsed = await response.json() as MinimaConfig;
-    if (!response.ok) throw new Error((parsed as { error?: string })?.error || `HTTP ${response.status}`);
+    const parsed = await getMinimaConfig();
     setConfig(parsed);
     setMegammrHostInput(parsed.megammrHost);
   }
@@ -39,11 +48,9 @@ export function MinimaPage() {
     setBusy(true);
     setConfigError(null);
     try {
-      const response = await fetch("/api/minima/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ megammrHost: megammrHostInput }) });
-      const parsed = await response.json();
-      if (!response.ok) throw new Error(parsed?.error || `HTTP ${response.status}`);
-      setConfig(parsed as MinimaConfig);
-      setMegammrHostInput((parsed as MinimaConfig).megammrHost);
+      const parsed = await saveMinimaConfig(megammrHostInput);
+      setConfig(parsed);
+      setMegammrHostInput(parsed.megammrHost);
       setConfigOpen(false);
     } catch (error) {
       setConfigError(error instanceof Error ? error.message : "Unknown error");
@@ -52,39 +59,48 @@ export function MinimaPage() {
     }
   }
 
-  async function resyncMegammr() {
+  async function runResync() {
     setBusy(true);
-    setActionError(null);
     setActionResult(null);
     try {
-      const response = await fetch("/api/minima/megammrsync/resync", { method: "POST" });
-      const parsed = await response.json();
-      if (!response.ok) throw new Error(parsed?.error || `HTTP ${response.status}`);
-      setActionResult(parsed as MinimaCommandResult);
+      const parsed = await resyncMegammr();
+      setActionResult(parsed);
+      showToast({ tone: "success", title: "Megammr resync started", message: "Check node health for sync progress.", timeoutMs: 6000 });
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Unknown error");
+      const message = error instanceof Error ? error.message : "Resync failed";
+      showToast({ tone: "error", title: "Megammr resync failed", message, timeoutMs: 9000 });
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <Page eyebrow="Minima Core" title="Run the Minima node" desc="Read Minima node status through the backend and Docker network." action={<button type="button" className="section-action-button" onClick={() => setConfigOpen(true)}>Configure Minima</button>}>
+    <Page
+      eyebrow="Minima Core"
+      title="Run the Minima node"
+      desc="Monitor node health, chain sync, and container resources through the backend."
+      action={
+        <button type="button" className="section-action-button" onClick={() => setConfigOpen(true)}>
+          Configure Minima
+        </button>
+      }
+    >
       {configOpen && (
         <Modal title="Configure Minima" onClose={() => setConfigOpen(false)}>
-          <MinimaRuntimeConfig config={config} megammrHostInput={megammrHostInput} setMegammrHostInput={setMegammrHostInput} busy={busy} onSave={saveConfig} />
+          <MinimaRuntimeConfig
+            config={config}
+            megammrHostInput={megammrHostInput}
+            setMegammrHostInput={setMegammrHostInput}
+            busy={busy}
+            onSave={saveConfig}
+          />
           {configError && <p className="error-text">{configError}</p>}
         </Modal>
       )}
 
       {!configOpen && configError && <p className="error-text">{configError}</p>}
-      <MinimaActionCards config={config} result={actionResult} busy={busy} error={actionError} onResync={resyncMegammr} />
-      <Card>
-        <div className="status-row"><strong>Minima status</strong><StatusBadge ok={Boolean(minimaStatus?.ok)}>{minimaStatus ? `HTTP ${minimaStatus.status}` : minimaError ? "error" : "checking"}</StatusBadge></div>
-        {minimaStatus?.source && <code>{minimaStatus.source}</code>}
-        {minimaStatus?.error && <p className="error-text">{minimaStatus.error}</p>}
-        {minimaStatus?.body !== undefined && <JsonPreview value={minimaStatus.body} />}
-      </Card>
+      <MinimaActionCards config={config} result={actionResult} busy={busy} onResync={runResync} />
+      <MinimaStatusPanel status={nodeStatus} error={statusError} loading={statusLoading} />
     </Page>
   );
 }

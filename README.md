@@ -377,10 +377,18 @@ Minima status:
 GET /api/minima/status
 ```
 
-The backend calls Minima internally through Docker networking:
+The backend combines Minima RPC (`http://minima:9005/status`, optional `peers`), Docker container stats for the `minima` service, and saved Megammr config into a normalized JSON response (`state`, `sync`, `health`, `container`, `storage`). Returns HTTP `200` when the check completed, even if the node is stopped or unhealthy; `502` is reserved for handler failures.
 
-```txt
-http://minima:9005/status
+Example fields:
+
+```json
+{
+  "checkedAt": "2026-06-11T12:00:00.000Z",
+  "state": "running",
+  "sync": { "block": 932067, "blockAgeSeconds": 45, "synced": true },
+  "health": { "peerCount": 12 },
+  "container": { "state": "running", "cpuPercent": 2.5, "memory": { "usage": "512 MB", "limit": "4 GB" } }
+}
 ```
 
 The frontend reads `/api/minima/status`, so the browser does not need direct access to Minima RPC.

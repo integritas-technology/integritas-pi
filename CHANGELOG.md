@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Minima node status API returns a normalized operator view: container state, chain block/age, peer count, CPU/memory, and container disk (`GET /api/minima/status`).
+- Minima Core page shows structured node health cards with 30s auto-refresh; RPC debug JSON is collapsible. Megammr resync failures surface via toast.
+
+### Changed
+
+- `GET /api/status/overview` Minima service check now uses the same normalized node status logic as `/api/minima/status`.
+
 ## [0.3.0] - 2026-06-11
 
 Integritas integration hardening and proof polling, plus data-source health/editing, shared toast notifications, and runtime config UX on `main`.
