@@ -3,10 +3,10 @@ import type { MinimaCommandResult, MinimaConfig, MinimaNodeStatus } from "../app
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
 import { useToast } from "../components/ToastProvider";
-import { MinimaActionCards } from "../features/minima/MinimaActionCards";
 import { getMinimaConfig, resyncMegammr, saveMinimaConfig } from "../features/minima/minimaApi";
+import { MinimaHealthCard } from "../features/minima/MinimaHealthCard";
 import { MinimaRuntimeConfig } from "../features/minima/MinimaRuntimeConfig";
-import { MinimaStatusPanel } from "../features/minima/MinimaStatusPanel";
+import { MinimaSummaryGrid } from "../features/minima/MinimaSummaryGrid";
 import { useMinimaStatusRefresh } from "../features/minima/useMinimaStatusRefresh";
 
 export function MinimaPage() {
@@ -76,9 +76,9 @@ export function MinimaPage() {
 
   return (
     <Page
-      eyebrow="Minima Core"
+      eyebrow="Minima node"
       title="Run the Minima node"
-      desc="Monitor node health, chain sync, and container resources through the backend."
+      desc="Start, monitor, and manage the Minima Core node running on the Raspberry Pi Edition."
       action={
         <button type="button" className="section-action-button" onClick={() => setConfigOpen(true)}>
           Configure Minima
@@ -99,8 +99,16 @@ export function MinimaPage() {
       )}
 
       {!configOpen && configError && <p className="error-text">{configError}</p>}
-      <MinimaActionCards config={config} result={actionResult} busy={busy} onResync={runResync} />
-      <MinimaStatusPanel status={nodeStatus} error={statusError} loading={statusLoading} />
+
+      <MinimaSummaryGrid
+        status={nodeStatus}
+        config={config}
+        loading={statusLoading}
+        busy={busy}
+        result={actionResult}
+        onResync={runResync}
+      />
+      <MinimaHealthCard status={nodeStatus} error={statusError} loading={statusLoading} />
     </Page>
   );
 }

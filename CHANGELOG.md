@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Modal dialogs (including JSON preview on Minima resync) now render via a document portal, fixing incorrect positioning and hover flicker inside cards that use CSS transforms.
 
+### Changed
+
+- Minima Core page layout aligned with the Edge Workbench mock: three summary cards (node, sync, storage) and a Node health stat grid.
+
 ### Added
 
 - Minima node status API returns a normalized operator view: container state, chain block/age, peer count, CPU/memory, and container disk (`GET /api/minima/status`).
