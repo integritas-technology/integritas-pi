@@ -53,9 +53,24 @@ function cpuPercent(stats: DockerStats) {
   return Number(((cpuDelta / systemDelta) * onlineCpus * 100).toFixed(2));
 }
 
+const composeProject = "integritas-pi";
+
+function isComposeContainer(container: DockerContainer) {
+  return container.Labels?.["com.docker.compose.project"] === composeProject;
+}
+
+export async function getComposeServiceContainer(serviceName: string) {
+  const containers = await dockerRequest<DockerContainer[]>("/containers/json?all=1");
+  return (
+    containers.find(
+      (container) => isComposeContainer(container) && container.Labels?.["com.docker.compose.service"] === serviceName
+    ) ?? null
+  );
+}
+
 export async function dockerServiceResources() {
   const containers = await dockerRequest<DockerContainer[]>("/containers/json?all=1&size=1");
-  const appContainers = containers.filter((container) => container.Labels?.["com.docker.compose.project"] === "integritas-pi");
+  const appContainers = containers.filter(isComposeContainer);
 
   return Promise.all(appContainers.map(async (container) => {
     const stats = container.State === "running" ? await dockerRequest<DockerStats>(`/containers/${container.Id}/stats?stream=false`) : null;

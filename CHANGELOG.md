@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Minima Phase 3: `POST /api/minima/restart` (admin, Docker container restart with audit log), `GET /api/minima/peers`, `POST /api/minima/peers/add` (admin, allowlisted `peers action:addpeers`), Minima Core UI for restart and peer list/add, and `node:test` fixtures for `minima.parse.ts`.
 - Backend Minima health poller: detects chain stalls on an interval (`MINIMA_HEALTH_POLL_INTERVAL_SECONDS`), exposes `monitoring` on `GET /api/minima/status`, and optionally triggers Megammr auto-resync when `MINIMA_AUTO_RESYNC=true`.
 - Minima Core UI shows a stall warning when `monitoring.stallDetected` is true.
 - Minima node status API returns a normalized operator view: container state, chain block/age, peer count, CPU/memory, and container disk (`GET /api/minima/status`).

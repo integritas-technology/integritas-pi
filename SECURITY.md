@@ -26,7 +26,7 @@ We document recommended setup in README; we cannot enforce it on the device.
 - Backend APIs are reachable through the frontend Nginx `/api` proxy.
 - The backend stores local settings in SQLite under `/data/integritas-pi.db`.
 - Integritas API keys entered in the UI are encrypted before storage with AES-256-GCM using `APP_SECRET`.
-- The backend mounts `/var/run/docker.sock:ro` for prototype resource monitoring.
+- The backend mounts `/var/run/docker.sock` for prototype container monitoring and allowlisted Minima container restart.
 - The backend can read the configured host file directory through `/host-files:ro`.
 - Minima RPC is bound to `127.0.0.1` on the host by default, but is reachable by backend over the Docker network.
 
@@ -53,17 +53,22 @@ Status: Mitigated for trusted LAN; see `docs/qa/auth-gaps.md` for gaps.
 
 ### Docker Socket Mount
 
-Risk: The backend mounts `/var/run/docker.sock:ro` to read container status and resource usage. Docker socket access is highly sensitive. Read-only bind mount does not make the Docker API itself read-only in a strong security sense.
+Risk: The backend mounts `/var/run/docker.sock` to read container status/resource usage and to restart the Minima container via `POST /api/minima/restart` (admin-only). Docker socket access is highly sensitive.
 
-Impact: If backend is compromised, Docker API access could potentially expose container metadata or become a path toward host/container control depending on socket permissions and Docker API behavior.
+Impact: If the backend is compromised, an attacker could read container metadata or restart/stop containers allowed by the Docker API and socket group permissions.
+
+Current Controls:
+
+- Docker write use is narrow: only `restartComposeService("minima")` is implemented (no generic container control API).
+- `POST /api/minima/restart` requires an admin session and records an audit event.
 
 Plan:
 
-- Replace direct Docker socket access with a narrow metrics sidecar or explicit allowlisted status service.
-- Consider cAdvisor, Docker socket proxy with strict endpoint allowlist, or host-exported metrics.
-- Make resource monitoring optional and disabled by default in production.
+- Replace direct Docker socket access with a narrow sidecar or socket proxy with an explicit allowlist (read stats + restart minima only).
+- Consider cAdvisor or host-exported metrics for read-only monitoring.
+- Make Docker control optional and disabled by default in production.
 
-Status: Open. Accepted only for prototype visibility.
+Status: Open. Accepted only for prototype operator convenience.
 
 ### API Key Management
 
@@ -179,6 +184,34 @@ Current Controls:
 - Manual resync remains available in the UI; auto-resync reuses the same allowlisted `resyncMegammr()` path.
 
 Status: Documented prototype tradeoff. Review before enabling on production nodes.
+
+### Minima container restart (admin)
+
+Risk: `POST /api/minima/restart` restarts the Minima Docker container. RPC and wallet operations are unavailable until the container is healthy again.
+
+Impact: Brief node outage; if abused, repeated restarts could disrupt stamping/wallet workflows on the Pi.
+
+Current Controls:
+
+- Admin session required (`requireRole('admin')`).
+- Audit event `minima.container.restart` with container id.
+- UI confirms before restart; status polling pauses during restart.
+
+Status: Documented prototype tradeoff.
+
+### Minima peer management (admin add)
+
+Risk: `POST /api/minima/peers/add` calls the allowlisted Minima RPC `peers action:addpeers peerslist:<host:port>`.
+
+Impact: Misconfigured peer addresses could affect P2P connectivity; comma-separated input is validated for basic `host:port` shape only.
+
+Current Controls:
+
+- Admin session required.
+- Audit event `minima.peers.add` with the submitted peerslist (not secrets).
+- `GET /api/minima/peers` is read-only and available to any authenticated session.
+
+Status: Documented prototype tradeoff.
 
 ### Data Source URL Fetching
 

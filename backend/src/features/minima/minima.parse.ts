@@ -146,22 +146,67 @@ export function parseStatusResponse(body: unknown) {
   };
 }
 
-export function parsePeersResponse(body: unknown): number | null {
+export type MinimaPeersInfo = {
+  count: number | null;
+  peers: string[];
+};
+
+function readPeersList(response: Record<string, unknown>) {
+  if (typeof response.peerslist === "string" && response.peerslist.trim()) {
+    return response.peerslist
+      .split(",")
+      .map((peer) => peer.trim())
+      .filter(Boolean);
+  }
+  if (Array.isArray(response.peers)) {
+    return response.peers.map((peer) => String(peer).trim()).filter(Boolean);
+  }
+  return [];
+}
+
+export function parsePeersListResponse(body: unknown): MinimaPeersInfo {
   const envelope = asRecord(body);
-  if (envelope?.status !== true) return null;
+  if (envelope?.status !== true) return { count: null, peers: [] };
 
   const response = asRecord(envelope.response);
   if (response) {
-    if (typeof response.size === "number") return response.size;
-    if (typeof response.connected === "number") return response.connected;
-    if (typeof response.peerslist === "string" && response.peerslist.trim()) {
-      return response.peerslist.split(",").filter(Boolean).length;
-    }
-    if (Array.isArray(response.peers)) return response.peers.length;
+    const peers = readPeersList(response);
+    if (typeof response.size === "number") return { count: response.size, peers };
+    if (typeof response.connected === "number") return { count: response.connected, peers };
+    if (peers.length > 0) return { count: peers.length, peers };
   }
 
-  if (Array.isArray(envelope.response)) return envelope.response.length;
-  return null;
+  if (Array.isArray(envelope.response)) {
+    const peers = envelope.response.map((peer) => String(peer).trim()).filter(Boolean);
+    return { count: peers.length, peers };
+  }
+
+  return { count: null, peers: [] };
+}
+
+export function parsePeersResponse(body: unknown): number | null {
+  const parsed = parsePeersListResponse(body);
+  return parsed.count ?? (parsed.peers.length > 0 ? parsed.peers.length : null);
+}
+
+const peerAddressPattern = /^[^\s,:]+:\d+$/;
+
+export function normalizePeerslist(peerslist: string) {
+  const trimmed = peerslist.trim();
+  if (!trimmed) throw new Error("peerslist is required");
+
+  const peers = trimmed
+    .split(",")
+    .map((peer) => peer.trim())
+    .filter(Boolean);
+
+  for (const peer of peers) {
+    if (!peerAddressPattern.test(peer)) {
+      throw new Error(`Invalid peer address: ${peer}`);
+    }
+  }
+
+  return peers.join(",");
 }
 
 export function parseMegammrResyncMessage(body: unknown) {
@@ -170,6 +215,6 @@ export function parseMegammrResyncMessage(body: unknown) {
   const message = typeof response?.message === "string" ? response.message.trim() : "";
   const ok = envelope?.status === true;
   const needsRestart = /restart/i.test(message);
-  const finished = /finish/i.test(message);
+  const finished = /finish|fininshed/i.test(message);
   return { ok, message, needsRestart, finished };
 }

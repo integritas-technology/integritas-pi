@@ -59,6 +59,20 @@ export type MinimaNodeStatus = {
 };
 export type MinimaConfig = { megammrHost: string; megammrHostSource: "database" | "default" };
 export type MinimaCommandResult = { ok: boolean; status?: number; source: string; command?: string; body?: unknown; error?: string };
+export type MinimaPeersResponse = {
+  ok: boolean;
+  count: number | null;
+  peers: string[];
+  source?: string;
+  command?: string;
+  error?: string;
+};
+export type MinimaRestartResult = {
+  ok: true;
+  state: "restarting";
+  service: string;
+  containerId: string;
+};
 export type IntegritasConfig = { baseUrl: string; requestId: string; hasApiKey: boolean; apiKeySource: "database" | "environment" | "none"; portalUrl: string };
 export type StatusOverview = {
   generatedAt: string;

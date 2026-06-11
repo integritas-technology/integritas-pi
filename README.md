@@ -400,6 +400,16 @@ Example fields:
 
 The frontend reads `/api/minima/status`, so the browser does not need direct access to Minima RPC.
 
+Minima restart and peers (admin mutations require an admin session):
+
+```http
+POST /api/minima/restart
+GET /api/minima/peers
+POST /api/minima/peers/add
+```
+
+`POST /api/minima/restart` restarts the Minima Docker container via the backend Docker socket (see `SECURITY.md`). `POST /api/minima/peers/add` accepts `{ "peerslist": "host:port" }` or comma-separated addresses and calls Minima `peers action:addpeers`.
+
 Integritas:
 
 ```http

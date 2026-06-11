@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| **Status** | **In progress** (Phase 1 shipped; Phase 2+ remaining) |
-| **Done** | Phase 1–2 — status DTO, Minima Core UX, health poller, stall detection, optional auto-resync |
-| **Next** | Phase 3 — restart, peers, tests |
-| **Deferred** | Auto-resync (Phase 2), restart/peers (Phase 3), tests → QA |
+| **Status** | **Complete** (Phases 1–3 shipped; live RPC integration tests remain in QA) |
+| **Done** | Phases 1–3 — status DTO, Minima Core UX, health poller, restart, peers, parser unit tests |
+| **Next** | QA — live Minima RPC integration tests behind `MINIMA_INTEGRATION_TEST=1` |
+| **Deferred** | Live RPC integration tests → QA workstream |
 
 Backend service for the local Minima node (Docker container + HTTP RPC), exposing node status, health metrics, and operational controls to the browser UI.
 
@@ -49,8 +49,8 @@ The ticket checklist is a **capability list**, not a route spec.
 | Health metrics (peer count, last block age) | **Phase 1** | Nested under status or `GET /api/minima/health` — see [API shape](#api-shape-phase-1) |
 | Health polling loop (configurable interval) | **Phase 1 (frontend)** / **Phase 2 (backend)** | Frontend interval on Minima page first; backend poller only when auto-resync needs it |
 | Automate resync on block failure | **Phase 2** | Requires stall definition, cooldown, feature flag; detect+log before auto-action |
-| `POST` restart with permission check | **Phase 3 (future)** | Docker write path; `requireRole('admin')`; audit log |
-| Manage peer connections | **Phase 3 (future)** | Narrow allowlisted RPC only |
+| `POST` restart with permission check | **Done** | `POST /api/minima/restart`; `requireRole('admin')`; audit log |
+| Manage peer connections | **Done** | `GET /api/minima/peers`, `POST /api/minima/peers/add` (add only; no remove RPC in Minima docs) |
 | Unit / integration tests | **Deferred → QA** | Parser fixtures + optional live-RPC integration behind env flag |
 
 ### Frontend — done or partial
@@ -87,6 +87,9 @@ All implementation builds on paths registered in `minima.routes.ts`, mounted at 
 | `GET` | `/status` | Node status | **Partial** — normalize in Phase 1 |
 | `GET` | `/balance` | Wallet balance via `balance` RPC | **Done** |
 | `POST` | `/megammrsync/resync` | Trigger Megammr resync | **Done** |
+| `GET` | `/peers` | Peer list from Minima RPC | **Done** |
+| `POST` | `/peers/add` | Add peers (`peers action:addpeers`) | **Done** (admin) |
+| `POST` | `/restart` | Restart Minima Docker container | **Done** (admin) |
 
 **Related (not under `/api/minima`):**
 
@@ -328,15 +331,15 @@ startMinimaHealthPoller()
 
 ---
 
-### Phase 3 — Restart, peers, tests — **future**
+### Phase 3 — Restart, peers, tests — **complete**
 
 | Item | Approach |
 |---|---|
-| `POST /api/minima/restart` | `docker.control.ts` — `POST /containers/{id}/restart`; `requireRole('admin')`; return `{ state: "restarting" }`; audit log line |
-| Peer management | One route per allowlisted action if product requires it |
-| Tests | `node:test` for `minima.parse.ts` with fixture JSON; live RPC integration behind `MINIMA_INTEGRATION_TEST=1` in QA workstream |
+| `POST /api/minima/restart` | `status/docker.control.ts` — `POST /containers/{id}/restart`; `requireRole('admin')`; returns `{ state: "restarting" }`; audit log |
+| Peer management | `GET /api/minima/peers`, `POST /api/minima/peers/add` (admin) — allowlisted `peers` / `peers action:addpeers` |
+| Tests | `backend/src/features/minima/minima.parse.test.ts` (`npm run test`); live RPC integration behind `MINIMA_INTEGRATION_TEST=1` deferred to QA |
 
-Document Docker write access and restart risk in `SECURITY.md` before implementation.
+Docker socket mount is writable (restart requires POST). Documented in `SECURITY.md`.
 
 ---
 
@@ -353,7 +356,8 @@ Align with `mock/MinimaEdgeWorkbench.tsx` Node section — implemented increment
 | CPU / memory | `status.container.cpuPercent`, `status.container.memory` |
 | Megammr resync | existing action card |
 | Configure Megammr host | existing modal |
-| Restart node | Phase 3 — button disabled or hidden until API exists |
+| Restart node | `POST /api/minima/restart` — Container card button (admin, confirm) |
+| Peer list / add | `GET /api/minima/peers`, `POST /api/minima/peers/add` |
 
 **App shell (optional polish):** Refresh overview pills on interval or when entering Minima page — low priority; can follow Phase 1.
 
@@ -419,6 +423,7 @@ Use this as the living checkbox list aligned to this plan:
 
 **Future**
 
-- [ ] `POST /api/minima/restart` (Phase 3)
-- [ ] Manage peer connections (Phase 3)
-- [ ] Unit and integration tests (QA)
+- [x] `POST /api/minima/restart` (Phase 3)
+- [x] Manage peer connections — list + add peers (Phase 3)
+- [x] Unit tests for `minima.parse.ts` (Phase 3)
+- [ ] Live Minima RPC integration tests (QA)

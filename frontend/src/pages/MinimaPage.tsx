@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
-import type { MinimaCommandResult, MinimaConfig, MinimaNodeStatus } from "../app/types";
+import type { MinimaCommandResult, MinimaConfig, MinimaNodeStatus, MinimaPeersResponse } from "../app/types";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
 import { useToast } from "../components/ToastProvider";
-import { getMinimaConfig, resyncMegammr, saveMinimaConfig } from "../features/minima/minimaApi";
+import {
+  addMinimaPeers,
+  getMinimaConfig,
+  getMinimaPeers,
+  resyncMegammr,
+  restartMinimaContainer,
+  saveMinimaConfig
+} from "../features/minima/minimaApi";
 import { MinimaContainerCard } from "../features/minima/MinimaContainerCard";
 import { MinimaHealthCard } from "../features/minima/MinimaHealthCard";
+import { MinimaPeersCard } from "../features/minima/MinimaPeersCard";
 import { mergeMinimaStatus } from "../features/minima/mergeMinimaStatus";
 import { resyncToastForResult } from "../features/minima/minimaResync";
 import { MinimaRuntimeConfig } from "../features/minima/MinimaRuntimeConfig";
@@ -24,6 +32,9 @@ export function MinimaPage() {
   const [actionResult, setActionResult] = useState<MinimaCommandResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [resyncing, setResyncing] = useState(false);
+  const [restarting, setRestarting] = useState(false);
+  const [peers, setPeers] = useState<MinimaPeersResponse | null>(null);
+  const [peersLoading, setPeersLoading] = useState(true);
 
   const handleStatus = useCallback((status: MinimaNodeStatus) => {
     setNodeStatus((previous) => mergeMinimaStatus(previous, status));
@@ -36,10 +47,30 @@ export function MinimaPage() {
     setStatusLoading(false);
   }, []);
 
-  const { refresh } = useMinimaStatusRefresh(handleStatus, handleStatusError, { enabled: !resyncing });
+  const { refresh } = useMinimaStatusRefresh(handleStatus, handleStatusError, {
+    enabled: !resyncing && !restarting
+  });
+
+  async function refreshPeers() {
+    setPeersLoading(true);
+    try {
+      const parsed = await getMinimaPeers();
+      setPeers(parsed);
+    } catch (error) {
+      showToast({
+        tone: "error",
+        title: "Failed to load peers",
+        message: error instanceof Error ? error.message : "Unknown error",
+        timeoutMs: 8000
+      });
+    } finally {
+      setPeersLoading(false);
+    }
+  }
 
   useEffect(() => {
     refreshConfig().catch((err: Error) => setConfigError(err.message));
+    refreshPeers().catch(() => undefined);
   }, []);
 
   async function refreshConfig() {
@@ -58,6 +89,50 @@ export function MinimaPage() {
       setConfigOpen(false);
     } catch (error) {
       setConfigError(error instanceof Error ? error.message : "Unknown error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runRestart() {
+    if (!window.confirm("Restart the Minima Docker container? RPC will be briefly unavailable.")) return;
+
+    setBusy(true);
+    setRestarting(true);
+    setStatusError("Minima container restart in progress. RPC may be briefly unavailable.");
+
+    try {
+      const result = await restartMinimaContainer();
+      showToast({
+        tone: "info",
+        title: "Minima container restarting",
+        message: `Docker service ${result.service} (${result.containerId}) is restarting.`,
+        timeoutMs: 10000
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Restart failed";
+      showToast({ tone: "error", title: "Minima restart failed", message, timeoutMs: 9000 });
+    } finally {
+      setBusy(false);
+      setRestarting(false);
+      await Promise.all([refresh(), refreshPeers()]);
+    }
+  }
+
+  async function runAddPeers(peerslist: string) {
+    setBusy(true);
+    try {
+      await addMinimaPeers(peerslist);
+      showToast({
+        tone: "success",
+        title: "Peers added",
+        message: "Minima accepted the add-peers request.",
+        timeoutMs: 8000
+      });
+      await Promise.all([refreshPeers(), refresh()]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Add peers failed";
+      showToast({ tone: "error", title: "Add peers failed", message, timeoutMs: 9000 });
     } finally {
       setBusy(false);
     }
@@ -120,8 +195,14 @@ export function MinimaPage() {
       />
       <section className="grid gap-4 lg:grid-cols-2">
         <MinimaHealthCard status={nodeStatus} error={statusError} loading={statusLoading && !nodeStatus} />
-        <MinimaContainerCard status={nodeStatus} loading={statusLoading && !nodeStatus} />
+        <MinimaContainerCard
+          status={nodeStatus}
+          loading={statusLoading && !nodeStatus}
+          busy={busy}
+          onRestart={runRestart}
+        />
       </section>
+      <MinimaPeersCard peers={peers} loading={peersLoading} busy={busy} onAddPeer={runAddPeers} />
     </Page>
   );
 }

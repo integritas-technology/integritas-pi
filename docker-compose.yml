@@ -26,7 +26,7 @@ services:
     volumes:
       - ${HOST_FILES_DIR:-/home/pi}:/host-files:ro
       - ${DATA_DIR:-./data}:/data
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock
     group_add:
       - "${DOCKER_GID:-0}"
     extra_hosts:

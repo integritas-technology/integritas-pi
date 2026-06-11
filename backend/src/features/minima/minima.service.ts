@@ -1,8 +1,16 @@
 import { getSetting, saveSetting } from "../settings/settings.repository.js";
 import { getMinimaContainerStats, getMinimaStorageInfo } from "./minima.docker.js";
 import { buildMinimaMonitoring } from "./minima-monitoring.js";
-import { deriveSyncStatus, parseBlockCommandResponse, parsePeersResponse, parseStatusResponse } from "./minima.parse.js";
+import {
+  deriveSyncStatus,
+  normalizePeerslist,
+  parseBlockCommandResponse,
+  parsePeersListResponse,
+  parsePeersResponse,
+  parseStatusResponse
+} from "./minima.parse.js";
 import { fetchMinimaStatus, runMinimaPathCommand } from "./minima.rpc.js";
+import { restartComposeService } from "../status/docker.control.js";
 import type { MinimaNodeState, MinimaNodeStatus } from "./minima.types.js";
 
 const megammrHostSetting = "minima_megammr_host";
@@ -165,4 +173,27 @@ export async function resyncMegammr() {
   const { megammrHost } = getMinimaConfig();
   const command = `megammrsync action:resync host:${megammrHost}`;
   return runMinimaPathCommand(command, 30000);
+}
+
+export async function getMinimaPeers() {
+  const result = await runMinimaPathCommand("peers");
+  const parsed = parsePeersListResponse(result.body);
+  return {
+    ok: result.ok && parsed.count !== null,
+    source: result.source,
+    command: result.command,
+    count: parsed.count,
+    peers: parsed.peers,
+    body: result.body
+  };
+}
+
+export async function addMinimaPeers(peerslist: string) {
+  const normalized = normalizePeerslist(peerslist);
+  const command = `peers action:addpeers peerslist:${normalized}`;
+  return runMinimaPathCommand(command);
+}
+
+export async function restartMinimaContainer() {
+  return restartComposeService("minima");
 }

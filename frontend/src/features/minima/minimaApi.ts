@@ -1,4 +1,10 @@
-import type { MinimaCommandResult, MinimaConfig, MinimaNodeStatus } from "../../app/types";
+import type {
+  MinimaCommandResult,
+  MinimaConfig,
+  MinimaNodeStatus,
+  MinimaPeersResponse,
+  MinimaRestartResult
+} from "../../app/types";
 import { getJson, postJson } from "../../lib/api";
 
 export function getMinimaNodeStatus() {
@@ -15,4 +21,16 @@ export function saveMinimaConfig(megammrHost: string) {
 
 export function resyncMegammr() {
   return postJson<MinimaCommandResult>("/api/minima/megammrsync/resync");
+}
+
+export function getMinimaPeers() {
+  return getJson<MinimaPeersResponse>("/api/minima/peers");
+}
+
+export function addMinimaPeers(peerslist: string) {
+  return postJson<MinimaCommandResult>("/api/minima/peers/add", { peerslist });
+}
+
+export function restartMinimaContainer() {
+  return postJson<MinimaRestartResult>("/api/minima/restart");
 }
