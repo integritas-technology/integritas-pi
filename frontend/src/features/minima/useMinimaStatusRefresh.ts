@@ -4,10 +4,10 @@ import { getMinimaNodeStatus } from "./minimaApi";
 
 const DEFAULT_INTERVAL_MS = 30_000;
 
-function formatRefreshError(error: unknown) {
+function formatRefreshError(error: unknown): string | null {
   if (error instanceof Error) {
-    if (error.message === "fetch failed" || error.name === "AbortError") {
-      return "Minima RPC is temporarily unavailable. Showing last known stats.";
+    if (/fetch failed|aborted|temporarily unreachable/i.test(error.message) || error.name === "AbortError") {
+      return null;
     }
     return error.message;
   }
@@ -32,7 +32,8 @@ export function useMinimaStatusRefresh(
       const status = await getMinimaNodeStatus();
       onStatusRef.current(status);
     } catch (error) {
-      onErrorRef.current(formatRefreshError(error));
+      const message = formatRefreshError(error);
+      if (message) onErrorRef.current(message);
     }
   }, []);
 

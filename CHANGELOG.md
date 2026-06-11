@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Minima status no longer shows raw `fetch failed` during resync/restart when last-known stats are still shown; transient RPC blips are suppressed and post-operation refresh retries until Minima is back.
 - Minima UX: removed duplicate Peer connections section (configured peer list vs active P2P count were different metrics); health card now shows **Active peers** from status RPC; add-peers moved to Configure Minima.
 - Megammr resync now automatically restarts the Minima container when Minima reports a restart is required.
 - Minima container restart control moved to a header icon on the Container card.

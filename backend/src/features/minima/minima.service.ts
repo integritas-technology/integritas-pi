@@ -11,6 +11,7 @@ import {
 } from "./minima.parse.js";
 import { fetchMinimaStatus, runMinimaPathCommand } from "./minima.rpc.js";
 import { restartComposeService } from "../status/docker.control.js";
+import { normalizeMinimaRpcError } from "./minima.errors.js";
 import type { MinimaNodeState, MinimaNodeStatus } from "./minima.types.js";
 
 const megammrHostSetting = "minima_megammr_host";
@@ -57,7 +58,7 @@ export async function getMinimaNodeStatus(): Promise<MinimaNodeStatus> {
     getMinimaContainerStats().catch(() => null),
     fetchMinimaStatus().catch((error) => ({
       failed: true as const,
-      error: error instanceof Error ? error.message : "Unknown error"
+      error: normalizeMinimaRpcError(error instanceof Error ? error.message : "Unknown error")
     }))
   ]);
 

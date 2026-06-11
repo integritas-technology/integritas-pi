@@ -7,6 +7,7 @@ import { useToast } from "../components/ToastProvider";
 import {
   addMinimaPeers,
   getMinimaConfig,
+  getMinimaNodeStatus,
   getMinimaPeers,
   resyncMegammr,
   restartMinimaContainer,
@@ -48,8 +49,24 @@ export function MinimaPage() {
   }, []);
 
   const { refresh } = useMinimaStatusRefresh(handleStatus, handleStatusError, {
-    enabled: !resyncing && !restarting
+    enabled: !resyncing && !restarting && !busy
   });
+
+  async function refreshAfterOperation() {
+    setStatusError(null);
+    const delays = [0, 2000, 4000, 6000];
+
+    for (const delayMs of delays) {
+      if (delayMs > 0) await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+      try {
+        const status = await getMinimaNodeStatus();
+        handleStatus(status);
+        if (status.rpc.ok) return;
+      } catch {
+        // Keep last known stats; polling will retry when enabled.
+      }
+    }
+  }
 
   useEffect(() => {
     refreshConfig().catch((err: Error) => setConfigError(err.message));
@@ -115,7 +132,8 @@ export function MinimaPage() {
       throw error;
     } finally {
       setRestarting(false);
-      await refresh();
+      setStatusError(null);
+      await refreshAfterOperation();
     }
   }
 
@@ -185,7 +203,8 @@ export function MinimaPage() {
       setBusy(false);
       setResyncing(false);
       setRestarting(false);
-      await refresh();
+      setStatusError(null);
+      await refreshAfterOperation();
     }
   }
 

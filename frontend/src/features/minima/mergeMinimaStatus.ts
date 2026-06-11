@@ -21,6 +21,7 @@ export function mergeMinimaStatus(previous: MinimaNodeStatus | null, next: Minim
     storage: previous.storage.chainDataDisk ? previous.storage : next.storage,
     rpc: {
       ...next.rpc,
+      error: undefined,
       raw: next.rpc.raw ?? previous.rpc.raw
     }
   };
