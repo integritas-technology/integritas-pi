@@ -6,6 +6,7 @@
 This document is the **single entry point** for work deferred to QA: automated tests, manual checklists, and security hardening that should not block ongoing feature development.
 
 Docs index: [README.md](../README.md)  
+Templates: [templates/qa-gaps.md](../templates/qa-gaps.md)  
 Detailed auth backlog: [auth-gaps.md](./auth-gaps.md)  
 Integritas feature plan: [integritas-integration.md](../plans/integritas-integration.md)  
 Minima node plan: [minima-node.md](../plans/minima-node.md)  
