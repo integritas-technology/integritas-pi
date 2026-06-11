@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-11
+
+Minima node status, health monitoring, container restart, peer management, and Minima Core UI.
+
 ### Fixed
 
 - Minima status no longer shows raw `fetch failed` during resync/restart when last-known stats are still shown; transient RPC blips are suppressed and post-operation refresh retries until Minima is back.
@@ -20,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Minima Core page layout aligned with the Edge Workbench mock: three summary cards (node, sync, storage) and a Node health stat grid.
 - Minima Core splits **Node health** (RPC: node memory, peers, blocks) from **Container** (Docker: CPU, container memory, state, runtime); node memory no longer falls back to Docker stats.
+- `GET /api/status/overview` Minima service check now uses the same normalized node status logic as `/api/minima/status`.
 
 ### Added
 
@@ -28,14 +33,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Minima Core UI shows a stall warning when `monitoring.stallDetected` is true.
 - Minima node status API returns a normalized operator view: container state, chain block/age, peer count, CPU/memory, and container disk (`GET /api/minima/status`).
 - Minima Core page shows structured node health cards with 30s auto-refresh; RPC debug JSON is collapsible. Megammr resync failures surface via toast.
+- Configure Minima modal: Integritas-style layout with runtime config, Megammr host, and peer list/add in one place (settings icon on the page header).
 
-### Changed
+### Security
 
-- `GET /api/status/overview` Minima service check now uses the same normalized node status logic as `/api/minima/status`.
+- Backend Docker socket mount is writable (not read-only) so admin-only `POST /api/minima/restart` can restart the Minima container; see `SECURITY.md`.
 
 ## [0.3.0] - 2026-06-11
 
-Integritas integration hardening and proof polling, plus data-source health/editing, shared toast notifications, and runtime config UX on `main`.
+Integritas integration hardening and proof polling, plus data-source health/editing, shared toast notifications, and runtime config UX.
 
 ### Added
 
@@ -62,7 +68,7 @@ Integritas integration hardening and proof polling, plus data-source health/edit
 
 ## [0.2.0] - 2026-06-09
 
-Local authentication, first-run setup, and related UI/platform work merged on top of `main`.
+Local authentication, first-run setup, and related UI/platform work merged.
 
 ### Added
 
