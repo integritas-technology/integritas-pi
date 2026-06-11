@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | **Status** | **In progress** (Phase 1 shipped; Phase 2+ remaining) |
-| **Done** | Phase 1 — normalized status DTO, Minima Core UX, overview alignment |
-| **Next** | Phase 2 — backend health poller + auto-resync (flag-gated) |
+| **Done** | Phase 1–2 — status DTO, Minima Core UX, health poller, stall detection, optional auto-resync |
+| **Next** | Phase 3 — restart, peers, tests |
 | **Deferred** | Auto-resync (Phase 2), restart/peers (Phase 3), tests → QA |
 
 Backend service for the local Minima node (Docker container + HTTP RPC), exposing node status, health metrics, and operational controls to the browser UI.
@@ -296,7 +296,7 @@ Manual: Minima page shows block/peer stats; stop `minima` container → `state: 
 
 ---
 
-### Phase 2 — Backend health poller + auto-resync — **deferred**
+### Phase 2 — Backend health poller + auto-resync — **complete**
 
 **Goal:** Detect chain stall and optionally trigger Megammr resync without operator action.
 
@@ -406,8 +406,8 @@ Use this as the living checkbox list aligned to this plan:
 - [x] `GET /api/minima/status` — normalized Running/Stopped/Error, sync, storage (Phase 1)
 - [x] Health metrics — peer count, block age (Phase 1, nested in status)
 - [x] Resync (`POST /api/minima/megammrsync/resync`)
-- [ ] Automate resync on block stall (Phase 2, flag-gated)
-- [x] Health polling loop — frontend Phase 1 (30s on Minima page); backend Phase 2
+- [x] Automate resync on block stall (Phase 2, `MINIMA_AUTO_RESYNC=true`, cooldown-gated)
+- [x] Health polling loop — frontend Phase 1 (30s on Minima page); backend Phase 2 (`MINIMA_HEALTH_POLL_INTERVAL_SECONDS`)
 - [x] Graceful RPC/container failure handling (structured states in Phase 1)
 
 **Frontend**

@@ -165,6 +165,21 @@ Current Controls:
 - The Megammr resync action always calls the configured Minima RPC endpoint over the Docker network and only passes the saved Megammr host value.
 - The wallet balance action only calls the Minima `balance` command and returns its response through the backend.
 
+### Minima auto-resync (optional)
+
+Risk: When `MINIMA_AUTO_RESYNC=true`, the backend health poller can trigger Megammr resync without an operator click if the chain appears stalled (block age above `MINIMA_STALL_BLOCK_AGE_SECONDS` while the node is running). Minima may respond that a container restart is required afterward.
+
+Impact: Unexpected resync traffic, temporary Minima RPC unavailability (same as manual resync), and possible operator surprise on a production Pi.
+
+Current Controls:
+
+- **Disabled by default** (`MINIMA_AUTO_RESYNC=false`).
+- Cooldown between auto-resync attempts (`MINIMA_AUTO_RESYNC_COOLDOWN_MINUTES`, default 30).
+- Poller logs stall detection and auto-resync actions; `GET /api/minima/status` exposes `monitoring.stallDetected`, `lastAutoResyncAt`, and related fields.
+- Manual resync remains available in the UI; auto-resync reuses the same allowlisted `resyncMegammr()` path.
+
+Status: Documented prototype tradeoff. Review before enabling on production nodes.
+
 ### Data Source URL Fetching
 
 Risk: Saved data source URLs and optional health status URLs are fetched by the backend. In this prototype, an admin can configure URLs that cause the backend to make outbound or Docker-network HTTP requests.

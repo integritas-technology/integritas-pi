@@ -47,6 +47,15 @@ export type MinimaNodeStatus = {
     megammrHost: string;
     megammrHostSource: "database" | "default";
   };
+  monitoring: {
+    stallDetected: boolean;
+    stallThresholdSeconds: number;
+    autoResyncEnabled: boolean;
+    lastPollerCheckAt: string | null;
+    lastStallDetectedAt: string | null;
+    lastAutoResyncAt: string | null;
+    lastAutoResyncResult: string | null;
+  };
 };
 export type MinimaConfig = { megammrHost: string; megammrHostSource: "database" | "default" };
 export type MinimaCommandResult = { ok: boolean; status?: number; source: string; command?: string; body?: unknown; error?: string };

@@ -29,8 +29,21 @@ export function MinimaHealthCard({
     ? `Checked ${formatLocalTime(status.checkedAt)} local · ${formatUtcTime(status.checkedAt)} UTC`
     : "Chain and process metrics from Minima RPC.";
 
+  const monitoring = status?.monitoring;
+
   return (
     <div className="grid gap-4">
+      {monitoring?.stallDetected && (
+        <p className="mb-0 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          Chain stall detected — last block is older than {monitoring.stallThresholdSeconds}s.
+          {monitoring.autoResyncEnabled
+            ? monitoring.lastAutoResyncAt
+              ? ` Last auto-resync: ${formatLocalTime(monitoring.lastAutoResyncAt)} (${monitoring.lastAutoResyncResult ?? "no details"}).`
+              : " Auto-resync is enabled; the backend poller will attempt resync when cooldown allows."
+            : " Consider a manual Megammr resync or check peer connectivity."}
+        </p>
+      )}
+
       <MinimaStatGrid title="Node health" description={checkedLine}>
         <MinimaStatCell label="Node memory" value={memoryLabel} />
         <MinimaStatCell label="Peer connections" value={peerLabel} />

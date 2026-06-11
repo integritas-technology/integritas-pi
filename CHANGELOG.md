@@ -19,6 +19,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Backend Minima health poller: detects chain stalls on an interval (`MINIMA_HEALTH_POLL_INTERVAL_SECONDS`), exposes `monitoring` on `GET /api/minima/status`, and optionally triggers Megammr auto-resync when `MINIMA_AUTO_RESYNC=true`.
+- Minima Core UI shows a stall warning when `monitoring.stallDetected` is true.
 - Minima node status API returns a normalized operator view: container state, chain block/age, peer count, CPU/memory, and container disk (`GET /api/minima/status`).
 - Minima Core page shows structured node health cards with 30s auto-refresh; RPC debug JSON is collapsible. Megammr resync failures surface via toast.
 

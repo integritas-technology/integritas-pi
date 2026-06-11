@@ -55,5 +55,9 @@ export const env = {
   cookieSameSite: "strict" as const,
   sessionCookieName: "session",
   sessionMaxAgeDays: Number(process.env.SESSION_MAX_AGE_DAYS ?? 7),
-  sessionIdleHours: Number(process.env.SESSION_IDLE_HOURS ?? 24)
+  sessionIdleHours: Number(process.env.SESSION_IDLE_HOURS ?? 24),
+  minimaHealthPollIntervalSeconds: Number(process.env.MINIMA_HEALTH_POLL_INTERVAL_SECONDS ?? 60),
+  minimaStallBlockAgeSeconds: Number(process.env.MINIMA_STALL_BLOCK_AGE_SECONDS ?? 300),
+  minimaAutoResync: process.env.MINIMA_AUTO_RESYNC === "true",
+  minimaAutoResyncCooldownMinutes: Number(process.env.MINIMA_AUTO_RESYNC_COOLDOWN_MINUTES ?? 30)
 };

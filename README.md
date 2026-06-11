@@ -61,6 +61,10 @@ MINIMA_DATA_DIR=./minima
 MINIMA_P2P_PORT=9003
 MINIMA_RPC_BIND=127.0.0.1
 MINIMA_RPC_PORT=9005
+MINIMA_HEALTH_POLL_INTERVAL_SECONDS=60
+MINIMA_STALL_BLOCK_AGE_SECONDS=300
+MINIMA_AUTO_RESYNC=false
+MINIMA_AUTO_RESYNC_COOLDOWN_MINUTES=30
 INTEGRITAS_BASE_URL=https://integritas.technology/core
 INTEGRITAS_API_KEY=
 INTEGRITAS_REQUEST_ID=integritas-pi
@@ -78,6 +82,8 @@ SESSION_IDLE_HOURS=24
 `MINIMA_DATA_DIR` is mounted into the Minima container as `/home/minima/data` so node data survives container restarts and updates.
 
 `MINIMA_RPC_BIND` defaults to `127.0.0.1`, which means Minima RPC is only exposed on the Pi itself. Set it to `0.0.0.0` only on a trusted network.
+
+The backend runs a Minima health poller on `MINIMA_HEALTH_POLL_INTERVAL_SECONDS` (default 60s). It detects chain stalls when the last block age exceeds `MINIMA_STALL_BLOCK_AGE_SECONDS` (default 300s) while the node is running. Optional auto-resync is **off by default**; set `MINIMA_AUTO_RESYNC=true` to allow the poller to call Megammr resync (see `SECURITY.md`).
 
 `DATA_DIR` is mounted into the backend container as `/data` and stores the SQLite database.
 
@@ -385,9 +391,10 @@ Example fields:
 {
   "checkedAt": "2026-06-11T12:00:00.000Z",
   "state": "running",
-  "sync": { "block": 932067, "blockAgeSeconds": 45, "synced": true },
+  "sync": { "status": "active", "block": 932067, "blockAgeSeconds": 45 },
   "health": { "peerCount": 12 },
-  "container": { "state": "running", "cpuPercent": 2.5, "memory": { "usage": "512 MB", "limit": "4 GB" } }
+  "container": { "state": "running", "cpuPercent": 2.5, "memory": { "usage": "512 MB", "limit": "4 GB" } },
+  "monitoring": { "stallDetected": false, "autoResyncEnabled": false }
 }
 ```
 

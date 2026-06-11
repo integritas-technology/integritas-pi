@@ -1,5 +1,6 @@
 import { getSetting, saveSetting } from "../settings/settings.repository.js";
 import { getMinimaContainerStats, getMinimaStorageInfo } from "./minima.docker.js";
+import { buildMinimaMonitoring } from "./minima-monitoring.js";
 import { deriveSyncStatus, parseBlockCommandResponse, parsePeersResponse, parseStatusResponse } from "./minima.parse.js";
 import { fetchMinimaStatus, runMinimaPathCommand } from "./minima.rpc.js";
 import type { MinimaNodeState, MinimaNodeStatus } from "./minima.types.js";
@@ -53,9 +54,9 @@ export async function getMinimaNodeStatus(): Promise<MinimaNodeStatus> {
   ]);
 
   if ("failed" in rpcResult) {
-    const state = containerStats && containerStats.state !== "running" ? "stopped" : "error";
+    const state: MinimaNodeState = containerStats && containerStats.state !== "running" ? "stopped" : "error";
     const empty = emptyNodeStatusFields();
-    return {
+    const status = {
       checkedAt,
       state,
       container: containerStats
@@ -71,6 +72,7 @@ export async function getMinimaNodeStatus(): Promise<MinimaNodeStatus> {
       storage: getMinimaStorageInfo(containerStats?.containerDisk),
       config
     };
+    return { ...status, monitoring: buildMinimaMonitoring(status) };
   }
 
   const parsed = parseStatusResponse(rpcResult.body);
@@ -117,7 +119,7 @@ export async function getMinimaNodeStatus(): Promise<MinimaNodeStatus> {
   const rpcReachable = rpcResult.ok;
   const state = deriveNodeState(containerStats, rpcReachable, parsed.rpcOk);
 
-  return {
+  const status = {
     checkedAt,
     state,
     container: containerStats
@@ -151,6 +153,8 @@ export async function getMinimaNodeStatus(): Promise<MinimaNodeStatus> {
     }),
     config
   };
+
+  return { ...status, monitoring: buildMinimaMonitoring(status) };
 }
 
 export async function getWalletBalance() {
