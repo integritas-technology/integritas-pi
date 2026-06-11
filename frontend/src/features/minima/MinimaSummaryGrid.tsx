@@ -50,11 +50,13 @@ export function MinimaSummaryGrid({
     config?.megammrHost ??
     status?.config.megammrHost ??
     'megammr.minima.global:9001';
-  const storageLabel = status?.storage.containerDisk
-    ? `${status.storage.containerDisk} used`
-    : loading
-      ? 'Checking…'
-      : 'Unavailable';
+  const storageLabel = status?.storage.chainDataDisk
+    ? `${status.storage.chainDataDisk} chain data`
+    : status?.node.memoryDisk
+      ? `${status.node.memoryDisk} chain data`
+      : loading
+        ? 'Checking…'
+        : 'Unavailable';
 
   return (
     <div className={cx('grid gap-4 md:grid-cols-2 lg:grid-cols-3')}>

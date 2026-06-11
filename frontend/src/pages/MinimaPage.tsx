@@ -4,6 +4,7 @@ import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
 import { useToast } from "../components/ToastProvider";
 import { getMinimaConfig, resyncMegammr, saveMinimaConfig } from "../features/minima/minimaApi";
+import { MinimaContainerCard } from "../features/minima/MinimaContainerCard";
 import { MinimaHealthCard } from "../features/minima/MinimaHealthCard";
 import { MinimaRuntimeConfig } from "../features/minima/MinimaRuntimeConfig";
 import { MinimaSummaryGrid } from "../features/minima/MinimaSummaryGrid";
@@ -108,7 +109,10 @@ export function MinimaPage() {
         result={actionResult}
         onResync={runResync}
       />
-      <MinimaHealthCard status={nodeStatus} error={statusError} loading={statusLoading} />
+      <section className="grid gap-4 lg:grid-cols-2">
+        <MinimaHealthCard status={nodeStatus} error={statusError} loading={statusLoading} />
+        <MinimaContainerCard status={nodeStatus} loading={statusLoading} />
+      </section>
     </Page>
   );
 }

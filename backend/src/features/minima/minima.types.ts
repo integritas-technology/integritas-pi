@@ -22,10 +22,16 @@ export type MinimaNodeStatus = {
   };
   health: {
     peerCount: number | null;
+    peersKnown: number | null;
+  };
+  node: {
+    memoryRam: string | null;
+    memoryDisk: string | null;
   };
   storage: {
     dataPath: string;
     containerDisk: string | null;
+    chainDataDisk: string | null;
   };
   config: {
     megammrHost: string;

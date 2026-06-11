@@ -1,6 +1,6 @@
 import { getSetting, saveSetting } from "../settings/settings.repository.js";
 import { getMinimaContainerStats, getMinimaStorageInfo } from "./minima.docker.js";
-import { parsePeersResponse, parseStatusResponse } from "./minima.parse.js";
+import { parseBlockCommandResponse, parsePeersResponse, parseStatusResponse } from "./minima.parse.js";
 import { fetchMinimaStatus, runMinimaPathCommand } from "./minima.rpc.js";
 import type { MinimaNodeState, MinimaNodeStatus } from "./minima.types.js";
 
@@ -32,6 +32,14 @@ function deriveNodeState(
   return "running";
 }
 
+function emptyNodeStatusFields() {
+  return {
+    sync: { synced: null, block: null, blockTime: null, blockAgeSeconds: null },
+    health: { peerCount: null, peersKnown: null },
+    node: { memoryRam: null, memoryDisk: null }
+  };
+}
+
 export async function getMinimaNodeStatus(): Promise<MinimaNodeStatus> {
   const checkedAt = new Date().toISOString();
   const config = getMinimaConfig();
@@ -46,6 +54,7 @@ export async function getMinimaNodeStatus(): Promise<MinimaNodeStatus> {
 
   if ("failed" in rpcResult) {
     const state = containerStats && containerStats.state !== "running" ? "stopped" : "error";
+    const empty = emptyNodeStatusFields();
     return {
       checkedAt,
       state,
@@ -58,22 +67,38 @@ export async function getMinimaNodeStatus(): Promise<MinimaNodeStatus> {
           }
         : null,
       rpc: { ok: false, error: rpcResult.error },
-      sync: { synced: null, block: null, blockTime: null, blockAgeSeconds: null },
-      health: { peerCount: null },
+      ...empty,
       storage: getMinimaStorageInfo(containerStats?.containerDisk),
       config
     };
   }
 
   const parsed = parseStatusResponse(rpcResult.body);
+  let { block, blockTime, blockAgeSeconds } = parsed;
   let peerCount = parsed.peerCount;
+  let peersKnown: number | null = null;
+
+  if (blockAgeSeconds === null && parsed.rpcOk && block !== null) {
+    try {
+      const blockResult = await runMinimaPathCommand("block");
+      const blockParsed = parseBlockCommandResponse(blockResult.body);
+      if (blockParsed.blockAgeSeconds !== null) {
+        blockTime = blockParsed.blockTime;
+        blockAgeSeconds = blockParsed.blockAgeSeconds;
+      }
+      if (block === null && blockParsed.block !== null) block = blockParsed.block;
+    } catch {
+      // Keep status-derived values only.
+    }
+  }
 
   if (peerCount === null && parsed.rpcOk) {
     try {
       const peersResult = await runMinimaPathCommand("peers");
-      peerCount = parsePeersResponse(peersResult.body);
+      peersKnown = parsePeersResponse(peersResult.body);
+      if (peerCount === null) peerCount = peersKnown;
     } catch {
-      peerCount = null;
+      peersKnown = null;
     }
   }
 
@@ -98,12 +123,19 @@ export async function getMinimaNodeStatus(): Promise<MinimaNodeStatus> {
     },
     sync: {
       synced: parsed.synced,
-      block: parsed.block,
-      blockTime: parsed.blockTime,
-      blockAgeSeconds: parsed.blockAgeSeconds
+      block,
+      blockTime,
+      blockAgeSeconds
     },
-    health: { peerCount },
-    storage: getMinimaStorageInfo(containerStats?.containerDisk),
+    health: { peerCount, peersKnown },
+    node: {
+      memoryRam: parsed.nodeMemory.ram,
+      memoryDisk: parsed.nodeMemory.disk
+    },
+    storage: getMinimaStorageInfo(containerStats?.containerDisk, {
+      dataPath: parsed.dataPath,
+      chainDataDisk: parsed.nodeMemory.disk
+    }),
     config
   };
 }

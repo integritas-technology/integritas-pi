@@ -18,9 +18,13 @@ export async function getMinimaContainerStats() {
   };
 }
 
-export function getMinimaStorageInfo(containerDisk: string | null | undefined) {
+export function getMinimaStorageInfo(
+  containerDisk: string | null | undefined,
+  input?: { dataPath?: string | null; chainDataDisk?: string | null }
+) {
   return {
-    dataPath: minimaDataPath,
-    containerDisk: containerDisk ?? null
+    dataPath: input?.dataPath?.trim() || minimaDataPath,
+    containerDisk: containerDisk ?? null,
+    chainDataDisk: input?.chainDataDisk ?? null
   };
 }
