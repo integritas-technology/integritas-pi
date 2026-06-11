@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- Modal dialogs (including JSON preview on Minima resync) now render via a document portal, fixing incorrect positioning and hover flicker inside cards that use CSS transforms.
+
 ### Added
 
 - Minima node status API returns a normalized operator view: container state, chain block/age, peer count, CPU/memory, and container disk (`GET /api/minima/status`).
