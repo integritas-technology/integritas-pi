@@ -50,13 +50,16 @@ export function MinimaSummaryGrid({
     config?.megammrHost ??
     status?.config.megammrHost ??
     'megammr.minima.global:9001';
-  const storageLabel = status?.storage.chainDataDisk
+  const chainDataLabel = status?.storage.chainDataDisk
     ? `${status.storage.chainDataDisk} chain data`
     : status?.node.memoryDisk
       ? `${status.node.memoryDisk} chain data`
       : loading
         ? 'Checking…'
         : 'Unavailable';
+  const containerDiskLabel = status?.storage.containerDisk
+    ? `${status.storage.containerDisk} Docker container`
+    : null;
 
   return (
     <div className={cx('grid gap-4 md:grid-cols-2 lg:grid-cols-3')}>
@@ -91,7 +94,13 @@ export function MinimaSummaryGrid({
         </div>
       </SummaryCard>
 
-      <SummaryCard icon={HardDrive} title='Local storage' text={storageLabel} />
+      <SummaryCard icon={HardDrive} title='Local storage' text={chainDataLabel}>
+        {containerDiskLabel && (
+          <p className='mt-1 mb-0 text-sm leading-6 text-slate-500'>
+            {containerDiskLabel}
+          </p>
+        )}
+      </SummaryCard>
     </div>
   );
 }
