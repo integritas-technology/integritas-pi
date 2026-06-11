@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-11
+
+Integritas integration hardening and proof polling, plus data-source health/editing, shared toast notifications, and runtime config UX on `main`.
+
 ### Added
 
 - Integritas runtime config: **Check key** button and validity badge via `POST /api/integritas/api-key/check` (admin). Uses the stored key server-side only; auto-checks when the modal opens if a key is configured.
@@ -31,7 +35,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [0.2.0] - 2026-06-09
 
-Branch: `auth-permissions` — authentication, first-run setup, and related UI/platform work merged on top of `main`.
+Local authentication, first-run setup, and related UI/platform work merged on top of `main`.
 
 ### Added
 
