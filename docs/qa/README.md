@@ -8,6 +8,8 @@ This document is the **single entry point** for work deferred to QA: automated t
 Docs index: [README.md](../README.md)  
 Detailed auth backlog: [auth-gaps.md](./auth-gaps.md)  
 Integritas feature plan: [integritas-integration.md](../plans/integritas-integration.md)  
+Minima node plan: [minima-node.md](../plans/minima-node.md)  
+Minima gaps: [minima-gaps.md](./minima-gaps.md)  
 Security model: [auth-security.md](../plans/auth-security.md), [SECURITY.md](../../SECURITY.md)
 
 ---
@@ -117,6 +119,21 @@ Run on a stack with Integritas API key configured (UI or `INTEGRITAS_API_KEY` in
 
 ---
 
+## Workstream E — Minima node QA
+
+**Source:** [minima-node.md](../plans/minima-node.md) — Phases 1–3 shipped (see git: `d37da21` … `13c041f` on `minima-node-control-service`).  
+**Detail:** [minima-gaps.md](./minima-gaps.md)
+
+| Priority | Topic |
+|----------|--------|
+| **P0** | Stopped container state, resync+restart UI, restart audit, peers modal, `npm run test` |
+| **P1** | Admin gate on resync/config (open decision), auto-resync without container restart, AppShell overview refresh, Docker socket writable |
+| **P2** | Live RPC integration tests (`MINIMA_INTEGRATION_TEST=1`), CLI, peer remove, peers 502 vs status 200 |
+
+**Unit tests (shipped):** `backend/src/features/minima/minima.parse.test.ts` via `npm run test`.
+
+---
+
 ## Workstream D — Build & deploy smoke
 
 - [ ] `npm run check`
@@ -158,4 +175,5 @@ Approved for: [ ] continued dev  [ ] field pilot  [ ] production
 
 | Date | Change |
 |------|--------|
+| 2026-06-11 | Workstream E — Minima node QA gaps ([minima-gaps.md](./minima-gaps.md)) |
 | 2026-06-09 | Initial QA hub; Integritas integration tests moved out of feature Phase 4 |

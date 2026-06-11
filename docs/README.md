@@ -47,8 +47,9 @@ When starting a new feature, add a plan here before large diffs. Mark it **Compl
 |----------|---------|
 | [qa/README.md](./qa/README.md) | QA phase hub: exit criteria, workstreams, sign-off template |
 | [qa/auth-gaps.md](./qa/auth-gaps.md) | Auth security & testing backlog (P0–P2) |
+| [qa/minima-gaps.md](./qa/minima-gaps.md) | Minima node manual QA, auth gates, live RPC tests (P0–P2) |
 
-Integritas sandbox tests and manual checklists are in [qa/README.md](./qa/README.md) (Workstreams B–C), deferred from [integritas-integration.md](./plans/integritas-integration.md).
+Integritas sandbox tests: [qa/README.md](./qa/README.md) Workstreams B–C. Minima QA: Workstream E + [minima-gaps.md](./qa/minima-gaps.md).
 
 ---
 

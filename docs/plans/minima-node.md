@@ -17,7 +17,9 @@ Companion docs: [README.md](../README.md) (docs index), [project README.md](../.
 
 ## Verdict
 
-The **Minima integration foundation is shipped**: HTTP RPC client, allowlisted commands, Megammr resync, wallet balance, and a basic Minima Core page. What remains is **structured status/health** (instead of raw JSON passthrough), **live operator UX** on the Minima page, and optionally **backend health monitoring** with stall detection.
+**Phases 1–3 are shipped.** Operators get normalized status, Minima Core UX (summary cards, node health, container stats, config modal with peers), backend health poller with optional auto-resync, admin restart/peers APIs, parser unit tests, and UI resync that chains container restart when Minima requires it.
+
+**Remaining work is QA**, not feature build — see [minima-gaps.md](../qa/minima-gaps.md).
 
 **API naming:** The ticket used placeholder paths (`/api/node/*`). **This plan uses `/api/minima/*`** — the routes already registered in `minima.routes.ts` and documented in `README.md`. No renames, no compatibility aliases.
 
@@ -25,66 +27,43 @@ The **Minima integration foundation is shipped**: HTTP RPC client, allowlisted c
 
 ---
 
-## Capability checklist (mapped to current routes)
+## Shipped capabilities (audit 2026-06-11)
 
-The ticket checklist is a **capability list**, not a route spec.
-
-### Backend — done or partial
-
-| Capability | Status | Route(s) / location |
+| Area | Status | Implementation |
 |---|---|---|
-| Local daemon interface (HTTP RPC, path-encoded) | **Done** | `runMinimaPathCommand()` in `minima.service.ts`; `MINIMA_STATUS_URL` in `env.ts` / `docker-compose.yml` |
-| Node status (reachability) | **Partial** | `GET /api/minima/status` — returns raw RPC wrapper (`ok`, `status`, `source`, `body`); not normalized Running/Stopped/Error + sync + storage |
-| Node health (peers, block age) | **Not started** | No dedicated endpoint; data exists inside Minima `status` / `peers` RPC responses but is not parsed |
-| Megammr resync | **Done** | `POST /api/minima/megammrsync/resync`; host from `GET/POST /api/minima/config` (SQLite `minima_megammr_host`) |
-| Wallet balance | **Done** | `GET /api/minima/balance` (allowlisted `balance` command) |
-| Crash / unavailable handling | **Partial** | RPC failures → `502`; `GET /api/status/overview` catches Minima errors; Docker `restart: unless-stopped` on `minima` service |
-| Docker resource visibility | **Partial** | `GET /api/status/overview` → `resources.containers[]` includes `minima` CPU/memory; not exposed on Minima page; AppShell fetches once |
+| Normalized status API | **Done** | `GET /api/minima/status` → `getMinimaNodeStatus()`; HTTP 200 + `state` / `sync` / `health` / `container` / `storage` / `monitoring` |
+| Overview Minima check | **Done** | `status.routes.ts` uses `getMinimaNodeStatus()` |
+| Frontend poll (30s) | **Done** | `useMinimaStatusRefresh`; pauses during resync/restart/busy |
+| Backend health poller | **Done** | `minima-poll.service.ts`; stall + optional `MINIMA_AUTO_RESYNC` |
+| Restart / peers API | **Done** | `POST /restart`, `GET /peers`, `POST /peers/add` (admin + audit on mutations) |
+| Parser unit tests | **Done** | `minima.parse.test.ts`; `npm run test` |
+| Minima Core UX | **Done** | `MinimaSummaryGrid`, `MinimaHealthCard`, `MinimaContainerCard`, settings modal (Integritas-style layout) |
+| Resync UX | **Done** | Toast + auto-restart when Minima requires; transient RPC errors suppressed |
+| Wallet | **Done** | `WalletPage.tsx` → `GET /api/minima/balance` |
 
-### Backend — remaining
+### Not shipped / deferred → [minima-gaps.md](../qa/minima-gaps.md)
 
-| Ticket item | Status | Notes |
-|---|---|---|
-| Normalized status (Running/Stopped/Error, sync, storage) | **Phase 1** | Extend `GET /api/minima/status` DTO; combine Docker container state + parsed RPC |
-| Health metrics (peer count, last block age) | **Phase 1** | Nested under status or `GET /api/minima/health` — see [API shape](#api-shape-phase-1) |
-| Health polling loop (configurable interval) | **Phase 1 (frontend)** / **Phase 2 (backend)** | Frontend interval on Minima page first; backend poller only when auto-resync needs it |
-| Automate resync on block failure | **Phase 2** | Requires stall definition, cooldown, feature flag; detect+log before auto-action |
-| `POST` restart with permission check | **Done** | `POST /api/minima/restart`; `requireRole('admin')`; audit log |
-| Manage peer connections | **Done** | `GET /api/minima/peers`, `POST /api/minima/peers/add` (add only; no remove RPC in Minima docs) |
-| Unit / integration tests | **Deferred → QA** | Parser fixtures + optional live-RPC integration behind env flag |
-
-### Frontend — done or partial
-
-| Capability | Status | Location |
-|---|---|---|
-| Minima Core page | **Partial** | `MinimaPage.tsx` — config modal, resync, raw `JsonPreview` of status |
-| Megammr config modal | **Done** | `MinimaRuntimeConfig.tsx` + `Modal` |
-| Resync action | **Done** | `MinimaActionCards.tsx` |
-| Wallet balance | **Done** | `WalletPage.tsx` → `GET /api/minima/balance` |
-| Service status pill (header) | **Partial** | `AppShell.tsx` — one-shot `GET /api/status/overview`; label “Wallet ready” uses `minima` service ok |
-| Structured sync / block display | **Not started** | Mock target: `mock/MinimaEdgeWorkbench.tsx` Node health section |
-| Live resource stats | **Not started** | Overview has data; Minima page does not poll or display it |
-| Toast for transient errors | **Partial** | Resync uses inline errors; Diagnostics pattern uses `useToast` |
-
-### Future — defer
-
-| Capability | Recommendation |
+| Item | Notes |
 |---|---|
-| `POST /api/minima/restart` | Docker container restart via socket; admin-only; document in `SECURITY.md` |
-| Peer connection management | Allowlisted commands per action; no generic RPC proxy |
-| Backend-side metrics export | Out of scope unless Minima Prometheus endpoint is explicitly required |
+| Live RPC integration tests | `MINIMA_INTEGRATION_TEST=1` — QA |
+| Admin gate on resync/config | Open decision; **not** implemented (restart/peers are admin-gated) |
+| Poller auto-restart after resync | UI resync chains restart; backend poller does not |
+| AppShell overview refresh | One-shot pill; optional polish |
+| Minima CLI | Out of scope V1 |
+| Peer remove | No Minima RPC documented |
+| Prometheus / metrics export | Out of scope |
 
 ---
 
 ## Canonical API routes
 
-All implementation builds on paths registered in `minima.routes.ts`, mounted at `/api/minima` in `app.ts`. All routes require `requireAuth` (no `admin` gate today on config/resync — see [Open decisions](#open-decisions)).
+All routes mount at `/api/minima` in `app.ts`. All require `requireAuth`. **Admin-gated:** `POST /restart`, `POST /peers/add`. **Any authenticated user:** config, status, peers read, balance, resync (see [Open decisions](#open-decisions)).
 
 | Method | Path | Purpose | Status |
 |---|---|---|---|
 | `GET` | `/config` | Megammr host + source (`database` \| `default`) | **Done** |
 | `POST` | `/config` | Save Megammr host | **Done** |
-| `GET` | `/status` | Node status | **Partial** — normalize in Phase 1 |
+| `GET` | `/status` | Normalized node status | **Done** |
 | `GET` | `/balance` | Wallet balance via `balance` RPC | **Done** |
 | `POST` | `/megammrsync/resync` | Trigger Megammr resync | **Done** |
 | `GET` | `/peers` | Peer list from Minima RPC | **Done** |
@@ -133,7 +112,7 @@ Typical response envelope:
 | Command | Purpose | Exposed via |
 |---|---|---|
 | `status` | Chain block, sync state, node metadata | `GET /api/minima/status` |
-| `peers` | Peer list / count (if not fully in `status`) | Phase 1 parser only; no generic proxy |
+| `peers` | Peer list / count | `GET /api/minima/peers`; also parsed in status when needed |
 | `balance` | Wallet balance | `GET /api/minima/balance` |
 | `megammrsync action:resync host:<host>` | Archive resync | `POST /api/minima/megammrsync/resync` |
 
@@ -156,53 +135,63 @@ Schedulers (index.ts startup, Phase 2 only)
   → minima-poll.service.ts (health snapshot, stall detection, optional auto-resync)
 
 status feature (existing)
-  → docker.service.ts (read-only Docker socket)
-  → status.routes.ts (overview may call shared getMinimaNodeStatus() later)
+  → docker.service.ts (container list/stats)
+  → docker.control.ts (allowlisted restart — writable socket)
+  → status.routes.ts (overview calls getMinimaNodeStatus())
 ```
 
 **Principles:**
 
 1. **One RPC client** — all Minima HTTP calls go through `minima.rpc.ts` (`runMinimaPathCommand` moved/refactored there).
 2. **Parse once** — `minima.parse.ts` maps vendor JSON to stable DTOs; routes never parse `body.response.chain` inline.
-3. **Docker read vs write** — status/health use read-only Docker inspect/stats. Restart is a separate Phase 3 module with admin auth.
+3. **Docker read vs write** — stats via read paths; restart via `docker.control.ts` (admin). Socket mount is writable for restart (see `SECURITY.md`).
 4. **No frontend RPC** — browser calls backend only (`credentials: "include"`).
 5. **Fail safe** — RPC down → structured `state: "error"` with message; never leak secrets.
 6. **No new abstractions** — no generic node framework, no job queue; copy `integritas-poll.service.ts` pattern if backend polling is needed.
 
 ---
 
-## Current state snapshot
+## Current state snapshot (2026-06-11)
 
 ### Backend (`backend/src/features/minima/`)
 
-- **`minima.service.ts`:** `getMinimaStatus`, `getWalletBalance`, `resyncMegammr`, `getMinimaConfig`, `saveMinimaConfig`, internal `runMinimaPathCommand`.
-- **`minima.routes.ts`:** Thin handlers; 502 on upstream failure.
-- **`env.ts`:** `minimaStatusUrl` from `MINIMA_STATUS_URL` or `http://127.0.0.1:${MINIMA_RPC_PORT}/status`.
-- **No parser, no docker helper, no poller** in this feature folder yet.
-- **Auth:** All `/api/minima/*` behind `requireAuth`; config/resync are **not** `admin`-gated (differs from Integritas API key mutations).
+| File | Role |
+|---|---|
+| `minima.rpc.ts` | Path-encoded HTTP RPC |
+| `minima.parse.ts` | Status/peers/block/resync parsing |
+| `minima.parse.test.ts` | Unit tests |
+| `minima.errors.ts` | Operator-friendly RPC transport errors |
+| `minima.docker.ts` | Minima container stats from Docker |
+| `minima.service.ts` | `getMinimaNodeStatus`, resync, restart, peers, config |
+| `minima.monitoring.ts` | Stall snapshot for poller + status DTO |
+| `minima-poll.service.ts` | Health poller + optional auto-resync |
+| `minima.routes.ts` | HTTP routes |
+| `minima.types.ts` | `MinimaNodeStatus` DTO |
 
-### Cross-cutting (`backend/src/features/status/`)
+### Cross-cutting
 
-- **`status.routes.ts`:** Probes `env.minimaStatusUrl`; treats `body.status === true` as healthy.
-- **`docker.service.ts`:** `dockerServiceResources()` — CPU/memory for compose project `integritas-pi` containers including `minima`.
+- `status/docker.control.ts` — `restartComposeService("minima")`
+- `status/status.routes.ts` — overview uses `getMinimaNodeStatus()`
+- `index.ts` — `startMinimaHealthPoller()` after migrations
 
-### Frontend
+### Frontend (`frontend/src/features/minima/`)
 
-- **`MinimaPage.tsx`:** One-shot status fetch; resync; config modal; raw JSON preview.
-- **`AppShell.tsx`:** One-shot overview for header pills.
-- **`features/minima/`:** `MinimaActionCards`, `MinimaRuntimeConfig`.
-- **`WalletPage.tsx`:** Balance display.
-- **`mock/MinimaEdgeWorkbench.tsx`:** Aspirational UX (peer count, block age, CPU/memory, restart) — reference only, not production code.
+`MinimaPage`, `MinimaSummaryGrid`, `MinimaHealthCard`, `MinimaContainerCard`, `MinimaRuntimeConfig`, `minimaApi`, `useMinimaStatusRefresh`, `mergeMinimaStatus`, `minimaResync`, `minimaStatusDisplay`, `minimaFormat`.
 
-### Gaps
+### Git history (feature branch)
 
-1. Status API returns opaque RPC wrapper; operators must read raw JSON.
-2. No parsed block height, block age, or peer count in API or UI.
-3. Minima page does not poll; AppShell overview does not refresh.
-4. Resource stats exist in overview but are not shown on Minima Core page.
-5. No backend health loop or auto-resync.
-6. No Docker restart control.
-7. No automated tests for Minima parsing — deferred to QA.
+| Commit | Summary |
+|---|---|
+| `1468177` | Minima integration plan |
+| `d37da21` | Phase 1 — normalized status API + UI |
+| `789859e` / `e73ddc4` | UI/health cards, polling |
+| `230c139` | Resync/sync parsing fixes |
+| `a58ab96` | Phase 2 — health poller + auto-resync |
+| `0935bd6` | Local storage — chain + container disk |
+| `f035b25` | Phase 3 — restart, peers API, parser tests |
+| `4ff542d` / `13c041f` | Config modal layout, peer UX, error handling |
+
+### Open gaps → [minima-gaps.md](../qa/minima-gaps.md)
 
 ---
 
@@ -227,20 +216,27 @@ type MinimaNodeStatus = {
   };
   sync: {
     synced: boolean | null;
+    status: "active" | "stale" | "syncing" | "unavailable";
     block: number | null;
-    blockTime: string | null;           // ISO if parseable
+    blockTime: string | null;
     blockAgeSeconds: number | null;
   };
-  health: {
-    peerCount: number | null;
-  };
+  health: { peerCount: number | null; peersKnown: number | null };
+  node: { memoryRam: string | null; memoryDisk: string | null };
   storage: {
-    dataPath: string;                   // informational e.g. /home/minima/data (Minima container)
-    containerDisk: string | null;       // from Docker container rootfs size (same as overview)
+    dataPath: string;
+    containerDisk: string | null;
+    chainDataDisk: string | null;       // Minima RPC memory.disk
   };
-  config: {
-    megammrHost: string;
-    megammrHostSource: "database" | "default";
+  config: { megammrHost: string; megammrHostSource: "database" | "default" };
+  monitoring: {
+    stallDetected: boolean;
+    stallThresholdSeconds: number;
+    autoResyncEnabled: boolean;
+    lastPollerCheckAt: string | null;
+    lastStallDetectedAt: string | null;
+    lastAutoResyncAt: string | null;
+    lastAutoResyncResult: string | null;
   };
 };
 ```
@@ -352,7 +348,8 @@ Align with `mock/MinimaEdgeWorkbench.tsx` Node section — implemented increment
 | State pill (Running / Stopped / Error) | `status.state` |
 | Current block | `status.sync.block` |
 | Last block age | `status.sync.blockAgeSeconds` (humanized) |
-| Peer connections | `status.health.peerCount` |
+| Active peers | `status.health.peerCount` (`network.connected`) |
+| Configured peers | `GET /api/minima/peers` in settings modal |
 | CPU / memory | `status.container.cpuPercent`, `status.container.memory` |
 | Megammr resync | existing action card |
 | Configure Megammr host | existing modal |
@@ -369,7 +366,7 @@ Align with `mock/MinimaEdgeWorkbench.tsx` Node section — implemented increment
 |---|---|---|
 | 1 | One vs two status endpoints | **One** `GET /api/minima/status` with nested `health` |
 | 2 | Phase 1 polling owner | **Frontend** interval on Minima page; backend poller in Phase 2 |
-| 3 | Admin gate on config/resync | **Yes for resync** (`requireRole('admin')`); config change is lower risk — align with product |
+| 3 | Admin gate on config/resync | **Recommended** for resync; **not implemented** — restart/peers are admin-gated; track in [minima-gaps.md](../qa/minima-gaps.md) |
 | 4 | Block failure definition | **Stale block age** while container running; confirm threshold with ops |
 | 5 | Raw RPC in API response | Include `rpc.raw` for QA; hide behind collapsible UI section |
 | 6 | `502` vs `200` when node unhealthy | **`200` + `state: "error"`** for expected unhealthy; `502` for handler/upstream transport failure |
@@ -396,7 +393,7 @@ When shipping each phase:
 - Add operator-facing notes to `CHANGELOG.md` (`[Unreleased]`).
 - Update `README.md` Minima API example if response shape changes.
 - Update `SECURITY.md` when adding Docker write (restart) or auto-resync.
-- Mark this plan **Complete** in `docs/README.md` when Phase 1–2 product scope is done; move tests to `qa/README.md`.
+- Plan marked **Complete** in `docs/README.md`; QA gaps in [minima-gaps.md](../qa/minima-gaps.md) and [qa/README.md](../qa/README.md#workstream-e--minima-node-qa).
 
 ---
 
