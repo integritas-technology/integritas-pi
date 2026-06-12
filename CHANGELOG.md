@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [0.5.0] - 2026-06-12
 
+System basic status and health checks added to Dashboard with 30s auto-polling, and graceful shutdown to backend systems.
+
 ### Added
 
 - `GET /api/status` — new auth-protected device summary endpoint: stable device ID (UUID persisted in `settings`), hostname, platform, arch, uptime, CPU count, host memory, load averages, disk usage (`/data`, falling back to `/`), setup state, Minima node state (from poller cache), and a live Integritas API connection check (3 s timeout, 30 s server-side cache).
