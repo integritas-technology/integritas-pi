@@ -8,10 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- `GET /api/status` — new auth-protected endpoint returning a fast device summary: stable device ID (UUID persisted in the `settings` table), hostname, platform, arch, host uptime, host memory, load averages, app setup/Integritas state, and last Minima node state from the poller cache. No upstream network calls; sub-millisecond response.
+- `GET /api/status` — new auth-protected device summary endpoint: stable device ID (UUID persisted in `settings`), hostname, platform, arch, uptime, CPU count, host memory, load averages, disk usage (`/data`, falling back to `/`), setup state, Minima node state (from poller cache), and a live Integritas API connection check (3 s timeout, 30 s server-side cache).
 - Graceful shutdown: SIGTERM and SIGINT now stop all background schedulers (automation, Integritas proof poller, Minima health poller) and close the SQLite connection before exiting.
-- Dashboard shows six metric cards on load — Node status, Device (hostname + platform), Integritas API key state, CPU load (normalized % + 1m avg), Memory (used / total), and Disk usage (/data volume). All data from a single cheap `GET /api/status` call; no Minima RPC or Docker socket on the dashboard path.
-- `GET /api/status` now includes `device.cpuCount` (core count) and `device.disk` (used/free/total bytes for `/data`, or null when unavailable).
+- Dashboard live-status grid: six metric cards (Node status, Device, Integritas API, CPU, Memory, Disk) fed by `GET /api/status`, auto-polling every 30 seconds. No Minima RPC or Docker socket calls on the dashboard path.
 
 ## [0.4.0] - 2026-06-11
 
