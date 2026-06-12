@@ -6,13 +6,15 @@ export type MinimaMonitoringSnapshot = {
   lastStallDetectedAt: string | null;
   lastAutoResyncAt: string | null;
   lastAutoResyncResult: string | null;
+  lastNodeState: "running" | "stopped" | "error" | "unknown";
 };
 
 const snapshot: MinimaMonitoringSnapshot = {
   lastPollerCheckAt: null,
   lastStallDetectedAt: null,
   lastAutoResyncAt: null,
-  lastAutoResyncResult: null
+  lastAutoResyncResult: null,
+  lastNodeState: "unknown"
 };
 
 type MinimaStatusForMonitoring = Pick<MinimaNodeStatus, "state" | "sync">;
@@ -39,8 +41,13 @@ export function buildMinimaMonitoring(status: MinimaStatusForMonitoring) {
   };
 }
 
-export function recordPollerCheck(checkedAt: string) {
+export function recordPollerCheck(checkedAt: string, state: MinimaMonitoringSnapshot["lastNodeState"]) {
   snapshot.lastPollerCheckAt = checkedAt;
+  snapshot.lastNodeState = state;
+}
+
+export function getLastMinimaPollerState(): { state: MinimaMonitoringSnapshot["lastNodeState"]; lastCheckedAt: string | null } {
+  return { state: snapshot.lastNodeState, lastCheckedAt: snapshot.lastPollerCheckAt };
 }
 
 export function recordStallDetected() {

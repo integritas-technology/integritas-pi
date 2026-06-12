@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `GET /api/status` — new auth-protected endpoint returning a fast device summary: stable device ID (UUID persisted in the `settings` table), hostname, platform, arch, host uptime, host memory, load averages, app setup/Integritas state, and last Minima node state from the poller cache. No upstream network calls; sub-millisecond response.
+- Graceful shutdown: SIGTERM and SIGINT now stop all background schedulers (automation, Integritas proof poller, Minima health poller) and close the SQLite connection before exiting.
+
 ## [0.4.0] - 2026-06-11
 
 Minima node status, health monitoring, container restart, peer management, and Minima Core UI.

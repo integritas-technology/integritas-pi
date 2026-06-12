@@ -18,7 +18,7 @@ export async function pollMinimaHealth() {
   pollRunning = true;
   try {
     const status = await getMinimaNodeStatus();
-    recordPollerCheck(status.checkedAt);
+    recordPollerCheck(status.checkedAt, status.state);
 
     if (!detectStall(status)) return;
 
@@ -62,4 +62,11 @@ export function startMinimaHealthPoller() {
 
   runPoll();
   poller = setInterval(runPoll, intervalMs);
+}
+
+export function stopMinimaHealthPoller() {
+  if (poller) {
+    clearInterval(poller);
+    poller = null;
+  }
 }

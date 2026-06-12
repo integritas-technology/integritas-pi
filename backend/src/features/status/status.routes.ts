@@ -4,6 +4,9 @@ import { getIntegritasApiKey } from "../settings/secrets.service.js";
 import { fetchJsonWithTimeout } from "../../shared/http.js";
 import { getMinimaNodeStatus } from "../minima/minima.service.js";
 import { dockerServiceResources, diskUsage } from "./docker.service.js";
+import { getDeviceInfo } from "./device.service.js";
+import { getLastMinimaPollerState } from "../minima/minima-monitoring.js";
+import { isSetupComplete } from "../auth/setup.service.js";
 
 type ServiceStatus = {
   name: string;
@@ -14,6 +17,21 @@ type ServiceStatus = {
 };
 
 export const statusRouter = Router();
+
+statusRouter.get("/", (_req, res) => {
+  const device = getDeviceInfo();
+  const node = getLastMinimaPollerState();
+  res.json({
+    checkedAt: new Date().toISOString(),
+    device,
+    app: {
+      running: true as const,
+      setupComplete: isSetupComplete(),
+      integritasConfigured: Boolean(getIntegritasApiKey())
+    },
+    node
+  });
+});
 
 statusRouter.get("/overview", async (_req, res) => {
   const services: ServiceStatus[] = [

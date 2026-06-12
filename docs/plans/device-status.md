@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **Not started** |
-| **Done** | — |
-| **Next** | Phase 1 — device info service + `GET /api/status` |
+| **Status** | **Phase 1 complete** |
+| **Done** | Phase 1 — device info service + `GET /api/status` + graceful shutdown |
+| **Next** | Phase 2 — frontend dashboard widget |
 | **Deferred** | Wallet presence in status, health polling scheduler, per-step setup status |
 
 _Expose device identity and system health to the dashboard and other backend services. Acts as the base status layer for all modules running on the Pi._
@@ -34,10 +34,10 @@ _Update during/after implementation._
 | `GET /api/status/overview` multi-service detail | **Done** | `status.routes.ts` — auth-protected, returns services array + Docker container resources + disk |
 | Docker container CPU / memory / disk stats | **Done** | `docker.service.ts` — used by overview |
 | Startup lifecycle (migrations, schedulers) | **Done** | `index.ts` |
-| Device info service (hostname, uptime, OS, device ID) | **Not started** | — |
-| `GET /api/status` device summary endpoint | **Not started** | — |
-| Host-level memory / load stats (os module) | **Not started** | — |
-| Graceful shutdown (SIGTERM / SIGINT) | **Not started** | — |
+| Device info service (hostname, uptime, OS, device ID) | **Done** | `device.service.ts` — `ensureDeviceId()` + `getDeviceInfo()` |
+| `GET /api/status` device summary endpoint | **Done** | `status.routes.ts` — auth-protected, returns `device`, `app`, `node` |
+| Host-level memory / load stats (os module) | **Done** | `device.service.ts` — `os.totalmem()`, `os.freemem()`, `os.loadavg()` |
+| Graceful shutdown (SIGTERM / SIGINT) | **Done** | `index.ts` — stops all schedulers, closes SQLite |
 | Unit tests for device service and status routes | **Deferred → QA** | — |
 
 ### Not shipped / deferred → [qa-gaps.md](../qa/device-status-gaps.md)
@@ -286,11 +286,11 @@ When shipping each phase:
 
 **Backend**
 
-- [ ] `device.service.ts` — `ensureDeviceId()` + `getDeviceInfo()`
-- [ ] `status.routes.ts` — add `GET /` handler
-- [ ] `minima-monitoring.ts` — add `lastNodeState` to snapshot + export `getLastMinimaPollerState()`
-- [ ] `minima-poll.service.ts` — pass `status.state` to `recordPollerCheck`
-- [ ] `index.ts` — `ensureDeviceId()` call + SIGTERM/SIGINT handler
+- [x] `device.service.ts` — `ensureDeviceId()` + `getDeviceInfo()`
+- [x] `status.routes.ts` — add `GET /` handler
+- [x] `minima-monitoring.ts` — add `lastNodeState` to snapshot + export `getLastMinimaPollerState()`
+- [x] `minima-poll.service.ts` — pass `status.state` to `recordPollerCheck`
+- [x] `index.ts` — `ensureDeviceId()` call + SIGTERM/SIGINT handler
 
 **Frontend**
 

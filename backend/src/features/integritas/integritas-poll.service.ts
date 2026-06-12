@@ -63,3 +63,10 @@ export function startIntegritasProofPoller() {
   runPoll();
   poller = setInterval(runPoll, intervalMs);
 }
+
+export function stopIntegritasProofPoller() {
+  if (poller) {
+    clearInterval(poller);
+    poller = null;
+  }
+}

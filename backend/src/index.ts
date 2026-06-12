@@ -1,16 +1,18 @@
 import "./config/loadEnv.js";
 import { env } from "./config/env.js";
-import { runMigrations } from "./db/database.js";
+import { db, runMigrations } from "./db/database.js";
 import { createApp } from "./app.js";
-import { startAutomationScheduler } from "./features/automation/automation.service.js";
-import { startIntegritasProofPoller } from "./features/integritas/integritas-poll.service.js";
-import { startMinimaHealthPoller } from "./features/minima/minima-poll.service.js";
+import { startAutomationScheduler, stopAutomationScheduler } from "./features/automation/automation.service.js";
+import { startIntegritasProofPoller, stopIntegritasProofPoller } from "./features/integritas/integritas-poll.service.js";
+import { startMinimaHealthPoller, stopMinimaHealthPoller } from "./features/minima/minima-poll.service.js";
+import { ensureDeviceId } from "./features/status/device.service.js";
 
 if (env.appSecret === "dev-change-me") {
   console.warn("WARNING: APP_SECRET is set to the default dev-change-me value. Change it before production use.");
 }
 
 runMigrations();
+await ensureDeviceId();
 startAutomationScheduler();
 startIntegritasProofPoller();
 startMinimaHealthPoller();
@@ -24,3 +26,14 @@ app.listen(env.port, "0.0.0.0", () => {
   console.log(`Integritas base URL: ${env.integritasBaseUrl}`);
   console.log(`SQLite database path: ${env.databasePath}`);
 });
+
+function shutdown() {
+  stopAutomationScheduler();
+  stopIntegritasProofPoller();
+  stopMinimaHealthPoller();
+  db.close();
+  process.exit(0);
+}
+
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);

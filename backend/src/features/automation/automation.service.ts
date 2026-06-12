@@ -125,3 +125,10 @@ export function startAutomationScheduler() {
     }
   }, 5000);
 }
+
+export function stopAutomationScheduler() {
+  if (scheduler) {
+    clearInterval(scheduler);
+    scheduler = null;
+  }
+}
