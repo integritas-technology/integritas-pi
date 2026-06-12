@@ -58,7 +58,7 @@ All routes require `requireAuth` unless noted.
 
 | Method | Path | Purpose | Status | Auth |
 |---|---|---|---|---|
-| `GET` | `/api/status` | Device summary (identity + app + node state + host health) | **Not started** | requireAuth |
+| `GET` | `/api/status` | Device summary (identity + app + node state + host health) | **Done** | requireAuth |
 | `GET` | `/api/status/overview` | Per-service diagnostic detail + Docker container resources | **Done** | requireAuth |
 
 **Already done (public, outside this feature namespace):**
