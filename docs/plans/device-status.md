@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **Phase 1 complete** |
-| **Done** | Phase 1 — device info service + `GET /api/status` + graceful shutdown |
-| **Next** | Phase 2 — frontend dashboard widget |
+| **Status** | **Complete** |
+| **Done** | Phase 1 — device info service + `GET /api/status` + graceful shutdown; Phase 2 — dashboard device status card |
+| **Next** | — |
 | **Deferred** | Wallet presence in status, health polling scheduler, per-step setup status |
 
 _Expose device identity and system health to the dashboard and other backend services. Acts as the base status layer for all modules running on the Pi._
@@ -294,8 +294,8 @@ When shipping each phase:
 
 **Frontend**
 
-- [ ] `statusApi.ts` + `statusTypes.ts`
-- [ ] `DashboardPage.tsx` — device status card
+- [x] `statusApi.ts` + `statusTypes.ts`
+- [x] `DashboardPage.tsx` — device status card
 
 **Future / QA**
 

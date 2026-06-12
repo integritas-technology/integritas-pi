@@ -18,16 +18,46 @@ type ServiceStatus = {
 
 export const statusRouter = Router();
 
-statusRouter.get("/", (_req, res) => {
+let integritasConnectionCache: { connected: boolean; checkedAt: number } | null = null;
+const INTEGRITAS_CACHE_TTL_MS = 30_000;
+const INTEGRITAS_CHECK_TIMEOUT_MS = 3_000;
+
+async function getIntegritasConnected(apiKey: string): Promise<boolean> {
+  if (integritasConnectionCache && Date.now() - integritasConnectionCache.checkedAt < INTEGRITAS_CACHE_TTL_MS) {
+    return integritasConnectionCache.connected;
+  }
+  try {
+    const { response } = await fetchJsonWithTimeout(
+      `${env.integritasBaseUrl}/v1/web/check/health`,
+      { headers: { "x-request-id": env.integritasRequestId, "x-api-key": apiKey } },
+      INTEGRITAS_CHECK_TIMEOUT_MS
+    );
+    integritasConnectionCache = { connected: response.ok, checkedAt: Date.now() };
+    return response.ok;
+  } catch {
+    integritasConnectionCache = { connected: false, checkedAt: Date.now() };
+    return false;
+  }
+}
+
+statusRouter.get("/", async (_req, res) => {
   const device = getDeviceInfo();
   const node = getLastMinimaPollerState();
+  const integritasApiKey = getIntegritasApiKey();
+
+  let integritasConnected: boolean | null = null;
+  if (integritasApiKey) {
+    integritasConnected = await getIntegritasConnected(integritasApiKey);
+  }
+
   res.json({
     checkedAt: new Date().toISOString(),
     device,
     app: {
       running: true as const,
       setupComplete: isSetupComplete(),
-      integritasConfigured: Boolean(getIntegritasApiKey())
+      integritasConfigured: Boolean(integritasApiKey),
+      integritasConnected
     },
     node
   });
