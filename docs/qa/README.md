@@ -11,6 +11,7 @@ Detailed auth backlog: [auth-gaps.md](./auth-gaps.md)
 Integritas feature plan: [integritas-integration.md](../plans/integritas-integration.md)  
 Minima node plan: [minima-node.md](../plans/minima-node.md)  
 Minima gaps: [minima-gaps.md](./minima-gaps.md)  
+Device status gaps: [device-status-gaps.md](./device-status-gaps.md)  
 Security model: [auth-security.md](../plans/auth-security.md), [SECURITY.md](../../SECURITY.md)
 
 ---
@@ -32,6 +33,7 @@ Do **not** block Phase 5 Integritas UI or other product work on completing QA �
 - [ ] Auth P0 gaps closed or accepted — see [auth-gaps.md](./auth-gaps.md#exit-criteria-auth-qa-sign-off)
 - [ ] Integritas sandbox integration tests passing locally with `INTEGRITAS_SANDBOX_API_KEY` (optional in CI)
 - [ ] Integritas manual checklist below passed on a Pi or dev stack with a real API key
+- [ ] Device status P0 gaps verified — see [device-status-gaps.md](./device-status-gaps.md#exit-criteria-device-status-qa-sign-off)
 - [ ] `npm run check` + `docker compose build` clean
 - [ ] `SECURITY.md` updated with deploy mode (HTTP LAN vs HTTPS) and any accepted risks
 
@@ -135,6 +137,19 @@ Run on a stack with Integritas API key configured (UI or `INTEGRITAS_API_KEY` in
 
 ---
 
+## Workstream F — Device status QA
+
+**Source:** [device-status.md](../plans/device-status.md) — Phases 1–2 shipped (device info service, `GET /api/status`, graceful shutdown, dashboard card).  
+**Detail:** [device-status-gaps.md](./device-status-gaps.md)
+
+| Priority | Topic |
+|----------|--------|
+| **P0** | `GET /api/status` shape + auth gate, device ID stability, graceful shutdown |
+| **P1** | Unit tests for `device.service.ts` and `status.routes.ts` |
+| **P2** | `GET /api/health` integration test, `integritasConnected` under failure, API shape doc update |
+
+---
+
 ## Workstream D — Build & deploy smoke
 
 - [ ] `npm run check`
@@ -176,5 +191,6 @@ Approved for: [ ] continued dev  [ ] field pilot  [ ] production
 
 | Date | Change |
 |------|--------|
+| 2026-06-12 | Workstream F — Device status QA gaps ([device-status-gaps.md](./device-status-gaps.md)) |
 | 2026-06-11 | Workstream E — Minima node QA gaps ([minima-gaps.md](./minima-gaps.md)) |
 | 2026-06-09 | Initial QA hub; Integritas integration tests moved out of feature Phase 4 |

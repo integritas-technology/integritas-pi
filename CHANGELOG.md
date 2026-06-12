@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `GET /api/status` — new auth-protected device summary endpoint: stable device ID (UUID persisted in `settings`), hostname, platform, arch, uptime, CPU count, host memory, load averages, disk usage (`/data`, falling back to `/`), setup state, Minima node state (from poller cache), and a live Integritas API connection check (3 s timeout, 30 s server-side cache).
+- Graceful shutdown: SIGTERM and SIGINT now stop all background schedulers (automation, Integritas proof poller, Minima health poller) and close the SQLite connection before exiting.
+- Dashboard live-status grid: six metric cards (Node status, Device, Integritas API, CPU, Memory, Disk) fed by `GET /api/status`, auto-polling every 30 seconds. No Minima RPC or Docker socket calls on the dashboard path.
+
 ## [0.4.0] - 2026-06-11
 
 Minima node status, health monitoring, container restart, peer management, and Minima Core UI.
