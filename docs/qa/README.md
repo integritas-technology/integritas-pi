@@ -12,6 +12,7 @@ Integritas feature plan: [integritas-integration.md](../plans/integritas-integra
 Minima node plan: [minima-node.md](../plans/minima-node.md)  
 Minima gaps: [minima-gaps.md](./minima-gaps.md)  
 Device status gaps: [device-status-gaps.md](./device-status-gaps.md)  
+Wallet gaps: [wallet-gaps.md](./wallet-gaps.md)  
 Security model: [auth-security.md](../plans/auth-security.md), [SECURITY.md](../../SECURITY.md)
 
 ---
@@ -34,6 +35,7 @@ Do **not** block Phase 5 Integritas UI or other product work on completing QA �
 - [ ] Integritas sandbox integration tests passing locally with `INTEGRITAS_SANDBOX_API_KEY` (optional in CI)
 - [ ] Integritas manual checklist below passed on a Pi or dev stack with a real API key
 - [ ] Device status P0 gaps verified — see [device-status-gaps.md](./device-status-gaps.md#exit-criteria-device-status-qa-sign-off)
+- [ ] Wallet P0 gaps verified — see [wallet-gaps.md](./wallet-gaps.md#exit-criteria-wallet-qa-sign-off) (HTTPS required before seed phrase import)
 - [ ] `npm run check` + `docker compose build` clean
 - [ ] `SECURITY.md` updated with deploy mode (HTTP LAN vs HTTPS) and any accepted risks
 
@@ -150,6 +152,22 @@ Run on a stack with Integritas API key configured (UI or `INTEGRITAS_API_KEY` in
 
 ---
 
+## Workstream G — Wallet QA
+
+**Source:** [wallet.md](../plans/wallet.md) — Phases 1–3 shipped (balance API, token filter, dashboard card, receive address, send payment with in-page poll, seed phrase import).  
+**Detail:** [wallet-gaps.md](./wallet-gaps.md)
+
+| Priority | Topic |
+|----------|--------|
+| **P0** | Seed phrase over HTTP — HTTPS required before field use of import modal |
+| **P0** | Auth/role gating — verify 401/403 on all wallet mutation routes |
+| **P0** | Live Minima RPC shape — `restore`, `send`, `txpow` response shapes unverified against real node |
+| **P0** | Clipboard API on HTTP deploy — `navigator.clipboard` requires secure context |
+| **P1** | Node restart recovery after wallet import; send error paths; token name parsing; payment status `unknown` vs `pending` |
+| **P2** | Automated parse function tests, wallet audit events in Diagnostics UI, mid-poll close traceability |
+
+---
+
 ## Workstream D — Build & deploy smoke
 
 - [ ] `npm run check`
@@ -191,6 +209,7 @@ Approved for: [ ] continued dev  [ ] field pilot  [ ] production
 
 | Date | Change |
 |------|--------|
+| 2026-06-15 | Workstream G — Wallet QA gaps ([wallet-gaps.md](./wallet-gaps.md)); wallet P0 added to project exit criteria |
 | 2026-06-12 | Workstream F — Device status QA gaps ([device-status-gaps.md](./device-status-gaps.md)) |
 | 2026-06-11 | Workstream E — Minima node QA gaps ([minima-gaps.md](./minima-gaps.md)) |
 | 2026-06-09 | Initial QA hub; Integritas integration tests moved out of feature Phase 4 |

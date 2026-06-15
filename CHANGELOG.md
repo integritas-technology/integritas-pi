@@ -18,11 +18,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Token holdings table with All / Minima / Tokens filter tabs (subtabs component). MINIMA icon shown inline next to native token confirmed balance.
 - Dashboard wallet balance card: shows confirmed MINIMA with MINIMA icon inline in the metric grid. Non-blocking — shows "Unavailable" if the node is unreachable.
 - `MinimaIcon` component: reusable inline SVG using `currentColor`, used across Wallet page and Dashboard.
-
 - `POST /api/wallet/import` (admin) — restores wallet from a 24-word BIP-39 seed phrase via Minima `restore` RPC. Overwrites the node's current wallet; the node may restart after import. Audit event `wallet.import` is recorded without the phrase. Input is validated server-side (minimum 12 words).
 - Import wallet modal on Wallet page: textarea for seed phrase entry, destructive-action warning, success/error inline feedback, and a toast on completion.
 - Disabled "Export wallet" button on Wallet page as a placeholder for the deferred encrypted backup feature.
-- `SECURITY.md` updated with seed phrase in-transit risk, required controls, field-deployment HTTPS requirement, and a note on Megammr resync interaction risks.
 
 ### Fixed
 

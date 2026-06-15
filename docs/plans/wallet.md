@@ -2,10 +2,11 @@
 
 | | |
 |---|---|
-| **Status** | **Phases 1–3 shipped (uncommitted); export backup deferred** |
-| **Done** | Normalized balance API, token filter tabs, dashboard balance card, MinimaIcon, receive address modal, send payment modal with in-page polling, seed phrase import modal |
-| **Next** | Merge `wallet-service` branch; scope export backup format before Phase 4 |
+| **Status** | **Complete** (Phases 1–3 shipped; export backup and live RPC verification deferred to QA) |
+| **Done** | Phases 1–3 — normalized balance API, token filter tabs, dashboard card, MinimaIcon, receive address modal, send payment modal with in-page poll, seed phrase import modal |
+| **Next** | QA — live Minima RPC shape verification, HTTPS before seed phrase import in field; scope export backup format |
 | **Deferred** | Export backup (format TBD), MEG create-wallet, node lock, burn amount UX |
+| **QA follow-up** | [wallet-gaps.md](../qa/wallet-gaps.md) |
 
 _Wallet lifecycle service for the primary Minima wallet: balance, addresses, send, import/export — for operators managing value flows on the Pi._
 
@@ -56,7 +57,7 @@ _Update during/after implementation. When complete, audit against codebase._
 
 ## Canonical API routes
 
-All routes require `requireAuth`. **Admin-gated mutations:** `POST /api/wallet/send-payment`, `POST /api/wallet/generate-address`, `POST /api/wallet/import`, `POST /api/wallet/export-backup`.
+All routes require `requireAuth`. **Admin-gated mutations:** `POST /api/wallet/receive-address`, `POST /api/wallet/send-payment`, `POST /api/wallet/import`, `POST /api/wallet/export-backup` (deferred).
 
 | Method | Path | Purpose | Status |
 |---|---|---|---|
@@ -97,11 +98,11 @@ http://minima:9005/restore%20phrase%3A%22word1%20word2%20...%22
 | Command / operation | Purpose | Exposed via |
 |---|---|---|
 | `balance` | Token balances for all wallet tokens | `GET /api/wallet` (and existing `/api/minima/balance`) |
-| `newaddress` | Generate a new receiving address | `POST /api/wallet/generate-address` |
+| `getaddress` | Return one of 64 pre-created addresses at random | `POST /api/wallet/receive-address` (note: `newaddress` creates new key material — not used) |
 | `send amount:X address:Y tokenid:Z` | Send tokens | `POST /api/wallet/send-payment` |
 | `txpow txpowid:<id>` | Look up TX status for pending confirmation | `GET /api/wallet/payment-status/:txpowid` |
-| `backup password:<pass>` | Export encrypted wallet backup | `POST /api/wallet/export-backup` |
 | `restore phrase:"…"` | Import wallet from seed phrase | `POST /api/wallet/import` |
+| `backup password:<pass>` | Export encrypted wallet backup | `POST /api/wallet/export-backup` (**Deferred**) |
 
 Do **not** add a generic command proxy. Each operation stays a narrow named function (per `AGENTS.md` and `SECURITY.md`).
 
@@ -130,41 +131,28 @@ Browser
 
 ---
 
-## Current state snapshot
+## Implementation snapshot
 
-_Date: 2026-06-15_
+_Branched from `main` at `59ef47a` (0.5.0). Implemented on branch `wallet-service`._
 
-### Backend (`backend/src/features/`)
-
-| File | Role |
-|---|---|
-| `minima/minima.service.ts` | `getWalletBalance()` — raw balance passthrough |
-| `minima/minima.routes.ts` | `GET /api/minima/balance` — raw balance route |
-| `minima/minima.rpc.ts` | `runMinimaPathCommand` — the HTTP RPC primitive wallet will reuse |
-
-No `wallet/` folder exists yet.
-
-### Frontend (`frontend/src/pages/`)
+### Backend (`backend/src/features/wallet/`)
 
 | File | Role |
 |---|---|
-| `WalletPage.tsx` | Current page — fetches `/api/minima/balance`, shows raw confirmed MINIMA + JSON debug |
+| `wallet.types.ts` | `TokenBalance`, `WalletStatus`, `ReceiveAddress`, `SendPaymentRequest`, `SendPaymentResult`, `PaymentStatus`, `ImportWalletResult` |
+| `wallet.parse.ts` | `parseBalanceResponse`, `parseAddressResponse`, `parseSendResponse`, `parsePaymentStatusResponse`, `parseImportResponse` |
+| `wallet.service.ts` | `getWalletStatus`, `getReceiveAddress`, `sendPayment`, `getPaymentStatus`, `importWallet` |
+| `wallet.routes.ts` | All `/api/wallet/*` routes; registered in `app.ts` under `/api/wallet` |
 
-No `features/wallet/` folder exists yet. WalletPage uses `fetch` directly (not via `lib/api.ts`).
+### Frontend
 
-### Cross-cutting
-
-- `app/types.ts` — `MinimaCommandResult` type used by WalletPage
-- `app/nav.ts` — wallet nav item exists
-- `App.tsx` — `WalletPage` routed to `wallet` nav id
-- `features/auth/audit.service.ts` — `recordAuditEvent` available for mutations
-- `features/auth/auth.middleware.ts` — `requireAuth`, `requireRole('admin')` available
-
-### Git history
-
-| Commit | Summary |
+| File | Role |
 |---|---|
-| `59ef47a` | 0.5.0 (last release; wallet branch `wallet-service` branched from main) |
+| `frontend/src/features/wallet/walletTypes.ts` | Mirror of backend types |
+| `frontend/src/features/wallet/walletApi.ts` | `getWalletStatus`, `getReceiveAddress`, `sendPayment`, `getPaymentStatus`, `importWallet` |
+| `frontend/src/pages/WalletPage.tsx` | Hero balance card, token table, `ReceiveAddressModal`, `SendPaymentModal`, `ImportWalletModal`, disabled Export button |
+| `frontend/src/components/MinimaIcon.tsx` | Reusable inline SVG icon (`currentColor`) |
+| `frontend/src/pages/DashboardPage.tsx` | Non-blocking wallet balance MetricCard with MinimaIcon |
 
 ### Open gaps → [qa-gaps.md](../qa/wallet-gaps.md)
 
@@ -192,12 +180,26 @@ type TokenBalance = {
 
 Token filter is a **frontend concern** — the backend returns the full list; the frontend filters by `isNative` (All / Minima / Tokens tab). The ticket's "My own / Others / All" distinction requires additional Minima RPC investigation; Phase 1 ships the simpler All / Minima / Tokens split and revisits semantics in Q&A.
 
-**`POST /api/wallet/generate-address` response:**
+**`POST /api/wallet/receive-address` response:**
 
 ```ts
-type GeneratedAddress = {
-  address: string;
+type ReceiveAddress = {
+  miniAddress: string;  // Mx… — Minima native format; primary for display/sharing
+  address: string;      // 0x… — hex format
   publicKey?: string;
+};
+```
+
+**`POST /api/wallet/import` request / response:**
+
+```ts
+// Request body
+{ phrase: string }  // 24-word BIP-39 seed phrase; minimum 12 words validated server-side
+
+// Response
+type ImportWalletResult = {
+  ok: boolean;
+  message: string;
 };
 ```
 
@@ -292,46 +294,21 @@ Manual:
 
 **Goal:** Operators can generate a new receiving address and send MINIMA/tokens from the UI. All mutations are admin-gated and audit-logged. Payment confirmation is polled in-page after send.
 
-> **Before starting Phase 2:** Verify Minima RPC command syntax from [Minima docs](https://docs.minima.global/): exact field names for `newaddress`, `send`, and `txpow`. Update `wallet.parse.ts` and `wallet.service.ts` accordingly.
+> **Correction applied during implementation:** `getaddress` RPC (returns from 64-address pool) was used instead of `newaddress` (creates new key material). Route renamed from `/generate-address` to `/receive-address`. Type renamed from `GeneratedAddress` to `ReceiveAddress`; `miniAddress` (Mx format) added as primary field.
 
-#### Backend
+#### Backend (as shipped)
 
-1. Add `generateAddress()` to `wallet.service.ts` — calls `runMinimaPathCommand("newaddress")` → parse with `parseAddressResponse()`.
-2. Add `parseAddressResponse(body)` to `wallet.parse.ts` → `GeneratedAddress`.
-3. Add `POST /generate-address` to `wallet.routes.ts` — `requireRole('admin')`, calls `generateAddress()`, records `wallet.address.generate` audit event.
-4. Add `sendPayment({ address, amount, tokenId })` to `wallet.service.ts` — validates inputs, builds `send amount:X address:Y tokenid:Z` command, calls `runMinimaPathCommand` with a longer timeout (10s). Parse result with `parseSendResponse()`.
-5. Add `parseSendResponse(body)` to `wallet.parse.ts` → `SendPaymentResult` (extracts txpow id, derives pending/sent/failed).
-6. Add `POST /send-payment` to `wallet.routes.ts` — `requireRole('admin')`, validates `address` (non-empty), `amount` (positive number string), records `wallet.payment.send` audit event (log `{ address, amount, tokenId, txpowId }` — never log seed phrases or secrets).
-7. Add `getPaymentStatus(txpowid)` to `wallet.service.ts` — calls `runMinimaPathCommand(`txpow txpowid:${txpowid}`)` → parse with `parsePaymentStatusResponse()`.
-8. Add `parsePaymentStatusResponse(body)` to `wallet.parse.ts` → `PaymentStatus`.
-9. Add `GET /payment-status/:txpowid` to `wallet.routes.ts` — no admin gate (read-only); `requireAuth` from global middleware is enough.
+- `getReceiveAddress()` in `wallet.service.ts` — calls `runMinimaPathCommand("getaddress")`; parses `miniaddress` (Mx, primary) and `address` (0x).
+- `POST /receive-address` — `requireRole('admin')`, records `wallet.address.get` audit event.
+- `sendPayment()` — builds `send amount:X address:Y tokenid:Z`, 10 s timeout; parses txpowId from response.
+- `POST /send-payment` — `requireRole('admin')`, validates address (non-empty) and amount (positive finite number); records `wallet.payment.send` with `{ address, amount, tokenId, txpowId }`.
+- `getPaymentStatus()` — `txpow txpowid:<id>`; derives `confirmed` from `response.confirmed === true || txpow.isblock === true`.
+- `GET /payment-status/:txpowid` — `requireAuth` only (read-only).
 
-**Files:** `wallet.service.ts`, `wallet.parse.ts`, `wallet.routes.ts`, `wallet.types.ts`
+#### Frontend (as shipped)
 
-**Env:** None.
-
-#### Frontend
-
-1. Add `generateAddress()`, `sendPayment()`, `getPaymentStatus()` to `walletApi.ts`.
-2. Add types to `walletTypes.ts`.
-3. Add **Generate address** action button on WalletPage → calls `POST /api/wallet/generate-address` → shows new address in a modal/card. Copies to clipboard.
-4. Add **Send payment** action button on WalletPage → modal with `address`, `amount`, optional `tokenId` selector (dropdown from token list). On submit: calls `POST /api/wallet/send-payment`. On `status: "pending"`: show pending state + poll `GET /api/wallet/payment-status/:txpowid` every 5s up to 60s. On confirm/fail: show toast.
-5. Use `useToast` for transient send errors; inline validation on the send form (empty address, non-numeric amount).
-
-**Verification:**
-
-```bash
-npm run check
-npm --prefix backend run build
-npm --prefix frontend run build
-```
-
-Manual:
-- `POST /api/wallet/generate-address` (with admin session) returns address; audit event appears in diagnostics log.
-- `POST /api/wallet/send-payment` with valid inputs returns `txpowId`; audit event recorded.
-- `GET /api/wallet/payment-status/:id` polls correctly.
-- Unauthenticated request to send-payment → 401; non-admin → 403.
-- Send with missing/invalid inputs → 400 with useful error.
+- **Receive address** button → `ReceiveAddressModal`: fetches on mount, shows Mx (dark code block, green), 0x (light bg), publicKey; Copy copies `miniAddress`; "Get another address" re-fetches.
+- **Send payment** button → `SendPaymentModal`: address/amount/token form; on submit polls every 5 s × 12; shows confirmed/failed/timeout inline; close mid-poll fires info toast.
 
 ---
 
@@ -351,17 +328,18 @@ Manual:
 
 ## Frontend UX target
 
-| UI element | Data source |
-|---|---|
-| Balance card (dark, primary) | `GET /api/wallet` → `tokens[isNative].confirmed` |
-| Current address display | Inline in balance card — fetch on page load or generate-address result |
-| Token filter tabs (All / Minima / Tokens) | `tokens[]` list filtered by `isNative` client-side |
-| Token list table | `tokens[]` — name, confirmed, unconfirmed, sendable |
-| Generate address button + result | `POST /api/wallet/generate-address` |
-| Send payment modal | `POST /api/wallet/send-payment` → pending + poll |
-| Wallet balance on Dashboard | `GET /api/wallet` → native token confirmed balance, MetricCard style |
+| UI element | Data source | Status |
+|---|---|---|
+| Balance card (dark hero card) | `GET /api/wallet` → `tokens[isNative].confirmed` | Done |
+| Token filter tabs (All / Minima / Tokens) | `tokens[]` filtered client-side by `isNative` | Done |
+| Token list table | `tokens[]` — name, confirmed, unconfirmed, sendable | Done |
+| Receive address modal | `POST /api/wallet/receive-address` → Mx (primary) + 0x display, clipboard copy, re-sample | Done |
+| Send payment modal | `POST /api/wallet/send-payment` → 5 s poll × 60 s, inline state, toast | Done |
+| Import wallet modal | `POST /api/wallet/import` — destructive warning, seed phrase textarea, success state | Done |
+| Export wallet button | Disabled placeholder — `POST /api/wallet/export-backup` deferred | Placeholder |
+| Wallet balance on Dashboard | `GET /api/wallet` → native confirmed, MetricCard + MinimaIcon; non-blocking | Done |
 
-**Optional polish (deferred):** "My own / Others" token ownership filter; transaction history list; burn fee display; clipboard copy address button.
+**Optional polish (deferred):** "My own / Others" token ownership filter; transaction history list; burn fee display.
 
 ---
 
@@ -369,12 +347,12 @@ Manual:
 
 | # | Decision | Recommendation / outcome |
 |---|---|---|
-| 1 | Token filter semantics: "Mine / Others / All" | Phase 1 ships **All / Minima / Tokens** (native vs custom). True "mine vs received" ownership requires Minima RPC investigation — defer to Phase 2 scope. |
-| 2 | Export backup format | **Deferred** — file download preferred but needs Minima backup file path / streaming design; scope before Phase 3. |
-| 3 | Payment confirmation timeout | Poll `GET /payment-status` every 5s for up to 60s (12 polls), then show "still pending — check back" state. Avoid blocking the UI. |
-| 4 | Seed phrase in-transit risk | **Document in SECURITY.md before Phase 3 merge.** Seed phrase sent as JSON body over HTTP (LAN only). Flag for HTTPS-before-field-deployment requirement. |
-| 5 | Minima RPC command names | Verify against [Minima docs](https://docs.minima.global/) before Phase 2 starts. Treat current names (`newaddress`, `send`, `txpow`, `backup`, `restore`) as provisional. |
-| 6 | New address vs current address for balance card | Minima `balance` response does not include the wallet address. Phase 1 can omit address from balance card; Phase 2 `generate-address` can surface it. |
+| 1 | Token filter semantics: "Mine / Others / All" | **Shipped:** All / Minima / Tokens (native vs custom token). True "mine vs received" ownership deferred — requires Minima RPC investigation. |
+| 2 | Export backup format | **Deferred** — placeholder button in UI. File download vs JSON body to be scoped separately. `backup password:<pass>` RPC is the candidate. |
+| 3 | Payment confirmation timeout | **Shipped:** 5 s poll × 12 = 60 s max, then "still pending" state with TX ID shown. |
+| 4 | Seed phrase in-transit risk | **Documented in SECURITY.md** — HTTP-only LAN risk noted; HTTPS required before field deployment. Megammr resync interaction also noted. |
+| 5 | Minima RPC command names | **Resolved** — `getaddress` (not `newaddress`) confirmed for receive-address; `send`, `txpow`, `restore` used as shipped. `backup` deferred. |
+| 6 | Address in balance card | **Resolved** — balance card omits address (not in `balance` RPC response); address fetched on demand via receive-address modal. |
 
 ---
 
