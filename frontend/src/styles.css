@@ -801,6 +801,41 @@ button:disabled {
   font-weight: 600;
 }
 
+/* Wallet hero action buttons */
+.wallet-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.wallet-action-btn {
+  padding: 10px 18px;
+  color: #020617;
+  font-size: 0.86rem;
+  font-weight: 700;
+  border: 0;
+  border-radius: 14px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+
+.wallet-action-btn:hover {
+  opacity: 0.88;
+}
+
+.wallet-action-btn-ghost {
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.wallet-action-btn-ghost:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.18);
+}
+
 /* Token holdings card */
 .wallet-filter-row {
   display: flex;

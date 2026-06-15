@@ -1,4 +1,4 @@
-import type { TokenBalance, WalletStatus } from "./wallet.types.js";
+import type { PaymentStatus, ReceiveAddress, SendPaymentResult, TokenBalance, WalletStatus } from "./wallet.types.js";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
@@ -52,4 +52,42 @@ export function parseBalanceResponse(body: unknown): WalletStatus {
   }
 
   return { checkedAt, tokens };
+}
+
+export function parseAddressResponse(body: unknown): ReceiveAddress {
+  const record = asRecord(body);
+  const response = asRecord(record?.response);
+  const miniAddress = asString(response?.miniaddress, "");
+  const address = asString(response?.address, "");
+  if (!miniAddress && !address) throw new Error("Minima did not return an address");
+  const publicKey = typeof response?.publickey === "string" ? response.publickey : undefined;
+  return { miniAddress: miniAddress || address, address: address || miniAddress, publicKey };
+}
+
+export function parseSendResponse(body: unknown): SendPaymentResult {
+  const record = asRecord(body);
+  if (record?.status === false) {
+    return {
+      ok: false,
+      txpowId: null,
+      status: "failed",
+      message: asString(record.error ?? record.message, "Send failed")
+    };
+  }
+  const response = asRecord(record?.response);
+  const inner = asRecord(response?.txpow);
+  const txpowId = asString(response?.txpowid ?? inner?.txpowid, "") || null;
+  return { ok: true, txpowId, status: "pending" };
+}
+
+export function parsePaymentStatusResponse(body: unknown, txpowId: string): PaymentStatus {
+  const checkedAt = new Date().toISOString();
+  const record = asRecord(body);
+  if (!record || record.status === false) return { txpowId, status: "unknown", checkedAt };
+  const response = asRecord(record.response);
+  if (!response) return { txpowId, status: "unknown", checkedAt };
+  const txpow = asRecord(response.txpow);
+  if (!txpow) return { txpowId, status: "unknown", checkedAt };
+  const confirmed = response.confirmed === true || txpow.isblock === true;
+  return { txpowId, status: confirmed ? "confirmed" : "pending", checkedAt };
 }

@@ -8,9 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- `GET /api/wallet` — new auth-protected wallet endpoint returning a normalized `WalletStatus` (checkedAt, tokens array). Each `TokenBalance` includes tokenId, name, confirmed, unconfirmed, sendable, and an `isNative` flag (`tokenId === "0x00"`). Wraps the existing Minima `balance` RPC via `runMinimaPathCommand`; the legacy `GET /api/minima/balance` passthrough is unchanged.
-- Wallet page redesign: balance card showing confirmed/unconfirmed/sendable MINIMA, and a token holdings table with All / Minima / Tokens filter tabs. Fetches from `GET /api/wallet` via the shared `lib/api.ts` client.
-- Dashboard wallet balance card: shows primary Pi wallet confirmed MINIMA balance in the device status metric grid. Non-blocking — displays "Unavailable" if the Minima node is unreachable without affecting other dashboard cards.
+- `GET /api/wallet` — auth-protected wallet endpoint returning a normalized `WalletStatus` (checkedAt, tokens array). Each `TokenBalance` includes tokenId, name, confirmed, unconfirmed, sendable, and an `isNative` flag (`tokenId === "0x00"`). Wraps the existing Minima `balance` RPC; the legacy `GET /api/minima/balance` passthrough is unchanged.
+- `POST /api/wallet/receive-address` (admin) — returns one of the node's 64 pre-created default wallet addresses at random via the Minima `getaddress` RPC command. Response includes `miniAddress` (Mx… native format, primary for sharing), `address` (0x… hex), and `publicKey`. Does not create new key material.
+- `POST /api/wallet/send-payment` (admin) — sends MINIMA or tokens via `send amount:X address:Y tokenid:Z`. Validates address and amount server-side. Returns `txpowId` and `status: "pending"` on submission; audit-logged with address, amount, tokenId, and txpowId (never logs seed phrases or secrets).
+- `GET /api/wallet/payment-status/:txpowid` (any authenticated user) — polls the Minima `txpow` command for a submitted transaction and returns `pending | confirmed | failed | unknown`.
+- Wallet page redesign: dark hero balance card with MINIMA icon watermark, confirmed/unconfirmed/sendable stats, and two action buttons — **Receive address** and **Send payment**.
+- Receive address modal: fetches a random address from the node's 64-address pool, displays Mx (primary) and 0x formats, one-click clipboard copy, and a "Get another address" button to sample a different address.
+- Send payment modal: form with recipient address (accepts both Mx and 0x formats), amount, and token selector (built from the live token list). On submit, transitions to a pending state that polls `payment-status` every 5 s for up to 60 s; shows confirmed/failed/timeout states inline and fires a toast on each terminal state. Closes cleanly mid-poll with an info toast.
+- Token holdings table with All / Minima / Tokens filter tabs (subtabs component). MINIMA icon shown inline next to native token confirmed balance.
+- Dashboard wallet balance card: shows confirmed MINIMA with MINIMA icon inline in the metric grid. Non-blocking — shows "Unavailable" if the node is unreachable.
+- `MinimaIcon` component: reusable inline SVG using `currentColor`, used across Wallet page and Dashboard.
+
+### Fixed
+
+- `generateAddress` renamed to `getReceiveAddress` throughout — was incorrectly calling `newaddress` (creates new key material) instead of `getaddress` (returns from the node's 64 pre-created address pool).
 
 ## [0.5.0] - 2026-06-12
 
