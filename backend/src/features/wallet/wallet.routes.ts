@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { recordAuditEvent } from "../auth/audit.service.js";
 import { requireRole } from "../auth/auth.middleware.js";
-import { getPaymentStatus, getReceiveAddress, getWalletStatus, sendPayment } from "./wallet.service.js";
+import { getPaymentStatus, getReceiveAddress, getWalletStatus, importWallet, sendPayment } from "./wallet.service.js";
 
 export const walletRouter = Router();
 
@@ -51,6 +51,23 @@ walletRouter.post("/send-payment", requireRole("admin"), async (req, res) => {
 walletRouter.get("/payment-status/:txpowid", async (req, res) => {
   try {
     res.json(await getPaymentStatus(req.params.txpowid));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    res.status(502).json({ ok: false, error: message });
+  }
+});
+
+walletRouter.post("/import", requireRole("admin"), async (req, res) => {
+  const phrase = typeof req.body?.phrase === "string" ? req.body.phrase.trim() : "";
+  if (!phrase) return res.status(400).json({ ok: false, error: "phrase is required" });
+  const words = phrase.split(/\s+/).filter(Boolean);
+  if (words.length < 12) return res.status(400).json({ ok: false, error: "phrase must be at least 12 words" });
+
+  try {
+    const result = await importWallet(phrase);
+    // Audit event records only that an import occurred — never the phrase itself
+    recordAuditEvent("wallet.import", { userId: req.user?.id });
+    res.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     res.status(502).json({ ok: false, error: message });

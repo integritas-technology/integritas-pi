@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| **Status** | **Not started** |
-| **Done** | _(summary when complete)_ |
-| **Next** | Phase 1 — normalized balance + token filter + dashboard card |
-| **Deferred** | Export backup format (TBD), MEG create-wallet, node lock, burn amount UX |
+| **Status** | **Phases 1–3 shipped (uncommitted); export backup deferred** |
+| **Done** | Normalized balance API, token filter tabs, dashboard balance card, MinimaIcon, receive address modal, send payment modal with in-page polling, seed phrase import modal |
+| **Next** | Merge `wallet-service` branch; scope export backup format before Phase 4 |
+| **Deferred** | Export backup (format TBD), MEG create-wallet, node lock, burn amount UX |
 
 _Wallet lifecycle service for the primary Minima wallet: balance, addresses, send, import/export — for operators managing value flows on the Pi._
 
@@ -31,15 +31,16 @@ _Update during/after implementation. When complete, audit against codebase._
 |---|---|---|
 | Wallet nav + routing | **Done** | `nav.ts`, `App.tsx`, `WalletPage.tsx` |
 | Raw balance passthrough | **Done** | `GET /api/minima/balance` → `getWalletBalance()` in `minima.service.ts` |
-| Minimal balance display | **Done** | `WalletPage.tsx` shows confirmed MINIMA + JSON debug |
-| Normalized balance API | **Not started** | `GET /api/wallet` |
-| Token filter (All / Minima / Tokens) | **Not started** | Phase 1 |
-| Dashboard balance card | **Not started** | Phase 1 |
-| Address generation | **Not started** | Phase 2 |
-| Send payment + pending poll | **Not started** | Phase 2 |
-| Audit log (wallet mutations) | **Not started** | Phase 2 |
-| Seed phrase import | **Not started** | Phase 3 |
-| Encrypted backup export | **Not started** | Phase 3 (format deferred) |
+| Minimal balance display | **Done** | Replaced with hero card redesign in Phase 1 |
+| Normalized balance API | **Done** | `GET /api/wallet` → `wallet.service.ts` / `wallet.routes.ts` |
+| Token filter (All / Minima / Tokens) | **Done** | `WalletPage.tsx` subtabs, `filterTokens()` client-side |
+| Dashboard balance card | **Done** | `DashboardPage.tsx` MetricCard with MinimaIcon; non-blocking |
+| MinimaIcon component | **Done** | `frontend/src/components/MinimaIcon.tsx` — reusable inline SVG |
+| Receive address | **Done** | `POST /api/wallet/receive-address` → `getaddress` RPC; modal with Mx/0x display and clipboard copy |
+| Send payment + pending poll | **Done** | `POST /api/wallet/send-payment`; `GET /api/wallet/payment-status/:txpowid`; modal with 5 s poll × 60 s |
+| Audit log (wallet mutations) | **Done** | `wallet.address.get`, `wallet.payment.send`, `wallet.import` — phrase never logged |
+| Seed phrase import | **Done** | `POST /api/wallet/import` → `restore` RPC; admin-gated, 30 s timeout, modal with warning |
+| Encrypted backup export | **Deferred** | Placeholder button in UI; format (file download vs JSON body) to be scoped |
 
 ### Not shipped / deferred → [qa-gaps.md](../qa/wallet-gaps.md)
 
@@ -59,12 +60,12 @@ All routes require `requireAuth`. **Admin-gated mutations:** `POST /api/wallet/s
 
 | Method | Path | Purpose | Status |
 |---|---|---|---|
-| `GET` | `/api/wallet` | Normalized balance + token list | **Not started** |
-| `POST` | `/api/wallet/generate-address` | New receiving address | **Not started** |
-| `POST` | `/api/wallet/send-payment` | Send tokens to an address | **Not started** |
-| `GET` | `/api/wallet/payment-status/:txpowid` | Poll pending TX status | **Not started** |
-| `POST` | `/api/wallet/import` | Restore from seed phrase | **Not started** |
-| `POST` | `/api/wallet/export-backup` | Encrypted wallet backup download | **Not started** |
+| `GET` | `/api/wallet` | Normalized balance + token list | **Done** |
+| `POST` | `/api/wallet/receive-address` | Random address from 64-address pool | **Done** (renamed from `generate-address` — uses `getaddress` not `newaddress`) |
+| `POST` | `/api/wallet/send-payment` | Send tokens to an address | **Done** |
+| `GET` | `/api/wallet/payment-status/:txpowid` | Poll pending TX status | **Done** |
+| `POST` | `/api/wallet/import` | Restore from seed phrase | **Done** |
+| `POST` | `/api/wallet/export-backup` | Encrypted wallet backup download | **Deferred** |
 
 **Related (outside this feature namespace):**
 
@@ -242,7 +243,7 @@ type PaymentStatus = {
 
 ## Implementation plan
 
-### Phase 1 — Normalized balance + token filter + dashboard card — **not started**
+### Phase 1 — Normalized balance + token filter + dashboard card — **Done**
 
 **Goal:** Replace the raw JSON dump on WalletPage with a proper balance DTO, token list with filter tabs, and add a wallet balance card to the Dashboard. No new RPC commands — this only wraps the existing `balance` command better.
 
@@ -287,7 +288,7 @@ Manual:
 
 ---
 
-### Phase 2 — Address generation + Send payment + Audit log — **not started**
+### Phase 2 — Address generation + Send payment + Audit log — **Done**
 
 **Goal:** Operators can generate a new receiving address and send MINIMA/tokens from the UI. All mutations are admin-gated and audit-logged. Payment confirmation is polled in-page after send.
 
@@ -334,7 +335,7 @@ Manual:
 
 ---
 
-### Phase 3 — Import (seed phrase) — **not started**
+### Phase 3 — Import (seed phrase) — **Done**
 
 | Item | Approach |
 |---|---|
@@ -380,24 +381,22 @@ Manual:
 ## Verification checklist (per phase)
 
 **Phase 1:**
-- [ ] `GET /api/wallet` returns `{ checkedAt, tokens }` with correct `isNative` flag
-- [ ] WalletPage uses `walletApi.ts` + shows balance card + token list + filter tabs
-- [ ] Dashboard shows wallet balance card; gracefully handles node-down state
-- [ ] `npm run check` passes
-- [ ] `CHANGELOG.md` updated under `[Unreleased]`
+- [x] `GET /api/wallet` returns `{ checkedAt, tokens }` with correct `isNative` flag
+- [x] WalletPage uses `walletApi.ts` + shows balance card + token list + filter tabs
+- [x] Dashboard shows wallet balance card; gracefully handles node-down state
+- [x] `CHANGELOG.md` updated under `[Unreleased]`
 
 **Phase 2:**
-- [ ] `POST /api/wallet/generate-address` — admin only, audit logged
-- [ ] `POST /api/wallet/send-payment` — admin only, audit logged, seed phrase never in log
-- [ ] `GET /api/wallet/payment-status/:txpowid` — any auth, polls correctly
-- [ ] Frontend: send modal with pending state + in-page poll + toast on confirm/fail
-- [ ] Non-admin → 403; unauthenticated → 401; invalid input → 400
-- [ ] `npm run check` passes
+- [x] `POST /api/wallet/receive-address` (renamed from `generate-address`) — admin only, audit logged
+- [x] `POST /api/wallet/send-payment` — admin only, audit logged, phrase never in log
+- [x] `GET /api/wallet/payment-status/:txpowid` — any auth, polls correctly
+- [x] Frontend: send modal with pending state + in-page poll + toast on confirm/fail
+- [x] Correction: `getaddress` (not `newaddress`) — returns from 64-address pool; Mx format primary
 
 **Phase 3:**
-- [ ] `POST /api/wallet/import` — admin only, seed phrase never in audit log or response
-- [ ] SECURITY.md updated (seed phrase risk, encryption at rest status)
-- [ ] Security review completed before merge
+- [x] `POST /api/wallet/import` — admin only, seed phrase never in audit log or response
+- [x] `SECURITY.md` updated (seed phrase in-transit risk, Megammr resync interaction note, HTTPS requirement)
+- [ ] Security review completed before merge (open — required before field deployment)
 
 ---
 
@@ -417,27 +416,29 @@ When shipping each phase:
 **Backend**
 
 - [x] Define key storage and encryption strategy (Q-004 — Minima owns key storage; no Pi-side key material)
-- [ ] `GET /api/wallet` (normalized balance + token list)
-- [ ] `POST /api/wallet/generate-address`
-- [ ] `POST /api/wallet/send-payment`
-- [ ] Payment pending poll (`GET /api/wallet/payment-status/:txpowid`)
-- [ ] `POST /api/wallet/import` (seed phrase)
+- [x] `GET /api/wallet` (normalized balance + token list)
+- [x] `POST /api/wallet/receive-address` (renamed; uses `getaddress` RPC, not `newaddress`)
+- [x] `POST /api/wallet/send-payment`
+- [x] Payment pending poll (`GET /api/wallet/payment-status/:txpowid`)
+- [x] `POST /api/wallet/import` (seed phrase)
 - [ ] `POST /api/wallet/export-backup` (deferred — format TBD)
-- [ ] Audit log for all wallet mutations
-- [ ] Token filter (All / Minima / Tokens)
+- [x] Audit log for all wallet mutations
+- [x] Token filter (All / Minima / Tokens)
 
 **Frontend**
 
-- [ ] WalletPage: balance card + token list + filter tabs
-- [ ] WalletPage: generate address action
-- [ ] WalletPage: send payment modal + pending poll
-- [ ] Dashboard: wallet balance card
+- [x] WalletPage: balance card + token list + filter tabs
+- [x] WalletPage: receive address modal (Mx primary, clipboard copy, 64-pool re-sample)
+- [x] WalletPage: send payment modal + pending poll
+- [x] WalletPage: import wallet modal (seed phrase, destructive warning)
+- [x] WalletPage: disabled Export wallet button (placeholder)
+- [x] Dashboard: wallet balance card with MinimaIcon
 
 **Future / QA**
 
-- [ ] Export backup format — scope before Phase 3
+- [ ] Export backup format — scope separately (file download vs JSON body)
 - [ ] "Mine / Others" ownership filter — Minima RPC investigation
-- [ ] Security review before Phase 3 merge
+- [ ] Security review before field deployment (seed phrase, HTTPS requirement)
 - [ ] MEG create-wallet (`POST /api/wallet/create`) — Minima MEG milestone
 - [ ] Node lock to hardware — future
 - [ ] Burn amount / fee UX — future

@@ -1,4 +1,4 @@
-import type { PaymentStatus, ReceiveAddress, SendPaymentResult, TokenBalance, WalletStatus } from "./wallet.types.js";
+import type { ImportWalletResult, PaymentStatus, ReceiveAddress, SendPaymentResult, TokenBalance, WalletStatus } from "./wallet.types.js";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
@@ -90,4 +90,12 @@ export function parsePaymentStatusResponse(body: unknown, txpowId: string): Paym
   if (!txpow) return { txpowId, status: "unknown", checkedAt };
   const confirmed = response.confirmed === true || txpow.isblock === true;
   return { txpowId, status: confirmed ? "confirmed" : "pending", checkedAt };
+}
+
+export function parseImportResponse(body: unknown): ImportWalletResult {
+  const record = asRecord(body);
+  if (record?.status === false) {
+    return { ok: false, message: asString(record.error ?? record.message, "Import failed") };
+  }
+  return { ok: true, message: "Wallet restored. The node may restart to apply the new seed." };
 }

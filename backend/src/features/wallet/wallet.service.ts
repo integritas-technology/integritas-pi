@@ -1,6 +1,6 @@
 import { runMinimaPathCommand } from "../minima/minima.rpc.js";
-import { parseAddressResponse, parseBalanceResponse, parsePaymentStatusResponse, parseSendResponse } from "./wallet.parse.js";
-import type { PaymentStatus, ReceiveAddress, SendPaymentRequest, SendPaymentResult, WalletStatus } from "./wallet.types.js";
+import { parseAddressResponse, parseBalanceResponse, parseImportResponse, parsePaymentStatusResponse, parseSendResponse } from "./wallet.parse.js";
+import type { ImportWalletResult, PaymentStatus, ReceiveAddress, SendPaymentRequest, SendPaymentResult, WalletStatus } from "./wallet.types.js";
 
 export async function getWalletStatus(): Promise<WalletStatus> {
   const result = await runMinimaPathCommand("balance");
@@ -27,4 +27,12 @@ export async function sendPayment({ address, amount, tokenId = "0x00" }: SendPay
 export async function getPaymentStatus(txpowId: string): Promise<PaymentStatus> {
   const result = await runMinimaPathCommand(`txpow txpowid:${txpowId}`);
   return parsePaymentStatusResponse(result.body, txpowId);
+}
+
+// Restores wallet from a 24-word seed phrase via Minima restore RPC.
+// The phrase must never be logged — do not pass it to recordAuditEvent detail.
+export async function importWallet(phrase: string): Promise<ImportWalletResult> {
+  const result = await runMinimaPathCommand(`restore phrase:"${phrase}"`, 30_000);
+  if (!result.ok) throw new Error(`Minima RPC error: HTTP ${result.status}`);
+  return parseImportResponse(result.body);
 }

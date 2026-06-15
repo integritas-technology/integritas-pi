@@ -36,3 +36,8 @@ export type PaymentStatus = {
   status: "pending" | "confirmed" | "failed" | "unknown";
   checkedAt: string;
 };
+
+export type ImportWalletResult = {
+  ok: boolean;
+  message: string;
+};
