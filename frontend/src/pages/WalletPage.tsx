@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card } from "../components/Card";
+import { MinimaIcon } from "../components/MinimaIcon";
 import { Page } from "../components/Page";
 import { getWalletStatus } from "../features/wallet/walletApi";
 import type { TokenBalance, WalletStatus } from "../features/wallet/walletTypes";
@@ -20,34 +21,52 @@ export function WalletPage() {
 
   return (
     <Page eyebrow="Wallet" title="Wallet and tokens" desc="Minima wallet balance and token holdings for this node.">
-      <Card className="wallet-balance-card">
-        <div className="wallet-balance-header">
-          <div>
-            <p className="eyebrow">Primary wallet</p>
-            <p className="wallet-balance-amount">{native?.confirmed ?? (error ? "—" : "…")}</p>
-            <p className="muted">MINIMA confirmed</p>
+      <div className="hero-card wallet-balance-card">
+        <div className="wallet-hero-header">
+          <div className="wallet-hero-icon">
+            <MinimaIcon size={18} />
           </div>
-          <div className="wallet-balance-meta">
+          <p className="eyebrow">Primary wallet</p>
+        </div>
+
+        <div>
+          <div className="wallet-amount-row">
+            <MinimaIcon size={36} className="wallet-amount-icon" />
+            <span className="wallet-amount-number">
+              {native?.confirmed ?? (error ? "—" : "…")}
+            </span>
+          </div>
+          <p className="wallet-amount-label">MINIMA confirmed</p>
+        </div>
+
+        {(native || error) && (
+          <div className="wallet-hero-stats">
             {native && (
               <>
-                <p className="muted">Unconfirmed: {native.unconfirmed}</p>
-                <p className="muted">Sendable: {native.sendable}</p>
+                <div>
+                  <p className="wallet-stat-label">Unconfirmed</p>
+                  <p className="wallet-stat-value">{native.unconfirmed}</p>
+                </div>
+                <div>
+                  <p className="wallet-stat-label">Sendable</p>
+                  <p className="wallet-stat-value">{native.sendable}</p>
+                </div>
               </>
             )}
             {error && <p className="error-text">{error}</p>}
           </div>
-        </div>
-      </Card>
+        )}
+      </div>
 
       <Card>
-        <div className="wallet-filter-header">
+        <div className="wallet-filter-row">
           <p className="eyebrow">Token holdings</p>
-          <div className="wallet-filter-tabs">
+          <div className="subtabs">
             {(["all", "minima", "tokens"] as Filter[]).map((f) => (
               <button
                 key={f}
                 type="button"
-                className={filter === f ? "pill pill-active" : "pill"}
+                className={filter === f ? "active" : ""}
                 onClick={() => setFilter(f)}
               >
                 {f === "all" ? "All" : f === "minima" ? "Minima" : "Tokens"}
@@ -76,7 +95,12 @@ export function WalletPage() {
                     <span>{token.name}</span>
                     {!token.isNative && <code className="token-id">{token.tokenId}</code>}
                   </td>
-                  <td>{token.confirmed}</td>
+                  <td>
+                    <span className="inline-flex items-center gap-1.5">
+                      {token.isNative && <MinimaIcon size={13} className="text-slate-400 shrink-0" />}
+                      {token.confirmed}
+                    </span>
+                  </td>
                   <td>{token.unconfirmed}</td>
                   <td>{token.sendable}</td>
                 </tr>

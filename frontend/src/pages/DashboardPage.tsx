@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   Cpu,
@@ -25,6 +26,7 @@ import type {
   DeviceStatus,
 } from '../features/status/statusTypes';
 import { getWalletStatus } from '../features/wallet/walletApi';
+import { MinimaIcon } from '../components/MinimaIcon';
 import { cx } from '../lib/cx';
 import { formatLocalTime } from '../lib/time';
 
@@ -263,7 +265,7 @@ function MetricCard({
   valueClass = 'text-slate-950',
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   helper: string;
   icon: LucideIcon;
   valueClass?: string;
@@ -352,7 +354,16 @@ function DeviceStatusCard({ status, walletBalance }: { status: DeviceStatus; wal
       />
       <MetricCard
         label='Wallet balance'
-        value={walletBalance ?? 'Unavailable'}
+        value={
+          walletBalance === null ? (
+            'Unavailable'
+          ) : (
+            <span className='inline-flex items-center gap-2'>
+              <MinimaIcon size={20} className='shrink-0 text-slate-600' />
+              {walletBalance}
+            </span>
+          )
+        }
         helper='Primary Pi wallet'
         icon={Wallet}
         valueClass={walletBalance === null ? 'text-slate-400' : 'text-slate-950'}
