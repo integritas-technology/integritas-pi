@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `GET /api/wallet` — new auth-protected wallet endpoint returning a normalized `WalletStatus` (checkedAt, tokens array). Each `TokenBalance` includes tokenId, name, confirmed, unconfirmed, sendable, and an `isNative` flag (`tokenId === "0x00"`). Wraps the existing Minima `balance` RPC via `runMinimaPathCommand`; the legacy `GET /api/minima/balance` passthrough is unchanged.
+- Wallet page redesign: balance card showing confirmed/unconfirmed/sendable MINIMA, and a token holdings table with All / Minima / Tokens filter tabs. Fetches from `GET /api/wallet` via the shared `lib/api.ts` client.
+- Dashboard wallet balance card: shows primary Pi wallet confirmed MINIMA balance in the device status metric grid. Non-blocking — displays "Unavailable" if the Minima node is unreachable without affecting other dashboard cards.
+
 ## [0.5.0] - 2026-06-12
 
 System basic status and health checks added to Dashboard with 30s auto-polling, and graceful shutdown to backend systems.

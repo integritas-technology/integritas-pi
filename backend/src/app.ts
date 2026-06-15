@@ -11,6 +11,7 @@ import { healthRouter } from "./features/health/health.routes.js";
 import { integritasRouter } from "./features/integritas/integritas.routes.js";
 import { minimaRouter } from "./features/minima/minima.routes.js";
 import { statusRouter } from "./features/status/status.routes.js";
+import { walletRouter } from "./features/wallet/wallet.routes.js";
 import { requestLogger } from "./middleware/requestLogger.js";
 
 export function createApp() {
@@ -35,6 +36,7 @@ export function createApp() {
   app.use("/api/data-reads", dataReadsRouter);
   app.use("/api/automation", automationRouter);
   app.use("/api/files", filesRouter);
+  app.use("/api/wallet", walletRouter);
 
   return app;
 }

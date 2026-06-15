@@ -1,61 +1,96 @@
 import { useEffect, useState } from "react";
-import type { MinimaCommandResult } from "../app/types";
 import { Card } from "../components/Card";
-import { JsonPreview } from "../components/JsonPreview";
 import { Page } from "../components/Page";
-import { StatusBadge } from "../components/StatusBadge";
+import { getWalletStatus } from "../features/wallet/walletApi";
+import type { TokenBalance, WalletStatus } from "../features/wallet/walletTypes";
 
-type BalanceToken = {
-  token?: string;
-  tokenid?: string;
-  confirmed?: string;
-  unconfirmed?: string;
-  sendable?: string;
-};
+type Filter = "all" | "minima" | "tokens";
 
 export function WalletPage() {
-  const [balance, setBalance] = useState<MinimaCommandResult | null>(null);
+  const [status, setStatus] = useState<WalletStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<Filter>("all");
 
   useEffect(() => {
-    fetch("/api/minima/balance")
-      .then(async (response) => {
-        const parsed = await response.json();
-        if (!response.ok) throw new Error(parsed?.error || `HTTP ${response.status}`);
-        return parsed as MinimaCommandResult;
-      })
-      .then(setBalance)
-      .catch((err: Error) => setError(err.message));
+    getWalletStatus().then(setStatus).catch((err: Error) => setError(err.message));
   }, []);
 
-  const minimaBalance = getMinimaBalance(balance);
+  const native = status?.tokens.find((t) => t.isNative) ?? null;
+  const visible = filterTokens(status?.tokens ?? [], filter);
 
   return (
-    <Page eyebrow="Wallet" title="Wallet and tokens" desc="Read wallet balance through the backend and Minima RPC.">
+    <Page eyebrow="Wallet" title="Wallet and tokens" desc="Minima wallet balance and token holdings for this node.">
       <Card className="wallet-balance-card">
-        <div className="status-row">
+        <div className="wallet-balance-header">
           <div>
-            <strong>Balance</strong>
-            <p className="muted">Confirmed Minima wallet balance.</p>
+            <p className="eyebrow">Primary wallet</p>
+            <p className="wallet-balance-amount">{native?.confirmed ?? (error ? "—" : "…")}</p>
+            <p className="muted">MINIMA confirmed</p>
           </div>
-          <StatusBadge ok={Boolean(balance?.ok && !error)}>{balance ? `HTTP ${balance.status}` : error ? "error" : "checking"}</StatusBadge>
+          <div className="wallet-balance-meta">
+            {native && (
+              <>
+                <p className="muted">Unconfirmed: {native.unconfirmed}</p>
+                <p className="muted">Sendable: {native.sendable}</p>
+              </>
+            )}
+            {error && <p className="error-text">{error}</p>}
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="wallet-filter-header">
+          <p className="eyebrow">Token holdings</p>
+          <div className="wallet-filter-tabs">
+            {(["all", "minima", "tokens"] as Filter[]).map((f) => (
+              <button
+                key={f}
+                type="button"
+                className={filter === f ? "pill pill-active" : "pill"}
+                onClick={() => setFilter(f)}
+              >
+                {f === "all" ? "All" : f === "minima" ? "Minima" : "Tokens"}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="wallet-balance-value">
-          <span>Confirmed</span>
-          <strong>{minimaBalance?.confirmed ?? "loading..."}</strong>
-          <p className="muted">{minimaBalance?.token ?? "Minima"}</p>
-        </div>
+        {!status && !error && <p className="muted">Loading…</p>}
+        {status && visible.length === 0 && <p className="muted">No tokens to display.</p>}
 
-        {error && <p className="error-text">{error}</p>}
-        {balance && <JsonPreview value={balance.body ?? balance} label="View balance JSON" />}
+        {visible.length > 0 && (
+          <table className="wallet-token-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Confirmed</th>
+                <th>Unconfirmed</th>
+                <th>Sendable</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((token) => (
+                <tr key={token.tokenId}>
+                  <td>
+                    <span>{token.name}</span>
+                    {!token.isNative && <code className="token-id">{token.tokenId}</code>}
+                  </td>
+                  <td>{token.confirmed}</td>
+                  <td>{token.unconfirmed}</td>
+                  <td>{token.sendable}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </Card>
     </Page>
   );
 }
 
-function getMinimaBalance(result: MinimaCommandResult | null) {
-  const body = result?.body;
-  if (!body || typeof body !== "object" || !("response" in body) || !Array.isArray((body as { response?: unknown }).response)) return null;
-  return ((body as { response: BalanceToken[] }).response.find((item) => item.tokenid === "0x00") ?? (body as { response: BalanceToken[] }).response[0]) ?? null;
+function filterTokens(tokens: TokenBalance[], filter: Filter): TokenBalance[] {
+  if (filter === "minima") return tokens.filter((t) => t.isNative);
+  if (filter === "tokens") return tokens.filter((t) => !t.isNative);
+  return tokens;
 }
