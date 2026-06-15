@@ -36,6 +36,7 @@ Root-level operator docs stay outside this tree: [README.md](../README.md), [SEC
 | [integritas-integration.md](./plans/integritas-integration.md) | **Complete** | Phases 1–3 backend + Phase 5 UX; sandbox tests deferred to QA |
 | [minima-node.md](./plans/minima-node.md) | **Complete** | Phases 1–3 shipped; live RPC integration tests in QA |
 | [device-status.md](./plans/device-status.md) | **Complete** | Device info service, `GET /api/status` summary, graceful shutdown; unit tests deferred → [qa/device-status-gaps.md](./qa/device-status-gaps.md) |
+| [wallet.md](./plans/wallet.md) | **Not started** | Wallet lifecycle service: balance, address, send, import/export; 3 phases |
 
 When starting a new feature, copy [templates/feature-plan.md](./templates/feature-plan.md) into `plans/` before large diffs. Mark it **Complete** when shipped and move follow-up testing/hardening to `qa/`.
 
