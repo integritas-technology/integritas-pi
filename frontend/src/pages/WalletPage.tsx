@@ -17,6 +17,28 @@ function isMiniAddress(value: string): boolean {
   return value.startsWith("Mx");
 }
 
+function FilledHexTokenIcon({ size = 13, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={className}
+      fill="currentColor"
+    >
+      <path d="M12 2.2 20.4 7v10L12 21.8 3.6 17V7L12 2.2Z" />
+    </svg>
+  );
+}
+
+function TokenGlyph({ isNative }: { isNative: boolean }) {
+  if (isNative) {
+    return <MinimaIcon size={13} className="text-slate-400 shrink-0" />;
+  }
+  return <FilledHexTokenIcon size={13} className="text-slate-400 shrink-0" />;
+}
+
 export function WalletPage() {
   const { showToast } = useToast();
   const [accounts, setAccounts] = useState<WalletAccount[]>([]);
@@ -267,6 +289,12 @@ function CreateAccountModal({
 
 function AccountDetailModal({ account, onClose }: { account: WalletAccount; onClose: () => void }) {
   const hasMx = isMiniAddress(account.miniAddress);
+  const [fundFilter, setFundFilter] = useState<"all" | "minima" | "tokens">("all");
+  const visibleFunds = account.balance.tokens.filter((token) => {
+    if (fundFilter === "minima") return token.isNative;
+    if (fundFilter === "tokens") return !token.isNative;
+    return true;
+  });
   return (
     <Modal title={`Account: ${account.label}`} onClose={onClose}>
       <div className="grid gap-4">
@@ -282,17 +310,38 @@ function AccountDetailModal({ account, onClose }: { account: WalletAccount; onCl
           <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">Address (0x)</p>
           <code className="block break-all rounded-xl bg-slate-100 p-3 text-xs text-slate-700 font-mono">{account.address}</code>
         </div>
-        <div className="rounded-xl border border-slate-200 p-3">
-          <p className="text-sm font-semibold text-slate-900 mb-2">Funds</p>
+        <div>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Funds</p>
+            <div className="subtabs">
+              {(["all", "minima", "tokens"] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  className={fundFilter === f ? "active" : ""}
+                  onClick={() => setFundFilter(f)}
+                >
+                  {f === "all" ? "All" : f === "minima" ? "Minima" : "Tokens"}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="grid gap-2">
-            {account.balance.tokens.length === 0 && <p className="text-sm text-slate-500">No funds on this address yet.</p>}
-            {account.balance.tokens.map((token) => (
-              <div key={token.tokenId} className="flex items-center justify-between gap-3">
+            {visibleFunds.length === 0 && <p className="text-sm text-slate-500">No funds in this filter.</p>}
+            {visibleFunds.map((token) => (
+              <div key={token.tokenId} className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 bg-white p-2.5">
                 <div>
-                  <p className="text-sm font-medium text-slate-900">{token.name}</p>
-                  {!token.isNative && <p className="text-xs text-slate-500 font-mono">{token.tokenId}</p>}
+                  <p className="text-sm font-medium text-slate-900">
+                    {token.name}
+                  </p>
+                  <p className="text-xs text-slate-500 font-mono break-all">{token.tokenId}</p>
                 </div>
-                <p className="text-sm font-semibold text-slate-900">{token.amount}</p>
+                <div className="self-start">
+                  <p className="text-sm font-semibold text-slate-900 whitespace-nowrap inline-flex items-center gap-1.5">
+                    <TokenGlyph isNative={token.isNative} />
+                    {token.amount}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
