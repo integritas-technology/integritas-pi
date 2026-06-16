@@ -151,4 +151,19 @@ export function runMigrations() {
       updated_at TEXT NOT NULL
     )
   `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS wallet_send_history (
+      id TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      from_account_label TEXT,
+      from_account_address TEXT,
+      to_address TEXT NOT NULL,
+      token_id TEXT NOT NULL,
+      token_name TEXT NOT NULL,
+      amount TEXT NOT NULL,
+      txpow_id TEXT,
+      status TEXT NOT NULL
+    )
+  `);
 }

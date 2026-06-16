@@ -1,5 +1,5 @@
 import { getJson, postJson } from "../../lib/api";
-import type { ImportWalletResult, PaymentStatus, ReceiveAddress, SendPaymentRequest, SendPaymentResult, WalletAccount, WalletAccountsOverview, WalletStatus } from "./walletTypes";
+import type { ImportWalletResult, PaymentStatus, ReceiveAddress, SendPaymentRequest, SendPaymentResult, WalletAccount, WalletAccountsOverview, WalletSendHistoryItem, WalletStatus } from "./walletTypes";
 
 export function getWalletStatus() {
   return getJson<WalletStatus>("/api/wallet");
@@ -31,4 +31,8 @@ export function createWalletAccount(label: string, address?: string) {
 
 export function clearWalletAccountsForDebug() {
   return postJson<{ ok: boolean; deleted: number }>("/api/wallet/debug/clear-wallet-accounts");
+}
+
+export function listWalletSendHistory(limit = 30) {
+  return getJson<{ sends: WalletSendHistoryItem[] }>(`/api/wallet/history?limit=${encodeURIComponent(String(limit))}`);
 }

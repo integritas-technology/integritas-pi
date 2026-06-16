@@ -9,9 +9,10 @@ import {
   createWalletAccount,
   importWallet as importWalletApi,
   listWalletAccounts,
+  listWalletSendHistory,
   sendPayment as sendPaymentApi
 } from "../features/wallet/walletApi";
-import type { ImportWalletResult, UnlabeledFundedAddress, WalletAccount, WalletAccountTokenBalance } from "../features/wallet/walletTypes";
+import type { ImportWalletResult, UnlabeledFundedAddress, WalletAccount, WalletAccountTokenBalance, WalletSendHistoryItem } from "../features/wallet/walletTypes";
 
 function isMiniAddress(value: string): boolean {
   return value.startsWith("Mx");
@@ -50,15 +51,20 @@ export function WalletPage() {
   const [sendOpen, setSendOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [unlabeledFunded, setUnlabeledFunded] = useState<UnlabeledFundedAddress[]>([]);
+  const [sendHistory, setSendHistory] = useState<WalletSendHistoryItem[]>([]);
   const [debugClearing, setDebugClearing] = useState(false);
 
   async function refreshAccounts() {
     setLoading(true);
     setError(null);
     try {
-      const result = await listWalletAccounts();
+      const [result, history] = await Promise.all([
+        listWalletAccounts(),
+        listWalletSendHistory(20)
+      ]);
       setAccounts(result.accounts);
       setUnlabeledFunded(result.unlabeledFunded);
+      setSendHistory(history.sends);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load accounts.");
     } finally {
@@ -205,6 +211,39 @@ export function WalletPage() {
           </div>
         </Card>
       )}
+
+      <Card>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <p className="eyebrow">History</p>
+          <p className="text-xs text-slate-500">Sent</p>
+        </div>
+        {loading && <p className="muted">Loading history…</p>}
+        {!loading && sendHistory.length === 0 && (
+          <p className="muted">No send activity yet.</p>
+        )}
+        <div className="grid gap-2">
+          {sendHistory.map((entry) => (
+            <div key={entry.id} className="rounded-xl border border-slate-200 bg-white p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {entry.amount} {entry.tokenName}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    From {entry.fromAccountLabel ?? "Unassigned"} {"->"} {shortAddress(entry.toAddress)}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {new Date(entry.createdAt).toLocaleString()}
+                  </p>
+                </div>
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {entry.status}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
 
       {createOpen && <CreateAccountModal onClose={() => setCreateOpen(false)} onCreated={refreshAccounts} />}
       {createFromAddress && (
@@ -380,6 +419,7 @@ function SendPaymentModal({
         address: address.trim(),
         amount: amount.trim(),
         tokenId,
+        tokenName: tokenId === "0x00" ? "Minima" : (tokenOptions.find((opt) => opt.value === tokenId)?.label ?? tokenId),
         fromAccountAddress: selectedAccount.address
       });
       if (!result.ok || result.status === "failed") {
@@ -551,4 +591,9 @@ function ImportWalletModal({ onClose }: { onClose: () => void }) {
       </div>
     </Modal>
   );
+}
+
+function shortAddress(value: string): string {
+  if (value.length <= 20) return value;
+  return `${value.slice(0, 10)}…${value.slice(-8)}`;
 }

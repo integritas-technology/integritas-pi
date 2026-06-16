@@ -66,6 +66,7 @@ export type SendPaymentRequest = {
   address: string;
   amount: string;
   tokenId?: string;
+  tokenName?: string;
   fromAccountAddress?: string;
 };
 
@@ -85,4 +86,17 @@ export type PaymentStatus = {
 export type ImportWalletResult = {
   ok: boolean;
   message: string;
+};
+
+export type WalletSendHistoryItem = {
+  id: string;
+  createdAt: string;
+  fromAccountLabel: string | null;
+  fromAccountAddress: string | null;
+  toAddress: string;
+  tokenId: string;
+  tokenName: string;
+  amount: string;
+  txpowId: string | null;
+  status: "submitted" | "failed";
 };

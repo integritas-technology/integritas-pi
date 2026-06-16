@@ -7,6 +7,7 @@ import type {
   ReceiveAddress,
   SendPaymentRequest,
   SendPaymentResult,
+  WalletSendHistoryItem,
   WalletAccount,
   WalletAccountsOverview,
   WalletAccountBalance,
@@ -115,6 +116,24 @@ export function listWalletAccounts(): WalletAccount[] {
   return rows.map(mapWalletAccount);
 }
 
+export function getWalletAccountByAddress(address: string): WalletAccount | null {
+  const row = db.prepare(`
+    SELECT id, label, address, mini_address, public_key, created_at, updated_at
+    FROM wallet_accounts
+    WHERE address = ?
+    LIMIT 1
+  `).get(address.trim()) as {
+    id: string;
+    label: string;
+    address: string;
+    mini_address: string;
+    public_key: string | null;
+    created_at: string;
+    updated_at: string;
+  } | undefined;
+  return row ? mapWalletAccount(row) : null;
+}
+
 export async function createWalletAccount({ label }: WalletAccountCreateRequest): Promise<WalletAccount> {
   const cleanLabel = label.trim();
   if (!cleanLabel) throw new Error("label is required");
@@ -217,4 +236,68 @@ export async function listWalletAccountsWithBalances(): Promise<WalletAccountsOv
 export function clearWalletAccountsForDebug(): number {
   const result = db.prepare("DELETE FROM wallet_accounts").run();
   return result.changes;
+}
+
+export function recordWalletSendHistory(input: {
+  fromAccountLabel: string | null;
+  fromAccountAddress: string | null;
+  toAddress: string;
+  tokenId: string;
+  tokenName: string;
+  amount: string;
+  txpowId: string | null;
+  status: "submitted" | "failed";
+}) {
+  const id = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+  db.prepare(`
+    INSERT INTO wallet_send_history (
+      id, created_at, from_account_label, from_account_address, to_address, token_id, token_name, amount, txpow_id, status
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    createdAt,
+    input.fromAccountLabel,
+    input.fromAccountAddress,
+    input.toAddress,
+    input.tokenId,
+    input.tokenName,
+    input.amount,
+    input.txpowId,
+    input.status
+  );
+}
+
+export function listWalletSendHistory(limit = 30): WalletSendHistoryItem[] {
+  const safeLimit = Math.max(1, Math.min(200, Math.trunc(limit)));
+  const rows = db.prepare(`
+    SELECT id, created_at, from_account_label, from_account_address, to_address, token_id, token_name, amount, txpow_id, status
+    FROM wallet_send_history
+    ORDER BY datetime(created_at) DESC
+    LIMIT ?
+  `).all(safeLimit) as {
+    id: string;
+    created_at: string;
+    from_account_label: string | null;
+    from_account_address: string | null;
+    to_address: string;
+    token_id: string;
+    token_name: string;
+    amount: string;
+    txpow_id: string | null;
+    status: "submitted" | "failed";
+  }[];
+  return rows.map((row) => ({
+    id: row.id,
+    createdAt: row.created_at,
+    fromAccountLabel: row.from_account_label,
+    fromAccountAddress: row.from_account_address,
+    toAddress: row.to_address,
+    tokenId: row.token_id,
+    tokenName: row.token_name,
+    amount: row.amount,
+    txpowId: row.txpow_id,
+    status: row.status
+  }));
 }

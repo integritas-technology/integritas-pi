@@ -2,7 +2,7 @@ import { Router } from "express";
 import { env } from "../../config/env.js";
 import { recordAuditEvent } from "../auth/audit.service.js";
 import { requireRole } from "../auth/auth.middleware.js";
-import { clearWalletAccountsForDebug, createWalletAccount, createWalletAccountFromAddress, getPaymentStatus, getReceiveAddress, getWalletStatus, importWallet, listWalletAccountsWithBalances, sendPayment } from "./wallet.service.js";
+import { clearWalletAccountsForDebug, createWalletAccount, createWalletAccountFromAddress, getPaymentStatus, getReceiveAddress, getWalletAccountByAddress, getWalletStatus, importWallet, listWalletAccountsWithBalances, listWalletSendHistory, recordWalletSendHistory, sendPayment } from "./wallet.service.js";
 
 export const walletRouter = Router();
 
@@ -30,6 +30,7 @@ walletRouter.post("/send-payment", requireRole("admin"), async (req, res) => {
   const address = typeof req.body?.address === "string" ? req.body.address.trim() : "";
   const amount = typeof req.body?.amount === "string" ? req.body.amount.trim() : "";
   const tokenId = typeof req.body?.tokenId === "string" ? req.body.tokenId.trim() : "0x00";
+  const tokenName = typeof req.body?.tokenName === "string" ? req.body.tokenName.trim() : "";
   const fromAccountAddress = typeof req.body?.fromAccountAddress === "string" ? req.body.fromAccountAddress.trim() : "";
 
   if (!address) return res.status(400).json({ ok: false, error: "address is required" });
@@ -39,12 +40,25 @@ walletRouter.post("/send-payment", requireRole("admin"), async (req, res) => {
 
   try {
     const result = await sendPayment({ address, amount, tokenId, fromAccountAddress: fromAccountAddress || undefined });
+    const fromAccount = fromAccountAddress ? getWalletAccountByAddress(fromAccountAddress) : null;
+    const displayTokenName = tokenName || (tokenId === "0x00" ? "Minima" : tokenId);
+    recordWalletSendHistory({
+      fromAccountLabel: fromAccount?.label ?? null,
+      fromAccountAddress: fromAccountAddress || null,
+      toAddress: address,
+      tokenId,
+      tokenName: displayTokenName,
+      amount,
+      txpowId: result.txpowId,
+      status: result.ok ? "submitted" : "failed"
+    });
     recordAuditEvent("wallet.payment.send", {
       userId: req.user?.id,
       detail: JSON.stringify({
         address,
         amount,
         tokenId,
+        tokenName: displayTokenName,
         fromAccountAddress: fromAccountAddress || undefined,
         txpowId: result.txpowId
       })
@@ -53,6 +67,17 @@ walletRouter.post("/send-payment", requireRole("admin"), async (req, res) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     res.status(502).json({ ok: false, error: message });
+  }
+});
+
+walletRouter.get("/history", async (req, res) => {
+  const rawLimit = typeof req.query.limit === "string" ? Number(req.query.limit) : 30;
+  const limit = Number.isFinite(rawLimit) ? rawLimit : 30;
+  try {
+    res.json({ sends: listWalletSendHistory(limit) });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    res.status(500).json({ ok: false, error: message });
   }
 });
 

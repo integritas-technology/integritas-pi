@@ -159,6 +159,17 @@ If `MINIMA_AUTO_RESYNC=true` is enabled and a resync triggers concurrently with 
 - [ ] Verify: disable `MINIMA_AUTO_RESYNC` before using `POST /api/wallet/import` in any field scenario
 - [ ] Document this as an operator checklist item in the deploy guide when the export/import flow is fully scoped
 
+### WALLET-14 — Receive history (Phase 2) not implemented yet
+
+**Current scope:** Wallet history currently records **send activity** from backend `POST /api/wallet/send-payment` into SQLite (`wallet_send_history`) and renders it in the Wallet page.
+
+**Phase 2 target:** add **receive history** based on Minima node data (`history` / `txpow` parsing), mapped to labeled account addresses.
+
+- [ ] Define parser contract for `history` entries into wallet-friendly rows (`direction`, `address`, `token`, `amount`, `txpowId`, `timestamp`)
+- [ ] Verify token amount and name normalization for received custom tokens
+- [ ] Add receive rows to the wallet history API/UI with pagination and clear distinction from local send-only records
+- [ ] Document residual gaps when chain pruning or node re-sync affects historical visibility
+
 ---
 
 ## Manual QA checklist (copy for test runs)
