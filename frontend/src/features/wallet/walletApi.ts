@@ -28,3 +28,7 @@ export function listWalletAccounts() {
 export function createWalletAccount(label: string, address?: string) {
   return postJson<WalletAccount>("/api/wallet/accounts", { label, address });
 }
+
+export function clearWalletAccountsForDebug() {
+  return postJson<{ ok: boolean; deleted: number }>("/api/wallet/debug/clear-wallet-accounts");
+}

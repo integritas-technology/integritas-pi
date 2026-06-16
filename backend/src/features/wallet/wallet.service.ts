@@ -213,3 +213,8 @@ export async function listWalletAccountsWithBalances(): Promise<WalletAccountsOv
     unlabeledFunded
   };
 }
+
+export function clearWalletAccountsForDebug(): number {
+  const result = db.prepare("DELETE FROM wallet_accounts").run();
+  return result.changes;
+}

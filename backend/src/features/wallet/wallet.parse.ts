@@ -116,6 +116,32 @@ type CoinRecord = {
   spent: boolean;
 };
 
+function getTokenName(rawToken: unknown, tokenId: string): string {
+  if (typeof rawToken === "string" && rawToken.trim()) return rawToken.trim();
+  const tokenObj = asRecord(rawToken);
+  if (!tokenObj) return tokenId;
+  const nameValue = tokenObj.name;
+  if (typeof nameValue === "string" && nameValue.trim()) return nameValue.trim();
+  const nestedName = asRecord(nameValue);
+  if (nestedName && typeof nestedName.name === "string" && nestedName.name.trim()) {
+    return nestedName.name.trim();
+  }
+  return tokenId;
+}
+
+function addDecimalStrings(a: string, b: string): string {
+  const [aInt, aFrac = ""] = a.split(".");
+  const [bInt, bFrac = ""] = b.split(".");
+  const fracLen = Math.max(aFrac.length, bFrac.length);
+  const aNorm = `${aInt || "0"}${aFrac.padEnd(fracLen, "0")}`;
+  const bNorm = `${bInt || "0"}${bFrac.padEnd(fracLen, "0")}`;
+  const sum = (BigInt(aNorm || "0") + BigInt(bNorm || "0")).toString().padStart(fracLen + 1, "0");
+  if (fracLen === 0) return sum;
+  const intPart = sum.slice(0, -fracLen).replace(/^0+(?=\d)/, "");
+  const fracPart = sum.slice(-fracLen).replace(/0+$/, "");
+  return fracPart ? `${intPart}.${fracPart}` : intPart;
+}
+
 export function parseCoinsResponse(body: unknown): CoinRecord[] {
   const record = asRecord(body);
   if (!record || record.status === false) return [];
@@ -127,13 +153,13 @@ export function parseCoinsResponse(body: unknown): CoinRecord[] {
     if (!coin) continue;
     const address = asString(coin.address, "");
     const tokenId = asString(coin.tokenid, "");
-    const amount = asString(coin.amount, "0");
+    const amount = asString(coin.tokenamount, asString(coin.amount, "0"));
     if (!address || !tokenId) continue;
     result.push({
       amount,
       address,
       tokenId,
-      tokenName: asString(coin.token, tokenId),
+      tokenName: getTokenName(coin.token, tokenId),
       spent: coin.spent === true
     });
   }
@@ -141,18 +167,17 @@ export function parseCoinsResponse(body: unknown): CoinRecord[] {
 }
 
 export function buildAccountTokenBalances(coins: CoinRecord[]): WalletAccountTokenBalance[] {
-  const byToken = new Map<string, { amount: number; name: string; isNative: boolean }>();
+  const byToken = new Map<string, { amount: string; name: string; isNative: boolean }>();
   for (const coin of coins) {
     if (coin.spent) continue;
-    const parsedAmount = Number(coin.amount);
-    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) continue;
+    if (!coin.amount || coin.amount === "0") continue;
     const existing = byToken.get(coin.tokenId);
     if (existing) {
-      existing.amount += parsedAmount;
+      existing.amount = addDecimalStrings(existing.amount, coin.amount);
       continue;
     }
     byToken.set(coin.tokenId, {
-      amount: parsedAmount,
+      amount: coin.amount,
       name: coin.tokenId === "0x00" ? "Minima" : coin.tokenName,
       isNative: coin.tokenId === "0x00"
     });
@@ -161,7 +186,7 @@ export function buildAccountTokenBalances(coins: CoinRecord[]): WalletAccountTok
     .map(([tokenId, value]) => ({
       tokenId,
       name: value.name,
-      amount: Number.isInteger(value.amount) ? String(value.amount) : value.amount.toString(),
+      amount: value.amount,
       isNative: value.isNative
     }))
     .sort((a, b) => Number(b.isNative) - Number(a.isNative) || a.name.localeCompare(b.name));

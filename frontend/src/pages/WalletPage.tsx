@@ -5,6 +5,7 @@ import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
 import { useToast } from "../components/ToastProvider";
 import {
+  clearWalletAccountsForDebug,
   createWalletAccount,
   getPaymentStatus,
   importWallet as importWalletApi,
@@ -18,6 +19,7 @@ function isMiniAddress(value: string): boolean {
 }
 
 export function WalletPage() {
+  const { showToast } = useToast();
   const [accounts, setAccounts] = useState<WalletAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,6 +29,7 @@ export function WalletPage() {
   const [sendOpen, setSendOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [unlabeledFunded, setUnlabeledFunded] = useState<UnlabeledFundedAddress[]>([]);
+  const [debugClearing, setDebugClearing] = useState(false);
 
   async function refreshAccounts() {
     setLoading(true);
@@ -47,6 +50,32 @@ export function WalletPage() {
   }, []);
 
   const totalMinima = accounts.reduce((sum, account) => sum + Number(account.balance.totalMinima || "0"), 0).toString();
+  const isDev = import.meta.env.DEV;
+
+  async function handleDebugClearWalletAccounts() {
+    const confirmed = window.confirm(
+      "Clear all labeled wallet accounts from SQLite? This is a dev-only debug action and cannot be undone."
+    );
+    if (!confirmed) return;
+    setDebugClearing(true);
+    try {
+      const result = await clearWalletAccountsForDebug();
+      await refreshAccounts();
+      showToast({
+        tone: "success",
+        title: "Wallet accounts cleared",
+        message: `Deleted ${result.deleted} labeled account(s).`
+      });
+    } catch (err) {
+      showToast({
+        tone: "error",
+        title: "Clear failed",
+        message: err instanceof Error ? err.message : "Could not clear wallet accounts."
+      });
+    } finally {
+      setDebugClearing(false);
+    }
+  }
 
   return (
     <Page eyebrow="Wallet" title="Wallet accounts" desc="Named account labels mapped to Minima node addresses.">
@@ -111,6 +140,19 @@ export function WalletPage() {
             </button>
           ))}
         </div>
+        {isDev && (
+          <div className="mt-4 flex justify-end">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleDebugClearWalletAccounts}
+              disabled={debugClearing}
+              title="Dev-only: clears wallet_accounts table"
+            >
+              {debugClearing ? "Clearing…" : "Debug: clear labels"}
+            </button>
+          </div>
+        )}
       </Card>
 
       {!loading && unlabeledFunded.length > 0 && (
@@ -190,8 +232,13 @@ function CreateAccountModal({
     }
   }
 
+  function handleCloseRequest() {
+    if (submitting) return;
+    onClose();
+  }
+
   return (
-    <Modal title="Create wallet account" onClose={onClose}>
+    <Modal title="Create wallet account" onClose={handleCloseRequest}>
       <form onSubmit={handleSubmit} className="grid gap-4">
         <p className="text-sm text-slate-500">
           {fixedAddress
@@ -206,6 +253,11 @@ function CreateAccountModal({
           <input type="text" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Treasury" maxLength={80} />
         </label>
         {error && <p className="text-sm text-red-700">{error}</p>}
+        {submitting && (
+          <p className="text-sm text-slate-500">
+            Saving account label… please wait.
+          </p>
+        )}
         <button type="submit" disabled={submitting} className="rounded-xl border-0 bg-slate-950 px-5 py-3 text-sm font-bold text-white disabled:opacity-50">
           {submitting ? "Creating…" : "Create account"}
         </button>

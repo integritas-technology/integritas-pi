@@ -1,7 +1,8 @@
 import { Router } from "express";
+import { env } from "../../config/env.js";
 import { recordAuditEvent } from "../auth/audit.service.js";
 import { requireRole } from "../auth/auth.middleware.js";
-import { createWalletAccount, createWalletAccountFromAddress, getPaymentStatus, getReceiveAddress, getWalletStatus, importWallet, listWalletAccountsWithBalances, sendPayment } from "./wallet.service.js";
+import { clearWalletAccountsForDebug, createWalletAccount, createWalletAccountFromAddress, getPaymentStatus, getReceiveAddress, getWalletStatus, importWallet, listWalletAccountsWithBalances, sendPayment } from "./wallet.service.js";
 
 export const walletRouter = Router();
 
@@ -84,6 +85,23 @@ walletRouter.post("/accounts", requireRole("admin"), async (req, res) => {
       return;
     }
     res.status(502).json({ ok: false, error: message });
+  }
+});
+
+walletRouter.post("/debug/clear-wallet-accounts", requireRole("admin"), async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(403).json({ ok: false, error: "Debug endpoint is disabled in production" });
+  }
+  try {
+    const deleted = clearWalletAccountsForDebug();
+    recordAuditEvent("wallet.debug.clear_accounts", {
+      userId: req.user?.id,
+      detail: JSON.stringify({ deleted, mode: process.env.NODE_ENV ?? "unknown", dbPath: env.databasePath })
+    });
+    res.json({ ok: true, deleted });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    res.status(500).json({ ok: false, error: message });
   }
 });
 
