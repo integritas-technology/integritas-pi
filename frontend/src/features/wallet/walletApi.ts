@@ -33,6 +33,10 @@ export function clearWalletAccountsForDebug() {
   return postJson<{ ok: boolean; deleted: number }>("/api/wallet/debug/clear-wallet-accounts");
 }
 
+export function clearWalletHistoryForDebug() {
+  return postJson<{ ok: boolean; deleted: number }>("/api/wallet/debug/clear-wallet-history");
+}
+
 export function listWalletSendHistory(limit = 30) {
   return getJson<{ sends: WalletSendHistoryItem[] }>(`/api/wallet/history?limit=${encodeURIComponent(String(limit))}`);
 }

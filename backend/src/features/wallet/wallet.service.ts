@@ -238,6 +238,11 @@ export function clearWalletAccountsForDebug(): number {
   return result.changes;
 }
 
+export function clearWalletSendHistoryForDebug(): number {
+  const result = db.prepare("DELETE FROM wallet_send_history").run();
+  return result.changes;
+}
+
 export function recordWalletSendHistory(input: {
   fromAccountLabel: string | null;
   fromAccountAddress: string | null;

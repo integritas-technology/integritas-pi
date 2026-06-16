@@ -6,6 +6,7 @@ import { Page } from "../components/Page";
 import { useToast } from "../components/ToastProvider";
 import {
   clearWalletAccountsForDebug,
+  clearWalletHistoryForDebug,
   createWalletAccount,
   importWallet as importWalletApi,
   listWalletAccounts,
@@ -16,6 +17,19 @@ import type { ImportWalletResult, UnlabeledFundedAddress, WalletAccount, WalletA
 
 function isMiniAddress(value: string): boolean {
   return value.startsWith("Mx");
+}
+
+function addDecimalStrings(a: string, b: string): string {
+  const [aInt, aFrac = ""] = a.split(".");
+  const [bInt, bFrac = ""] = b.split(".");
+  const fracLen = Math.max(aFrac.length, bFrac.length);
+  const aNorm = `${aInt || "0"}${aFrac.padEnd(fracLen, "0")}`;
+  const bNorm = `${bInt || "0"}${bFrac.padEnd(fracLen, "0")}`;
+  const sum = (BigInt(aNorm || "0") + BigInt(bNorm || "0")).toString().padStart(fracLen + 1, "0");
+  if (fracLen === 0) return sum;
+  const intPart = sum.slice(0, -fracLen).replace(/^0+(?=\d)/, "");
+  const fracPart = sum.slice(-fracLen).replace(/0+$/, "");
+  return fracPart ? `${intPart}.${fracPart}` : intPart;
 }
 
 function FilledHexTokenIcon({ size = 13, className = "" }: { size?: number; className?: string }) {
@@ -53,6 +67,7 @@ export function WalletPage() {
   const [unlabeledFunded, setUnlabeledFunded] = useState<UnlabeledFundedAddress[]>([]);
   const [sendHistory, setSendHistory] = useState<WalletSendHistoryItem[]>([]);
   const [debugClearing, setDebugClearing] = useState(false);
+  const [debugClearingHistory, setDebugClearingHistory] = useState(false);
 
   async function refreshAccounts() {
     setLoading(true);
@@ -76,7 +91,10 @@ export function WalletPage() {
     refreshAccounts();
   }, []);
 
-  const totalMinima = accounts.reduce((sum, account) => sum + Number(account.balance.totalMinima || "0"), 0).toString();
+  const totalMinima = accounts.reduce(
+    (sum, account) => addDecimalStrings(sum, account.balance.totalMinima || "0"),
+    "0"
+  );
   const isDev = import.meta.env.DEV;
 
   async function handleDebugClearWalletAccounts() {
@@ -104,30 +122,67 @@ export function WalletPage() {
     }
   }
 
+  async function handleDebugClearWalletHistory() {
+    const confirmed = window.confirm(
+      "Clear wallet send history from SQLite? This is a dev-only debug action and cannot be undone."
+    );
+    if (!confirmed) return;
+    setDebugClearingHistory(true);
+    try {
+      const result = await clearWalletHistoryForDebug();
+      await refreshAccounts();
+      showToast({
+        tone: "success",
+        title: "Wallet history cleared",
+        message: `Deleted ${result.deleted} history item(s).`
+      });
+    } catch (err) {
+      showToast({
+        tone: "error",
+        title: "Clear failed",
+        message: err instanceof Error ? err.message : "Could not clear wallet history."
+      });
+    } finally {
+      setDebugClearingHistory(false);
+    }
+  }
+
   return (
     <Page eyebrow="Wallet" title="Wallet accounts" desc="Named account labels mapped to Minima node addresses.">
       <div className="hero-card wallet-balance-card">
-        <div className="wallet-hero-header">
-          <div className="wallet-hero-icon">
-            <MinimaIcon size={18} />
+        <div className="wallet-hero-left">
+          <div className="wallet-hero-header">
+            <div className="wallet-hero-icon">
+              <MinimaIcon size={18} />
+            </div>
+            <p className="eyebrow">Node wallet</p>
           </div>
-          <p className="eyebrow">Node wallet</p>
+          <p className="wallet-amount-label">MINIMA across labeled accounts</p>
         </div>
-        <div className="wallet-amount-row">
-          <MinimaIcon size={36} className="wallet-amount-icon" />
-          <span className="wallet-amount-number">{loading ? "…" : totalMinima}</span>
-        </div>
-        <p className="wallet-amount-label">MINIMA across labeled accounts</p>
-        <div className="wallet-hero-actions">
-          <button type="button" className="wallet-action-btn" onClick={() => setCreateOpen(true)}>
-            Create account
-          </button>
-          <button type="button" className="wallet-action-btn wallet-action-btn-ghost" onClick={() => setSendOpen(true)}>
-            Send payment
-          </button>
-          <button type="button" className="wallet-action-btn wallet-action-btn-ghost" onClick={() => setImportOpen(true)}>
-            Import wallet
-          </button>
+        <div className="wallet-hero-right">
+          <div className="wallet-amount-row">
+            <MinimaIcon size={36} className="wallet-amount-icon" />
+            <span className="wallet-amount-number">{loading ? "…" : totalMinima}</span>
+          </div>
+          <div className="wallet-hero-actions">
+            <button type="button" className="wallet-action-btn" onClick={() => setCreateOpen(true)}>
+              Create account
+            </button>
+            <button type="button" className="wallet-action-btn wallet-action-btn-ghost" onClick={() => setSendOpen(true)}>
+              Send payment
+            </button>
+            <button type="button" className="wallet-action-btn wallet-action-btn-ghost" onClick={() => setImportOpen(true)}>
+              Import wallet
+            </button>
+            <button
+              type="button"
+              className="wallet-action-btn wallet-action-btn-ghost"
+              disabled
+              title="Export wallet backup — coming soon"
+            >
+              Export wallet
+            </button>
+          </div>
         </div>
       </div>
 
@@ -230,7 +285,7 @@ export function WalletPage() {
                     {entry.amount} {entry.tokenName}
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    From {entry.fromAccountLabel ?? "Unassigned"} {"->"} {shortAddress(entry.toAddress)}
+                    {formatHistoryFlow(entry, accounts)}
                   </p>
                   <p className="text-xs text-slate-400 mt-1">
                     {new Date(entry.createdAt).toLocaleString()}
@@ -243,6 +298,19 @@ export function WalletPage() {
             </div>
           ))}
         </div>
+        {isDev && (
+          <div className="mt-4 flex justify-end">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleDebugClearWalletHistory}
+              disabled={debugClearingHistory}
+              title="Dev-only: clears wallet_send_history table"
+            >
+              {debugClearingHistory ? "Clearing…" : "Debug: clear history"}
+            </button>
+          </div>
+        )}
       </Card>
 
       {createOpen && <CreateAccountModal onClose={() => setCreateOpen(false)} onCreated={refreshAccounts} />}
@@ -398,7 +466,9 @@ function SendPaymentModal({
   onClose: () => void;
 }) {
   const { showToast } = useToast();
+  const [destinationMode, setDestinationMode] = useState<"external" | "account">("external");
   const [fromAccountId, setFromAccountId] = useState("");
+  const [toAccountId, setToAccountId] = useState("");
   const [address, setAddress] = useState("");
   const [amount, setAmount] = useState("");
   const [tokenId, setTokenId] = useState("0x00");
@@ -410,13 +480,27 @@ function SendPaymentModal({
     setFormError(null);
     const selectedAccount = accounts.find((account) => account.id === fromAccountId);
     if (!selectedAccount) { setFormError("Select a source account."); return; }
-    if (!address.trim()) { setFormError("Address is required."); return; }
+    const destinationAccount = destinationMode === "account"
+      ? accounts.find((account) => account.id === toAccountId)
+      : null;
+    if (destinationMode === "account" && !destinationAccount) {
+      setFormError("Select a destination account.");
+      return;
+    }
+    if (destinationMode === "account" && destinationAccount?.id === selectedAccount.id) {
+      setFormError("Source and destination account must be different.");
+      return;
+    }
+    const targetAddress = destinationMode === "account"
+      ? (destinationAccount?.miniAddress || destinationAccount?.address || "")
+      : address.trim();
+    if (!targetAddress) { setFormError("Address is required."); return; }
     const num = Number(amount);
     if (!amount || !Number.isFinite(num) || num <= 0) { setFormError("Amount must be a positive number."); return; }
     setSubmitting(true);
     try {
       const result = await sendPaymentApi({
-        address: address.trim(),
+        address: targetAddress,
         amount: amount.trim(),
         tokenId,
         tokenName: tokenId === "0x00" ? "Minima" : (tokenOptions.find((opt) => opt.value === tokenId)?.label ?? tokenId),
@@ -428,7 +512,7 @@ function SendPaymentModal({
       }
       showToast({
         tone: "success",
-        title: "Payment sent",
+        title: destinationMode === "account" ? "Transfer sent" : "Payment sent",
         message: result.txpowId ? `Transaction submitted: ${result.txpowId.slice(0, 16)}…` : undefined
       });
       onClose();
@@ -440,6 +524,9 @@ function SendPaymentModal({
   }
 
   const selectedAccount = accounts.find((account) => account.id === fromAccountId);
+  const destinationAccounts = selectedAccount
+    ? accounts.filter((account) => account.id !== selectedAccount.id)
+    : accounts;
   const tokenOptions = selectedAccount
     ? selectedAccount.balance.tokens.map((token) => ({ value: token.tokenId, label: token.isNative ? "Minima (native)" : token.name }))
     : [{ value: "0x00", label: "Minima (native)" }];
@@ -449,7 +536,14 @@ function SendPaymentModal({
       <form onSubmit={handleSubmit} className="grid gap-4">
         <label className="grid gap-1.5">
           <span className="text-xs font-bold uppercase tracking-widest text-slate-500">From account</span>
-          <select value={fromAccountId} onChange={(e) => setFromAccountId(e.target.value)}>
+          <select
+            value={fromAccountId}
+            onChange={(e) => {
+              setFromAccountId(e.target.value);
+              setToAccountId("");
+              setFormError(null);
+            }}
+          >
             <option value="">Select account</option>
             {accounts.map((account) => (
               <option key={account.id} value={account.id}>
@@ -458,6 +552,33 @@ function SendPaymentModal({
             ))}
           </select>
         </label>
+        <label className="grid gap-1.5">
+          <span className="text-xs font-bold uppercase tracking-widest text-slate-500">Destination type</span>
+          <select
+            value={destinationMode}
+            onChange={(e) => {
+              const mode = e.target.value === "account" ? "account" : "external";
+              setDestinationMode(mode);
+              setFormError(null);
+            }}
+          >
+            <option value="external">External address</option>
+            <option value="account">My account</option>
+          </select>
+        </label>
+        {destinationMode === "account" ? (
+          <label className="grid gap-1.5">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-500">To account</span>
+            <select value={toAccountId} onChange={(e) => setToAccountId(e.target.value)}>
+              <option value="">Select destination account</option>
+              {destinationAccounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.label} ({account.balance.totalMinima} MINIMA)
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
         <label className="grid gap-1.5">
           <span className="text-xs font-bold uppercase tracking-widest text-slate-500">Recipient address</span>
           <input
@@ -469,6 +590,7 @@ function SendPaymentModal({
             spellCheck={false}
           />
         </label>
+        )}
 
         <label className="grid gap-1.5">
           <span className="text-xs font-bold uppercase tracking-widest text-slate-500">Amount</span>
@@ -501,7 +623,7 @@ function SendPaymentModal({
           disabled={submitting}
           className="rounded-xl border-0 bg-slate-950 px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
         >
-          {submitting ? "Sending…" : "Send payment"}
+          {submitting ? "Sending…" : destinationMode === "account" ? "Transfer to account" : "Send payment"}
         </button>
       </form>
     </Modal>
@@ -594,6 +716,28 @@ function ImportWalletModal({ onClose }: { onClose: () => void }) {
 }
 
 function shortAddress(value: string): string {
-  if (value.length <= 20) return value;
-  return `${value.slice(0, 10)}…${value.slice(-8)}`;
+  if (value.length <= 18) return value;
+  if (value.startsWith("Mx")) return `${value.slice(0, 8)}…${value.slice(-6)}`;
+  if (value.startsWith("0x")) return `${value.slice(0, 10)}…${value.slice(-6)}`;
+  return `${value.slice(0, 8)}…${value.slice(-6)}`;
+}
+
+function displayAddress(address: string): string {
+  return shortAddress(address);
+}
+
+function formatHistoryFlow(entry: WalletSendHistoryItem, accounts: WalletAccount[]): string {
+  const fromMatch = accounts.find(
+    (account) => account.address === (entry.fromAccountAddress ?? "") || account.miniAddress === (entry.fromAccountAddress ?? "")
+  );
+  const toMatch = accounts.find(
+    (account) => account.address === entry.toAddress || account.miniAddress === entry.toAddress
+  );
+
+  const fromLabel = fromMatch?.label ?? entry.fromAccountLabel ?? "Unassigned";
+  const fromAddr = fromMatch?.miniAddress || fromMatch?.address || entry.fromAccountAddress || "unknown";
+  const toAddr = toMatch?.miniAddress || toMatch?.address || entry.toAddress;
+  const toTag = toMatch ? toMatch.label : "External";
+
+  return `From ${displayAddress(fromAddr)} (${fromLabel}) -> ${displayAddress(toAddr)} (${toTag})`;
 }
