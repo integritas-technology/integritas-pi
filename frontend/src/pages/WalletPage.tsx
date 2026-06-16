@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card } from "../components/Card";
+import { CopyableCode } from "../components/CopyableCode";
 import { MinimaIcon } from "../components/MinimaIcon";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
@@ -66,6 +67,7 @@ export function WalletPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [unlabeledFunded, setUnlabeledFunded] = useState<UnlabeledFundedAddress[]>([]);
   const [sendHistory, setSendHistory] = useState<WalletSendHistoryItem[]>([]);
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<WalletSendHistoryItem | null>(null);
   const [debugClearing, setDebugClearing] = useState(false);
   const [debugClearingHistory, setDebugClearingHistory] = useState(false);
 
@@ -278,7 +280,12 @@ export function WalletPage() {
         )}
         <div className="grid gap-2">
           {sendHistory.map((entry) => (
-            <div key={entry.id} className="rounded-xl border border-slate-200 bg-white p-3">
+            <button
+              key={entry.id}
+              type="button"
+              onClick={() => setSelectedHistoryItem(entry)}
+              className="w-full text-left rounded-xl border border-slate-200 bg-white p-3 hover:border-slate-400 transition"
+            >
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">
@@ -295,7 +302,7 @@ export function WalletPage() {
                   {entry.status}
                 </span>
               </div>
-            </div>
+            </button>
           ))}
         </div>
         {isDev && (
@@ -322,6 +329,13 @@ export function WalletPage() {
         />
       )}
       {selected && <AccountDetailModal account={selected} onClose={() => setSelected(null)} />}
+      {selectedHistoryItem && (
+        <HistoryDetailModal
+          item={selectedHistoryItem}
+          accounts={accounts}
+          onClose={() => setSelectedHistoryItem(null)}
+        />
+      )}
       {sendOpen && <SendPaymentModal accounts={accounts} onClose={() => setSendOpen(false)} />}
       {importOpen && <ImportWalletModal onClose={() => setImportOpen(false)} />}
     </Page>
@@ -408,14 +422,14 @@ function AccountDetailModal({ account, onClose }: { account: WalletAccount; onCl
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">Address (Mx)</p>
           {hasMx ? (
-            <code className="block break-all rounded-xl bg-slate-100 p-3 text-xs text-slate-700 font-mono">{account.miniAddress}</code>
+            <CopyableCode value={account.miniAddress} />
           ) : (
             <p className="text-sm text-slate-500">Not available for this imported address yet.</p>
           )}
         </div>
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">Address (0x)</p>
-          <code className="block break-all rounded-xl bg-slate-100 p-3 text-xs text-slate-700 font-mono">{account.address}</code>
+          <CopyableCode value={account.address} />
         </div>
         <div>
           <div className="flex items-center justify-between gap-3 mb-3">
@@ -710,6 +724,67 @@ function ImportWalletModal({ onClose }: { onClose: () => void }) {
             </button>
           </form>
         )}
+      </div>
+    </Modal>
+  );
+}
+
+function HistoryDetailModal({
+  item,
+  accounts,
+  onClose
+}: {
+  item: WalletSendHistoryItem;
+  accounts: WalletAccount[];
+  onClose: () => void;
+}) {
+  const fromMatch = accounts.find(
+    (account) => account.address === (item.fromAccountAddress ?? "") || account.miniAddress === (item.fromAccountAddress ?? "")
+  );
+  const toMatch = accounts.find(
+    (account) => account.address === item.toAddress || account.miniAddress === item.toAddress
+  );
+
+  const fromLabel = fromMatch?.label ?? item.fromAccountLabel ?? "Unassigned";
+  const fromAddress = fromMatch?.miniAddress || fromMatch?.address || item.fromAccountAddress || "unknown";
+  const toAddress = toMatch?.miniAddress || toMatch?.address || item.toAddress;
+  const toLabel = toMatch ? toMatch.label : "External";
+
+  return (
+    <Modal title="History item details" onClose={onClose}>
+      <div className="grid gap-4">
+        <div className="grid gap-1">
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Amount</p>
+          <p className="text-lg font-semibold text-slate-900">{item.amount} {item.tokenName}</p>
+        </div>
+        <div className="grid gap-1">
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Status</p>
+          <p className="text-sm font-medium text-slate-900 capitalize">{item.status}</p>
+        </div>
+        <div className="grid gap-1">
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-500">From</p>
+          <p className="text-sm text-slate-900">{fromLabel}</p>
+          <CopyableCode value={fromAddress} />
+        </div>
+        <div className="grid gap-1">
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-500">To</p>
+          <p className="text-sm text-slate-900">{toLabel}</p>
+          <CopyableCode value={toAddress} />
+        </div>
+        <div className="grid gap-1">
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Token ID</p>
+          <CopyableCode value={item.tokenId} />
+        </div>
+        {item.txpowId && (
+          <div className="grid gap-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">TxPow ID</p>
+            <CopyableCode value={item.txpowId} />
+          </div>
+        )}
+        <div className="grid gap-1">
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Created</p>
+          <p className="text-sm text-slate-900">{new Date(item.createdAt).toLocaleString()}</p>
+        </div>
       </div>
     </Modal>
   );
