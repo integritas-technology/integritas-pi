@@ -8,7 +8,7 @@
 
 ## Purpose
 
-Phases 1–3 of the wallet plan are **implemented** (balance API, token filter, dashboard card, receive address modal, send payment modal with in-page polling, seed phrase import modal). This document lists **remaining gaps** for QA: live RPC verification, auth hardening checks, and UX edge cases discovered during implementation.
+Phases 1–4 of the wallet plan are **implemented** (balance API, dashboard card, labeled multi-account UX, send/import, SQLite send history, account recovery for unlabeled funded addresses). This document lists **remaining gaps** for QA: live RPC verification, auth hardening checks, and UX edge cases discovered during implementation.
 
 **Not in scope here:** export backup (deferred — format TBD), MEG multi-wallet, node lock, burn fee UX.
 
@@ -51,6 +51,10 @@ Wallet moves from **shipped** to **QA-accepted** when:
 
 **Plan ref:** [Canonical API routes](../plans/wallet.md#canonical-api-routes)
 
+- [ ] Unauthenticated request to `POST /api/wallet/accounts` → 401
+- [ ] Non-admin session to `POST /api/wallet/accounts` → 403
+- [ ] Unauthenticated request to `GET /api/wallet/history` → 401
+- [ ] Non-admin session to `GET /api/wallet/history` → 200 (read-only)
 - [ ] Unauthenticated request to `POST /api/wallet/receive-address` → 401
 - [ ] Non-admin session to `POST /api/wallet/receive-address` → 403
 - [ ] Unauthenticated request to `POST /api/wallet/send-payment` → 401
@@ -71,9 +75,9 @@ Wallet moves from **shipped** to **QA-accepted** when:
 
 ### WALLET-04 — Clipboard API requires HTTPS or localhost
 
-**Shipped behavior:** `ReceiveAddressModal` Copy button calls `navigator.clipboard.writeText()`. This API requires a secure context (HTTPS or `localhost`).
+**Shipped behavior:** `CopyableCode` (account/history modals) calls `navigator.clipboard.writeText()`. This API requires a secure context (HTTPS or `localhost`).
 
-- [ ] Test Copy button on the HTTP LAN deploy (`http://<pi-ip>:8080`) — verify behavior when `navigator.clipboard` is unavailable (currently: no error handling, silent fail)
+- [ ] Test copy buttons on the HTTP LAN deploy (`http://<pi-ip>:8080`) — verify behavior when `navigator.clipboard` is unavailable (currently: silent fail in `CopyableCode`)
 - [ ] If silent fail is unacceptable: add fallback (`document.execCommand('copy')` or a toast explaining why copy is unavailable)
 
 ---
@@ -143,12 +147,13 @@ npm --prefix backend run test:wallet   # (not yet implemented)
 - [ ] Decide: add a general audit log view to Diagnostics, or keep wallet events backend-only (accessible via SQLite / logs)
 - [ ] Note: this is a product decision, not a bug — wallet events _are_ recorded; they're just not displayed
 
-### WALLET-12 — Mid-poll close loses transaction traceability
+### WALLET-12 — Send confirmation not surfaced in wallet UI after submit
 
-**Shipped behavior:** Closing `SendPaymentModal` during polling fires an info toast with a message to "check the diagnostics log." The TX continues on-chain, but the UI has no way to resurface its status later.
+**Shipped behavior:** `SendPaymentModal` closes on successful submit with a toast containing a truncated `txpowId`. The wallet UI does not poll `GET /api/wallet/payment-status/:txpowid` or show a pending-transactions list.
 
-- [ ] Decide: add txpowId to the wallet audit event detail so operators can look it up manually (currently `wallet.payment.send` already includes `txpowId`)
-- [ ] Optionally: surface a "pending transactions" list on the Wallet page in a future iteration
+- [ ] Decide: reintroduce optional in-page poll, or rely on send history + manual `payment-status` lookup
+- [ ] Confirm `wallet.payment.send` audit event includes `txpowId` for operator lookup (currently yes)
+- [ ] Optionally: surface pending sends in the history card when status is `submitted` but unconfirmed on-chain
 
 ### WALLET-13 — `restore` / `import` and Megammr resync interaction
 
@@ -177,23 +182,26 @@ If `MINIMA_AUTO_RESYNC=true` is enabled and a resync triggers concurrently with 
 ```txt
 Wallet QA — YYYY-MM-DD — environment: [ ] dev  [ ] Pi
 
-Balance and token display
+Balance and accounts
 [ ] GET /api/wallet returns { checkedAt, tokens } with correct isNative flags
-[ ] WalletPage hero card shows confirmed MINIMA balance
-[ ] Token filter tabs (All / Minima / Tokens) filter correctly
+[ ] GET /api/wallet/accounts returns labeled accounts + unlabeledFunded when applicable
+[ ] WalletPage hero card shows total MINIMA across labeled accounts
+[ ] Create account (random address) and label existing funded address both work
+[ ] Account detail shows Mx/0x with CopyableCode; funds tabs filter Minima vs custom tokens
 [ ] Dashboard wallet card shows balance; shows "Unavailable" when node is down
 
-Receive address modal
-[ ] Opens and fetches an address (Mx format shown green, 0x shown below)
-[ ] Copy button copies Mx address to clipboard (note: requires HTTPS or localhost)
-[ ] "Get another address" fetches a different address from the 64-address pool
-
 Send payment modal
+[ ] Requires source account selection
+[ ] External and internal (my account) destination modes work
+[ ] Token row shows available balance for selected account + token
+[ ] Form blocks submit when amount exceeds available balance
 [ ] Form rejects empty address → inline error
 [ ] Form rejects 0 / negative / non-numeric amount → inline error
-[ ] Valid send → txpowId shown in pending state
-[ ] Poll reaches confirmed within 60 s on real node (or timeout state shown)
-[ ] Closing mid-poll fires info toast
+[ ] Valid send → success toast with truncated txpowId; history row appears
+
+Send history
+[ ] History card shows recent sends with account flow annotation
+[ ] History detail modal shows amount, addresses, token ID, txpow ID with copy buttons
 
 Import wallet modal
 [ ] Warning banner visible before entering phrase
@@ -203,16 +211,16 @@ Import wallet modal
 
 Auth / role gating
 [ ] Unauthenticated → 401 on all POST /api/wallet/* routes
-[ ] Non-admin session → 403 on receive-address, send-payment, import
-[ ] Non-admin session → 200 on GET /api/wallet/payment-status/:id
+[ ] Non-admin session → 403 on send-payment, import, accounts create, debug clears
+[ ] Non-admin session → 200 on GET /api/wallet, /accounts, /history, /payment-status/:id
 
 Audit log
-[ ] wallet.address.get recorded after receive-address (visible in SQLite / backend logs)
-[ ] wallet.payment.send recorded with { address, amount, tokenId, txpowId } — no phrase
+[ ] wallet.payment.send recorded with { address, amount, tokenId, txpowId, fromAccountAddress } — no phrase
+[ ] wallet.account.create recorded after account create
 [ ] wallet.import recorded — no phrase in detail field
 
 Automated
-[ ] npm run check
+[ ] npm run typecheck
 [ ] npm --prefix backend run build
 [ ] npm --prefix frontend run build
 
@@ -225,4 +233,5 @@ Sign-off: ___________
 
 | Date | Change |
 |------|--------|
+| 2026-06-16 | Updated for multi-account UX, send history, CopyableCode, send UX changes (no in-page poll) |
 | 2026-06-15 | Initial wallet QA gaps — plan vs implementation audit, Phases 1–3 |

@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **Complete** (Phases 1–3 shipped; export backup and live RPC verification deferred to QA) |
-| **Done** | Phases 1–3 — normalized balance API, token filter tabs, dashboard card, MinimaIcon, receive address modal, send payment modal with in-page poll, seed phrase import modal |
-| **Next** | QA — live Minima RPC shape verification, HTTPS before seed phrase import in field; scope export backup format |
+| **Status** | **Complete** (Phases 1–4 shipped; export backup, receive-history from chain, and live RPC verification deferred to QA) |
+| **Done** | Phases 1–4 — normalized balance API, dashboard card, labeled multi-account wallet UX, send/import, SQLite send history, account recovery for unlabeled funded addresses |
+| **Next** | QA — live Minima RPC shape verification, HTTPS before seed phrase import in field; receive history from Minima `history`/`txpow` (WALLET-14) |
 | **Deferred** | Export backup (format TBD), MEG create-wallet, node lock, burn amount UX |
 | **QA follow-up** | [wallet-gaps.md](../qa/wallet-gaps.md) |
 
@@ -18,9 +18,9 @@ Companion docs: [docs index](../README.md), [project README](../../README.md), [
 
 ## Verdict
 
-The nav, routing, and a minimal `WalletPage` already exist. The existing `GET /api/minima/balance` returns the raw Minima RPC response; the current page just dumps a JSON preview with the confirmed MINIMA amount. Nothing else is built. This plan adds a dedicated `/api/wallet` namespace on top of the existing `minima.rpc.ts` layer, adds parsing, proper UX, and the remaining lifecycle operations in phases.
+The wallet feature shipped on branch `wallet-service` (merged from `wallet-service--multi-wallet`). The browser-facing model is **labeled accounts** mapped to Minima's default address pool, with per-account balances from `coins relevant:true`, send from a chosen account, SQLite send history, and migration helpers for already-funded unlabeled addresses. Global `GET /api/wallet` and the Dashboard balance card remain for node-wide MINIMA totals. Export backup and on-chain receive history are deferred.
 
-**Naming / scope notes:** The ticket uses `/api/wallet/*` placeholder paths — this plan adopts them directly. The existing `/api/minima/balance` route stays as-is (it is a Minima node diagnostic); the new wallet routes live in `backend/src/features/wallet/` and are the primary browser-facing wallet API. The WalletPage migrates from `/api/minima/balance` to `GET /api/wallet`.
+**Naming / scope notes:** Wallet routes live in `backend/src/features/wallet/`. The legacy `GET /api/minima/balance` passthrough is unchanged. `POST /api/wallet/receive-address` remains in the API (random `getaddress`) but the primary UI surfaces addresses per labeled account in the account detail modal.
 
 ---
 
@@ -32,15 +32,20 @@ _Update during/after implementation. When complete, audit against codebase._
 |---|---|---|
 | Wallet nav + routing | **Done** | `nav.ts`, `App.tsx`, `WalletPage.tsx` |
 | Raw balance passthrough | **Done** | `GET /api/minima/balance` → `getWalletBalance()` in `minima.service.ts` |
-| Minimal balance display | **Done** | Replaced with hero card redesign in Phase 1 |
 | Normalized balance API | **Done** | `GET /api/wallet` → `wallet.service.ts` / `wallet.routes.ts` |
-| Token filter (All / Minima / Tokens) | **Done** | `WalletPage.tsx` subtabs, `filterTokens()` client-side |
 | Dashboard balance card | **Done** | `DashboardPage.tsx` MetricCard with MinimaIcon; non-blocking |
 | MinimaIcon component | **Done** | `frontend/src/components/MinimaIcon.tsx` — reusable inline SVG |
-| Receive address | **Done** | `POST /api/wallet/receive-address` → `getaddress` RPC; modal with Mx/0x display and clipboard copy |
-| Send payment + pending poll | **Done** | `POST /api/wallet/send-payment`; `GET /api/wallet/payment-status/:txpowid`; modal with 5 s poll × 60 s |
-| Audit log (wallet mutations) | **Done** | `wallet.address.get`, `wallet.payment.send`, `wallet.import` — phrase never logged |
-| Seed phrase import | **Done** | `POST /api/wallet/import` → `restore` RPC; admin-gated, 30 s timeout, modal with warning |
+| Labeled wallet accounts | **Done** | SQLite `wallet_accounts`; `GET/POST /api/wallet/accounts`; create modal, account list, account detail with Mx/0x + funds tabs |
+| Unlabeled funded migration | **Done** | `unlabeledFunded` from `coins relevant:true`; label existing address into account; Mx resolution for imported `0x` addresses |
+| Per-account token balances | **Done** | `wallet.parse.ts` uses `tokenamount` + token metadata; decimal-string math in UI |
+| Send payment (account-aware) | **Done** | `POST /api/wallet/send-payment` with `fromAccountAddress`; external or internal transfer; toast on submit |
+| Send history (SQLite Phase 1) | **Done** | `wallet_send_history`; `GET /api/wallet/history`; history card + detail modal |
+| CopyableCode component | **Done** | `frontend/src/components/CopyableCode.tsx` — icon copy for addresses/IDs |
+| Seed phrase import | **Done** | `POST /api/wallet/import` → `restore` RPC; admin-gated, modal with warning |
+| Receive address API | **Done** | `POST /api/wallet/receive-address` → `getaddress` RPC (UI: per-account addresses in detail modal) |
+| Payment status poll API | **Done** | `GET /api/wallet/payment-status/:txpowid` (API retained; wallet send UI no longer polls in-page) |
+| Dev-only debug clears | **Done** | `POST /api/wallet/debug/clear-wallet-accounts`, `clear-wallet-history` (blocked in production; frontend dev buttons) |
+| Audit log (wallet mutations) | **Done** | `wallet.address.get`, `wallet.payment.send`, `wallet.import`, `wallet.account.create`, debug events |
 | Encrypted backup export | **Deferred** | Placeholder button in UI; format (file download vs JSON body) to be scoped |
 
 ### Not shipped / deferred → [qa-gaps.md](../qa/wallet-gaps.md)
@@ -61,11 +66,16 @@ All routes require `requireAuth`. **Admin-gated mutations:** `POST /api/wallet/r
 
 | Method | Path | Purpose | Status |
 |---|---|---|---|
-| `GET` | `/api/wallet` | Normalized balance + token list | **Done** |
-| `POST` | `/api/wallet/receive-address` | Random address from 64-address pool | **Done** (renamed from `generate-address` — uses `getaddress` not `newaddress`) |
-| `POST` | `/api/wallet/send-payment` | Send tokens to an address | **Done** |
-| `GET` | `/api/wallet/payment-status/:txpowid` | Poll pending TX status | **Done** |
+| `GET` | `/api/wallet` | Normalized node-wide balance + token list | **Done** |
+| `GET` | `/api/wallet/accounts` | Labeled accounts + per-address balances + `unlabeledFunded` | **Done** |
+| `POST` | `/api/wallet/accounts` | Create labeled account (random `getaddress` or label existing address) | **Done** |
+| `POST` | `/api/wallet/receive-address` | Random address from 64-address pool | **Done** (API; UI uses per-account addresses) |
+| `POST` | `/api/wallet/send-payment` | Send tokens; optional `fromAccountAddress` | **Done** |
+| `GET` | `/api/wallet/history` | SQLite send history (`?limit=N`) | **Done** |
+| `GET` | `/api/wallet/payment-status/:txpowid` | Poll pending TX status | **Done** (API; wallet send UI does not poll) |
 | `POST` | `/api/wallet/import` | Restore from seed phrase | **Done** |
+| `POST` | `/api/wallet/debug/clear-wallet-accounts` | Dev-only: clear `wallet_accounts` | **Done** (non-production) |
+| `POST` | `/api/wallet/debug/clear-wallet-history` | Dev-only: clear `wallet_send_history` | **Done** (non-production) |
 | `POST` | `/api/wallet/export-backup` | Encrypted wallet backup download | **Deferred** |
 
 **Related (outside this feature namespace):**
@@ -330,16 +340,38 @@ Manual:
 
 | UI element | Data source | Status |
 |---|---|---|
-| Balance card (dark hero card) | `GET /api/wallet` → `tokens[isNative].confirmed` | Done |
-| Token filter tabs (All / Minima / Tokens) | `tokens[]` filtered client-side by `isNative` | Done |
-| Token list table | `tokens[]` — name, confirmed, unconfirmed, sendable | Done |
-| Receive address modal | `POST /api/wallet/receive-address` → Mx (primary) + 0x display, clipboard copy, re-sample | Done |
-| Send payment modal | `POST /api/wallet/send-payment` → 5 s poll × 60 s, inline state, toast | Done |
-| Import wallet modal | `POST /api/wallet/import` — destructive warning, seed phrase textarea, success state | Done |
-| Export wallet button | Disabled placeholder — `POST /api/wallet/export-backup` deferred | Placeholder |
-| Wallet balance on Dashboard | `GET /api/wallet` → native confirmed, MetricCard + MinimaIcon; non-blocking | Done |
+| Hero balance card (labeled accounts total) | `GET /api/wallet/accounts` aggregated MINIMA | Done |
+| Account list + create modal | `GET/POST /api/wallet/accounts` | Done |
+| Unlabeled funded addresses + label action | `unlabeledFunded` from accounts overview | Done |
+| Account detail modal (Mx/0x, funds tabs, copy) | Account row + `CopyableCode` | Done |
+| Send payment modal (source account, internal/external) | `POST /api/wallet/send-payment` → toast | Done |
+| Send history card + detail modal | `GET /api/wallet/history` | Done |
+| Import wallet modal | `POST /api/wallet/import` | Done |
+| Export wallet button | Disabled placeholder | Placeholder |
+| Wallet balance on Dashboard | `GET /api/wallet` → native confirmed | Done |
+| Dev debug clear buttons | Debug POST routes; `import.meta.env.DEV` only | Done |
 
-**Optional polish (deferred):** "My own / Others" token ownership filter; transaction history list; burn fee display.
+**Optional polish (deferred):** on-chain receive history (WALLET-14); transaction confirmation polling in wallet UI; export backup; burn fee display.
+
+---
+
+### Phase 4 — Labeled accounts + send history — **Done**
+
+**Goal:** Bank-account-style labeled accounts on top of Minima's single-wallet address pool, with per-account balances, account-aware send, migration for funded unlabeled addresses, and SQLite send history.
+
+#### Backend (as shipped)
+
+- SQLite `wallet_accounts`, `wallet_send_history` in `database.ts`.
+- `listWalletAccountsWithBalances()` — `coins relevant:true` per address; `unlabeledFunded` for migration.
+- `createWalletAccount` / `createWalletAccountFromAddress`; Mx backfill for imported hex addresses.
+- `sendPayment` attempts `fromaddress:` in Minima `send` RPC when provided.
+- `recordWalletSendHistory` on send; `GET /history`.
+
+#### Frontend (as shipped)
+
+- Wallet page rework: hero card, account list, history card, modals for create/account/send/import/history detail.
+- Send form: token available balance + client-side exceed guardrail; Minima/custom token glyphs.
+- `CopyableCode` for copyable fields in modals.
 
 ---
 
@@ -374,7 +406,8 @@ Manual:
 **Phase 3:**
 - [x] `POST /api/wallet/import` — admin only, seed phrase never in audit log or response
 - [x] `SECURITY.md` updated (seed phrase in-transit risk, Megammr resync interaction note, HTTPS requirement)
-- [ ] Security review completed before merge (open — required before field deployment)
+- [x] Phase 4 — labeled accounts, send history, unlabeled funded migration shipped
+- [ ] Security review completed before field deployment (open — required before field deployment)
 
 ---
 
@@ -395,7 +428,9 @@ When shipping each phase:
 
 - [x] Define key storage and encryption strategy (Q-004 — Minima owns key storage; no Pi-side key material)
 - [x] `GET /api/wallet` (normalized balance + token list)
-- [x] `POST /api/wallet/receive-address` (renamed; uses `getaddress` RPC, not `newaddress`)
+- [x] `GET /api/wallet/accounts` + `POST /api/wallet/accounts` (labeled accounts)
+- [x] `GET /api/wallet/history` (SQLite send history)
+- [x] `POST /api/wallet/receive-address` (uses `getaddress` RPC, not `newaddress`)
 - [x] `POST /api/wallet/send-payment`
 - [x] Payment pending poll (`GET /api/wallet/payment-status/:txpowid`)
 - [x] `POST /api/wallet/import` (seed phrase)
@@ -405,9 +440,8 @@ When shipping each phase:
 
 **Frontend**
 
-- [x] WalletPage: balance card + token list + filter tabs
-- [x] WalletPage: receive address modal (Mx primary, clipboard copy, 64-pool re-sample)
-- [x] WalletPage: send payment modal + pending poll
+- [x] WalletPage: labeled account list, create modal, account detail, send history
+- [x] WalletPage: send payment modal (source account, internal/external transfer)
 - [x] WalletPage: import wallet modal (seed phrase, destructive warning)
 - [x] WalletPage: disabled Export wallet button (placeholder)
 - [x] Dashboard: wallet balance card with MinimaIcon
