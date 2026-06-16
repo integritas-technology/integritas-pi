@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **Not started** |
-| **Done** | _(nothing shipped under `/api/tokens` yet)_ |
-| **Next** | Phase 1 — `POST /api/tokens/create` + `GET /api/tokens` + SQLite `custom_tokens` |
+| **Status** | **In progress** (Phase 1 shipped) |
+| **Done** | Phase 1 — `POST /api/tokens/create`, `GET /api/tokens`, SQLite `custom_tokens` |
+| **Next** | Phase 2 — create-token UI on Wallet page |
 | **Deferred** | Token event listeners (automation overlap), unit tests, create-token UI polish |
 | **QA follow-up** | _(create `docs/qa/tokens-gaps.md` when Phase 1 ships)_ |
 
@@ -37,8 +37,8 @@ _Audit date: 2026-06-16. Only wallet-adjacent token support exists today._
 | Send custom tokens | **Done** (wallet) | `POST /api/wallet/send-payment` with `tokenId` |
 | Token types + parsing | **Done** (wallet) | `wallet.types.ts`, `wallet.parse.ts` |
 | Wallet UI: holdings + send token picker | **Done** (wallet) | `WalletPage.tsx` account funds + send modal |
-| `POST /api/tokens/create` | **Not started** | — |
-| `GET /api/tokens` | **Not started** | — |
+| `POST /api/tokens/create` | **Done** | `tokens.service.ts` → Minima `tokencreate`; `custom_tokens` SQLite |
+| `GET /api/tokens` | **Done** | `tokens.service.ts` → `balance` + SQLite merge |
 | SQLite token metadata | **Not started** | — |
 | Token event listeners | **Not started** | Deferred (ticket future) |
 | Create-token UI | **Not started** | Mock only: `mock/MinimaEdgeWorkbench.tsx` |
@@ -61,8 +61,8 @@ All routes require `requireAuth`. **Admin-gated mutations:** `POST /api/tokens/c
 
 | Method | Path | Purpose | Status |
 |---|---|---|---|
-| `GET` | `/api/tokens` | List wallet tokens (non-native), enriched with local metadata | **Not started** |
-| `POST` | `/api/tokens/create` | Create a custom token via Minima `tokencreate` | **Not started** |
+| `GET` | `/api/tokens` | List wallet tokens (non-native), enriched with local metadata | **Done** |
+| `POST` | `/api/tokens/create` | Create a custom token via Minima `tokencreate` | **Done** |
 
 **Deferred (ticket future):**
 
@@ -145,7 +145,11 @@ _Refresh when auditing plan vs code. Date: 2026-06-16_
 
 | File | Role |
 |---|---|
-| _(none)_ | Feature folder does not exist yet |
+| `tokens.types.ts` | DTOs: create request/result, list item/response |
+| `tokens.repository.ts` | SQLite `custom_tokens` CRUD |
+| `tokens.parse.ts` | `parseTokenCreateResponse` |
+| `tokens.service.ts` | `createCustomToken`, `listWalletTokens` |
+| `tokens.routes.ts` | `GET /`, `POST /create` |
 
 **Existing reuse points:**
 
@@ -243,7 +247,7 @@ type TokenListResponse = {
 
 ## Implementation plan
 
-### Phase 1 — Create + list API — **not started**
+### Phase 1 — Create + list API — **complete**
 
 **Goal:** Smallest backend slice from the ticket checklist — DB name field, create route, list route. No frontend required to mark backend checklist done.
 
@@ -407,10 +411,10 @@ When shipping each phase:
 
 **Backend**
 
-- [ ] Define token creation fields (Q-006): `name`, `amount`, `decimal`
-- [ ] Define token creation DB field: `name` (+ supporting columns in `custom_tokens`)
-- [ ] `POST /api/tokens/create`
-- [ ] `GET /api/tokens` (list tokens for wallet)
+- [x] Define token creation fields (Q-006): `name`, `amount`, `decimal`
+- [x] Define token creation DB field: `name` (+ supporting columns in `custom_tokens`)
+- [x] `POST /api/tokens/create`
+- [x] `GET /api/tokens` (list tokens for wallet)
 
 **Frontend**
 

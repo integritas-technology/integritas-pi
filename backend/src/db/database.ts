@@ -185,4 +185,16 @@ export function runMigrations() {
       status TEXT NOT NULL
     )
   `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS custom_tokens (
+      id TEXT PRIMARY KEY,
+      token_id TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      amount TEXT NOT NULL,
+      decimal INTEGER NOT NULL,
+      txpow_id TEXT,
+      created_at TEXT NOT NULL
+    )
+  `);
 }

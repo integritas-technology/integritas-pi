@@ -447,6 +447,15 @@ POST /api/wallet/receive-address
 
 `POST /api/wallet/receive-address` samples a random address from the 64-address pool (API retained; primary UI shows per-account addresses in the account detail modal).
 
+Custom token APIs:
+
+```http
+GET /api/tokens
+POST /api/tokens/create
+```
+
+`GET /api/tokens` returns non-native token balances from Minima `balance`, enriched with local metadata when the token was created on this Pi (`custom_tokens` in SQLite). `POST /api/tokens/create` (admin) calls Minima `tokencreate` with `{ name, amount, decimal }` and records the result locally. Wallet list/send APIs are unchanged.
+
 Integritas:
 
 ```http

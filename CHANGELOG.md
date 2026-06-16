@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `GET /api/tokens` — auth-protected list of non-native wallet tokens from Minima `balance`, merged with SQLite `custom_tokens` metadata (`createdLocally`, `decimal` when recorded on this Pi).
+- `POST /api/tokens/create` (admin) — creates a custom token via Minima `tokencreate name:X amount:Y decimal:Z`. Persists `name`, `amount`, `decimal`, and `token_id` in SQLite; audit event `tokens.create` records tokenId, amounts, and txpowId (no secrets). On-chain creation is irreversible.
+
 ### Changed
 
 - Webhook and MQTT Data Sources now define connection details only; incoming push data is recorded and optionally stamped only while an Automation workflow is enabled for that source.
