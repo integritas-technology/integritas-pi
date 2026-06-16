@@ -37,6 +37,18 @@ export type WalletAccount = {
   balance: WalletAccountBalance;
 };
 
+export type UnlabeledFundedAddress = {
+  address: string;
+  totalMinima: string;
+  tokenCount: number;
+  tokens: WalletAccountTokenBalance[];
+};
+
+export type WalletAccountsOverview = {
+  accounts: WalletAccount[];
+  unlabeledFunded: UnlabeledFundedAddress[];
+};
+
 export type ReceiveAddress = {
   miniAddress: string;  // Mx… — Minima native format; use this for display/sharing
   address: string;      // 0x… — hex format

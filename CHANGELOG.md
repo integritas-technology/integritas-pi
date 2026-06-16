@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `POST /api/wallet/accounts` (admin) — creates a labeled wallet account by assigning one random default Minima address (`getaddress`) and storing it in SQLite.
 - `GET /api/wallet/accounts` — returns labeled wallet accounts with per-address balances and token counts derived from Minima `coins relevant:true`.
 - Wallet page account architecture: account list cards, create-account modal, account details modal, and send form source-account selection.
+- Wallet fallback for migration/recovery: unlabeled funded addresses are now surfaced from `coins relevant:true` and can be labeled directly into accounts.
 
 ### Fixed
 

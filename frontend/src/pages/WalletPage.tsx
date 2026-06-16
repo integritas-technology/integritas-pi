@@ -11,16 +11,22 @@ import {
   listWalletAccounts,
   sendPayment as sendPaymentApi
 } from "../features/wallet/walletApi";
-import type { ImportWalletResult, PaymentStatus, WalletAccount, WalletAccountTokenBalance } from "../features/wallet/walletTypes";
+import type { ImportWalletResult, PaymentStatus, UnlabeledFundedAddress, WalletAccount, WalletAccountTokenBalance } from "../features/wallet/walletTypes";
+
+function isMiniAddress(value: string): boolean {
+  return value.startsWith("Mx");
+}
 
 export function WalletPage() {
   const [accounts, setAccounts] = useState<WalletAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [createFromAddress, setCreateFromAddress] = useState<string | null>(null);
   const [selected, setSelected] = useState<WalletAccount | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [unlabeledFunded, setUnlabeledFunded] = useState<UnlabeledFundedAddress[]>([]);
 
   async function refreshAccounts() {
     setLoading(true);
@@ -28,6 +34,7 @@ export function WalletPage() {
     try {
       const result = await listWalletAccounts();
       setAccounts(result.accounts);
+      setUnlabeledFunded(result.unlabeledFunded);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load accounts.");
     } finally {
@@ -91,7 +98,9 @@ export function WalletPage() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="font-semibold text-slate-900">{account.label}</p>
-                  <p className="text-xs text-slate-500 mt-1 font-mono">{account.miniAddress}</p>
+                  <p className="text-xs text-slate-500 mt-1 font-mono">
+                    {isMiniAddress(account.miniAddress) ? account.miniAddress : account.address}
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-bold text-slate-900">{account.balance.totalMinima}</p>
@@ -104,7 +113,44 @@ export function WalletPage() {
         </div>
       </Card>
 
+      {!loading && unlabeledFunded.length > 0 && (
+        <Card>
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <p className="eyebrow">Unlabeled funded addresses</p>
+          </div>
+          <p className="text-sm text-slate-500 mb-3">
+            Funds were detected on these addresses but they are not mapped to a named account yet.
+          </p>
+          <div className="grid gap-3">
+            {unlabeledFunded.map((item) => (
+              <div key={item.address} className="rounded-2xl border border-slate-200 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs text-slate-500 font-mono break-all">{item.address}</p>
+                    <p className="text-sm text-slate-700 mt-1">{item.totalMinima} MINIMA · {item.tokenCount} tokens</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="wallet-action-btn"
+                    onClick={() => setCreateFromAddress(item.address)}
+                  >
+                    Label as account
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {createOpen && <CreateAccountModal onClose={() => setCreateOpen(false)} onCreated={refreshAccounts} />}
+      {createFromAddress && (
+        <CreateAccountModal
+          onClose={() => setCreateFromAddress(null)}
+          onCreated={refreshAccounts}
+          fixedAddress={createFromAddress}
+        />
+      )}
       {selected && <AccountDetailModal account={selected} onClose={() => setSelected(null)} />}
       {sendOpen && <SendPaymentModal accounts={accounts} onClose={() => setSendOpen(false)} />}
       {importOpen && <ImportWalletModal onClose={() => setImportOpen(false)} />}
@@ -112,7 +158,15 @@ export function WalletPage() {
   );
 }
 
-function CreateAccountModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => Promise<void> }) {
+function CreateAccountModal({
+  onClose,
+  onCreated,
+  fixedAddress
+}: {
+  onClose: () => void;
+  onCreated: () => Promise<void>;
+  fixedAddress?: string;
+}) {
   const [label, setLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -126,7 +180,7 @@ function CreateAccountModal({ onClose, onCreated }: { onClose: () => void; onCre
     }
     setSubmitting(true);
     try {
-      await createWalletAccount(label.trim());
+      await createWalletAccount(label.trim(), fixedAddress);
       await onCreated();
       onClose();
     } catch (err) {
@@ -140,8 +194,13 @@ function CreateAccountModal({ onClose, onCreated }: { onClose: () => void; onCre
     <Modal title="Create wallet account" onClose={onClose}>
       <form onSubmit={handleSubmit} className="grid gap-4">
         <p className="text-sm text-slate-500">
-          This creates a new labeled account by assigning one random default Minima address from this node's wallet.
+          {fixedAddress
+            ? "This labels an existing funded address and adds it as a wallet account."
+            : "This creates a new labeled account by assigning one random default Minima address from this node's wallet."}
         </p>
+        {fixedAddress && (
+          <code className="block break-all rounded-xl bg-slate-100 p-3 text-xs text-slate-700 font-mono">{fixedAddress}</code>
+        )}
         <label className="grid gap-1.5">
           <span className="text-xs font-bold uppercase tracking-widest text-slate-500">Account label</span>
           <input type="text" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Treasury" maxLength={80} />
@@ -156,12 +215,17 @@ function CreateAccountModal({ onClose, onCreated }: { onClose: () => void; onCre
 }
 
 function AccountDetailModal({ account, onClose }: { account: WalletAccount; onClose: () => void }) {
+  const hasMx = isMiniAddress(account.miniAddress);
   return (
     <Modal title={`Account: ${account.label}`} onClose={onClose}>
       <div className="grid gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">Address (Mx)</p>
-          <code className="block break-all rounded-xl bg-slate-100 p-3 text-xs text-slate-700 font-mono">{account.miniAddress}</code>
+          {hasMx ? (
+            <code className="block break-all rounded-xl bg-slate-100 p-3 text-xs text-slate-700 font-mono">{account.miniAddress}</code>
+          ) : (
+            <p className="text-sm text-slate-500">Not available for this imported address yet.</p>
+          )}
         </div>
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">Address (0x)</p>

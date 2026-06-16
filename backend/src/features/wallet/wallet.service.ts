@@ -8,8 +8,10 @@ import type {
   SendPaymentRequest,
   SendPaymentResult,
   WalletAccount,
+  WalletAccountsOverview,
   WalletAccountBalance,
   WalletAccountCreateRequest,
+  UnlabeledFundedAddress,
   WalletAccountWithBalance,
   WalletStatus
 } from "./wallet.types.js";
@@ -79,6 +81,23 @@ function mapWalletAccount(row: {
   };
 }
 
+async function resolveMiniAddressForHexAddress(address: string): Promise<string | null> {
+  const target = address.trim();
+  if (!target || target.startsWith("Mx")) return target || null;
+  const seen = new Set<string>();
+  const MAX_ATTEMPTS = 256;
+  for (let i = 0; i < MAX_ATTEMPTS; i += 1) {
+    const receive = await getReceiveAddress();
+    if (receive.address) seen.add(receive.address);
+    if (receive.address === target && receive.miniAddress?.startsWith("Mx")) {
+      return receive.miniAddress;
+    }
+    // Minima default pool is 64 addresses; once sampled all seen entries, stop.
+    if (seen.size >= 64) break;
+  }
+  return null;
+}
+
 export function listWalletAccounts(): WalletAccount[] {
   const rows = db.prepare(`
     SELECT id, label, address, mini_address, public_key, created_at, updated_at
@@ -117,12 +136,44 @@ export async function createWalletAccount({ label }: WalletAccountCreateRequest)
   return created;
 }
 
-export async function listWalletAccountsWithBalances(): Promise<WalletAccountWithBalance[]> {
+export async function createWalletAccountFromAddress({ label, address }: { label: string; address: string }): Promise<WalletAccount> {
+  const cleanLabel = label.trim();
+  const cleanAddress = address.trim();
+  if (!cleanLabel) throw new Error("label is required");
+  if (!cleanAddress) throw new Error("address is required");
+  const resolvedMiniAddress = await resolveMiniAddressForHexAddress(cleanAddress);
+  const now = new Date().toISOString();
+  const created: WalletAccount = {
+    id: crypto.randomUUID(),
+    label: cleanLabel,
+    address: cleanAddress,
+    miniAddress: resolvedMiniAddress ?? cleanAddress,
+    createdAt: now,
+    updatedAt: now
+  };
+  db.prepare(`
+    INSERT INTO wallet_accounts (id, label, address, mini_address, public_key, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(created.id, created.label, created.address, created.miniAddress, null, created.createdAt, created.updatedAt);
+  return created;
+}
+
+export async function listWalletAccountsWithBalances(): Promise<WalletAccountsOverview> {
   const accounts = listWalletAccounts();
-  if (accounts.length === 0) return [];
+  for (const account of accounts) {
+    if (account.miniAddress.startsWith("Mx")) continue;
+    const resolvedMiniAddress = await resolveMiniAddressForHexAddress(account.address);
+    if (!resolvedMiniAddress || !resolvedMiniAddress.startsWith("Mx")) continue;
+    db.prepare(`
+      UPDATE wallet_accounts
+      SET mini_address = ?, updated_at = ?
+      WHERE id = ?
+    `).run(resolvedMiniAddress, new Date().toISOString(), account.id);
+    account.miniAddress = resolvedMiniAddress;
+  }
   const coinResult = await runMinimaPathCommand("coins relevant:true");
   const allCoins = parseCoinsResponse(coinResult.body);
-  return accounts.map((account) => {
+  const accountBalances = accounts.map((account) => {
     const accountCoins = allCoins.filter((coin) => coin.address === account.address);
     const tokens = buildAccountTokenBalances(accountCoins);
     const native = tokens.find((token) => token.isNative);
@@ -134,4 +185,31 @@ export async function listWalletAccountsWithBalances(): Promise<WalletAccountWit
     };
     return { ...account, balance };
   });
+
+  const labeledAddresses = new Set(accounts.map((account) => account.address));
+  const unlabeledByAddress = new Map<string, typeof allCoins>();
+  for (const coin of allCoins) {
+    if (labeledAddresses.has(coin.address)) continue;
+    if (coin.spent) continue;
+    const amount = Number(coin.amount);
+    if (!Number.isFinite(amount) || amount <= 0) continue;
+    const existing = unlabeledByAddress.get(coin.address) ?? [];
+    existing.push(coin);
+    unlabeledByAddress.set(coin.address, existing);
+  }
+  const unlabeledFunded: UnlabeledFundedAddress[] = [...unlabeledByAddress.entries()].map(([address, coins]) => {
+    const tokens = buildAccountTokenBalances(coins);
+    const native = tokens.find((token) => token.isNative);
+    return {
+      address,
+      totalMinima: native?.amount ?? "0",
+      tokenCount: tokens.filter((token) => !token.isNative && Number(token.amount) > 0).length,
+      tokens
+    };
+  });
+
+  return {
+    accounts: accountBalances,
+    unlabeledFunded
+  };
 }

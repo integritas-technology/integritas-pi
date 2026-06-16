@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { recordAuditEvent } from "../auth/audit.service.js";
 import { requireRole } from "../auth/auth.middleware.js";
-import { createWalletAccount, getPaymentStatus, getReceiveAddress, getWalletStatus, importWallet, listWalletAccountsWithBalances, sendPayment } from "./wallet.service.js";
+import { createWalletAccount, createWalletAccountFromAddress, getPaymentStatus, getReceiveAddress, getWalletStatus, importWallet, listWalletAccountsWithBalances, sendPayment } from "./wallet.service.js";
 
 export const walletRouter = Router();
 
@@ -57,7 +57,7 @@ walletRouter.post("/send-payment", requireRole("admin"), async (req, res) => {
 
 walletRouter.get("/accounts", async (_req, res) => {
   try {
-    res.json({ accounts: await listWalletAccountsWithBalances() });
+    res.json(await listWalletAccountsWithBalances());
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     res.status(502).json({ ok: false, error: message });
@@ -66,9 +66,12 @@ walletRouter.get("/accounts", async (_req, res) => {
 
 walletRouter.post("/accounts", requireRole("admin"), async (req, res) => {
   const label = typeof req.body?.label === "string" ? req.body.label.trim() : "";
+  const address = typeof req.body?.address === "string" ? req.body.address.trim() : "";
   if (!label) return res.status(400).json({ ok: false, error: "label is required" });
   try {
-    const account = await createWalletAccount({ label });
+    const account = address
+      ? await createWalletAccountFromAddress({ label, address })
+      : await createWalletAccount({ label });
     recordAuditEvent("wallet.account.create", {
       userId: req.user?.id,
       detail: JSON.stringify({ accountId: account.id, label: account.label, address: account.address })
