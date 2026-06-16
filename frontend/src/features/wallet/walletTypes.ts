@@ -12,6 +12,31 @@ export type WalletStatus = {
   tokens: TokenBalance[];
 };
 
+export type WalletAccountTokenBalance = {
+  tokenId: string;
+  name: string;
+  amount: string;
+  isNative: boolean;
+};
+
+export type WalletAccountBalance = {
+  accountId: string;
+  totalMinima: string;
+  tokenCount: number;
+  tokens: WalletAccountTokenBalance[];
+};
+
+export type WalletAccount = {
+  id: string;
+  label: string;
+  address: string;
+  miniAddress: string;
+  publicKey?: string;
+  createdAt: string;
+  updatedAt: string;
+  balance: WalletAccountBalance;
+};
+
 export type ReceiveAddress = {
   miniAddress: string;  // Mx… — Minima native format; use this for display/sharing
   address: string;      // 0x… — hex format
@@ -22,6 +47,7 @@ export type SendPaymentRequest = {
   address: string;
   amount: string;
   tokenId?: string;
+  fromAccountAddress?: string;
 };
 
 export type SendPaymentResult = {

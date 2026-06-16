@@ -5,78 +5,59 @@ import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
 import { useToast } from "../components/ToastProvider";
 import {
+  createWalletAccount,
   getPaymentStatus,
-  getReceiveAddress,
-  getWalletStatus,
   importWallet as importWalletApi,
-  sendPayment as sendPaymentApi,
+  listWalletAccounts,
+  sendPayment as sendPaymentApi
 } from "../features/wallet/walletApi";
-import type {
-  ImportWalletResult,
-  PaymentStatus,
-  ReceiveAddress,
-  TokenBalance,
-  WalletStatus,
-} from "../features/wallet/walletTypes";
-
-type Filter = "all" | "minima" | "tokens";
+import type { ImportWalletResult, PaymentStatus, WalletAccount, WalletAccountTokenBalance } from "../features/wallet/walletTypes";
 
 export function WalletPage() {
-  const [status, setStatus] = useState<WalletStatus | null>(null);
+  const [accounts, setAccounts] = useState<WalletAccount[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<Filter>("all");
-  const [receiveOpen, setReceiveOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [selected, setSelected] = useState<WalletAccount | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
+  async function refreshAccounts() {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await listWalletAccounts();
+      setAccounts(result.accounts);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load accounts.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
-    getWalletStatus().then(setStatus).catch((err: Error) => setError(err.message));
+    refreshAccounts();
   }, []);
 
-  const native = status?.tokens.find((t) => t.isNative) ?? null;
-  const visible = filterTokens(status?.tokens ?? [], filter);
+  const totalMinima = accounts.reduce((sum, account) => sum + Number(account.balance.totalMinima || "0"), 0).toString();
 
   return (
-    <Page eyebrow="Wallet" title="Wallet and tokens" desc="Minima wallet balance and token holdings for this node.">
+    <Page eyebrow="Wallet" title="Wallet accounts" desc="Named account labels mapped to Minima node addresses.">
       <div className="hero-card wallet-balance-card">
         <div className="wallet-hero-header">
           <div className="wallet-hero-icon">
             <MinimaIcon size={18} />
           </div>
-          <p className="eyebrow">Primary wallet</p>
+          <p className="eyebrow">Node wallet</p>
         </div>
-
-        <div>
-          <div className="wallet-amount-row">
-            <MinimaIcon size={36} className="wallet-amount-icon" />
-            <span className="wallet-amount-number">
-              {native?.confirmed ?? (error ? "—" : "…")}
-            </span>
-          </div>
-          <p className="wallet-amount-label">MINIMA confirmed</p>
+        <div className="wallet-amount-row">
+          <MinimaIcon size={36} className="wallet-amount-icon" />
+          <span className="wallet-amount-number">{loading ? "…" : totalMinima}</span>
         </div>
-
-        {(native || error) && (
-          <div className="wallet-hero-stats">
-            {native && (
-              <>
-                <div>
-                  <p className="wallet-stat-label">Unconfirmed</p>
-                  <p className="wallet-stat-value">{native.unconfirmed}</p>
-                </div>
-                <div>
-                  <p className="wallet-stat-label">Sendable</p>
-                  <p className="wallet-stat-value">{native.sendable}</p>
-                </div>
-              </>
-            )}
-            {error && <p className="error-text">{error}</p>}
-          </div>
-        )}
-
+        <p className="wallet-amount-label">MINIMA across labeled accounts</p>
         <div className="wallet-hero-actions">
-          <button type="button" className="wallet-action-btn" onClick={() => setReceiveOpen(true)}>
-            Receive address
+          <button type="button" className="wallet-action-btn" onClick={() => setCreateOpen(true)}>
+            Create account
           </button>
           <button type="button" className="wallet-action-btn wallet-action-btn-ghost" onClick={() => setSendOpen(true)}>
             Send payment
@@ -84,173 +65,122 @@ export function WalletPage() {
           <button type="button" className="wallet-action-btn wallet-action-btn-ghost" onClick={() => setImportOpen(true)}>
             Import wallet
           </button>
-          <button type="button" className="wallet-action-btn wallet-action-btn-ghost" disabled title="Export wallet backup — coming soon">
-            Export wallet
-          </button>
         </div>
       </div>
 
       <Card>
-        <div className="wallet-filter-row">
-          <p className="eyebrow">Token holdings</p>
-          <div className="subtabs">
-            {(["all", "minima", "tokens"] as Filter[]).map((f) => (
-              <button
-                key={f}
-                type="button"
-                className={filter === f ? "active" : ""}
-                onClick={() => setFilter(f)}
-              >
-                {f === "all" ? "All" : f === "minima" ? "Minima" : "Tokens"}
-              </button>
-            ))}
-          </div>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <p className="eyebrow">Accounts</p>
+          <button type="button" className="btn btn-secondary" onClick={refreshAccounts} disabled={loading}>
+            Refresh
+          </button>
         </div>
-
-        {!status && !error && <p className="muted">Loading…</p>}
-        {status && visible.length === 0 && <p className="muted">No tokens to display.</p>}
-
-        {visible.length > 0 && (
-          <table className="wallet-token-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Confirmed</th>
-                <th>Unconfirmed</th>
-                <th>Sendable</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((token) => (
-                <tr key={token.tokenId}>
-                  <td>
-                    <span>{token.name}</span>
-                    {!token.isNative && <code className="token-id">{token.tokenId}</code>}
-                  </td>
-                  <td>
-                    <span className="inline-flex items-center gap-1.5">
-                      {token.isNative && <MinimaIcon size={13} className="text-slate-400 shrink-0" />}
-                      {token.confirmed}
-                    </span>
-                  </td>
-                  <td>{token.unconfirmed}</td>
-                  <td>{token.sendable}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {loading && <p className="muted">Loading accounts…</p>}
+        {error && <p className="error-text">{error}</p>}
+        {!loading && !error && accounts.length === 0 && (
+          <p className="muted">No labeled accounts yet. Create one to map a name to a wallet address.</p>
         )}
+        <div className="grid gap-3">
+          {accounts.map((account) => (
+            <button
+              key={account.id}
+              type="button"
+              onClick={() => setSelected(account)}
+              className="text-left rounded-2xl border border-slate-200 p-4 hover:border-slate-400 transition"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-slate-900">{account.label}</p>
+                  <p className="text-xs text-slate-500 mt-1 font-mono">{account.miniAddress}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-slate-900">{account.balance.totalMinima}</p>
+                  <p className="text-xs text-slate-500">MINIMA</p>
+                  <p className="text-xs text-slate-500 mt-1">{account.balance.tokenCount} tokens</p>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
       </Card>
 
-      {receiveOpen && <ReceiveAddressModal onClose={() => setReceiveOpen(false)} />}
-      {sendOpen && (
-        <SendPaymentModal
-          tokens={status?.tokens ?? []}
-          onClose={() => setSendOpen(false)}
-        />
-      )}
+      {createOpen && <CreateAccountModal onClose={() => setCreateOpen(false)} onCreated={refreshAccounts} />}
+      {selected && <AccountDetailModal account={selected} onClose={() => setSelected(null)} />}
+      {sendOpen && <SendPaymentModal accounts={accounts} onClose={() => setSendOpen(false)} />}
       {importOpen && <ImportWalletModal onClose={() => setImportOpen(false)} />}
     </Page>
   );
 }
 
-function ReceiveAddressModal({ onClose }: { onClose: () => void }) {
-  const [result, setResult] = useState<ReceiveAddress | null>(null);
-  const [loading, setLoading] = useState(true);
+function CreateAccountModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => Promise<void> }) {
+  const [label, setLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  function fetch() {
-    setLoading(true);
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
     setError(null);
-    setResult(null);
-    setCopied(false);
-    getReceiveAddress()
-      .then(setResult)
-      .catch((err: Error) => setError(err.message))
-      .finally(() => setLoading(false));
-  }
-
-  useEffect(() => { fetch(); }, []);
-
-  function copyAddress() {
-    const addr = result?.miniAddress || result?.address;
-    if (!addr) return;
-    navigator.clipboard.writeText(addr).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+    if (!label.trim()) {
+      setError("Label is required.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await createWalletAccount(label.trim());
+      await onCreated();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create account.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
-    <Modal title="Receive address" onClose={onClose}>
-      <div className="grid gap-4">
+    <Modal title="Create wallet account" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="grid gap-4">
         <p className="text-sm text-slate-500">
-          One of your node's 64 pre-created wallet addresses, selected at random.
-          Share this address to receive MINIMA or tokens.
+          This creates a new labeled account by assigning one random default Minima address from this node's wallet.
         </p>
+        <label className="grid gap-1.5">
+          <span className="text-xs font-bold uppercase tracking-widest text-slate-500">Account label</span>
+          <input type="text" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Treasury" maxLength={80} />
+        </label>
+        {error && <p className="text-sm text-red-700">{error}</p>}
+        <button type="submit" disabled={submitting} className="rounded-xl border-0 bg-slate-950 px-5 py-3 text-sm font-bold text-white disabled:opacity-50">
+          {submitting ? "Creating…" : "Create account"}
+        </button>
+      </form>
+    </Modal>
+  );
+}
 
-        {loading && <p className="text-slate-500 text-sm">Fetching address…</p>}
-
-        {error && (
-          <div className="rounded-xl bg-red-50 border border-red-200 p-4">
-            <p className="text-sm text-red-700">{error}</p>
+function AccountDetailModal({ account, onClose }: { account: WalletAccount; onClose: () => void }) {
+  return (
+    <Modal title={`Account: ${account.label}`} onClose={onClose}>
+      <div className="grid gap-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">Address (Mx)</p>
+          <code className="block break-all rounded-xl bg-slate-100 p-3 text-xs text-slate-700 font-mono">{account.miniAddress}</code>
+        </div>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">Address (0x)</p>
+          <code className="block break-all rounded-xl bg-slate-100 p-3 text-xs text-slate-700 font-mono">{account.address}</code>
+        </div>
+        <div className="rounded-xl border border-slate-200 p-3">
+          <p className="text-sm font-semibold text-slate-900 mb-2">Funds</p>
+          <div className="grid gap-2">
+            {account.balance.tokens.length === 0 && <p className="text-sm text-slate-500">No funds on this address yet.</p>}
+            {account.balance.tokens.map((token) => (
+              <div key={token.tokenId} className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">{token.name}</p>
+                  {!token.isNative && <p className="text-xs text-slate-500 font-mono">{token.tokenId}</p>}
+                </div>
+                <p className="text-sm font-semibold text-slate-900">{token.amount}</p>
+              </div>
+            ))}
           </div>
-        )}
-
-        {result && (
-          <div className="grid gap-3">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">
-                Minima address (Mx)
-              </p>
-              <div className="flex items-start gap-3 rounded-2xl bg-slate-950 p-4">
-                <code className="flex-1 break-all text-sm text-emerald-400 font-mono leading-relaxed">
-                  {result.miniAddress}
-                </code>
-                <button
-                  type="button"
-                  onClick={copyAddress}
-                  className="shrink-0 rounded-xl border-0 bg-slate-800 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-700"
-                >
-                  {copied ? "Copied!" : "Copy"}
-                </button>
-              </div>
-            </div>
-
-            {result.address && result.address !== result.miniAddress && (
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">
-                  Hex address (0x)
-                </p>
-                <code className="block break-all rounded-xl bg-slate-100 p-3 text-xs text-slate-600 font-mono">
-                  {result.address}
-                </code>
-              </div>
-            )}
-
-            {result.publicKey && (
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">
-                  Public key
-                </p>
-                <code className="block break-all rounded-xl bg-slate-100 p-3 text-xs text-slate-600 font-mono">
-                  {result.publicKey}
-                </code>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="flex gap-3 pt-2">
-          <button
-            type="button"
-            onClick={fetch}
-            disabled={loading}
-            className="rounded-xl border-0 bg-slate-950 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
-          >
-            Get another address
-          </button>
         </div>
       </div>
     </Modal>
@@ -260,13 +190,14 @@ function ReceiveAddressModal({ onClose }: { onClose: () => void }) {
 type PollState = "idle" | "polling" | "confirmed" | "failed" | "timeout";
 
 function SendPaymentModal({
-  tokens,
+  accounts,
   onClose,
 }: {
-  tokens: TokenBalance[];
+  accounts: WalletAccount[];
   onClose: () => void;
 }) {
   const { showToast } = useToast();
+  const [fromAccountId, setFromAccountId] = useState("");
   const [address, setAddress] = useState("");
   const [amount, setAmount] = useState("");
   const [tokenId, setTokenId] = useState("0x00");
@@ -333,12 +264,19 @@ function SendPaymentModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormError(null);
+    const selectedAccount = accounts.find((account) => account.id === fromAccountId);
+    if (!selectedAccount) { setFormError("Select a source account."); return; }
     if (!address.trim()) { setFormError("Address is required."); return; }
     const num = Number(amount);
     if (!amount || !Number.isFinite(num) || num <= 0) { setFormError("Amount must be a positive number."); return; }
     setSubmitting(true);
     try {
-      const result = await sendPaymentApi({ address: address.trim(), amount: amount.trim(), tokenId });
+      const result = await sendPaymentApi({
+        address: address.trim(),
+        amount: amount.trim(),
+        tokenId,
+        fromAccountAddress: selectedAccount.address
+      });
       if (!result.ok || result.status === "failed") {
         setFormError(result.message ?? "Send failed.");
         return;
@@ -358,15 +296,26 @@ function SendPaymentModal({
   }
 
   const sent = pollState !== "idle";
-  const tokenOptions = [
-    { value: "0x00", label: "Minima (native)" },
-    ...tokens.filter((t) => !t.isNative).map((t) => ({ value: t.tokenId, label: t.name })),
-  ];
+  const selectedAccount = accounts.find((account) => account.id === fromAccountId);
+  const tokenOptions = selectedAccount
+    ? selectedAccount.balance.tokens.map((token) => ({ value: token.tokenId, label: token.isNative ? "Minima (native)" : token.name }))
+    : [{ value: "0x00", label: "Minima (native)" }];
 
   return (
     <Modal title="Send payment" onClose={handleClose}>
       {!sent ? (
         <form onSubmit={handleSubmit} className="grid gap-4">
+          <label className="grid gap-1.5">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-500">From account</span>
+            <select value={fromAccountId} onChange={(e) => setFromAccountId(e.target.value)}>
+              <option value="">Select account</option>
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.label} ({account.balance.totalMinima} MINIMA)
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="grid gap-1.5">
             <span className="text-xs font-bold uppercase tracking-widest text-slate-500">Recipient address</span>
             <input
@@ -476,12 +425,6 @@ function PollStatusDisplay({
       )}
     </div>
   );
-}
-
-function filterTokens(tokens: TokenBalance[], filter: Filter): TokenBalance[] {
-  if (filter === "minima") return tokens.filter((t) => t.isNative);
-  if (filter === "tokens") return tokens.filter((t) => !t.isNative);
-  return tokens;
 }
 
 function ImportWalletModal({ onClose }: { onClose: () => void }) {

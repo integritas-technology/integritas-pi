@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { recordAuditEvent } from "../auth/audit.service.js";
 import { requireRole } from "../auth/auth.middleware.js";
-import { getPaymentStatus, getReceiveAddress, getWalletStatus, importWallet, sendPayment } from "./wallet.service.js";
+import { createWalletAccount, getPaymentStatus, getReceiveAddress, getWalletStatus, importWallet, listWalletAccountsWithBalances, sendPayment } from "./wallet.service.js";
 
 export const walletRouter = Router();
 
@@ -29,6 +29,7 @@ walletRouter.post("/send-payment", requireRole("admin"), async (req, res) => {
   const address = typeof req.body?.address === "string" ? req.body.address.trim() : "";
   const amount = typeof req.body?.amount === "string" ? req.body.amount.trim() : "";
   const tokenId = typeof req.body?.tokenId === "string" ? req.body.tokenId.trim() : "0x00";
+  const fromAccountAddress = typeof req.body?.fromAccountAddress === "string" ? req.body.fromAccountAddress.trim() : "";
 
   if (!address) return res.status(400).json({ ok: false, error: "address is required" });
   if (!amount || !Number.isFinite(Number(amount)) || Number(amount) <= 0) {
@@ -36,14 +37,49 @@ walletRouter.post("/send-payment", requireRole("admin"), async (req, res) => {
   }
 
   try {
-    const result = await sendPayment({ address, amount, tokenId });
+    const result = await sendPayment({ address, amount, tokenId, fromAccountAddress: fromAccountAddress || undefined });
     recordAuditEvent("wallet.payment.send", {
       userId: req.user?.id,
-      detail: JSON.stringify({ address, amount, tokenId, txpowId: result.txpowId })
+      detail: JSON.stringify({
+        address,
+        amount,
+        tokenId,
+        fromAccountAddress: fromAccountAddress || undefined,
+        txpowId: result.txpowId
+      })
     });
     res.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    res.status(502).json({ ok: false, error: message });
+  }
+});
+
+walletRouter.get("/accounts", async (_req, res) => {
+  try {
+    res.json({ accounts: await listWalletAccountsWithBalances() });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    res.status(502).json({ ok: false, error: message });
+  }
+});
+
+walletRouter.post("/accounts", requireRole("admin"), async (req, res) => {
+  const label = typeof req.body?.label === "string" ? req.body.label.trim() : "";
+  if (!label) return res.status(400).json({ ok: false, error: "label is required" });
+  try {
+    const account = await createWalletAccount({ label });
+    recordAuditEvent("wallet.account.create", {
+      userId: req.user?.id,
+      detail: JSON.stringify({ accountId: account.id, label: account.label, address: account.address })
+    });
+    res.status(201).json(account);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    if (message.includes("UNIQUE constraint failed")) {
+      res.status(409).json({ ok: false, error: "Selected address is already mapped to an account. Try again." });
+      return;
+    }
     res.status(502).json({ ok: false, error: message });
   }
 });

@@ -101,7 +101,12 @@ The Minima page also stores its Megammr host URL in SQLite through the Configure
 
 The Minima page exposes an allowlisted Megammr resync action. The browser calls the backend, and the backend calls Minima RPC internally with `megammrsync action:resync host:<configured-megammr-host>`.
 
-The Wallet page exposes an allowlisted balance read. The browser calls the backend, and the backend calls Minima RPC internally with `balance`.
+The Wallet page exposes allowlisted wallet/account actions through the backend:
+
+- global balance via Minima `balance`
+- labeled account creation via Minima `getaddress` + SQLite mapping
+- per-account holdings via Minima `coins relevant:true`
+- payment submission via Minima `send`
 
 Minima RPC commands should be transmitted as a single percent-encoded URL path command, not as query parameters. For example:
 
@@ -409,6 +414,21 @@ POST /api/minima/peers/add
 ```
 
 `POST /api/minima/restart` restarts the Minima Docker container via the backend Docker socket (see `SECURITY.md`). `POST /api/minima/peers/add` accepts `{ "peerslist": "host:port" }` or comma-separated addresses and calls Minima `peers action:addpeers`.
+
+Wallet and account APIs:
+
+```http
+GET /api/wallet
+GET /api/wallet/accounts
+POST /api/wallet/accounts
+POST /api/wallet/send-payment
+GET /api/wallet/payment-status/:txpowid
+POST /api/wallet/import
+```
+
+`POST /api/wallet/accounts` creates a named account label and maps it to one random default address from the node's existing 64-address wallet pool. This does not create new seed material.
+
+`GET /api/wallet/accounts` returns the mapped accounts plus per-address MINIMA/token balances aggregated from Minima `coins relevant:true`.
 
 Integritas:
 

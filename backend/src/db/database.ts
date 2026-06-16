@@ -139,4 +139,16 @@ export function runMigrations() {
       detail TEXT
     )
   `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS wallet_accounts (
+      id TEXT PRIMARY KEY,
+      label TEXT NOT NULL,
+      address TEXT NOT NULL UNIQUE,
+      mini_address TEXT NOT NULL UNIQUE,
+      public_key TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
 }

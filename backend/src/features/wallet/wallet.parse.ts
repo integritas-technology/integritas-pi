@@ -1,4 +1,12 @@
-import type { ImportWalletResult, PaymentStatus, ReceiveAddress, SendPaymentResult, TokenBalance, WalletStatus } from "./wallet.types.js";
+import type {
+  ImportWalletResult,
+  PaymentStatus,
+  ReceiveAddress,
+  SendPaymentResult,
+  TokenBalance,
+  WalletAccountTokenBalance,
+  WalletStatus
+} from "./wallet.types.js";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
@@ -98,4 +106,63 @@ export function parseImportResponse(body: unknown): ImportWalletResult {
     return { ok: false, message: asString(record.error ?? record.message, "Import failed") };
   }
   return { ok: true, message: "Wallet restored. The node may restart to apply the new seed." };
+}
+
+type CoinRecord = {
+  amount: string;
+  address: string;
+  tokenId: string;
+  tokenName: string;
+  spent: boolean;
+};
+
+export function parseCoinsResponse(body: unknown): CoinRecord[] {
+  const record = asRecord(body);
+  if (!record || record.status === false) return [];
+  const response = record.response;
+  if (!Array.isArray(response)) return [];
+  const result: CoinRecord[] = [];
+  for (const item of response) {
+    const coin = asRecord(item);
+    if (!coin) continue;
+    const address = asString(coin.address, "");
+    const tokenId = asString(coin.tokenid, "");
+    const amount = asString(coin.amount, "0");
+    if (!address || !tokenId) continue;
+    result.push({
+      amount,
+      address,
+      tokenId,
+      tokenName: asString(coin.token, tokenId),
+      spent: coin.spent === true
+    });
+  }
+  return result;
+}
+
+export function buildAccountTokenBalances(coins: CoinRecord[]): WalletAccountTokenBalance[] {
+  const byToken = new Map<string, { amount: number; name: string; isNative: boolean }>();
+  for (const coin of coins) {
+    if (coin.spent) continue;
+    const parsedAmount = Number(coin.amount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) continue;
+    const existing = byToken.get(coin.tokenId);
+    if (existing) {
+      existing.amount += parsedAmount;
+      continue;
+    }
+    byToken.set(coin.tokenId, {
+      amount: parsedAmount,
+      name: coin.tokenId === "0x00" ? "Minima" : coin.tokenName,
+      isNative: coin.tokenId === "0x00"
+    });
+  }
+  return [...byToken.entries()]
+    .map(([tokenId, value]) => ({
+      tokenId,
+      name: value.name,
+      amount: Number.isInteger(value.amount) ? String(value.amount) : value.amount.toString(),
+      isNative: value.isNative
+    }))
+    .sort((a, b) => Number(b.isNative) - Number(a.isNative) || a.name.localeCompare(b.name));
 }

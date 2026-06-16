@@ -1,5 +1,5 @@
 import { getJson, postJson } from "../../lib/api";
-import type { ImportWalletResult, PaymentStatus, ReceiveAddress, SendPaymentRequest, SendPaymentResult, WalletStatus } from "./walletTypes";
+import type { ImportWalletResult, PaymentStatus, ReceiveAddress, SendPaymentRequest, SendPaymentResult, WalletAccount, WalletStatus } from "./walletTypes";
 
 export function getWalletStatus() {
   return getJson<WalletStatus>("/api/wallet");
@@ -19,4 +19,12 @@ export function getPaymentStatus(txpowId: string) {
 
 export function importWallet(phrase: string) {
   return postJson<ImportWalletResult>("/api/wallet/import", { phrase });
+}
+
+export function listWalletAccounts() {
+  return getJson<{ accounts: WalletAccount[] }>("/api/wallet/accounts");
+}
+
+export function createWalletAccount(label: string) {
+  return postJson<WalletAccount>("/api/wallet/accounts", { label });
 }
