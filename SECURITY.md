@@ -70,6 +70,41 @@ Plan:
 
 Status: Open. Accepted only for prototype operator convenience.
 
+### Seed Phrase Import (admin)
+
+Risk: `POST /api/wallet/import` accepts a 24-word BIP-39 seed phrase in the JSON request body and calls the Minima `restore` RPC. The phrase travels over the existing HTTP connection.
+
+Impact: If the LAN connection is observed (e.g., on an untrusted network), the seed phrase can be captured and the wallet compromised. A successful restore replaces the node's current wallet and cannot be undone without a separate backup.
+
+Current Controls:
+
+- Admin session required (`requireRole('admin')`).
+- Phrase is never logged — audit event `wallet.import` records only that an import occurred, with no phrase in the detail field.
+- Phrase is not returned in the response body.
+- Input is validated server-side (minimum 12 words) before calling Minima RPC.
+- Minima RPC call uses a 30 s timeout to allow node processing time.
+
+**Required before field deployment:** Enable HTTPS and set `COOKIE_SECURE=true` on any network where seed phrase import will be used. Never import a seed phrase over an untrusted or monitored network.
+
+Status: Documented. HTTPS required before field deployment.
+
+> **Megammr resync interaction:** The Minima `restore` command used by `/api/wallet/import` triggers a node restart, which may overlap with active or auto-triggered Megammr resyncs. If a malicious or misconfigured Megammr host is set at the time of a resync, the resulting chain state could force the node to re-derive keys in an unexpected state. Operators should verify the Megammr host URL before importing a wallet and before enabling `MINIMA_AUTO_RESYNC`. This is a known prototype risk — investigate before production use.
+
+### Wallet debug clears (admin, non-production)
+
+Risk: `POST /api/wallet/debug/clear-wallet-accounts` and `POST /api/wallet/debug/clear-wallet-history` delete labeled account mappings and SQLite send history. Misuse on a shared dev stack could remove operator labels or local audit context (not on-chain funds).
+
+Impact: Loss of labeled account metadata and send history rows in SQLite. Does not delete Minima wallet keys or on-chain balances.
+
+Current Controls:
+
+- Admin session required (`requireRole('admin')`).
+- Endpoints return **403** when `NODE_ENV=production`.
+- Frontend debug buttons render only when `import.meta.env.DEV` is true.
+- Audit events `wallet.debug.clear_accounts` and `wallet.debug.clear_history` record deletions.
+
+Status: Accepted for local/dev iteration only. Not available in production builds.
+
 ### API Key Management
 
 Risk: Saving or clearing the Integritas API key is a high-impact mutation.

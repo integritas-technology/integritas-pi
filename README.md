@@ -101,7 +101,20 @@ The Minima page also stores its Megammr host URL in SQLite through the Configure
 
 The Minima page exposes an allowlisted Megammr resync action. The browser calls the backend, and the backend calls Minima RPC internally with `megammrsync action:resync host:<configured-megammr-host>`.
 
-The Wallet page exposes an allowlisted balance read. The browser calls the backend, and the backend calls Minima RPC internally with `balance`.
+The Wallet page exposes allowlisted wallet/account actions through the backend:
+
+- global balance via Minima `balance` (`GET /api/wallet`)
+- labeled accounts mapped to the node's 64-address pool (`GET/POST /api/wallet/accounts`)
+- per-account holdings via Minima `coins relevant:true`
+- send history in SQLite (`GET /api/wallet/history`)
+- payment submission via Minima `send` (`POST /api/wallet/send-payment`)
+- seed phrase import via Minima `restore` (`POST /api/wallet/import`)
+
+`POST /api/wallet/accounts` with `{ label }` creates a named account on a random default address. With `{ label, address }` it labels an existing funded address (migration/recovery). This does not create new seed material.
+
+`GET /api/wallet/accounts` returns labeled accounts with per-address MINIMA/token balances plus `unlabeledFunded` addresses that have funds but no label yet.
+
+Dev-only debug routes (`POST /api/wallet/debug/clear-wallet-accounts`, `clear-wallet-history`) clear SQLite wallet tables for local testing; they return 403 when `NODE_ENV=production`.
 
 Minima RPC commands should be transmitted as a single percent-encoded URL path command, not as query parameters. For example:
 
@@ -409,6 +422,27 @@ POST /api/minima/peers/add
 ```
 
 `POST /api/minima/restart` restarts the Minima Docker container via the backend Docker socket (see `SECURITY.md`). `POST /api/minima/peers/add` accepts `{ "peerslist": "host:port" }` or comma-separated addresses and calls Minima `peers action:addpeers`.
+
+Wallet and account APIs:
+
+```http
+GET /api/wallet
+GET /api/wallet/accounts
+POST /api/wallet/accounts
+GET /api/wallet/history
+POST /api/wallet/send-payment
+GET /api/wallet/payment-status/:txpowid
+POST /api/wallet/import
+POST /api/wallet/receive-address
+```
+
+`POST /api/wallet/accounts` creates a named account label and maps it to one random default address from the node's existing 64-address wallet pool, or labels an existing address when `address` is provided. This does not create new seed material.
+
+`GET /api/wallet/accounts` returns the mapped accounts plus per-address MINIMA/token balances aggregated from Minima `coins relevant:true`, and `unlabeledFunded` for migration.
+
+`GET /api/wallet/history?limit=N` returns recent send activity recorded in SQLite when payments are submitted.
+
+`POST /api/wallet/receive-address` samples a random address from the 64-address pool (API retained; primary UI shows per-account addresses in the account detail modal).
 
 Integritas:
 

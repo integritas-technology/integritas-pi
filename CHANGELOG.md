@@ -6,6 +6,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `GET /api/wallet` — auth-protected wallet endpoint returning a normalized `WalletStatus` (checkedAt, tokens array). Each `TokenBalance` includes tokenId, name, confirmed, unconfirmed, sendable, and an `isNative` flag (`tokenId === "0x00"`). Wraps the existing Minima `balance` RPC; the legacy `GET /api/minima/balance` passthrough is unchanged.
+- `POST /api/wallet/receive-address` (admin) — returns one of the node's 64 pre-created default wallet addresses at random via the Minima `getaddress` RPC command. Response includes `miniAddress` (Mx… native format, primary for sharing), `address` (0x… hex), and `publicKey`. Does not create new key material.
+- `POST /api/wallet/send-payment` (admin) — sends MINIMA or tokens via `send amount:X address:Y tokenid:Z`. Validates address and amount server-side. Returns `txpowId` and `status: "pending"` on submission; audit-logged with address, amount, tokenId, and txpowId (never logs seed phrases or secrets).
+- `GET /api/wallet/payment-status/:txpowid` (any authenticated user) — polls the Minima `txpow` command for a submitted transaction and returns `pending | confirmed | failed | unknown`.
+- Wallet page redesign: dark hero balance card with MINIMA icon watermark, confirmed/unconfirmed/sendable stats, and two action buttons — **Receive address** and **Send payment**.
+- Receive address modal: fetches a random address from the node's 64-address pool, displays Mx (primary) and 0x formats, one-click clipboard copy, and a "Get another address" button to sample a different address.
+- Send payment modal: form with recipient address (accepts both Mx and 0x formats), amount, and token selector (built from the live token list). On submit, transitions to a pending state that polls `payment-status` every 5 s for up to 60 s; shows confirmed/failed/timeout states inline and fires a toast on each terminal state. Closes cleanly mid-poll with an info toast.
+- Token holdings table with All / Minima / Tokens filter tabs (subtabs component). MINIMA icon shown inline next to native token confirmed balance.
+- Dashboard wallet balance card: shows confirmed MINIMA with MINIMA icon inline in the metric grid. Non-blocking — shows "Unavailable" if the node is unreachable.
+- `MinimaIcon` component: reusable inline SVG using `currentColor`, used across Wallet page and Dashboard.
+- `POST /api/wallet/import` (admin) — restores wallet from a 24-word BIP-39 seed phrase via Minima `restore` RPC. Overwrites the node's current wallet; the node may restart after import. Audit event `wallet.import` is recorded without the phrase. Input is validated server-side (minimum 12 words).
+- Import wallet modal on Wallet page: textarea for seed phrase entry, destructive-action warning, success/error inline feedback, and a toast on completion.
+- Disabled "Export wallet" button on Wallet page as a placeholder for the deferred encrypted backup feature.
+- `POST /api/wallet/accounts` (admin) — creates a labeled wallet account by assigning one random default Minima address (`getaddress`) and storing it in SQLite.
+- `GET /api/wallet/accounts` — returns labeled wallet accounts with per-address balances and token counts derived from Minima `coins relevant:true`.
+- Wallet page account architecture: account list cards, create-account modal, account details modal, and send form source-account selection.
+- Wallet fallback for migration/recovery: unlabeled funded addresses are now surfaced from `coins relevant:true` and can be labeled directly into accounts.
+- Wallet fallback labeling now resolves and persists `miniaddress` (`Mx...`) for imported `0x...` addresses when available from the node's default address pool.
+- Wallet token display for per-address funds now uses Minima `tokenamount` and token metadata names (when present), fixing raw token-id labels and tiny scientific-notation amounts.
+- Dev-only wallet debug action: `POST /api/wallet/debug/clear-wallet-accounts` (admin, blocked in production) clears labeled wallet accounts from SQLite to speed up local label/unlabel testing. Wallet page now shows a `Debug: clear labels` button only in frontend dev mode.
+- Wallet send history (Phase 1): backend now persists `POST /api/wallet/send-payment` activity in SQLite and exposes it via `GET /api/wallet/history`; Wallet page now renders a `History` card with recent sent transactions.
+- Wallet history display now annotates account-aware transfer flow (`From <address> (<account>) -> <address> (<destination account | External>)`) and adds dev-only `POST /api/wallet/debug/clear-wallet-history` + `Debug: clear history` button for local test resets.
+- Reusable `CopyableCode` component with icon copy buttons for addresses, token IDs, and txpow IDs in wallet modals.
+- Wallet UI polish: Minima/custom token glyphs in account list and send history rows; send form shows selected-token available balance beside the Token label and blocks submits that exceed it; wallet hero card responsive layout improvements for phone/tablet widths.
+
+### Changed
+
+- Wallet page UX pivot: labeled **accounts** are the primary model (create account, account detail with Mx/0x addresses and per-account funds). Receive addresses are shown per account in the detail modal rather than via a separate random receive-address modal.
+- Send payment modal: requires a source account; supports external address or internal transfer to another labeled account; closes on successful submit with a success toast (in-page `payment-status` polling removed from the wallet UI). Backend `GET /api/wallet/payment-status/:txpowid` remains available.
+
+### Fixed
+
+- `generateAddress` renamed to `getReceiveAddress` throughout — was incorrectly calling `newaddress` (creates new key material) instead of `getaddress` (returns from the node's 64 pre-created address pool).
+
 ## [0.5.0] - 2026-06-12
 
 System basic status and health checks added to Dashboard with 30s auto-polling, and graceful shutdown to backend systems.

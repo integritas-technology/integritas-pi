@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   Cpu,
@@ -24,6 +25,8 @@ import type {
   DeviceNodeState,
   DeviceStatus,
 } from '../features/status/statusTypes';
+import { getWalletStatus } from '../features/wallet/walletApi';
+import { MinimaIcon } from '../components/MinimaIcon';
 import { cx } from '../lib/cx';
 import { formatLocalTime } from '../lib/time';
 
@@ -98,14 +101,25 @@ const buildSteps = [
 
 export function DashboardPage({ onStartSetup }: { onStartSetup: () => void }) {
   const [deviceStatus, setDeviceStatus] = useState<DeviceStatus | null>(null);
+  const [walletBalance, setWalletBalance] = useState<string | null>(null);
   const [proofs, setProofs] = useState<IntegritasProofRecord[]>([]);
   const [reads, setReads] = useState<DataSourceRead[]>([]);
   const [activityError, setActivityError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchStatus = () => getDeviceStatus().then(setDeviceStatus).catch(() => {});
+    const fetchStatus = () =>
+      getDeviceStatus()
+        .then(setDeviceStatus)
+        .catch(() => {});
     fetchStatus();
     const statusInterval = setInterval(fetchStatus, 30_000);
+
+    getWalletStatus()
+      .then((ws) => {
+        const native = ws.tokens.find((t) => t.isNative);
+        setWalletBalance(native?.confirmed ?? '0');
+      })
+      .catch(() => setWalletBalance(null));
 
     Promise.all([getHistory(), listDataReads()])
       .then(([proofHistory, readHistory]) => {
@@ -127,8 +141,6 @@ export function DashboardPage({ onStartSetup }: { onStartSetup: () => void }) {
       title='Minima Edge Workbench'
       desc='A browser-first workspace for trusted data, proofs, automation, and value flows at the edge.'
     >
-      {deviceStatus && <DeviceStatusCard status={deviceStatus} />}
-
       <section className='hero-card use-case-hero'>
         <div className='hero-intro'>
           <div className='hero-pills'>
@@ -167,6 +179,10 @@ export function DashboardPage({ onStartSetup }: { onStartSetup: () => void }) {
           ))}
         </div>
       </section>
+
+      {deviceStatus && (
+        <DeviceStatusCard status={deviceStatus} walletBalance={walletBalance} />
+      )}
 
       <Card className='build-flow-card'>
         <div>
@@ -254,7 +270,7 @@ function MetricCard({
   valueClass = 'text-slate-950',
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   helper: string;
   icon: LucideIcon;
   valueClass?: string;
@@ -282,7 +298,13 @@ function MetricCard({
   );
 }
 
-function DeviceStatusCard({ status }: { status: DeviceStatus }) {
+function DeviceStatusCard({
+  status,
+  walletBalance,
+}: {
+  status: DeviceStatus;
+  walletBalance: string | null;
+}) {
   const { device, app, node } = status;
   const cpuPct = `${Math.round((device.loadAvg[0] / device.cpuCount) * 100)}%`;
   const diskValue = device.disk ? formatBytes(device.disk.usedBytes) : 'N/A';
@@ -339,6 +361,24 @@ function DeviceStatusCard({ status }: { status: DeviceStatus }) {
             : app.integritasConnected
               ? 'text-emerald-600'
               : 'text-amber-600'
+        }
+      />
+      <MetricCard
+        label='Wallet balance'
+        value={
+          walletBalance === null ? (
+            'Unavailable'
+          ) : (
+            <span className='inline-flex items-center gap-2'>
+              <MinimaIcon size={20} className='shrink-0 text-slate-600' />
+              {walletBalance}
+            </span>
+          )
+        }
+        helper='Primary Pi wallet'
+        icon={Wallet}
+        valueClass={
+          walletBalance === null ? 'text-slate-400' : 'text-slate-950'
         }
       />
     </div>
