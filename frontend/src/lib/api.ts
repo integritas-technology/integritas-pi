@@ -28,7 +28,11 @@ async function parseResponse<T>(response: Response): Promise<T> {
       onUnauthorized();
     }
     const error = new Error(
-      typeof parsed.error === "string" ? parsed.error : `HTTP ${response.status}`
+      typeof parsed.error === "string"
+        ? parsed.error
+        : typeof parsed.message === "string"
+          ? parsed.message
+          : `HTTP ${response.status}`
     ) as ApiError;
     error.status = response.status;
     if (typeof parsed.errorCode === "string") error.errorCode = parsed.errorCode;

@@ -9,7 +9,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - `GET /api/tokens` — auth-protected list of non-native wallet tokens from Minima `balance`, merged with SQLite `custom_tokens` metadata (`createdLocally`, `decimal` when recorded on this Pi).
-- `POST /api/tokens/create` (admin) — creates a custom token via Minima `tokencreate name:X amount:Y decimal:Z`. Persists `name`, `amount`, `decimal`, and `token_id` in SQLite; audit event `tokens.create` records tokenId, amounts, and txpowId (no secrets). On-chain creation is irreversible.
+- `POST /api/tokens/create` (admin) — creates a custom token via Minima `tokencreate name:X amount:Y decimals:Z`. Persists `name`, `amount`, `decimal`, and `token_id` in SQLite; audit event `tokens.create` records tokenId, amounts, and txpowId (no secrets). On-chain creation is irreversible.
+- Wallet page **Create token** action: modal with name, supply amount, and decimal places; warns that minting is on-chain and may take up to a minute; success toast and account list refresh.
+
+### Changed
+
+- Custom token creation now requires a **labeled wallet account** with at least `0.001` MINIMA on that account&apos;s address. Unlabeled addresses are no longer listed in the create modal.
+- Removed MINIMA &quot;routing&quot; to random pool addresses before `tokencreate` (that was moving MINIMA away from labeled accounts into unlabeled addresses).
+- `GET /api/tokens/create-requirements` returns estimated MINIMA cost and minimum account balance.
+- Wallet UI formats MINIMA amounts for display (trimmed decimals).
+
+### Fixed
+
+- Custom token creation: Minima expects `decimals:` (not `decimal:`) in `tokencreate`; token ID is now parsed from the txpow output body. API request field remains `decimal`.
+- Removed MINIMA routing hack that sent funds to random addresses before `tokencreate`, which left labeled accounts empty and inflated unlabeled funded addresses.
 
 ### Changed
 

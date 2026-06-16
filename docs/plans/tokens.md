@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **In progress** (Phase 1 shipped) |
-| **Done** | Phase 1 — `POST /api/tokens/create`, `GET /api/tokens`, SQLite `custom_tokens` |
-| **Next** | Phase 2 — create-token UI on Wallet page |
+| **Status** | **Complete** (Phases 1–2 shipped; event listeners deferred) |
+| **Done** | Phases 1–2 — create/list API, SQLite `custom_tokens`, Wallet create-token modal |
+| **Next** | QA — live `tokencreate` RPC verification on Pi hardware |
 | **Deferred** | Token event listeners (automation overlap), unit tests, create-token UI polish |
 | **QA follow-up** | _(create `docs/qa/tokens-gaps.md` when Phase 1 ships)_ |
 
@@ -39,9 +39,9 @@ _Audit date: 2026-06-16. Only wallet-adjacent token support exists today._
 | Wallet UI: holdings + send token picker | **Done** (wallet) | `WalletPage.tsx` account funds + send modal |
 | `POST /api/tokens/create` | **Done** | `tokens.service.ts` → Minima `tokencreate`; `custom_tokens` SQLite |
 | `GET /api/tokens` | **Done** | `tokens.service.ts` → `balance` + SQLite merge |
-| SQLite token metadata | **Not started** | — |
+| SQLite token metadata | **Done** | `custom_tokens` in `database.ts` |
 | Token event listeners | **Not started** | Deferred (ticket future) |
-| Create-token UI | **Not started** | Mock only: `mock/MinimaEdgeWorkbench.tsx` |
+| Create-token UI | **Done** | `WalletPage.tsx` create-token modal; `tokensApi.ts` |
 
 ### Not shipped / deferred → _(qa/tokens-gaps.md when Phase 1 lands)_
 
@@ -164,17 +164,18 @@ _Refresh when auditing plan vs code. Date: 2026-06-16_
 
 | File | Role |
 |---|---|
-| _(none)_ | No token feature module yet |
+| `tokensTypes.ts` | Mirror backend DTOs |
+| `tokensApi.ts` | `listTokens`, `createToken` |
 
-**Existing UI:** `WalletPage.tsx` displays tokens inside accounts; no create flow.
+**UI:** `WalletPage.tsx` — **Create token** hero action + modal.
 
 ### Cross-cutting
 
 | Area | Notes |
 |---|---|
-| `app.ts` | No `tokensRouter` registered |
+| `app.ts` | `tokensRouter` registered at `/api/tokens` |
 | Schedulers | No token listener poller |
-| `mock/MinimaEdgeWorkbench.tsx` | Placeholder “Create token” + token event rows — design reference only |
+| `mock/MinimaEdgeWorkbench.tsx` | Prior design reference only |
 
 ### Git history
 
@@ -307,7 +308,7 @@ Manual (with Minima node running):
 
 ---
 
-### Phase 2 — Create-token UI — **not started**
+### Phase 2 — Create-token UI — **complete**
 
 **Goal:** Operators can create tokens from the Wallet page without curl. Reuse existing modal/toast patterns.
 
@@ -418,7 +419,7 @@ When shipping each phase:
 
 **Frontend**
 
-- [ ] Create token modal on Wallet page _(Phase 2 — not in starter checklist but expected UX)_
+- [x] Create token modal on Wallet page _(Phase 2)_
 
 **Future / QA**
 

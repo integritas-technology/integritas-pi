@@ -36,13 +36,3 @@ export type TokenListResponse = {
   checkedAt: string;
   tokens: TokenListItem[];
 };
-
-export type CustomTokenRecord = {
-  id: string;
-  token_id: string;
-  name: string;
-  amount: string;
-  decimal: number;
-  txpow_id: string | null;
-  created_at: string;
-};

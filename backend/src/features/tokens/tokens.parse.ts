@@ -13,11 +13,32 @@ function asString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
 }
 
+function isRealTokenId(tokenId: string): boolean {
+  const normalized = tokenId.trim().toLowerCase();
+  return Boolean(normalized) && normalized !== "0x00" && normalized !== "0xff";
+}
+
 function pickTokenId(record: Record<string, unknown>): string {
   const direct = asString(record.tokenid ?? record.tokenId, "");
-  if (direct) return direct;
+  if (isRealTokenId(direct)) return direct;
   const token = asRecord(record.token);
-  return asString(token?.tokenid ?? token?.tokenId, "");
+  const nested = asString(token?.tokenid ?? token?.tokenId, "");
+  return isRealTokenId(nested) ? nested : "";
+}
+
+function findTokenIdInTxpow(response: Record<string, unknown>): string {
+  const body = asRecord(response.body);
+  const txn = asRecord(body?.txn);
+  const outputs = txn?.outputs;
+  if (!Array.isArray(outputs)) return "";
+  for (const item of outputs) {
+    const output = asRecord(item);
+    if (!output) continue;
+    const token = asRecord(output.token);
+    const tokenId = asString(token?.tokenid ?? token?.tokenId, "");
+    if (isRealTokenId(tokenId)) return tokenId;
+  }
+  return "";
 }
 
 function pickTxpowId(record: Record<string, unknown>): string {
@@ -39,7 +60,7 @@ export function parseTokenCreateResponse(body: unknown): ParsedTokenCreateRespon
   }
 
   const response = asRecord(record.response) ?? record;
-  const tokenId = pickTokenId(response);
+  const tokenId = pickTokenId(response) || findTokenIdInTxpow(response);
   const txpowId = pickTxpowId(response);
 
   if (!tokenId) {

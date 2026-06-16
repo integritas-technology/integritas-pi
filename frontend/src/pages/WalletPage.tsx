@@ -5,6 +5,9 @@ import { MinimaIcon } from '../components/MinimaIcon';
 import { Modal } from '../components/Modal';
 import { Page } from '../components/Page';
 import { useToast } from '../components/ToastProvider';
+import { createToken as createTokenApi, getTokenCreateRequirements } from '../features/tokens/tokensApi';
+import type { TokenCreateRequirements } from '../features/tokens/tokensTypes';
+import { formatMinimaAmount } from '../lib/format';
 import {
   clearWalletAccountsForDebug,
   clearWalletHistoryForDebug,
@@ -110,6 +113,7 @@ export function WalletPage() {
   const [selected, setSelected] = useState<WalletAccount | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [createTokenOpen, setCreateTokenOpen] = useState(false);
   const [unlabeledFunded, setUnlabeledFunded] = useState<
     UnlabeledFundedAddress[]
   >([]);
@@ -252,6 +256,13 @@ export function WalletPage() {
             <button
               type='button'
               className='wallet-action-btn wallet-action-btn-ghost'
+              onClick={() => setCreateTokenOpen(true)}
+            >
+              Create token
+            </button>
+            <button
+              type='button'
+              className='wallet-action-btn wallet-action-btn-ghost'
               disabled
               title='Export wallet backup — coming soon'
             >
@@ -303,7 +314,7 @@ export function WalletPage() {
                 <div className='text-right'>
                   <p className='text-lg font-bold text-slate-900 inline-flex items-center gap-1.5 justify-end'>
                     <TokenGlyph isNative />
-                    {account.balance.totalMinima}
+                    {formatMinimaAmount(account.balance.totalMinima)}
                   </p>
                   <p className='text-xs text-slate-500'>MINIMA</p>
                   <p className='text-xs text-slate-500 mt-1'>
@@ -336,7 +347,8 @@ export function WalletPage() {
           </div>
           <p className='text-sm text-slate-500 mb-3'>
             Funds were detected on these addresses but they are not mapped to a
-            named account yet.
+            named account yet. Use <strong>Label as account</strong> to attach
+            MINIMA on that address to Family, Treasury, or another label.
           </p>
           <div className='grid gap-3'>
             {unlabeledFunded.map((item) => (
@@ -350,7 +362,7 @@ export function WalletPage() {
                       {item.address}
                     </p>
                     <p className='text-sm text-slate-700 mt-1'>
-                      {item.totalMinima} MINIMA · {item.tokenCount} tokens
+                      {formatMinimaAmount(item.totalMinima)} MINIMA · {item.tokenCount} tokens
                     </p>
                   </div>
                   <button
@@ -452,6 +464,13 @@ export function WalletPage() {
         />
       )}
       {importOpen && <ImportWalletModal onClose={() => setImportOpen(false)} />}
+      {createTokenOpen && (
+        <CreateTokenModal
+          accounts={accounts}
+          onClose={() => setCreateTokenOpen(false)}
+          onCreated={refreshAccounts}
+        />
+      )}
     </Page>
   );
 }
@@ -913,6 +932,236 @@ function SendPaymentModal({
               : 'Send payment'}
         </button>
       </form>
+    </Modal>
+  );
+}
+
+function CreateTokenModal({
+  accounts,
+  onClose,
+  onCreated,
+}: {
+  accounts: WalletAccount[];
+  onClose: () => void;
+  onCreated: () => Promise<void>;
+}) {
+  const { showToast } = useToast();
+  const [requirements, setRequirements] = useState<TokenCreateRequirements | null>(null);
+  const accountOptions = accounts.map((account) => {
+    const native = account.balance.tokens.find((token) => token.isNative);
+    const minima = native?.amount ?? '0';
+    const minimum = requirements?.minimumAccountMinima ?? '0.001';
+    const funded =
+      compareDecimalStrings(minima, minimum) >= 0 &&
+      compareDecimalStrings(minima, '0') > 0;
+    return {
+      key: account.id,
+      label: account.label,
+      address: account.address,
+      minima,
+      funded,
+    };
+  });
+  const fundedOptions = accountOptions.filter((option) => option.funded);
+  const [fromAccountAddress, setFromAccountAddress] = useState('');
+  const [name, setName] = useState('');
+  const [amount, setAmount] = useState('');
+  const [decimal, setDecimal] = useState('0');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    getTokenCreateRequirements()
+      .then(setRequirements)
+      .catch(() => {
+        setRequirements({
+          estimatedMinimaCost: '0.001',
+          minimumAccountMinima: '0.001',
+          note: '',
+        });
+      });
+  }, []);
+
+  useEffect(() => {
+    if (fromAccountAddress) return;
+    const firstFunded = fundedOptions[0]?.address ?? accountOptions[0]?.address ?? '';
+    if (firstFunded) setFromAccountAddress(firstFunded);
+  }, [accountOptions, fundedOptions, fromAccountAddress]);
+
+  const selectedAccount = accountOptions.find(
+    (option) => option.address === fromAccountAddress,
+  );
+  const canSubmit = Boolean(selectedAccount?.funded);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+
+    const trimmedName = name.trim();
+    const trimmedAmount = amount.trim();
+    const parsedDecimal = Number(decimal);
+
+    if (!fromAccountAddress || !selectedAccount?.funded) {
+      setError(
+        'Select a labeled account with enough MINIMA on its address. Label a funded address on the Wallet page if your MINIMA is still unlabeled.',
+      );
+      return;
+    }
+    if (!trimmedName) {
+      setError('Name is required.');
+      return;
+    }
+    if (!isPositiveDecimal(trimmedAmount)) {
+      setError('Amount must be a positive number.');
+      return;
+    }
+    if (!Number.isInteger(parsedDecimal) || parsedDecimal < 0) {
+      setError('Decimal must be a non-negative whole number.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await createTokenApi({
+        name: trimmedName,
+        amount: trimmedAmount,
+        decimal: parsedDecimal,
+        fromAccountAddress,
+      });
+      if (res.ok) {
+        await onCreated();
+        showToast({
+          tone: 'success',
+          title: 'Token created',
+          message: res.tokenId
+            ? `${res.name} (${res.tokenId})`
+            : (res.message ?? 'Custom token created.'),
+        });
+        onClose();
+      } else {
+        setError(res.message ?? 'Token creation failed.');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Token creation failed.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleCloseRequest() {
+    if (submitting) return;
+    onClose();
+  }
+
+  const estimatedCost = requirements?.estimatedMinimaCost ?? '0.001';
+  const minimumBalance = requirements?.minimumAccountMinima ?? '0.001';
+
+  return (
+    <Modal title='Create custom token' onClose={handleCloseRequest}>
+      <div className='grid gap-4'>
+        <div className='rounded-xl bg-amber-50 border border-amber-200 p-4'>
+          <p className='text-sm font-bold text-amber-800'>
+            On-chain action — cannot be undone
+          </p>
+          <p className='text-sm text-amber-700 mt-1'>
+            Minima colours a tiny fraction of MINIMA to mint a token. Estimated
+            cost: about {formatMinimaAmount(estimatedCost)} MINIMA from the
+            selected account (needs at least {formatMinimaAmount(minimumBalance)}{' '}
+            MINIMA on that account&apos;s address). Creation may take up to a
+            minute. Token names may include spaces.
+          </p>
+        </div>
+
+        {accounts.length === 0 ? (
+          <p className='text-sm text-red-700'>
+            Create a labeled wallet account first, then receive or label MINIMA
+            onto that account&apos;s address.
+          </p>
+        ) : (
+        <form onSubmit={handleSubmit} className='grid gap-4'>
+            <label className='grid gap-1.5'>
+              <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+                Pay from account
+              </span>
+              <select
+                value={fromAccountAddress}
+                onChange={(e) => setFromAccountAddress(e.target.value)}
+              >
+                {accountOptions.map((option) => (
+                  <option
+                    key={option.key}
+                    value={option.address}
+                    disabled={!option.funded}
+                  >
+                    {option.label} ({formatMinimaAmount(option.minima)} MINIMA
+                    {!option.funded ? ' — insufficient' : ''})
+                  </option>
+                ))}
+              </select>
+            </label>
+            {selectedAccount && (
+              <p className='text-sm text-slate-500'>
+                {selectedAccount.funded
+                  ? `${selectedAccount.label} has ${formatMinimaAmount(selectedAccount.minima)} MINIMA on its address.`
+                  : `${selectedAccount.label} has no MINIMA on its address. Use “Label as account” on an unlabeled funded address below, or receive MINIMA to this account.`}
+              </p>
+            )}
+            <label className='grid gap-1.5'>
+              <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+                Name
+              </span>
+              <input
+                type='text'
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder='e.g. Device access'
+                maxLength={80}
+              />
+            </label>
+            <label className='grid gap-1.5'>
+              <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+                Amount (supply)
+              </span>
+              <input
+                type='text'
+                inputMode='decimal'
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder='e.g. 1000'
+              />
+            </label>
+            <label className='grid gap-1.5'>
+              <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+                Decimal places
+              </span>
+              <input
+                type='number'
+                min={0}
+                step={1}
+                value={decimal}
+                onChange={(e) => setDecimal(e.target.value)}
+              />
+            </label>
+            {error && (
+              <div className='rounded-xl bg-red-50 border border-red-200 p-3'>
+                <p className='text-sm text-red-700'>{error}</p>
+              </div>
+            )}
+            {submitting && (
+              <p className='text-sm text-slate-500'>
+                Creating token on the node… this may take up to a minute.
+              </p>
+            )}
+            <button
+              type='submit'
+              disabled={submitting || !canSubmit}
+              className='rounded-xl border-0 bg-slate-950 px-5 py-3 text-sm font-bold text-white disabled:opacity-50'
+            >
+              {submitting ? 'Creating…' : 'Create token'}
+            </button>
+          </form>
+        )}
+      </div>
     </Modal>
   );
 }
