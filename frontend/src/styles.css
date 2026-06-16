@@ -727,6 +727,13 @@ button:disabled {
 .wallet-balance-card {
   display: grid;
   gap: 24px;
+  grid-template-columns: 1fr;
+}
+
+.wallet-hero-left,
+.wallet-hero-right {
+  display: grid;
+  gap: 16px;
 }
 
 .hero-card .eyebrow {
@@ -803,11 +810,16 @@ button:disabled {
 
 /* Wallet hero action buttons */
 .wallet-hero-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   padding-top: 18px;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.wallet-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .wallet-action-btn {
@@ -1447,6 +1459,20 @@ th {
     padding: 32px;
   }
 
+  .wallet-balance-card {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 0.8fr);
+    align-items: start;
+    column-gap: 32px;
+  }
+
+  .wallet-hero-right {
+    justify-items: end;
+  }
+
+  .wallet-hero-actions {
+    width: 100%;
+  }
+
   .two-column {
     grid-template-columns: 1fr 1fr;
   }
@@ -1459,6 +1485,10 @@ th {
     align-items: flex-start;
     grid-template-columns: 1fr;
     flex-direction: column;
+  }
+
+  .wallet-hero-actions {
+    grid-template-columns: 1fr;
   }
 }
 

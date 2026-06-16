@@ -21,6 +21,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `POST /api/wallet/import` (admin) — restores wallet from a 24-word BIP-39 seed phrase via Minima `restore` RPC. Overwrites the node's current wallet; the node may restart after import. Audit event `wallet.import` is recorded without the phrase. Input is validated server-side (minimum 12 words).
 - Import wallet modal on Wallet page: textarea for seed phrase entry, destructive-action warning, success/error inline feedback, and a toast on completion.
 - Disabled "Export wallet" button on Wallet page as a placeholder for the deferred encrypted backup feature.
+- `POST /api/wallet/accounts` (admin) — creates a labeled wallet account by assigning one random default Minima address (`getaddress`) and storing it in SQLite.
+- `GET /api/wallet/accounts` — returns labeled wallet accounts with per-address balances and token counts derived from Minima `coins relevant:true`.
+- Wallet page account architecture: account list cards, create-account modal, account details modal, and send form source-account selection.
+- Wallet fallback for migration/recovery: unlabeled funded addresses are now surfaced from `coins relevant:true` and can be labeled directly into accounts.
+- Wallet fallback labeling now resolves and persists `miniaddress` (`Mx...`) for imported `0x...` addresses when available from the node's default address pool.
+- Wallet token display for per-address funds now uses Minima `tokenamount` and token metadata names (when present), fixing raw token-id labels and tiny scientific-notation amounts.
+- Dev-only wallet debug action: `POST /api/wallet/debug/clear-wallet-accounts` (admin, blocked in production) clears labeled wallet accounts from SQLite to speed up local label/unlabel testing. Wallet page now shows a `Debug: clear labels` button only in frontend dev mode.
+- Wallet send history (Phase 1): backend now persists `POST /api/wallet/send-payment` activity in SQLite and exposes it via `GET /api/wallet/history`; Wallet page now renders a `History` card with recent sent transactions.
+- Wallet history display now annotates account-aware transfer flow (`From <address> (<account>) -> <address> (<destination account | External>)`) and adds dev-only `POST /api/wallet/debug/clear-wallet-history` + `Debug: clear history` button for local test resets.
 
 ### Fixed
 

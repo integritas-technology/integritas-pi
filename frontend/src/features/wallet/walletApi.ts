@@ -1,5 +1,5 @@
 import { getJson, postJson } from "../../lib/api";
-import type { ImportWalletResult, PaymentStatus, ReceiveAddress, SendPaymentRequest, SendPaymentResult, WalletStatus } from "./walletTypes";
+import type { ImportWalletResult, PaymentStatus, ReceiveAddress, SendPaymentRequest, SendPaymentResult, WalletAccount, WalletAccountsOverview, WalletSendHistoryItem, WalletStatus } from "./walletTypes";
 
 export function getWalletStatus() {
   return getJson<WalletStatus>("/api/wallet");
@@ -19,4 +19,24 @@ export function getPaymentStatus(txpowId: string) {
 
 export function importWallet(phrase: string) {
   return postJson<ImportWalletResult>("/api/wallet/import", { phrase });
+}
+
+export function listWalletAccounts() {
+  return getJson<WalletAccountsOverview>("/api/wallet/accounts");
+}
+
+export function createWalletAccount(label: string, address?: string) {
+  return postJson<WalletAccount>("/api/wallet/accounts", { label, address });
+}
+
+export function clearWalletAccountsForDebug() {
+  return postJson<{ ok: boolean; deleted: number }>("/api/wallet/debug/clear-wallet-accounts");
+}
+
+export function clearWalletHistoryForDebug() {
+  return postJson<{ ok: boolean; deleted: number }>("/api/wallet/debug/clear-wallet-history");
+}
+
+export function listWalletSendHistory(limit = 30) {
+  return getJson<{ sends: WalletSendHistoryItem[] }>(`/api/wallet/history?limit=${encodeURIComponent(String(limit))}`);
 }
