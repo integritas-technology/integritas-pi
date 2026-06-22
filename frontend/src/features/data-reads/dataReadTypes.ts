@@ -6,7 +6,7 @@ export type DataSourceRead = {
   integritasProofId: string | null;
   sourceName: string;
   sourceUrl: string;
-  triggerType: "manual" | "automation";
+  triggerType: "manual" | "automation" | "webhook";
   status: "success" | "failed";
   hash: string | null;
   preview: unknown;

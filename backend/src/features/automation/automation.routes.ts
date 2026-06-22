@@ -18,7 +18,9 @@ automationRouter.post("/workflows", requireRole("admin"), (req, res) => {
   const stampWithIntegritas = req.body?.stampWithIntegritas !== false;
 
   if (!name) return res.status(400).json({ error: "name is required" });
-  if (!getDataSource(dataSourceId)) return res.status(400).json({ error: "dataSourceId must reference an existing data source" });
+  const dataSource = getDataSource(dataSourceId);
+  if (!dataSource) return res.status(400).json({ error: "dataSourceId must reference an existing data source" });
+  if (dataSource.type === "webhook") return res.status(400).json({ error: "Webhook sources receive pushed data and cannot be polled by automation workflows" });
   if (!Number.isFinite(pollingIntervalSeconds) || pollingIntervalSeconds < 10) return res.status(400).json({ error: "pollingIntervalSeconds must be at least 10" });
 
   const workflow = createAutomationWorkflow({ name, dataSourceId, enabled, pollingIntervalSeconds, stampWithIntegritas });

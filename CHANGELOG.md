@@ -97,6 +97,7 @@ Integritas integration hardening and proof polling, plus data-source health/edit
 - Data sources can now store an optional health status URL; the Added data sources table polls it once per minute through the backend and shows a green/red status indicator with the latest response.
 - Shared frontend toast system for transient API/action errors, starting with Data Sources actions.
 - Data sources can now be edited from the Added data sources table.
+- Data Sources now has protocol cards for HTTP JSON API and webhook JSON receive sources; webhook sources get generated receive URLs and update source history when JSON is posted.
 - Integritas upstream HTTP client hardening: request timeouts (`INTEGRITAS_REQUEST_TIMEOUT_MS`), transient retry with backoff for `429`/`502`/`503` and network errors, and structured `errorCode` on failed stamp/status/verify API responses.
 - Background Integritas proof poller: pending proof records are status-checked on an interval (`INTEGRITAS_POLL_INTERVAL_SECONDS`, default 30s) without manual Diagnostics polling.
 - Integritas retry policy: automation treats transient stamp failures as deferred retries; pending proofs time out after `INTEGRITAS_PROOF_POLL_TIMEOUT_MINUTES` (default 5) if on-chain confirmation never completes.
@@ -108,6 +109,7 @@ Integritas integration hardening and proof polling, plus data-source health/edit
 - Integritas runtime config modal: runtime details, portal link, and API key controls each sit in separate cards; key validity and last-checked time share one row.
 - Data source template cards now use the clearer `Add source` call to action instead of `Use template`.
 - Added data source row actions now use accessible icon buttons for manual trigger, edit, and delete.
+- Data source creation now presents protocol cards instead of separate internal/external HTTP templates, and the source type field is hidden from the form.
 - Integritas upstream API key rejection no longer logs the user out: session `401` stays separate from Integritas `errorCode: unauthorized` (HTTP 403 + toast). Invalid keys show a non-destructive error and open Configure Integritas when stamping.
 - Integritas proof status UX: backend poller runs immediately on startup; Diagnostics, Dashboard, and the stamp-result modal auto-refresh history while proofs are pending (no manual page reload).
 - Diagnostics proof history: per-row Poll removed; single **Refresh pending** header action calls `POST /api/integritas/history/poll-pending` (same batched upstream logic as the background poller).

@@ -20,6 +20,18 @@ export function listDataSources() {
   return db.prepare("SELECT * FROM data_sources ORDER BY created_at DESC").all() as DataSourceRecord[];
 }
 
+export function findWebhookDataSource(token: string) {
+  return listDataSources().find((record) => {
+    if (record.type !== "webhook") return false;
+    try {
+      const config = JSON.parse(record.config) as { webhookToken?: string };
+      return config.webhookToken === token;
+    } catch {
+      return false;
+    }
+  });
+}
+
 export function getDataSource(id: string) {
   return db.prepare("SELECT * FROM data_sources WHERE id = ?").get(id) as DataSourceRecord | undefined;
 }

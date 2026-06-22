@@ -139,10 +139,11 @@ CLI rules:
 
 ## Data Source Rules
 
-- Supported V1 data source type is JSON fetched from an API response.
+- Supported V1 data source types are HTTP JSON API fetches and webhook JSON receives.
 - Skip file-source and manual-upload source types unless explicitly requested.
 - Store the latest JSON preview and latest hash on the data source.
 - Do not impose arbitrary app-level file/data limits unless required for safety.
+- Webhook sources receive JSON through public `/api/data-source-webhooks/:token` endpoints generated per source. They are push-only and must not be used for polling workflows.
 
 ## Automation Rules
 

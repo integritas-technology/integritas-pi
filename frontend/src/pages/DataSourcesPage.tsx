@@ -55,9 +55,9 @@ export function DataSourcesPage() {
     setName(nextTemplate.title);
     setDescription(nextTemplate.description);
     setType(nextTemplate.type);
-    setUrl(nextTemplate.config.url);
+    setUrl(nextTemplate.config.url ?? "");
     setHealthStatusUrl(nextTemplate.config.healthStatusUrl ?? "");
-    setMethod(nextTemplate.config.method);
+    setMethod(nextTemplate.config.method ?? "GET");
     setFormOpen(true);
   }
 
@@ -67,9 +67,9 @@ export function DataSourcesPage() {
     setName(source.name);
     setDescription(source.description ?? "");
     setType(source.type);
-    setUrl(source.config.url);
+    setUrl(source.config.url ?? "");
     setHealthStatusUrl(source.config.healthStatusUrl ?? "");
-    setMethod(source.config.method);
+    setMethod(source.config.method ?? "GET");
     setFormOpen(true);
   }
 
@@ -105,7 +105,7 @@ export function DataSourcesPage() {
   }
 
   return (
-    <Page eyebrow="Data Sources" title="Bring JSON API data into the system" desc="Start with API responses that return JSON. Templates prefill common source shapes, while Add source remains generic for any JSON API endpoint.">
+    <Page eyebrow="Data Sources" title="Bring JSON data into the system" desc="Add sources by protocol. Fetch JSON from HTTP APIs, or receive pushed JSON through webhooks.">
       <DataSourceTemplates onSelect={applyTemplate} />
 
       {formOpen && (
@@ -127,7 +127,7 @@ export function DataSourcesPage() {
             busy={busy}
             submitLabel={editingSource ? "Save source" : "Add source"}
             onSubmit={() => run(async () => {
-              const input = { name, description, type, config: { url, method, healthStatusUrl: healthStatusUrl.trim() || undefined, headers: {} } };
+              const input = { name, description, type, config: type === "webhook" ? { webhookToken: editingSource?.config.webhookToken } : { url, method, healthStatusUrl: healthStatusUrl.trim() || undefined, headers: {} } };
               if (editingSource) await updateDataSource(editingSource.id, input);
               else await createDataSource(input);
               setFormOpen(false);

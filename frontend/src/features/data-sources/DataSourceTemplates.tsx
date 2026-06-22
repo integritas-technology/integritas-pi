@@ -1,17 +1,17 @@
-import { Code2, Database } from "lucide-react";
+import { Globe2, Webhook } from "lucide-react";
 import { Card } from "../../components/Card";
 import type { DataSourceTemplate } from "./dataSourceTypes";
 
 export const dataSourceTemplates: DataSourceTemplate[] = [
-  { title: "Internal source", description: "JSON from another service on this Pi or Docker network", type: "internal-json-api", config: { url: "http://backend:3000/api/health", healthStatusUrl: "http://backend:3000/api/health", method: "GET", headers: {} } },
-  { title: "API source", description: "JSON from an HTTP API endpoint", type: "json-api", config: { url: "https://example.com/data.json", method: "GET", headers: {} } }
+  { title: "HTTP JSON API", description: "Fetch JSON from an external API, Pi service, or Docker-network endpoint", type: "json-api", config: { url: "https://example.com/data.json", method: "GET", headers: {} } },
+  { title: "Webhook", description: "Receive pushed JSON from another app, device, or workflow", type: "webhook", config: {} }
 ];
 
 export function DataSourceTemplates({ onSelect }: { onSelect: (template: DataSourceTemplate) => void }) {
   return (
     <div className="data-source-template-grid">
       {dataSourceTemplates.map((template, index) => {
-        const Icon = index === 0 ? Database : Code2;
+        const Icon = index === 0 ? Globe2 : Webhook;
         return (
           <Card className="data-source-template" key={template.title}>
             <Icon size={24} />

@@ -3,14 +3,15 @@ export type DataSource = {
   createdAt: string;
   updatedAt: string;
   name: string;
-  type: "json-api" | "internal-json-api";
+  type: "json-api" | "internal-json-api" | "webhook";
   status: string;
   description: string | null;
   config: {
-    url: string;
-    method: "GET" | "POST";
+    url?: string;
+    method?: "GET" | "POST";
     headers?: Record<string, string>;
     healthStatusUrl?: string;
+    webhookToken?: string;
     body?: unknown;
   };
   lastReadAt: string | null;
@@ -23,7 +24,7 @@ export type DataSourceTemplate = {
   title: string;
   description: string;
   type: DataSource["type"];
-  config: DataSource["config"];
+  config: Partial<DataSource["config"]>;
 };
 
 export type DataSourceHealthStatus = {

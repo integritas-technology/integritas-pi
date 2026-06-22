@@ -6,7 +6,7 @@ import { setupRouter } from "./features/auth/setup.routes.js";
 import { automationRouter } from "./features/automation/automation.routes.js";
 import { dataReadsRouter } from "./features/data-reads/dataReads.routes.js";
 import { filesRouter } from "./features/files/files.routes.js";
-import { dataSourcesRouter } from "./features/data-sources/dataSources.routes.js";
+import { dataSourcesRouter, dataSourcesWebhookRouter } from "./features/data-sources/dataSources.routes.js";
 import { healthRouter } from "./features/health/health.routes.js";
 import { integritasRouter } from "./features/integritas/integritas.routes.js";
 import { minimaRouter } from "./features/minima/minima.routes.js";
@@ -25,6 +25,7 @@ export function createApp() {
   app.use("/api/health", healthRouter);
   app.use("/api/setup", setupRouter);
   app.use("/api/auth", authPublicRouter);
+  app.use("/api/data-source-webhooks", dataSourcesWebhookRouter);
 
   app.use(requireAuth);
 

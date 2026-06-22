@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { sha3HashHex } from "../../shared/crypto.js";
 import { fetchJsonWithTimeout } from "../../shared/http.js";
 import type { DataSourceRecord } from "./dataSources.repository.js";
@@ -8,6 +9,10 @@ export type JsonApiConfig = {
   headers?: Record<string, string>;
   healthStatusUrl?: string;
   body?: unknown;
+};
+
+export type WebhookConfig = {
+  webhookToken: string;
 };
 
 export function serializeDataSource(record: DataSourceRecord) {
@@ -37,6 +42,18 @@ export function parseJsonApiConfig(value: unknown): JsonApiConfig {
   if (!url) throw new Error("config.url is required");
 
   return { url, method, headers, healthStatusUrl: healthStatusUrl || undefined, body: config?.body };
+}
+
+export function parseDataSourceConfig(type: string, value: unknown, existingConfig?: unknown) {
+  if (type === "webhook") return parseWebhookConfig(value, existingConfig);
+  return parseJsonApiConfig(value);
+}
+
+export function parseWebhookConfig(value: unknown, existingConfig?: unknown): WebhookConfig {
+  const config = value as Partial<WebhookConfig> | undefined;
+  const existing = existingConfig as Partial<WebhookConfig> | undefined;
+  const webhookToken = typeof config?.webhookToken === "string" && config.webhookToken ? config.webhookToken : typeof existing?.webhookToken === "string" && existing.webhookToken ? existing.webhookToken : crypto.randomUUID();
+  return { webhookToken };
 }
 
 export async function checkDataSourceHealth(config: JsonApiConfig) {
@@ -71,6 +88,11 @@ export async function readJsonApiSource(config: JsonApiConfig) {
 
   const canonical = `${JSON.stringify(json, null, 2)}\n`;
   return { contentType: "application/json", bytesHash: sha3HashHex(canonical), canonicalBytes: canonical, preview: json, fetchedAt: new Date().toISOString() };
+}
+
+export function processWebhookPayload(payload: unknown) {
+  const canonical = `${JSON.stringify(payload, null, 2)}\n`;
+  return { contentType: "application/json", bytesHash: sha3HashHex(canonical), canonicalBytes: canonical, preview: payload, receivedAt: new Date().toISOString() };
 }
 
 function describeFetchError(error: unknown) {

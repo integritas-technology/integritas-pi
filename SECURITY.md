@@ -267,6 +267,26 @@ Plan:
 
 Status: Accepted prototype risk.
 
+### Public Data Source Webhooks
+
+Risk: Webhook data sources expose generated public receive URLs under `/api/data-source-webhooks/:token` so external systems can POST JSON without a browser session.
+
+Impact: Anyone with a webhook URL can submit JSON to that source, update its latest preview/hash, and create read-history rows.
+
+Current Controls:
+
+- Webhook receive URLs include a generated UUID token stored in the data source config.
+- Webhook URLs are per source and are not generic command execution endpoints.
+- Webhook sources accept JSON only through the existing Express JSON parser.
+- Admin authentication is still required to create, edit, list, or delete webhook sources.
+
+Plan:
+
+- Add optional webhook secret headers/signatures and rate limiting before production use.
+- Add per-source enable/disable controls and event retention limits if webhook volume grows.
+
+Status: Accepted prototype risk.
+
 ### Integritas Request Proxy
 
 Risk: Backend proxies stamp/status/verify calls to Integritas using a stored API key.

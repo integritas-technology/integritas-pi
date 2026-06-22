@@ -1,10 +1,21 @@
 import { Router } from "express";
 import { requireRole } from "../auth/auth.middleware.js";
 import { createDataSourceRead } from "../data-reads/dataReads.repository.js";
-import { createDataSource, deleteDataSource, getDataSource, listDataSources, updateDataSource, updateDataSourceReadResult } from "./dataSources.repository.js";
-import { checkDataSourceHealth, parseJsonApiConfig, readJsonApiSource, serializeDataSource } from "./dataSources.service.js";
+import { createDataSource, deleteDataSource, findWebhookDataSource, getDataSource, listDataSources, updateDataSource, updateDataSourceReadResult } from "./dataSources.repository.js";
+import { checkDataSourceHealth, parseDataSourceConfig, parseJsonApiConfig, processWebhookPayload, readJsonApiSource, serializeDataSource } from "./dataSources.service.js";
 
 export const dataSourcesRouter = Router();
+export const dataSourcesWebhookRouter = Router();
+
+dataSourcesWebhookRouter.post("/:token", (req, res) => {
+  const record = findWebhookDataSource(req.params.token);
+  if (!record) return res.status(404).json({ error: "Webhook data source not found" });
+
+  const result = processWebhookPayload(req.body);
+  const updated = updateDataSourceReadResult(record.id, { hash: result.bytesHash, preview: result.preview });
+  createDataSourceRead({ dataSourceId: record.id, sourceName: record.name, sourceUrl: `/api/data-source-webhooks/${req.params.token}`, triggerType: "webhook", status: "success", hash: result.bytesHash, preview: result.preview });
+  return res.json({ item: serializeDataSource(updated), result });
+});
 
 dataSourcesRouter.get("/", (_req, res) => {
   res.json({ items: listDataSources().map(serializeDataSource) });
@@ -16,10 +27,10 @@ dataSourcesRouter.post("/", requireRole("admin"), (req, res) => {
   const description = typeof req.body?.description === "string" ? req.body.description : "";
 
   if (!name) return res.status(400).json({ error: "name is required" });
-  if (type !== "json-api" && type !== "internal-json-api") return res.status(400).json({ error: "Only JSON API sources are supported" });
+  if (type !== "json-api" && type !== "internal-json-api" && type !== "webhook") return res.status(400).json({ error: "Only HTTP JSON API and webhook sources are supported" });
 
   try {
-    const config = parseJsonApiConfig(req.body?.config);
+    const config = parseDataSourceConfig(type, req.body?.config);
     const record = createDataSource({ name, type, description, config });
     return res.json({ item: serializeDataSource(record) });
   } catch (error) {
@@ -41,10 +52,10 @@ dataSourcesRouter.patch("/:id", requireRole("admin"), (req, res) => {
   const description = typeof req.body?.description === "string" ? req.body.description : "";
 
   if (!name) return res.status(400).json({ error: "name is required" });
-  if (type !== "json-api" && type !== "internal-json-api") return res.status(400).json({ error: "Only JSON API sources are supported" });
+  if (type !== "json-api" && type !== "internal-json-api" && type !== "webhook") return res.status(400).json({ error: "Only HTTP JSON API and webhook sources are supported" });
 
   try {
-    const config = parseJsonApiConfig(req.body?.config);
+    const config = parseDataSourceConfig(type, req.body?.config, JSON.parse(existing.config) as unknown);
     const record = updateDataSource(req.params.id, { name, type, description, config });
     return res.json({ item: serializeDataSource(record!) });
   } catch (error) {
@@ -55,6 +66,7 @@ dataSourcesRouter.patch("/:id", requireRole("admin"), (req, res) => {
 dataSourcesRouter.get("/:id/health", async (req, res) => {
   const record = getDataSource(req.params.id);
   if (!record) return res.status(404).json({ error: "Data source not found" });
+  if (record.type === "webhook") return res.status(400).json({ error: "Webhook sources receive pushed data and do not have a health URL" });
 
   try {
     const config = parseJsonApiConfig(JSON.parse(record.config) as unknown);
@@ -68,6 +80,7 @@ dataSourcesRouter.get("/:id/health", async (req, res) => {
 dataSourcesRouter.post("/:id/read", requireRole("admin"), async (req, res) => {
   const record = getDataSource(req.params.id);
   if (!record) return res.status(404).json({ error: "Data source not found" });
+  if (record.type === "webhook") return res.status(400).json({ error: "Webhook sources receive pushed data and cannot be triggered manually" });
 
   try {
     const config = parseJsonApiConfig(JSON.parse(record.config) as unknown);
