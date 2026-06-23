@@ -121,8 +121,7 @@ function mqttEndpoint(source: DataSource) {
 }
 
 function HealthCell({ source, status }: { source: DataSource; status?: DataSourceHealthStatus }) {
-  if (source.type === "webhook") return <span className="muted">Push only</span>;
-  if (source.type === "mqtt") return <span className="muted">Subscribed</span>;
+  if (source.type === "webhook" || source.type === "mqtt") return <span className="muted">Automation controlled</span>;
   if (!source.config.healthStatusUrl) return <span className="muted">Not configured</span>;
   if (!status) return <span className="health-status"><span className="health-dot pending" />Checking</span>;
 

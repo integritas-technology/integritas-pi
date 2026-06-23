@@ -271,7 +271,7 @@ Status: Accepted prototype risk.
 
 Risk: Webhook data sources expose generated public receive URLs under `/api/data-source-webhooks/:token` so external systems can POST JSON without a browser session.
 
-Impact: Anyone with a webhook URL can submit JSON to that source, update its latest preview/hash, and create read-history rows.
+Impact: Anyone with a webhook URL can submit JSON to that source. If an automation workflow is enabled for the source, submitted JSON can update its latest preview/hash and create read-history rows.
 
 Current Controls:
 
@@ -279,26 +279,28 @@ Current Controls:
 - Webhook URLs are per source and are not generic command execution endpoints.
 - Webhook sources accept JSON only through the existing Express JSON parser.
 - Admin authentication is still required to create, edit, list, or delete webhook sources.
+- Incoming webhook payloads are recorded only when the source has an enabled automation workflow; otherwise the endpoint returns a disabled-ingestion error.
 
 Plan:
 
 - Add optional webhook secret headers/signatures and rate limiting before production use.
-- Add per-source enable/disable controls and event retention limits if webhook volume grows.
+- Add optional event retention limits if webhook volume grows.
 
 Status: Accepted prototype risk.
 
 ### MQTT Data Sources
 
-Risk: MQTT data sources cause the backend to open persistent connections to configured broker URLs and subscribe to configured topics.
+Risk: Enabled MQTT automation workflows cause the backend to open persistent connections to configured broker URLs and subscribe to configured topics.
 
 Impact: Misconfigured or malicious broker URLs/topics could create unwanted outbound connections, ingest untrusted JSON, or generate high-volume read history.
 
 Current Controls:
 
 - MQTT source creation/editing requires admin role.
+- MQTT subscription requires an enabled automation workflow for the MQTT source.
 - MQTT sources are narrow subscriptions, not generic command execution.
 - MQTT payloads must parse as JSON before they update source preview/hash.
-- MQTT sources are push-only and are rejected by polling automation workflows.
+- MQTT sources are push-only and do not use scheduled polling intervals.
 
 Plan:
 

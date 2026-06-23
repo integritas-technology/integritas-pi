@@ -45,6 +45,7 @@ export async function runAutomationWorkflow(id: string) {
   try {
     const dataSource = getDataSource(workflow.data_source_id);
     if (!dataSource) throw new Error("Data source not found");
+    if (dataSource.type === "webhook" || dataSource.type === "mqtt") throw new Error("Push-source workflows run when matching data is received");
     const config = parseJsonApiConfig(JSON.parse(dataSource.config) as unknown);
     dataSourceSnapshot = { id: dataSource.id, name: dataSource.name, url: config.url };
 
@@ -81,6 +82,49 @@ export async function runAutomationWorkflow(id: string) {
   } finally {
     runningWorkflowIds.delete(id);
   }
+}
+
+export async function recordPushAutomationPayload(input: {
+  workflow: AutomationWorkflowRecord;
+  dataSource: { id: string; name: string };
+  sourceUrl: string;
+  triggerType: "webhook" | "mqtt";
+  result: { bytesHash: string; preview: unknown; canonicalBytes: string };
+}) {
+  let proofId: string | null = null;
+  const updatedSource = updateDataSourceReadResult(input.dataSource.id, { hash: input.result.bytesHash, preview: input.result.preview });
+  const readRecord = createDataSourceRead({ dataSourceId: input.dataSource.id, workflowId: input.workflow.id, sourceName: input.dataSource.name, sourceUrl: input.sourceUrl, triggerType: input.triggerType, status: "success", hash: input.result.bytesHash, preview: input.result.preview });
+
+  try {
+    if (input.workflow.stamp_with_integritas) {
+      const apiKey = getIntegritasApiKey();
+      if (!apiKey) throw new Error("Integritas API key is not configured");
+
+      const stamp = await requestProofUid({ apiKey, hash: input.result.bytesHash });
+      if (!stamp.ok) {
+        const stampFailure = handleAutomationStampFailure(input.workflow.id, stamp, input.result.bytesHash, updatedSource);
+        if (stampFailure) return stampFailure;
+        throw new Error(formatIntegritasStampError(stamp));
+      }
+
+      const proof = createProofRecord({ fileName: `Automation: ${input.dataSource.name}`, fileSize: Buffer.byteLength(input.result.canonicalBytes, "utf8"), hash: input.result.bytesHash, proofUid: stamp.proofUid, proofStatus: "pending" });
+      proofId = proof.id;
+      linkDataSourceReadProof(readRecord.id, proof.id);
+    }
+
+    const updatedWorkflow = updateAutomationRunSuccess(input.workflow.id, { hash: input.result.bytesHash, proofId });
+    return { workflow: serializeAutomationWorkflow(updatedWorkflow), dataSource: serializeDataSource(updatedSource), proofId };
+  } catch (error) {
+    const updatedWorkflow = updateAutomationRunError(input.workflow.id, error instanceof Error ? error.message : "Push workflow failed", { hash: input.result.bytesHash, proofId });
+    throw Object.assign(error instanceof Error ? error : new Error("Push workflow failed"), { workflow: serializeAutomationWorkflow(updatedWorkflow) });
+  }
+}
+
+export function recordPushAutomationError(input: { workflow: AutomationWorkflowRecord; dataSource: { id: string; name: string }; sourceUrl: string; triggerType: "webhook" | "mqtt"; error: string }) {
+  updateDataSourceReadResult(input.dataSource.id, { error: input.error });
+  createDataSourceRead({ dataSourceId: input.dataSource.id, workflowId: input.workflow.id, sourceName: input.dataSource.name, sourceUrl: input.sourceUrl, triggerType: input.triggerType, status: "failed", error: input.error });
+  const updatedWorkflow = updateAutomationRunError(input.workflow.id, input.error);
+  return { workflow: serializeAutomationWorkflow(updatedWorkflow) };
 }
 
 function handleAutomationStampFailure(

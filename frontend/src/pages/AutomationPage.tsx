@@ -27,8 +27,7 @@ export function AutomationPage() {
     const [sourceResponse, workflowResponse] = await Promise.all([listDataSources(), listAutomationWorkflows()]);
     setSources(sourceResponse.items);
     setWorkflows(workflowResponse.items);
-    const pollableSource = sourceResponse.items.find((source) => source.type !== "webhook" && source.type !== "mqtt");
-    if (!dataSourceId && pollableSource) setDataSourceId(pollableSource.id);
+    if (!dataSourceId && sourceResponse.items[0]) setDataSourceId(sourceResponse.items[0].id);
   }
 
   async function run(action: () => Promise<unknown>) {
@@ -44,23 +43,26 @@ export function AutomationPage() {
     }
   }
 
-  const sourceName = (id: string) => sources.find((source) => source.id === id)?.name ?? "Unknown source";
+  const selectedSource = sources.find((source) => source.id === dataSourceId);
+  const selectedSourceIsPush = selectedSource?.type === "webhook" || selectedSource?.type === "mqtt";
+  const sourceById = (id: string) => sources.find((source) => source.id === id);
+  const sourceName = (id: string) => sourceById(id)?.name ?? "Unknown source";
 
   return (
-    <Page eyebrow="Automation" title="Automated data source workflows" desc="Poll saved data sources on an interval and stamp each JSON response with Integritas. Automated stamps appear in the Integritas history table.">
+    <Page eyebrow="Automation" title="Automated data source workflows" desc="Enable scheduled HTTP polling or event-driven push ingestion, then optionally stamp each JSON payload with Integritas.">
       <section className="card automation-form">
         <div className="status-row">
-          <div><strong>Create workflow</strong><p className="muted">Each enabled workflow stamps every successful poll of the entire JSON response.</p></div>
-          <span className="pill pill-neutral">Entire response</span>
+          <div><strong>Create workflow</strong><p className="muted">HTTP sources run on a schedule. Webhook and MQTT sources record data only while an automation workflow is enabled.</p></div>
+          <span className="pill pill-neutral">Entire JSON payload</span>
         </div>
 
         <label>Name<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Stamp mock device measurements" /></label>
-        <label>Data source<select value={dataSourceId} onChange={(event) => setDataSourceId(event.target.value)}>{sources.filter((source) => source.type !== "webhook" && source.type !== "mqtt").map((source) => <option key={source.id} value={source.id}>{source.name} - {source.config.url}</option>)}</select></label>
-        <label>Polling interval<select value={pollingIntervalSeconds} onChange={(event) => setPollingIntervalSeconds(Number(event.target.value))}>{intervals.map((interval) => <option key={interval} value={interval}>{formatInterval(interval)}</option>)}</select></label>
+        <label>Data source<select value={dataSourceId} onChange={(event) => setDataSourceId(event.target.value)}>{sources.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>
+        {selectedSourceIsPush ? <p className="muted">This push source records incoming data only while this workflow is enabled. It does not use a polling interval.</p> : <label>Polling interval<select value={pollingIntervalSeconds} onChange={(event) => setPollingIntervalSeconds(Number(event.target.value))}>{intervals.map((interval) => <option key={interval} value={interval}>{formatInterval(interval)}</option>)}</select></label>}
         <label className="check-row"><input type="checkbox" checked={stampWithIntegritas} onChange={(event) => setStampWithIntegritas(event.target.checked)} /> Stamp with Integritas</label>
         <label className="check-row"><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} /> Enabled</label>
         <button type="button" disabled={busy || !name || !dataSourceId} onClick={() => run(async () => {
-          await createAutomationWorkflow({ name, dataSourceId, enabled, pollingIntervalSeconds, stampWithIntegritas });
+          await createAutomationWorkflow({ name, dataSourceId, enabled, pollingIntervalSeconds: selectedSourceIsPush ? 0 : pollingIntervalSeconds, stampWithIntegritas });
           setName("");
         })}>Create workflow</button>
       </section>
@@ -68,21 +70,21 @@ export function AutomationPage() {
       {error && <p className="error-text">{error}</p>}
 
       <section className="card automation-list">
-        <div><strong>Workflows</strong><p className="muted">The backend scheduler checks for due workflows every few seconds.</p></div>
+        <div><strong>Workflows</strong><p className="muted">The backend scheduler checks HTTP workflows every few seconds. Push workflows listen only while enabled.</p></div>
         <div className="table-wrap">
           <table>
             <thead><tr><th>Name</th><th>Source</th><th>Interval</th><th>Status</th><th>Last run</th><th>Next run</th><th>Last hash</th><th>Actions</th></tr></thead>
             <tbody>
               {workflows.map((workflow) => (
                 <tr key={workflow.id}>
-                  <td><strong>{workflow.name}</strong><p className="muted">{workflow.stampWithIntegritas ? "Stamps every poll" : "Polling only"}</p></td>
+                  <td><strong>{workflow.name}</strong><p className="muted">{workflow.stampWithIntegritas ? `Stamps every ${workflowMode(sourceById(workflow.dataSourceId))}` : `${capitalize(workflowMode(sourceById(workflow.dataSourceId)))} only`}</p></td>
                   <td>{sourceName(workflow.dataSourceId)}</td>
-                  <td>{formatInterval(workflow.pollingIntervalSeconds)}</td>
+                  <td>{workflow.pollingIntervalSeconds > 0 ? formatInterval(workflow.pollingIntervalSeconds) : "Event driven"}</td>
                   <td>{workflow.lastError ? <span className="pill pill-warn">Error</span> : workflow.enabled ? <span className="pill pill-good">Enabled</span> : <span className="pill pill-neutral">Paused</span>} {workflow.lastError && <p className="error-text">{workflow.lastError}</p>}</td>
                   <td>{workflow.lastRunAt ? <TimeStack label="Last run" value={workflow.lastRunAt} /> : <span className="muted">Never</span>}</td>
-                  <td>{workflow.nextRunAt ? <TimeStack label="Next run" value={workflow.nextRunAt} /> : <span className="muted">Paused</span>}</td>
+                  <td>{workflow.nextRunAt ? <TimeStack label="Next run" value={workflow.nextRunAt} /> : <span className="muted">{workflow.pollingIntervalSeconds > 0 ? "Paused" : "On incoming data"}</span>}</td>
                   <td>{workflow.lastHash ? <code>{workflow.lastHash}</code> : <span className="muted">No hash yet</span>}</td>
-                  <td><div className="row-actions"><button type="button" disabled={busy} onClick={() => run(() => runAutomationWorkflow(workflow.id))}>Run now</button><button type="button" disabled={busy} onClick={() => run(() => updateAutomationWorkflow(workflow.id, { enabled: !workflow.enabled }))}>{workflow.enabled ? "Pause" : "Enable"}</button><button type="button" disabled={busy} onClick={() => run(() => deleteAutomationWorkflow(workflow.id))}>Delete</button></div></td>
+                  <td><div className="row-actions"><button type="button" disabled={busy || workflow.pollingIntervalSeconds === 0} onClick={() => run(() => runAutomationWorkflow(workflow.id))}>Run now</button><button type="button" disabled={busy} onClick={() => run(() => updateAutomationWorkflow(workflow.id, { enabled: !workflow.enabled }))}>{workflow.enabled ? "Pause" : "Enable"}</button><button type="button" disabled={busy} onClick={() => run(() => deleteAutomationWorkflow(workflow.id))}>Delete</button></div></td>
                 </tr>
               ))}
             </tbody>
@@ -92,6 +94,22 @@ export function AutomationPage() {
       </section>
     </Page>
   );
+}
+
+function sourceLabel(source: DataSource) {
+  if (source.type === "webhook") return "Webhook receive URL";
+  if (source.type === "mqtt") return `${source.config.brokerUrl ?? "MQTT broker"} ${source.config.topic ?? ""}`;
+  return source.config.url ?? "HTTP JSON API";
+}
+
+function workflowMode(source: DataSource | undefined) {
+  if (source?.type === "webhook") return "webhook payload";
+  if (source?.type === "mqtt") return "MQTT message";
+  return "poll";
+}
+
+function capitalize(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function formatInterval(seconds: number) {
