@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireRole } from "../auth/auth.middleware.js";
-import { createAutomationWorkflow, deleteAutomationWorkflow, getAutomationWorkflow, getEnabledAutomationWorkflowForDataSource, listAutomationWorkflows, updateAutomationWorkflow } from "./automation.repository.js";
-import { runAutomationWorkflow, serializeAutomationWorkflow } from "./automation.service.js";
+import { createAutomationWorkflow, createStampIntegritasRule, deleteAutomationRule, deleteAutomationWorkflow, getAutomationWorkflow, getEnabledAutomationWorkflowForDataSource, listAutomationWorkflows, updateAutomationWorkflow } from "./automation.repository.js";
+import { runAutomationWorkflow, serializeAutomationRule, serializeAutomationWorkflow } from "./automation.service.js";
 import { getDataSource } from "../data-sources/dataSources.repository.js";
 import { syncMqttDataSources } from "../data-sources/mqttIngestion.service.js";
 
@@ -16,7 +16,7 @@ automationRouter.post("/workflows", requireRole("admin"), (req, res) => {
   const dataSourceId = typeof req.body?.dataSourceId === "string" ? req.body.dataSourceId : "";
   const pollingIntervalSeconds = Number(req.body?.pollingIntervalSeconds);
   const enabled = Boolean(req.body?.enabled);
-  const stampWithIntegritas = req.body?.stampWithIntegritas !== false;
+  const stampWithIntegritas = req.body?.stampWithIntegritas === true;
 
   if (!name) return res.status(400).json({ error: "name is required" });
   const dataSource = getDataSource(dataSourceId);
@@ -52,6 +52,25 @@ automationRouter.patch("/workflows/:id", requireRole("admin"), (req, res) => {
   });
   syncMqttDataSources();
   return res.json({ item: serializeAutomationWorkflow(workflow!) });
+});
+
+automationRouter.post("/workflows/:id/rules", requireRole("admin"), (req, res) => {
+  const workflow = getAutomationWorkflow(req.params.id);
+  if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
+  const type = typeof req.body?.type === "string" ? req.body.type : "";
+  if (type !== "stamp_integritas") return res.status(400).json({ error: "Only Integritas stamping rules can be added in V1" });
+  const rule = createStampIntegritasRule(workflow.id);
+  syncMqttDataSources();
+  return res.json({ item: serializeAutomationRule(rule), workflow: serializeAutomationWorkflow(getAutomationWorkflow(workflow.id)!) });
+});
+
+automationRouter.delete("/workflows/:workflowId/rules/:ruleId", requireRole("admin"), (req, res) => {
+  const workflow = getAutomationWorkflow(req.params.workflowId);
+  if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
+  const deleted = deleteAutomationRule(req.params.workflowId, req.params.ruleId);
+  if (!deleted) return res.status(400).json({ error: "Rule cannot be deleted" });
+  syncMqttDataSources();
+  return res.json({ deleted: true, workflow: serializeAutomationWorkflow(getAutomationWorkflow(workflow.id)!) });
 });
 
 automationRouter.delete("/workflows/:id", requireRole("admin"), (req, res) => {

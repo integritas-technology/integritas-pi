@@ -332,7 +332,8 @@ backend container
 - Data source APIs and historic read log at `/api/data-sources` and `/api/data-reads`
   - Data sources can include an optional health status URL. The browser polls saved health URLs once per minute through the backend and shows the latest status in the Added data sources table.
   - Data source protocols currently include HTTP JSON API fetches, webhook JSON receives, and MQTT JSON subscriptions. Data Sources define connection details; Automation workflows decide whether reads are recorded and stamped.
-  - HTTP JSON API workflows poll on a schedule. Webhook workflows record pushed JSON at generated `/api/data-source-webhooks/:token` URLs while enabled. MQTT workflows subscribe to the configured broker/topic only while enabled.
+  - Automation workflows are rule collections. V1 creates a Collect data rule first, then an optional Integritas stamping rule can be added to stamp collected hashes.
+  - HTTP Collect data rules poll on a schedule. Webhook Collect data rules record pushed JSON at generated `/api/data-source-webhooks/:token` URLs while enabled. MQTT Collect data rules subscribe to the configured broker/topic only while enabled.
   - Reads /host-files only
   - Reads Minima status from http://minima:9005/status
   - Calls https://integritas.technology/core with backend-only API key

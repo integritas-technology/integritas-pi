@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - Webhook and MQTT Data Sources now define connection details only; incoming push data is recorded and optionally stamped only while an Automation workflow is enabled for that source.
+- Automation now presents workflows as ordered When / Condition / Then rules. V1 creates a Collect data rule and lets operators add or remove an Integritas stamping rule.
 
 ## [0.6.0] - 2026-06-16
 
