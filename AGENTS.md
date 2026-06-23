@@ -143,15 +143,15 @@ CLI rules:
 - Skip file-source and manual-upload source types unless explicitly requested.
 - Store the latest JSON preview and latest hash on the data source.
 - Do not impose arbitrary app-level file/data limits unless required for safety.
-- Webhook sources receive JSON through public `/api/data-source-webhooks/:token` endpoints generated per source. They are push-only and must not be used for polling workflows.
-- MQTT sources subscribe to a configured broker URL/topic from the backend, expect JSON payloads, and are push-only. Do not add MQTT sources to polling workflows.
+- Webhook sources receive JSON through public `/api/data-source-webhooks/:token` endpoints generated per source. They are push-only and only record incoming data when an enabled Automation workflow exists for the source.
+- MQTT sources define a broker URL/topic and expect JSON payloads. The backend only subscribes while an enabled Automation workflow exists for the MQTT source.
 
 ## Automation Rules
 
-- Workflows poll a saved data source at an interval.
-- The backend scheduler owns execution.
+- Workflows either poll an HTTP JSON API source at an interval or enable event-driven webhook/MQTT ingestion for a push source.
+- The backend scheduler owns HTTP polling execution; webhook/MQTT workflows are triggered by incoming data while enabled.
 - Store `last_run_at`, `next_run_at`, `last_hash`, `last_proof_id`, and `last_error`.
-- Save `last_hash` after successful data fetch even if Integritas stamping fails.
+- Save `last_hash` after successful data fetch or push ingestion even if Integritas stamping fails.
 - Surface detailed upstream errors where possible without leaking secrets.
 
 ## Docker / Pi Rules

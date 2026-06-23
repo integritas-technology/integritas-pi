@@ -24,9 +24,18 @@ export function listAutomationWorkflows() {
 export function listDueAutomationWorkflows(nowIso: string) {
   return db.prepare(`
     SELECT * FROM automation_workflows
-    WHERE enabled = 1 AND (next_run_at IS NULL OR next_run_at <= ?)
+    WHERE enabled = 1 AND polling_interval_seconds > 0 AND (next_run_at IS NULL OR next_run_at <= ?)
     ORDER BY next_run_at ASC
   `).all(nowIso) as AutomationWorkflowRecord[];
+}
+
+export function getEnabledAutomationWorkflowForDataSource(dataSourceId: string) {
+  return db.prepare(`
+    SELECT * FROM automation_workflows
+    WHERE data_source_id = ? AND enabled = 1
+    ORDER BY created_at ASC
+    LIMIT 1
+  `).get(dataSourceId) as AutomationWorkflowRecord | undefined;
 }
 
 export function getAutomationWorkflow(id: string) {
@@ -37,7 +46,7 @@ export function createAutomationWorkflow(input: { name: string; dataSourceId: st
   const id = crypto.randomUUID();
   const now = new Date();
   const nowIso = now.toISOString();
-  const nextRunAt = input.enabled ? new Date(now.getTime() + input.pollingIntervalSeconds * 1000).toISOString() : null;
+  const nextRunAt = input.enabled && input.pollingIntervalSeconds > 0 ? new Date(now.getTime() + input.pollingIntervalSeconds * 1000).toISOString() : null;
   db.prepare(`
     INSERT INTO automation_workflows (id, created_at, updated_at, name, data_source_id, enabled, polling_interval_seconds, stamp_with_integritas, next_run_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -50,7 +59,7 @@ export function updateAutomationWorkflow(id: string, input: { name?: string; ena
   if (!current) return undefined;
   const enabled = input.enabled ?? Boolean(current.enabled);
   const interval = input.pollingIntervalSeconds ?? current.polling_interval_seconds;
-  const nextRunAt = enabled ? current.next_run_at ?? new Date(Date.now() + interval * 1000).toISOString() : null;
+  const nextRunAt = enabled && interval > 0 ? current.next_run_at ?? new Date(Date.now() + interval * 1000).toISOString() : null;
   db.prepare(`
     UPDATE automation_workflows
     SET updated_at = ?, name = ?, enabled = ?, polling_interval_seconds = ?, stamp_with_integritas = ?, next_run_at = ?
@@ -62,7 +71,7 @@ export function updateAutomationWorkflow(id: string, input: { name?: string; ena
 export function updateAutomationRunSuccess(id: string, input: { hash: string; proofId: string | null; lastError?: string | null }) {
   const current = getAutomationWorkflow(id)!;
   const now = new Date();
-  const nextRunAt = new Date(now.getTime() + current.polling_interval_seconds * 1000).toISOString();
+  const nextRunAt = current.polling_interval_seconds > 0 ? new Date(now.getTime() + current.polling_interval_seconds * 1000).toISOString() : null;
   db.prepare(`
     UPDATE automation_workflows
     SET updated_at = ?, last_run_at = ?, next_run_at = ?, last_hash = ?, last_proof_id = ?, last_error = ?
@@ -74,7 +83,7 @@ export function updateAutomationRunSuccess(id: string, input: { hash: string; pr
 export function updateAutomationRunError(id: string, error: string, input: { hash?: string; proofId?: string | null } = {}) {
   const current = getAutomationWorkflow(id)!;
   const now = new Date();
-  const nextRunAt = new Date(now.getTime() + current.polling_interval_seconds * 1000).toISOString();
+  const nextRunAt = current.polling_interval_seconds > 0 ? new Date(now.getTime() + current.polling_interval_seconds * 1000).toISOString() : null;
   db.prepare(`
     UPDATE automation_workflows
     SET updated_at = ?, last_run_at = ?, next_run_at = ?, last_hash = COALESCE(?, last_hash), last_proof_id = COALESCE(?, last_proof_id), last_error = ?

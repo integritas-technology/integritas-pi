@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { requireRole } from "../auth/auth.middleware.js";
 import { createDataSourceRead } from "../data-reads/dataReads.repository.js";
+import { getEnabledAutomationWorkflowForDataSource } from "../automation/automation.repository.js";
+import { recordPushAutomationPayload } from "../automation/automation.service.js";
 import { createDataSource, deleteDataSource, findWebhookDataSource, getDataSource, listDataSources, updateDataSource, updateDataSourceReadResult } from "./dataSources.repository.js";
 import { syncMqttDataSources } from "./mqttIngestion.service.js";
 import { checkDataSourceHealth, parseDataSourceConfig, parseJsonApiConfig, processWebhookPayload, readJsonApiSource, serializeDataSource } from "./dataSources.service.js";
@@ -8,14 +10,20 @@ import { checkDataSourceHealth, parseDataSourceConfig, parseJsonApiConfig, proce
 export const dataSourcesRouter = Router();
 export const dataSourcesWebhookRouter = Router();
 
-dataSourcesWebhookRouter.post("/:token", (req, res) => {
+dataSourcesWebhookRouter.post("/:token", async (req, res) => {
   const record = findWebhookDataSource(req.params.token);
   if (!record) return res.status(404).json({ error: "Webhook data source not found" });
+  const workflow = getEnabledAutomationWorkflowForDataSource(record.id);
+  if (!workflow) return res.status(409).json({ error: "Webhook ingestion is disabled. Enable an automation workflow for this source to record incoming data." });
 
-  const result = processWebhookPayload(req.body);
-  const updated = updateDataSourceReadResult(record.id, { hash: result.bytesHash, preview: result.preview });
-  createDataSourceRead({ dataSourceId: record.id, sourceName: record.name, sourceUrl: `/api/data-source-webhooks/${req.params.token}`, triggerType: "webhook", status: "success", hash: result.bytesHash, preview: result.preview });
-  return res.json({ item: serializeDataSource(updated), result });
+  try {
+    const result = processWebhookPayload(req.body);
+    const response = await recordPushAutomationPayload({ workflow, dataSource: record, sourceUrl: `/api/data-source-webhooks/${req.params.token}`, triggerType: "webhook", result });
+    return res.json({ item: response.dataSource, workflow: response.workflow, result });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to record webhook payload";
+    return res.status(502).json({ error: message });
+  }
 });
 
 dataSourcesRouter.get("/", (_req, res) => {

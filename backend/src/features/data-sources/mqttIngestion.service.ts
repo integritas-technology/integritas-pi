@@ -1,5 +1,6 @@
 import mqtt, { type MqttClient } from "mqtt";
-import { createDataSourceRead } from "../data-reads/dataReads.repository.js";
+import { listAutomationWorkflows, type AutomationWorkflowRecord } from "../automation/automation.repository.js";
+import { recordPushAutomationError, recordPushAutomationPayload } from "../automation/automation.service.js";
 import { listDataSources, updateDataSourceReadResult, type DataSourceRecord } from "./dataSources.repository.js";
 import { parseMqttConfig, processMqttPayload } from "./dataSources.service.js";
 
@@ -22,8 +23,9 @@ export function stopMqttIngestion() {
 }
 
 export function syncMqttDataSources() {
-  const mqttSources = listDataSources().filter((source) => source.type === "mqtt");
-  const activeIds = new Set(mqttSources.map((source) => source.id));
+  const mqttSources = new Map(listDataSources().filter((source) => source.type === "mqtt").map((source) => [source.id, source]));
+  const mqttWorkflows = listAutomationWorkflows().filter((workflow) => workflow.enabled && mqttSources.has(workflow.data_source_id));
+  const activeIds = new Set(mqttWorkflows.map((workflow) => workflow.data_source_id));
 
   for (const [sourceId, subscription] of subscriptions.entries()) {
     if (!activeIds.has(sourceId)) {
@@ -32,22 +34,23 @@ export function syncMqttDataSources() {
     }
   }
 
-  for (const source of mqttSources) {
+  for (const workflow of mqttWorkflows) {
+    const source = mqttSources.get(workflow.data_source_id)!;
     try {
       const config = parseMqttConfig(JSON.parse(source.config) as unknown);
-      const key = `${config.brokerUrl}|${config.topic}`;
+      const key = `${workflow.id}|${workflow.stamp_with_integritas}|${config.brokerUrl}|${config.topic}`;
       const existing = subscriptions.get(source.id);
       if (existing?.key === key) continue;
 
       existing?.client.end(true);
-      subscriptions.set(source.id, { key, client: connectMqttSource(source, config) });
+      subscriptions.set(source.id, { key, client: connectMqttSource(source, workflow, config) });
     } catch (error) {
       updateDataSourceReadResult(source.id, { error: error instanceof Error ? error.message : "Invalid MQTT source configuration" });
     }
   }
 }
 
-function connectMqttSource(source: DataSourceRecord, config: { brokerUrl: string; topic: string }) {
+function connectMqttSource(source: DataSourceRecord, workflow: AutomationWorkflowRecord, config: { brokerUrl: string; topic: string }) {
   const client = mqtt.connect(config.brokerUrl, {
     clientId: `integritas-pi-${source.id}`,
     reconnectPeriod: 5000
@@ -60,9 +63,8 @@ function connectMqttSource(source: DataSourceRecord, config: { brokerUrl: string
   });
 
   client.on("message", (_topic, payload) => {
-    handleMqttMessage(source, config, payload).catch((error: Error) => {
-      updateDataSourceReadResult(source.id, { error: error.message });
-      createDataSourceRead({ dataSourceId: source.id, sourceName: source.name, sourceUrl: `${config.brokerUrl} ${config.topic}`, triggerType: "mqtt", status: "failed", error: error.message });
+    handleMqttMessage(source, workflow, config, payload).catch((error: Error) => {
+      recordPushAutomationError({ workflow, dataSource: source, sourceUrl: `${config.brokerUrl} ${config.topic}`, triggerType: "mqtt", error: error.message });
     });
   });
 
@@ -73,9 +75,8 @@ function connectMqttSource(source: DataSourceRecord, config: { brokerUrl: string
   return client;
 }
 
-async function handleMqttMessage(source: DataSourceRecord, config: { brokerUrl: string; topic: string }, payload: Buffer) {
+async function handleMqttMessage(source: DataSourceRecord, workflow: AutomationWorkflowRecord, config: { brokerUrl: string; topic: string }, payload: Buffer) {
   const parsed = JSON.parse(payload.toString("utf8")) as unknown;
   const result = processMqttPayload(parsed);
-  updateDataSourceReadResult(source.id, { hash: result.bytesHash, preview: result.preview });
-  createDataSourceRead({ dataSourceId: source.id, sourceName: source.name, sourceUrl: `${config.brokerUrl} ${config.topic}`, triggerType: "mqtt", status: "success", hash: result.bytesHash, preview: result.preview });
+  await recordPushAutomationPayload({ workflow, dataSource: source, sourceUrl: `${config.brokerUrl} ${config.topic}`, triggerType: "mqtt", result });
 }
