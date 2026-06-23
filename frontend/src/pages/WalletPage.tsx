@@ -227,8 +227,11 @@ export function WalletPage() {
         <div className='wallet-hero-right'>
           <div className='wallet-amount-row'>
             <MinimaIcon size={36} className='wallet-amount-icon' />
-            <span className='wallet-amount-number'>
-              {loading ? '…' : totalMinima}
+            <span
+              className='wallet-amount-number'
+              title={loading ? undefined : formatMinimaAmount(totalMinima)}
+            >
+              {loading ? '…' : formatMinimaAmount(totalMinima)}
             </span>
           </div>
           <div className='wallet-hero-actions'>

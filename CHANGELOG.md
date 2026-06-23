@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Removed MINIMA &quot;routing&quot; to random pool addresses before `tokencreate` (that was moving MINIMA away from labeled accounts into unlabeled addresses).
 - `GET /api/tokens/create-requirements` returns estimated MINIMA cost and minimum account balance.
 - Wallet UI formats MINIMA amounts for display (trimmed decimals).
+- Dashboard and Wallet hero totals use formatted MINIMA amounts with ellipsis truncation when space is tight; hover shows the full formatted value.
 
 ### Fixed
 
