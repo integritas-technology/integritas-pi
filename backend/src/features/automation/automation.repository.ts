@@ -17,8 +17,26 @@ export type AutomationWorkflowRecord = {
   last_error: string | null;
 };
 
+export type AutomationRuleRecord = {
+  id: string;
+  workflow_id: string;
+  created_at: string;
+  updated_at: string;
+  name: string;
+  type: "collect_data" | "stamp_integritas";
+  enabled: number;
+  order_index: number;
+  when_json: string;
+  condition_json: string;
+  then_json: string;
+  last_run_at: string | null;
+  last_error: string | null;
+};
+
 export function listAutomationWorkflows() {
-  return db.prepare("SELECT * FROM automation_workflows ORDER BY created_at DESC").all() as AutomationWorkflowRecord[];
+  const workflows = db.prepare("SELECT * FROM automation_workflows ORDER BY created_at DESC").all() as AutomationWorkflowRecord[];
+  for (const workflow of workflows) ensureAutomationRules(workflow);
+  return workflows;
 }
 
 export function listDueAutomationWorkflows(nowIso: string) {
@@ -39,7 +57,9 @@ export function getEnabledAutomationWorkflowForDataSource(dataSourceId: string) 
 }
 
 export function getAutomationWorkflow(id: string) {
-  return db.prepare("SELECT * FROM automation_workflows WHERE id = ?").get(id) as AutomationWorkflowRecord | undefined;
+  const workflow = db.prepare("SELECT * FROM automation_workflows WHERE id = ?").get(id) as AutomationWorkflowRecord | undefined;
+  if (workflow) ensureAutomationRules(workflow);
+  return workflow;
 }
 
 export function createAutomationWorkflow(input: { name: string; dataSourceId: string; enabled: boolean; pollingIntervalSeconds: number; stampWithIntegritas: boolean }) {
@@ -51,6 +71,8 @@ export function createAutomationWorkflow(input: { name: string; dataSourceId: st
     INSERT INTO automation_workflows (id, created_at, updated_at, name, data_source_id, enabled, polling_interval_seconds, stamp_with_integritas, next_run_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(id, nowIso, nowIso, input.name, input.dataSourceId, input.enabled ? 1 : 0, input.pollingIntervalSeconds, input.stampWithIntegritas ? 1 : 0, nextRunAt);
+  createCollectDataRule(id, input.pollingIntervalSeconds);
+  if (input.stampWithIntegritas) createStampIntegritasRule(id);
   return getAutomationWorkflow(id)!;
 }
 
@@ -94,4 +116,71 @@ export function updateAutomationRunError(id: string, error: string, input: { has
 
 export function deleteAutomationWorkflow(id: string) {
   db.prepare("DELETE FROM automation_workflows WHERE id = ?").run(id);
+}
+
+export function listAutomationRules(workflowId: string) {
+  const workflow = db.prepare("SELECT * FROM automation_workflows WHERE id = ?").get(workflowId) as AutomationWorkflowRecord | undefined;
+  if (workflow) ensureAutomationRules(workflow);
+  return db.prepare("SELECT * FROM automation_rules WHERE workflow_id = ? ORDER BY order_index ASC, created_at ASC").all(workflowId) as AutomationRuleRecord[];
+}
+
+export function createStampIntegritasRule(workflowId: string) {
+  const existing = db.prepare("SELECT * FROM automation_rules WHERE workflow_id = ? AND type = ?").get(workflowId, "stamp_integritas") as AutomationRuleRecord | undefined;
+  if (existing) return existing;
+
+  const nowIso = new Date().toISOString();
+  const id = crypto.randomUUID();
+  db.prepare(`
+    INSERT INTO automation_rules (id, workflow_id, created_at, updated_at, name, type, enabled, order_index, when_json, condition_json, then_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    workflowId,
+    nowIso,
+    nowIso,
+    "Stamp with Integritas",
+    "stamp_integritas",
+    1,
+    2,
+    JSON.stringify({ type: "after_rule", ruleType: "collect_data" }),
+    JSON.stringify({ type: "hash_exists" }),
+    JSON.stringify({ type: "stamp_hash_with_integritas" })
+  );
+  updateAutomationWorkflow(workflowId, { stampWithIntegritas: true });
+  return db.prepare("SELECT * FROM automation_rules WHERE id = ?").get(id) as AutomationRuleRecord;
+}
+
+export function deleteAutomationRule(workflowId: string, ruleId: string) {
+  const rule = db.prepare("SELECT * FROM automation_rules WHERE id = ? AND workflow_id = ?").get(ruleId, workflowId) as AutomationRuleRecord | undefined;
+  if (!rule || rule.type === "collect_data") return undefined;
+  db.prepare("DELETE FROM automation_rules WHERE id = ? AND workflow_id = ?").run(ruleId, workflowId);
+  if (rule.type === "stamp_integritas") updateAutomationWorkflow(workflowId, { stampWithIntegritas: false });
+  return rule;
+}
+
+function ensureAutomationRules(workflow: AutomationWorkflowRecord) {
+  const count = db.prepare("SELECT COUNT(*) as count FROM automation_rules WHERE workflow_id = ?").get(workflow.id) as { count: number };
+  if (count.count > 0) return;
+  createCollectDataRule(workflow.id, workflow.polling_interval_seconds);
+  if (workflow.stamp_with_integritas) createStampIntegritasRule(workflow.id);
+}
+
+function createCollectDataRule(workflowId: string, pollingIntervalSeconds: number) {
+  const nowIso = new Date().toISOString();
+  db.prepare(`
+    INSERT INTO automation_rules (id, workflow_id, created_at, updated_at, name, type, enabled, order_index, when_json, condition_json, then_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    crypto.randomUUID(),
+    workflowId,
+    nowIso,
+    nowIso,
+    "Collect data",
+    "collect_data",
+    1,
+    1,
+    JSON.stringify(pollingIntervalSeconds > 0 ? { type: "schedule", intervalSeconds: pollingIntervalSeconds } : { type: "incoming_data" }),
+    JSON.stringify({ type: "valid_json" }),
+    JSON.stringify({ type: "record_data_source_payload" })
+  );
 }

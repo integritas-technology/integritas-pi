@@ -71,6 +71,25 @@ export function runMigrations() {
   `);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS automation_rules (
+      id TEXT PRIMARY KEY,
+      workflow_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL,
+      enabled INTEGER NOT NULL,
+      order_index INTEGER NOT NULL,
+      when_json TEXT NOT NULL,
+      condition_json TEXT NOT NULL,
+      then_json TEXT NOT NULL,
+      last_run_at TEXT,
+      last_error TEXT,
+      FOREIGN KEY (workflow_id) REFERENCES automation_workflows(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS data_source_reads (
       id TEXT PRIMARY KEY,
       created_at TEXT NOT NULL,

@@ -148,8 +148,10 @@ CLI rules:
 
 ## Automation Rules
 
-- Workflows either poll an HTTP JSON API source at an interval or enable event-driven webhook/MQTT ingestion for a push source.
-- The backend scheduler owns HTTP polling execution; webhook/MQTT workflows are triggered by incoming data while enabled.
+- Automation workflows are collections of ordered rules. V1 supports a required Collect data rule and an optional Integritas stamping rule.
+- Each rule follows When / Condition / Then. Keep rules atomic; chain rules instead of adding multiple unrelated actions to one rule.
+- Collect data rules either poll an HTTP JSON API source at an interval or enable event-driven webhook/MQTT ingestion for a push source.
+- The backend scheduler owns HTTP polling execution; webhook/MQTT collect rules are triggered by incoming data while enabled.
 - Store `last_run_at`, `next_run_at`, `last_hash`, `last_proof_id`, and `last_error`.
 - Save `last_hash` after successful data fetch or push ingestion even if Integritas stamping fails.
 - Surface detailed upstream errors where possible without leaking secrets.

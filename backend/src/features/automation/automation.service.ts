@@ -9,7 +9,7 @@ import {
 } from "../integritas/integritas.service.js";
 import type { IntegritasApiFailure } from "../integritas/integritas.types.js";
 import { getIntegritasApiKey } from "../settings/secrets.service.js";
-import { getAutomationWorkflow, listDueAutomationWorkflows, updateAutomationRunError, updateAutomationRunSuccess, type AutomationWorkflowRecord } from "./automation.repository.js";
+import { getAutomationWorkflow, listAutomationRules, listDueAutomationWorkflows, updateAutomationRunError, updateAutomationRunSuccess, type AutomationRuleRecord, type AutomationWorkflowRecord } from "./automation.repository.js";
 
 const runningWorkflowIds = new Set<string>();
 let scheduler: NodeJS.Timeout | null = null;
@@ -28,6 +28,25 @@ export function serializeAutomationWorkflow(record: AutomationWorkflowRecord) {
     nextRunAt: record.next_run_at,
     lastHash: record.last_hash,
     lastProofId: record.last_proof_id,
+    lastError: record.last_error,
+    rules: listAutomationRules(record.id).map(serializeAutomationRule)
+  };
+}
+
+export function serializeAutomationRule(record: AutomationRuleRecord) {
+  return {
+    id: record.id,
+    workflowId: record.workflow_id,
+    createdAt: record.created_at,
+    updatedAt: record.updated_at,
+    name: record.name,
+    type: record.type,
+    enabled: Boolean(record.enabled),
+    order: record.order_index,
+    when: JSON.parse(record.when_json) as unknown,
+    condition: JSON.parse(record.condition_json) as unknown,
+    then: JSON.parse(record.then_json) as unknown,
+    lastRunAt: record.last_run_at,
     lastError: record.last_error
   };
 }
