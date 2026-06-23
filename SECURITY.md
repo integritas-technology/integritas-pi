@@ -287,6 +287,26 @@ Plan:
 
 Status: Accepted prototype risk.
 
+### MQTT Data Sources
+
+Risk: MQTT data sources cause the backend to open persistent connections to configured broker URLs and subscribe to configured topics.
+
+Impact: Misconfigured or malicious broker URLs/topics could create unwanted outbound connections, ingest untrusted JSON, or generate high-volume read history.
+
+Current Controls:
+
+- MQTT source creation/editing requires admin role.
+- MQTT sources are narrow subscriptions, not generic command execution.
+- MQTT payloads must parse as JSON before they update source preview/hash.
+- MQTT sources are push-only and are rejected by polling automation workflows.
+
+Plan:
+
+- Add broker allowlists, credentials/secrets handling, TLS/certificate options, and per-source rate limits before production use.
+- Add payload size/shape controls if MQTT message volume or payload size becomes a concern.
+
+Status: Accepted prototype risk.
+
 ### Integritas Request Proxy
 
 Risk: Backend proxies stamp/status/verify calls to Integritas using a stored API key.

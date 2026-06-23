@@ -27,7 +27,7 @@ export function AutomationPage() {
     const [sourceResponse, workflowResponse] = await Promise.all([listDataSources(), listAutomationWorkflows()]);
     setSources(sourceResponse.items);
     setWorkflows(workflowResponse.items);
-    const pollableSource = sourceResponse.items.find((source) => source.type !== "webhook");
+    const pollableSource = sourceResponse.items.find((source) => source.type !== "webhook" && source.type !== "mqtt");
     if (!dataSourceId && pollableSource) setDataSourceId(pollableSource.id);
   }
 
@@ -55,7 +55,7 @@ export function AutomationPage() {
         </div>
 
         <label>Name<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Stamp mock device measurements" /></label>
-        <label>Data source<select value={dataSourceId} onChange={(event) => setDataSourceId(event.target.value)}>{sources.filter((source) => source.type !== "webhook").map((source) => <option key={source.id} value={source.id}>{source.name} - {source.config.url}</option>)}</select></label>
+        <label>Data source<select value={dataSourceId} onChange={(event) => setDataSourceId(event.target.value)}>{sources.filter((source) => source.type !== "webhook" && source.type !== "mqtt").map((source) => <option key={source.id} value={source.id}>{source.name} - {source.config.url}</option>)}</select></label>
         <label>Polling interval<select value={pollingIntervalSeconds} onChange={(event) => setPollingIntervalSeconds(Number(event.target.value))}>{intervals.map((interval) => <option key={interval} value={interval}>{formatInterval(interval)}</option>)}</select></label>
         <label className="check-row"><input type="checkbox" checked={stampWithIntegritas} onChange={(event) => setStampWithIntegritas(event.target.checked)} /> Stamp with Integritas</label>
         <label className="check-row"><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} /> Enabled</label>

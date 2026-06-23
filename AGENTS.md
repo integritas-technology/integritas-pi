@@ -139,11 +139,12 @@ CLI rules:
 
 ## Data Source Rules
 
-- Supported V1 data source types are HTTP JSON API fetches and webhook JSON receives.
+- Supported V1 data source types are HTTP JSON API fetches, webhook JSON receives, and MQTT JSON subscriptions.
 - Skip file-source and manual-upload source types unless explicitly requested.
 - Store the latest JSON preview and latest hash on the data source.
 - Do not impose arbitrary app-level file/data limits unless required for safety.
 - Webhook sources receive JSON through public `/api/data-source-webhooks/:token` endpoints generated per source. They are push-only and must not be used for polling workflows.
+- MQTT sources subscribe to a configured broker URL/topic from the backend, expect JSON payloads, and are push-only. Do not add MQTT sources to polling workflows.
 
 ## Automation Rules
 

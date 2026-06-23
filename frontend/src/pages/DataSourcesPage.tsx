@@ -19,6 +19,8 @@ export function DataSourcesPage() {
   const [type, setType] = useState<DataSource["type"]>("json-api");
   const [url, setUrl] = useState("");
   const [healthStatusUrl, setHealthStatusUrl] = useState("");
+  const [brokerUrl, setBrokerUrl] = useState("");
+  const [topic, setTopic] = useState("");
   const [method, setMethod] = useState<"GET" | "POST">("GET");
   const [healthStatuses, setHealthStatuses] = useState<Record<string, DataSourceHealthStatus>>({});
   const [busy, setBusy] = useState(false);
@@ -57,6 +59,8 @@ export function DataSourcesPage() {
     setType(nextTemplate.type);
     setUrl(nextTemplate.config.url ?? "");
     setHealthStatusUrl(nextTemplate.config.healthStatusUrl ?? "");
+    setBrokerUrl(nextTemplate.config.brokerUrl ?? "");
+    setTopic(nextTemplate.config.topic ?? "");
     setMethod(nextTemplate.config.method ?? "GET");
     setFormOpen(true);
   }
@@ -69,6 +73,8 @@ export function DataSourcesPage() {
     setType(source.type);
     setUrl(source.config.url ?? "");
     setHealthStatusUrl(source.config.healthStatusUrl ?? "");
+    setBrokerUrl(source.config.brokerUrl ?? "");
+    setTopic(source.config.topic ?? "");
     setMethod(source.config.method ?? "GET");
     setFormOpen(true);
   }
@@ -81,6 +87,8 @@ export function DataSourcesPage() {
     setType("json-api");
     setUrl("");
     setHealthStatusUrl("");
+    setBrokerUrl("");
+    setTopic("");
     setMethod("GET");
   }
 
@@ -122,12 +130,16 @@ export function DataSourcesPage() {
             setUrl={setUrl}
             healthStatusUrl={healthStatusUrl}
             setHealthStatusUrl={setHealthStatusUrl}
+            brokerUrl={brokerUrl}
+            setBrokerUrl={setBrokerUrl}
+            topic={topic}
+            setTopic={setTopic}
             method={method}
             setMethod={setMethod}
             busy={busy}
             submitLabel={editingSource ? "Save source" : "Add source"}
             onSubmit={() => run(async () => {
-              const input = { name, description, type, config: type === "webhook" ? { webhookToken: editingSource?.config.webhookToken } : { url, method, healthStatusUrl: healthStatusUrl.trim() || undefined, headers: {} } };
+              const input = { name, description, type, config: type === "webhook" ? { webhookToken: editingSource?.config.webhookToken } : type === "mqtt" ? { brokerUrl, topic } : { url, method, healthStatusUrl: healthStatusUrl.trim() || undefined, headers: {} } };
               if (editingSource) await updateDataSource(editingSource.id, input);
               else await createDataSource(input);
               setFormOpen(false);

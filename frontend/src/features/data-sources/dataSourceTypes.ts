@@ -3,7 +3,7 @@ export type DataSource = {
   createdAt: string;
   updatedAt: string;
   name: string;
-  type: "json-api" | "internal-json-api" | "webhook";
+  type: "json-api" | "internal-json-api" | "webhook" | "mqtt";
   status: string;
   description: string | null;
   config: {
@@ -12,6 +12,8 @@ export type DataSource = {
     headers?: Record<string, string>;
     healthStatusUrl?: string;
     webhookToken?: string;
+    brokerUrl?: string;
+    topic?: string;
     body?: unknown;
   };
   lastReadAt: string | null;

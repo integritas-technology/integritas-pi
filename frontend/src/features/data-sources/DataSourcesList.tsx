@@ -45,7 +45,7 @@ export function DataSourcesList({
                 </td>
                 <td>{source.type}</td>
                 <td>
-                  <code>{source.type === "webhook" ? webhookUrl(source) : source.config.url}</code>
+                  <code>{source.type === "webhook" ? webhookUrl(source) : source.type === "mqtt" ? mqttEndpoint(source) : source.config.url}</code>
                 </td>
                 <td>
                   <HealthCell source={source} status={healthStatuses[source.id]} />
@@ -71,7 +71,7 @@ export function DataSourcesList({
                     <button
                       className="icon-action-button"
                       type="button"
-                      disabled={busy || source.type === "webhook"}
+                      disabled={busy || source.type === "webhook" || source.type === "mqtt"}
                       title="Trigger manually"
                       aria-label={`Trigger ${source.name} manually`}
                       onClick={() => onRead(source)}
@@ -116,8 +116,13 @@ function webhookUrl(source: DataSource) {
   return source.config.webhookToken ? `${window.location.origin}/api/data-source-webhooks/${source.config.webhookToken}` : "Generated after save";
 }
 
+function mqttEndpoint(source: DataSource) {
+  return `${source.config.brokerUrl ?? "mqtt://"} ${source.config.topic ?? ""}`;
+}
+
 function HealthCell({ source, status }: { source: DataSource; status?: DataSourceHealthStatus }) {
   if (source.type === "webhook") return <span className="muted">Push only</span>;
+  if (source.type === "mqtt") return <span className="muted">Subscribed</span>;
   if (!source.config.healthStatusUrl) return <span className="muted">Not configured</span>;
   if (!status) return <span className="health-status"><span className="health-dot pending" />Checking</span>;
 

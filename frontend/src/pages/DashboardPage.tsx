@@ -407,8 +407,8 @@ function buildActivity(
     id: `read-${read.id}`,
     createdAt: read.createdAt,
     category:
-      read.triggerType === 'automation' ? 'Trigger history' : 'Data read log',
-    message: `${read.sourceName} ${read.triggerType === 'automation' ? 'automation poll' : 'manual read'}`,
+      read.triggerType === 'automation' ? 'Trigger history' : read.triggerType === 'mqtt' ? 'MQTT event' : read.triggerType === 'webhook' ? 'Webhook event' : 'Data read log',
+    message: `${read.sourceName} ${read.triggerType === 'automation' ? 'automation poll' : read.triggerType === 'mqtt' ? 'MQTT message received' : read.triggerType === 'webhook' ? 'webhook payload received' : 'manual read'}`,
     status: read.status === 'success' ? 'Success' : 'Failed',
     good: read.status === 'success',
   }));

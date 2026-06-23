@@ -331,7 +331,7 @@ backend container
 - Integritas hash, stamp, status, verify endpoints
 - Data source APIs and historic read log at `/api/data-sources` and `/api/data-reads`
   - Data sources can include an optional health status URL. The browser polls saved health URLs once per minute through the backend and shows the latest status in the Added data sources table.
-  - Data source protocols currently include HTTP JSON API fetches and webhook JSON receives. Webhook sources receive pushed JSON at generated `/api/data-source-webhooks/:token` URLs.
+  - Data source protocols currently include HTTP JSON API fetches, webhook JSON receives, and MQTT JSON subscriptions. Webhook sources receive pushed JSON at generated `/api/data-source-webhooks/:token` URLs. MQTT sources subscribe to a configured broker URL and topic from the backend.
   - Reads /host-files only
   - Reads Minima status from http://minima:9005/status
   - Calls https://integritas.technology/core with backend-only API key

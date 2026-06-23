@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireRole } from "../auth/auth.middleware.js";
 import { createDataSourceRead } from "../data-reads/dataReads.repository.js";
 import { createDataSource, deleteDataSource, findWebhookDataSource, getDataSource, listDataSources, updateDataSource, updateDataSourceReadResult } from "./dataSources.repository.js";
+import { syncMqttDataSources } from "./mqttIngestion.service.js";
 import { checkDataSourceHealth, parseDataSourceConfig, parseJsonApiConfig, processWebhookPayload, readJsonApiSource, serializeDataSource } from "./dataSources.service.js";
 
 export const dataSourcesRouter = Router();
@@ -27,11 +28,12 @@ dataSourcesRouter.post("/", requireRole("admin"), (req, res) => {
   const description = typeof req.body?.description === "string" ? req.body.description : "";
 
   if (!name) return res.status(400).json({ error: "name is required" });
-  if (type !== "json-api" && type !== "internal-json-api" && type !== "webhook") return res.status(400).json({ error: "Only HTTP JSON API and webhook sources are supported" });
+  if (type !== "json-api" && type !== "internal-json-api" && type !== "webhook" && type !== "mqtt") return res.status(400).json({ error: "Only HTTP JSON API, webhook, and MQTT sources are supported" });
 
   try {
     const config = parseDataSourceConfig(type, req.body?.config);
     const record = createDataSource({ name, type, description, config });
+    syncMqttDataSources();
     return res.json({ item: serializeDataSource(record) });
   } catch (error) {
     return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid data source" });
@@ -40,6 +42,7 @@ dataSourcesRouter.post("/", requireRole("admin"), (req, res) => {
 
 dataSourcesRouter.delete("/:id", requireRole("admin"), (req, res) => {
   deleteDataSource(req.params.id);
+  syncMqttDataSources();
   res.json({ deleted: true });
 });
 
@@ -52,11 +55,12 @@ dataSourcesRouter.patch("/:id", requireRole("admin"), (req, res) => {
   const description = typeof req.body?.description === "string" ? req.body.description : "";
 
   if (!name) return res.status(400).json({ error: "name is required" });
-  if (type !== "json-api" && type !== "internal-json-api" && type !== "webhook") return res.status(400).json({ error: "Only HTTP JSON API and webhook sources are supported" });
+  if (type !== "json-api" && type !== "internal-json-api" && type !== "webhook" && type !== "mqtt") return res.status(400).json({ error: "Only HTTP JSON API, webhook, and MQTT sources are supported" });
 
   try {
     const config = parseDataSourceConfig(type, req.body?.config, JSON.parse(existing.config) as unknown);
     const record = updateDataSource(req.params.id, { name, type, description, config });
+    syncMqttDataSources();
     return res.json({ item: serializeDataSource(record!) });
   } catch (error) {
     return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid data source" });
@@ -66,7 +70,7 @@ dataSourcesRouter.patch("/:id", requireRole("admin"), (req, res) => {
 dataSourcesRouter.get("/:id/health", async (req, res) => {
   const record = getDataSource(req.params.id);
   if (!record) return res.status(404).json({ error: "Data source not found" });
-  if (record.type === "webhook") return res.status(400).json({ error: "Webhook sources receive pushed data and do not have a health URL" });
+  if (record.type === "webhook" || record.type === "mqtt") return res.status(400).json({ error: "Push sources do not have a health URL" });
 
   try {
     const config = parseJsonApiConfig(JSON.parse(record.config) as unknown);
@@ -80,7 +84,7 @@ dataSourcesRouter.get("/:id/health", async (req, res) => {
 dataSourcesRouter.post("/:id/read", requireRole("admin"), async (req, res) => {
   const record = getDataSource(req.params.id);
   if (!record) return res.status(404).json({ error: "Data source not found" });
-  if (record.type === "webhook") return res.status(400).json({ error: "Webhook sources receive pushed data and cannot be triggered manually" });
+  if (record.type === "webhook" || record.type === "mqtt") return res.status(400).json({ error: "Push sources receive data and cannot be triggered manually" });
 
   try {
     const config = parseJsonApiConfig(JSON.parse(record.config) as unknown);

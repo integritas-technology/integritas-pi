@@ -98,6 +98,7 @@ Integritas integration hardening and proof polling, plus data-source health/edit
 - Shared frontend toast system for transient API/action errors, starting with Data Sources actions.
 - Data sources can now be edited from the Added data sources table.
 - Data Sources now has protocol cards for HTTP JSON API and webhook JSON receive sources; webhook sources get generated receive URLs and update source history when JSON is posted.
+- Data Sources now supports MQTT JSON subscriptions as push sources; the backend subscribes to configured broker/topic pairs and records received JSON in source history.
 - Integritas upstream HTTP client hardening: request timeouts (`INTEGRITAS_REQUEST_TIMEOUT_MS`), transient retry with backoff for `429`/`502`/`503` and network errors, and structured `errorCode` on failed stamp/status/verify API responses.
 - Background Integritas proof poller: pending proof records are status-checked on an interval (`INTEGRITAS_POLL_INTERVAL_SECONDS`, default 30s) without manual Diagnostics polling.
 - Integritas retry policy: automation treats transient stamp failures as deferred retries; pending proofs time out after `INTEGRITAS_PROOF_POLL_TIMEOUT_MINUTES` (default 5) if on-chain confirmation never completes.

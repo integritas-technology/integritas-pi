@@ -15,6 +15,11 @@ export type WebhookConfig = {
   webhookToken: string;
 };
 
+export type MqttConfig = {
+  brokerUrl: string;
+  topic: string;
+};
+
 export function serializeDataSource(record: DataSourceRecord) {
   return {
     id: record.id,
@@ -46,6 +51,7 @@ export function parseJsonApiConfig(value: unknown): JsonApiConfig {
 
 export function parseDataSourceConfig(type: string, value: unknown, existingConfig?: unknown) {
   if (type === "webhook") return parseWebhookConfig(value, existingConfig);
+  if (type === "mqtt") return parseMqttConfig(value);
   return parseJsonApiConfig(value);
 }
 
@@ -54,6 +60,15 @@ export function parseWebhookConfig(value: unknown, existingConfig?: unknown): We
   const existing = existingConfig as Partial<WebhookConfig> | undefined;
   const webhookToken = typeof config?.webhookToken === "string" && config.webhookToken ? config.webhookToken : typeof existing?.webhookToken === "string" && existing.webhookToken ? existing.webhookToken : crypto.randomUUID();
   return { webhookToken };
+}
+
+export function parseMqttConfig(value: unknown): MqttConfig {
+  const config = value as Partial<MqttConfig> | undefined;
+  const brokerUrl = typeof config?.brokerUrl === "string" ? config.brokerUrl.trim() : "";
+  const topic = typeof config?.topic === "string" ? config.topic.trim() : "";
+  if (!brokerUrl) throw new Error("config.brokerUrl is required");
+  if (!topic) throw new Error("config.topic is required");
+  return { brokerUrl, topic };
 }
 
 export async function checkDataSourceHealth(config: JsonApiConfig) {
@@ -91,6 +106,11 @@ export async function readJsonApiSource(config: JsonApiConfig) {
 }
 
 export function processWebhookPayload(payload: unknown) {
+  const canonical = `${JSON.stringify(payload, null, 2)}\n`;
+  return { contentType: "application/json", bytesHash: sha3HashHex(canonical), canonicalBytes: canonical, preview: payload, receivedAt: new Date().toISOString() };
+}
+
+export function processMqttPayload(payload: unknown) {
   const canonical = `${JSON.stringify(payload, null, 2)}\n`;
   return { contentType: "application/json", bytesHash: sha3HashHex(canonical), canonicalBytes: canonical, preview: payload, receivedAt: new Date().toISOString() };
 }

@@ -5,6 +5,7 @@ import { createApp } from "./app.js";
 import { startAutomationScheduler, stopAutomationScheduler } from "./features/automation/automation.service.js";
 import { startIntegritasProofPoller, stopIntegritasProofPoller } from "./features/integritas/integritas-poll.service.js";
 import { startMinimaHealthPoller, stopMinimaHealthPoller } from "./features/minima/minima-poll.service.js";
+import { startMqttIngestion, stopMqttIngestion } from "./features/data-sources/mqttIngestion.service.js";
 import { ensureDeviceId } from "./features/status/device.service.js";
 
 if (env.appSecret === "dev-change-me") {
@@ -16,6 +17,7 @@ await ensureDeviceId();
 startAutomationScheduler();
 startIntegritasProofPoller();
 startMinimaHealthPoller();
+startMqttIngestion();
 
 const app = createApp();
 
@@ -31,6 +33,7 @@ function shutdown() {
   stopAutomationScheduler();
   stopIntegritasProofPoller();
   stopMinimaHealthPoller();
+  stopMqttIngestion();
   db.close();
   process.exit(0);
 }
