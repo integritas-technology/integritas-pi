@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Dashboard and Wallet hero totals use formatted MINIMA amounts with ellipsis truncation when space is tight; hover shows the full formatted value.
 - Webhook and MQTT Data Sources now define connection details only; incoming push data is recorded and optionally stamped only while an Automation workflow is enabled for that source.
 - Automation now presents workflows as ordered When / Condition / Then rules. V1 creates a Collect data rule and lets operators add or remove an Integritas stamping rule.
+- Automation now uses a compact workflow overview with a modal workspace for opening a workflow, reviewing its rule chain, and adding/removing V1 rules.
 
 ### Fixed
 
