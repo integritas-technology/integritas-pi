@@ -313,81 +313,86 @@ function DeviceStatusCard({
     ? `of ${formatBytes(device.disk.totalBytes)} · ${pct(device.disk.usedBytes, device.disk.totalBytes)} used`
     : '/data unavailable';
   return (
-    <div className='grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-3'>
-      <MetricCard
-        label='Device'
-        value={device.hostname}
-        helper={`${device.platform} · ${device.arch}`}
-        icon={Server}
-      />
-      <MetricCard
-        label='CPU'
-        value={cpuPct}
-        helper={`${device.cpuCount}-core · ${device.loadAvg[0].toFixed(2)} 1m avg`}
-        icon={Cpu}
-      />
-      <MetricCard
-        label='Memory'
-        value={formatBytes(device.memory.usedBytes)}
-        helper={`of ${formatBytes(device.memory.totalBytes)} · ${pct(device.memory.usedBytes, device.memory.totalBytes)} used`}
-        icon={MemoryStick}
-      />
-      <MetricCard
-        label='Disk'
-        value={diskValue}
-        helper={diskHelper}
-        icon={HardDrive}
-      />
-      <MetricCard
-        label='Node status'
-        value={node.state.charAt(0).toUpperCase() + node.state.slice(1)}
-        helper='Minima node'
-        icon={RadioTower}
-        valueClass={nodeStateValueClass(node.state)}
-      />
-      <MetricCard
-        label='Integritas API'
-        value={
-          app.integritasConnected === null
-            ? 'Not configured'
-            : app.integritasConnected
-              ? 'Connected'
-              : 'Unreachable'
-        }
-        helper='API connection'
-        icon={ShieldCheck}
-        valueClass={
-          app.integritasConnected === null
-            ? 'text-slate-400'
-            : app.integritasConnected
-              ? 'text-emerald-600'
-              : 'text-amber-600'
-        }
-      />
-      <MetricCard
-        label='Wallet balance'
-        value={
-          walletBalance === null ? (
-            'Unavailable'
-          ) : (
-            <span className='flex min-w-0 items-center gap-2'>
-              <MinimaIcon size={20} className='shrink-0 text-slate-600' />
-              <span
-                className='min-w-0 truncate'
-                title={formatMinimaAmount(walletBalance)}
-              >
-                {formatMinimaAmount(walletBalance)}
+    <>
+      <div className='grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-3'>
+        <MetricCard
+          label='Wallet balance'
+          value={
+            walletBalance === null ? (
+              'Unavailable'
+            ) : (
+              <span className='flex min-w-0 items-center gap-2'>
+                <MinimaIcon size={20} className='shrink-0 text-slate-600' />
+                <span
+                  className='min-w-0 truncate'
+                  title={formatMinimaAmount(walletBalance)}
+                >
+                  {formatMinimaAmount(walletBalance)}
+                </span>
               </span>
-            </span>
-          )
-        }
-        helper='Primary Pi wallet'
-        icon={Wallet}
-        valueClass={
-          walletBalance === null ? 'text-slate-400' : 'text-slate-950'
-        }
-      />
-    </div>
+            )
+          }
+          helper='Primary Pi wallet'
+          icon={Wallet}
+          valueClass={
+            walletBalance === null ? 'text-slate-400' : 'text-slate-950'
+          }
+        />
+        <MetricCard
+          label='Node status'
+          value={node.state.charAt(0).toUpperCase() + node.state.slice(1)}
+          helper='Minima node'
+          icon={RadioTower}
+          valueClass={nodeStateValueClass(node.state)}
+        />
+        <MetricCard
+          label='Integritas API'
+          value={
+            app.integritasConnected === null
+              ? 'Not configured'
+              : app.integritasConnected
+                ? 'Connected'
+                : 'Unreachable'
+          }
+          helper='API connection'
+          icon={ShieldCheck}
+          valueClass={
+            app.integritasConnected === null
+              ? 'text-slate-400'
+              : app.integritasConnected
+                ? 'text-emerald-600'
+                : 'text-amber-600'
+          }
+        />
+      </div>
+
+      <div className='grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-3'>
+        <MetricCard
+          label='Device'
+          value={device.hostname}
+          helper={`${device.platform} · ${device.arch}`}
+          icon={Server}
+        />
+        <MetricCard
+          label='Device CPU'
+          value={cpuPct}
+          helper={`${device.cpuCount}-core · ${device.loadAvg[0].toFixed(2)} 1m avg`}
+          icon={Cpu}
+        />
+        <MetricCard
+          label='Device Memory'
+          value={formatBytes(device.memory.usedBytes)}
+          helper={`of ${formatBytes(device.memory.totalBytes)} · ${pct(device.memory.usedBytes, device.memory.totalBytes)} used`}
+          icon={MemoryStick}
+        />
+        <MetricCard
+          label='Device Disk'
+          value={diskValue}
+          helper={diskHelper}
+          icon={HardDrive}
+        />
+      </div>
+    </>
   );
 }
 
@@ -413,7 +418,13 @@ function buildActivity(
     id: `read-${read.id}`,
     createdAt: read.createdAt,
     category:
-      read.triggerType === 'automation' ? 'Trigger history' : read.triggerType === 'mqtt' ? 'MQTT event' : read.triggerType === 'webhook' ? 'Webhook event' : 'Data read log',
+      read.triggerType === 'automation'
+        ? 'Trigger history'
+        : read.triggerType === 'mqtt'
+          ? 'MQTT event'
+          : read.triggerType === 'webhook'
+            ? 'Webhook event'
+            : 'Data read log',
     message: `${read.sourceName} ${read.triggerType === 'automation' ? 'automation poll' : read.triggerType === 'mqtt' ? 'MQTT message received' : read.triggerType === 'webhook' ? 'webhook payload received' : 'manual read'}`,
     status: read.status === 'success' ? 'Success' : 'Failed',
     good: read.status === 'success',
