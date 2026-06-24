@@ -734,6 +734,7 @@ button:disabled {
 .wallet-hero-right {
   display: grid;
   gap: 16px;
+  min-width: 0;
 }
 
 .hero-card .eyebrow {
@@ -758,8 +759,11 @@ button:disabled {
 .wallet-amount-row {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 16px;
   margin-top: 8px;
+  width: 100%;
+  min-width: 0;
 }
 
 .wallet-amount-icon {
@@ -768,11 +772,15 @@ button:disabled {
 }
 
 .wallet-amount-number {
+  flex: 0 1 auto;
   font-size: clamp(2.5rem, 6vw, 3.5rem);
   font-weight: 700;
   letter-spacing: -0.04em;
   line-height: 1;
-  word-break: break-all;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .wallet-amount-label {
@@ -1467,6 +1475,7 @@ th {
 
   .wallet-hero-right {
     justify-items: end;
+    width: 100%;
   }
 
   .wallet-hero-actions {

@@ -129,7 +129,7 @@ function getTokenName(rawToken: unknown, tokenId: string): string {
   return tokenId;
 }
 
-function addDecimalStrings(a: string, b: string): string {
+export function addDecimalStrings(a: string, b: string): string {
   const [aInt, aFrac = ""] = a.split(".");
   const [bInt, bFrac = ""] = b.split(".");
   const fracLen = Math.max(aFrac.length, bFrac.length);
@@ -140,6 +140,25 @@ function addDecimalStrings(a: string, b: string): string {
   const intPart = sum.slice(0, -fracLen).replace(/^0+(?=\d)/, "");
   const fracPart = sum.slice(-fracLen).replace(/0+$/, "");
   return fracPart ? `${intPart}.${fracPart}` : intPart;
+}
+
+export function compareDecimalStrings(a: string, b: string): number {
+  const normalize = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === ".") return { int: "0", frac: "" };
+    const [intPart = "0", fracPart = ""] = trimmed.split(".");
+    return {
+      int: intPart.replace(/^0+(?=\d)/, "") || "0",
+      frac: fracPart
+    };
+  };
+  const aNorm = normalize(a);
+  const bNorm = normalize(b);
+  const fracLen = Math.max(aNorm.frac.length, bNorm.frac.length);
+  const aCombined = `${aNorm.int}${aNorm.frac.padEnd(fracLen, "0")}`;
+  const bCombined = `${bNorm.int}${bNorm.frac.padEnd(fracLen, "0")}`;
+  if (aCombined === bCombined) return 0;
+  return BigInt(aCombined) > BigInt(bCombined) ? 1 : -1;
 }
 
 export function parseCoinsResponse(body: unknown): CoinRecord[] {

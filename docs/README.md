@@ -37,6 +37,7 @@ Root-level operator docs stay outside this tree: [README.md](../README.md), [SEC
 | [minima-node.md](./plans/minima-node.md) | **Complete** | Phases 1–3 shipped; live RPC integration tests in QA |
 | [device-status.md](./plans/device-status.md) | **Complete** | Device info service, `GET /api/status` summary, graceful shutdown; unit tests deferred → [qa/device-status-gaps.md](./qa/device-status-gaps.md) |
 | [wallet.md](./plans/wallet.md) | **Complete** | Phases 1–4 shipped (`wallet-service` branch); export backup + on-chain receive history deferred; QA gaps → [qa/wallet-gaps.md](./qa/wallet-gaps.md) |
+| [tokens.md](./plans/tokens.md) | **Complete** | Phases 1–2 shipped; event listeners deferred → [qa/tokens-gaps.md](./qa/tokens-gaps.md) |
 
 When starting a new feature, copy [templates/feature-plan.md](./templates/feature-plan.md) into `plans/` before large diffs. Mark it **Complete** when shipped and move follow-up testing/hardening to `qa/`.
 
@@ -67,6 +68,7 @@ Reference implementations: [minima-node.md](./plans/minima-node.md), [minima-gap
 | [qa/minima-gaps.md](./qa/minima-gaps.md) | Minima node manual QA, auth gates, live RPC tests (P0–P2) |
 | [qa/device-status-gaps.md](./qa/device-status-gaps.md) | Device status endpoint and graceful shutdown QA (P0–P2) |
 | [qa/wallet-gaps.md](./qa/wallet-gaps.md) | Wallet API manual QA, auth gates, RPC shape verification, seed phrase security (P0–P2) |
+| [qa/tokens-gaps.md](./qa/tokens-gaps.md) | Custom token create/list QA, live `tokencreate` RPC, auth gates, UI flow (P0–P2) |
 
 Integritas sandbox tests: [qa/README.md](./qa/README.md) Workstreams B–C. Minima QA: Workstream E + [minima-gaps.md](./qa/minima-gaps.md).
 

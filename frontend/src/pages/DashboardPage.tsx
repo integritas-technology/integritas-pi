@@ -28,6 +28,7 @@ import type {
 import { getWalletStatus } from '../features/wallet/walletApi';
 import { MinimaIcon } from '../components/MinimaIcon';
 import { cx } from '../lib/cx';
+import { formatMinimaAmount } from '../lib/format';
 import { formatLocalTime } from '../lib/time';
 
 type ActivityItem = {
@@ -282,7 +283,7 @@ function MetricCard({
           <p className='text-sm text-slate-500'>{label}</p>
           <p
             className={cx(
-              'mt-2 truncate text-2xl font-semibold tracking-tight',
+              'mt-2 min-w-0 truncate text-2xl font-semibold tracking-tight',
               valueClass,
             )}
           >
@@ -369,9 +370,14 @@ function DeviceStatusCard({
           walletBalance === null ? (
             'Unavailable'
           ) : (
-            <span className='inline-flex items-center gap-2'>
+            <span className='flex min-w-0 items-center gap-2'>
               <MinimaIcon size={20} className='shrink-0 text-slate-600' />
-              {walletBalance}
+              <span
+                className='min-w-0 truncate'
+                title={formatMinimaAmount(walletBalance)}
+              >
+                {formatMinimaAmount(walletBalance)}
+              </span>
             </span>
           )
         }

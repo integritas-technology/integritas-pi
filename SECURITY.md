@@ -105,6 +105,21 @@ Current Controls:
 
 Status: Accepted for local/dev iteration only. Not available in production builds.
 
+### Custom token creation (admin)
+
+Risk: `POST /api/tokens/create` calls Minima `tokencreate` to mint a custom token on-chain. Creation consumes MINIMA (coloured coins) and cannot be undone from the Pi UI.
+
+Impact: Irreversible on-chain token state; misuse could drain wallet MINIMA used for colouring or create unwanted tokens on the node.
+
+Current Controls:
+
+- Admin session required (`requireRole('admin')`).
+- Narrow allowlist — only `tokencreate` with validated `name`, `amount`, `decimal`, and `fromAccountAddress` (must be a labeled wallet account with sufficient MINIMA on that address); no generic Minima command proxy.
+- Audit event `tokens.create` records `tokenId`, `name`, `amount`, `decimal`, `txpowId`, and `fromAccountAddress` — no secrets.
+- SQLite `custom_tokens` stores operator metadata for tokens created through this API.
+
+Status: Documented. Verify `tokencreate` RPC shape on a live Minima node before field use.
+
 ### API Key Management
 
 Risk: Saving or clearing the Integritas API key is a high-impact mutation.
