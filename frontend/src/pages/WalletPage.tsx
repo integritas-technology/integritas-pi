@@ -5,7 +5,10 @@ import { MinimaIcon } from '../components/MinimaIcon';
 import { Modal } from '../components/Modal';
 import { Page } from '../components/Page';
 import { useToast } from '../components/ToastProvider';
-import { createToken as createTokenApi, getTokenCreateRequirements } from '../features/tokens/tokensApi';
+import {
+  createToken as createTokenApi,
+  getTokenCreateRequirements,
+} from '../features/tokens/tokensApi';
 import type { TokenCreateRequirements } from '../features/tokens/tokensTypes';
 import { formatMinimaAmount } from '../lib/format';
 import {
@@ -365,7 +368,8 @@ export function WalletPage() {
                       {item.address}
                     </p>
                     <p className='text-sm text-slate-700 mt-1'>
-                      {formatMinimaAmount(item.totalMinima)} MINIMA · {item.tokenCount} tokens
+                      {formatMinimaAmount(item.totalMinima)} MINIMA ·{' '}
+                      {item.tokenCount} tokens
                     </p>
                   </div>
                   <button
@@ -949,7 +953,8 @@ function CreateTokenModal({
   onCreated: () => Promise<void>;
 }) {
   const { showToast } = useToast();
-  const [requirements, setRequirements] = useState<TokenCreateRequirements | null>(null);
+  const [requirements, setRequirements] =
+    useState<TokenCreateRequirements | null>(null);
   const accountOptions = accounts.map((account) => {
     const native = account.balance.tokens.find((token) => token.isNative);
     const minima = native?.amount ?? '0';
@@ -987,7 +992,8 @@ function CreateTokenModal({
 
   useEffect(() => {
     if (fromAccountAddress) return;
-    const firstFunded = fundedOptions[0]?.address ?? accountOptions[0]?.address ?? '';
+    const firstFunded =
+      fundedOptions[0]?.address ?? accountOptions[0]?.address ?? '';
     if (firstFunded) setFromAccountAddress(firstFunded);
   }, [accountOptions, fundedOptions, fromAccountAddress]);
 
@@ -1062,7 +1068,7 @@ function CreateTokenModal({
   return (
     <Modal title='Create custom token' onClose={handleCloseRequest}>
       <div className='grid gap-4'>
-        <div className='rounded-xl bg-amber-50 border border-amber-200 p-4'>
+        {/* <div className='rounded-xl bg-amber-50 border border-amber-200 p-4'>
           <p className='text-sm font-bold text-amber-800'>
             On-chain action — cannot be undone
           </p>
@@ -1073,7 +1079,7 @@ function CreateTokenModal({
             MINIMA on that account&apos;s address). Creation may take up to a
             minute. Token names may include spaces.
           </p>
-        </div>
+        </div> */}
 
         {accounts.length === 0 ? (
           <p className='text-sm text-red-700'>
@@ -1081,7 +1087,7 @@ function CreateTokenModal({
             onto that account&apos;s address.
           </p>
         ) : (
-        <form onSubmit={handleSubmit} className='grid gap-4'>
+          <form onSubmit={handleSubmit} className='grid gap-4'>
             <label className='grid gap-1.5'>
               <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
                 Pay from account
