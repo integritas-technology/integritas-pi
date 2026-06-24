@@ -13,6 +13,7 @@ Minima node plan: [minima-node.md](../plans/minima-node.md)
 Minima gaps: [minima-gaps.md](./minima-gaps.md)  
 Device status gaps: [device-status-gaps.md](./device-status-gaps.md)  
 Wallet gaps: [wallet-gaps.md](./wallet-gaps.md)  
+Tokens gaps: [tokens-gaps.md](./tokens-gaps.md)  
 Security model: [auth-security.md](../plans/auth-security.md), [SECURITY.md](../../SECURITY.md)
 
 ---
@@ -36,6 +37,7 @@ Do **not** block Phase 5 Integritas UI or other product work on completing QA �
 - [ ] Integritas manual checklist below passed on a Pi or dev stack with a real API key
 - [ ] Device status P0 gaps verified — see [device-status-gaps.md](./device-status-gaps.md#exit-criteria-device-status-qa-sign-off)
 - [ ] Wallet P0 gaps verified — see [wallet-gaps.md](./wallet-gaps.md#exit-criteria-wallet-qa-sign-off) (HTTPS required before seed phrase import)
+- [ ] Tokens P0 gaps verified — see [tokens-gaps.md](./tokens-gaps.md#exit-criteria-tokens-qa-sign-off) (live `tokencreate` on Pi hardware)
 - [ ] `npm run check` + `docker compose build` clean
 - [ ] `SECURITY.md` updated with deploy mode (HTTP LAN vs HTTPS) and any accepted risks
 
@@ -168,6 +170,21 @@ Run on a stack with Integritas API key configured (UI or `INTEGRITAS_API_KEY` in
 
 ---
 
+## Workstream H — Tokens QA
+
+**Source:** [tokens.md](../plans/tokens.md) — Phases 1–2 shipped (create/list API, `custom_tokens`, Wallet create-token modal).  
+**Detail:** [tokens-gaps.md](./tokens-gaps.md)
+
+| Priority | Topic |
+|----------|--------|
+| **P0** | Live `tokencreate` RPC on Pi hardware; auth/role gating; audit `tokens.create`; UI end-to-end create |
+| **P1** | Labeled-account funding validation; create/list error paths; on-chain warning UX; duplicate-create idempotency |
+| **P2** | Repository/service unit tests, event listeners (deferred), dedicated Tokens page |
+
+**Unit tests (shipped):** `backend/src/features/tokens/tokens.parse.test.ts` via `npm run test`.
+
+---
+
 ## Workstream D — Build & deploy smoke
 
 - [ ] `npm run check`
@@ -209,6 +226,7 @@ Approved for: [ ] continued dev  [ ] field pilot  [ ] production
 
 | Date | Change |
 |------|--------|
+| 2026-06-24 | Workstream H — Tokens QA gaps ([tokens-gaps.md](./tokens-gaps.md)); tokens P0 added to project exit criteria |
 | 2026-06-15 | Workstream G — Wallet QA gaps ([wallet-gaps.md](./wallet-gaps.md)); wallet P0 added to project exit criteria |
 | 2026-06-12 | Workstream F — Device status QA gaps ([device-status-gaps.md](./device-status-gaps.md)) |
 | 2026-06-11 | Workstream E — Minima node QA gaps ([minima-gaps.md](./minima-gaps.md)) |

@@ -451,6 +451,7 @@ Custom token APIs:
 
 ```http
 GET /api/tokens
+GET /api/tokens/create-requirements
 POST /api/tokens/create
 ```
 

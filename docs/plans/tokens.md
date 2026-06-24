@@ -4,9 +4,9 @@
 |---|---|
 | **Status** | **Complete** (Phases 1–2 shipped; event listeners deferred) |
 | **Done** | Phases 1–2 — create/list API, SQLite `custom_tokens`, Wallet create-token modal |
-| **Next** | QA — live `tokencreate` RPC verification on Pi hardware |
+| **Next** | QA — [tokens-gaps.md](../qa/tokens-gaps.md) P0 (live `tokencreate` on Pi hardware) |
 | **Deferred** | Token event listeners (automation overlap), unit tests, create-token UI polish |
-| **QA follow-up** | _(create `docs/qa/tokens-gaps.md` when Phase 1 ships)_ |
+| **QA follow-up** | [qa/tokens-gaps.md](../qa/tokens-gaps.md) |
 
 _Custom token lifecycle on the Pi node: create tokens via Minima `tokencreate`, list wallet-held tokens, and (later) rules that react to token payments or transfers._
 
@@ -18,9 +18,9 @@ Companion docs: [docs index](../README.md), [project README](../../README.md), [
 
 ## Verdict
 
-**Read paths for tokens already exist in the wallet feature** — `GET /api/wallet` and per-account balances on `GET /api/wallet/accounts` parse Minima responses and power send/holdings UI. **Nothing is implemented for the ticket’s `/api/tokens` namespace:** no create route, no token-specific DB table, no event listeners, no create-token UI in the production app (only a mock workbench placeholder).
+**Phases 1–2 are shipped.** The `tokens` feature folder owns `GET /api/tokens`, `POST /api/tokens/create`, `GET /api/tokens/create-requirements`, SQLite `custom_tokens`, and the Wallet page create-token modal. Wallet routes remain unchanged for send/holdings; callers that only need balances keep using `/api/wallet`.
 
-Phase 1 should add a small `tokens` feature folder that owns creation + a dedicated list API, reusing `runMinimaPathCommand` and wallet parse helpers where sensible. Wallet routes stay unchanged; callers that only need balances keep using `/api/wallet`.
+**Deferred:** event listeners (`/api/tokens/events`, `/api/tokens/listeners`) and live `tokencreate` field verification on Pi hardware — tracked in [qa/tokens-gaps.md](../qa/tokens-gaps.md).
 
 **Naming / scope notes:** Ticket paths use `/api/tokens/*` (not `/api/wallet/tokens/*`). Event listener routes in the ticket (`/api/tokens/events`, `/api/tokens/listeners`) are **deferred** — they overlap the automation engine (BE-007) and need a separate design pass.
 
@@ -37,13 +37,14 @@ _Audit date: 2026-06-16. Only wallet-adjacent token support exists today._
 | Send custom tokens | **Done** (wallet) | `POST /api/wallet/send-payment` with `tokenId` |
 | Token types + parsing | **Done** (wallet) | `wallet.types.ts`, `wallet.parse.ts` |
 | Wallet UI: holdings + send token picker | **Done** (wallet) | `WalletPage.tsx` account funds + send modal |
-| `POST /api/tokens/create` | **Done** | `tokens.service.ts` → Minima `tokencreate`; `custom_tokens` SQLite |
+| `POST /api/tokens/create` | **Done** | `tokens.service.ts` → Minima `tokencreate`; labeled-account funding check; `custom_tokens` SQLite |
 | `GET /api/tokens` | **Done** | `tokens.service.ts` → `balance` + SQLite merge |
+| `GET /api/tokens/create-requirements` | **Done** | `tokens.service.ts` → cost/minimum constants |
 | SQLite token metadata | **Done** | `custom_tokens` in `database.ts` |
 | Token event listeners | **Not started** | Deferred (ticket future) |
 | Create-token UI | **Done** | `WalletPage.tsx` create-token modal; `tokensApi.ts` |
 
-### Not shipped / deferred → _(qa/tokens-gaps.md when Phase 1 lands)_
+### Not shipped / deferred → [qa/tokens-gaps.md](../qa/tokens-gaps.md)
 
 | Item | Notes |
 |---|---|
@@ -62,6 +63,7 @@ All routes require `requireAuth`. **Admin-gated mutations:** `POST /api/tokens/c
 | Method | Path | Purpose | Status |
 |---|---|---|---|
 | `GET` | `/api/tokens` | List wallet tokens (non-native), enriched with local metadata | **Done** |
+| `GET` | `/api/tokens/create-requirements` | Estimated MINIMA cost and minimum account balance | **Done** |
 | `POST` | `/api/tokens/create` | Create a custom token via Minima `tokencreate` | **Done** |
 
 **Deferred (ticket future):**
@@ -139,7 +141,7 @@ Wallet feature (unchanged)
 
 ## Current state snapshot
 
-_Refresh when auditing plan vs code. Date: 2026-06-16_
+_Refresh when auditing plan vs code. Date: 2026-06-24_
 
 ### Backend (`backend/src/features/tokens/`)
 
@@ -181,11 +183,11 @@ _Refresh when auditing plan vs code. Date: 2026-06-16_
 
 | Commit | Summary |
 |---|---|
-| — | Token service not started on main as of audit date |
+| — | Phases 1–2 on feature branch; merge to main pending QA sign-off |
 
 ### Open gaps
 
-Live `tokencreate` parameter names and response fields must be verified on a running Minima node before locking the DTO (see Open decisions #1).
+Live `tokencreate` on Pi hardware — see [qa/tokens-gaps.md](../qa/tokens-gaps.md) (TOKENS-01). Implementation uses `decimals:` RPC param and txpow-output token ID parsing (see CHANGELOG `[Unreleased]`).
 
 ---
 
@@ -195,9 +197,10 @@ Live `tokencreate` parameter names and response fields must be verified on a run
 
 ```ts
 type CreateTokenRequest = {
-  name: string;    // required, human label (Q-006)
-  amount: string;  // required, positive supply string (Q-006)
-  decimal: number; // required, non-negative integer (Q-006)
+  name: string;              // required, human label (Q-006)
+  amount: string;            // required, positive supply string (Q-006)
+  decimal: number;         // required, non-negative integer (Q-006)
+  fromAccountAddress: string; // required, labeled wallet account address with ≥ 0.001 MINIMA
 };
 ```
 
@@ -379,20 +382,20 @@ Do not start Phase 3 until automation overlap is agreed (shared scheduler vs ded
 
 **Phase 1:**
 
-- [ ] `custom_tokens` table migrated
-- [ ] `POST /api/tokens/create` (admin) creates on-chain token and SQLite row
-- [ ] `GET /api/tokens` returns non-native tokens with balances + `createdLocally`
-- [ ] Audit event `tokens.create` recorded without secrets
-- [ ] Wallet APIs unchanged and still pass smoke checks
-- [ ] `npm run check` passes
-- [ ] `CHANGELOG.md` updated under `[Unreleased]`
-- [ ] `README.md` updated with new routes
-- [ ] `SECURITY.md` updated if create exposure needs noting (admin gate, on-chain irreversibility)
+- [x] `custom_tokens` table migrated
+- [x] `POST /api/tokens/create` (admin) creates on-chain token and SQLite row _(live node: QA TOKENS-01)_
+- [x] `GET /api/tokens` returns non-native tokens with balances + `createdLocally`
+- [x] Audit event `tokens.create` recorded without secrets _(Diagnostics visibility: QA TOKENS-03)_
+- [x] Wallet APIs unchanged and still pass smoke checks
+- [x] `npm run check` passes _(typecheck + tests; audit:moderate may fail on transitive deps)_
+- [x] `CHANGELOG.md` updated under `[Unreleased]`
+- [x] `README.md` updated with new routes
+- [x] `SECURITY.md` updated if create exposure needs noting (admin gate, on-chain irreversibility)
 
 **Phase 2:**
 
-- [ ] Create token modal on Wallet page (admin)
-- [ ] `npm --prefix frontend run build` passes
+- [x] Create token modal on Wallet page (admin; V1 single admin role)
+- [x] `npm --prefix frontend run build` passes
 
 ---
 

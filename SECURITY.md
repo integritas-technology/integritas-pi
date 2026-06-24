@@ -114,8 +114,8 @@ Impact: Irreversible on-chain token state; misuse could drain wallet MINIMA used
 Current Controls:
 
 - Admin session required (`requireRole('admin')`).
-- Narrow allowlist — only `tokencreate` with validated `name`, `amount`, and `decimal`; no generic Minima command proxy.
-- Audit event `tokens.create` records `tokenId`, `name`, `amount`, `decimal`, and `txpowId` — no secrets.
+- Narrow allowlist — only `tokencreate` with validated `name`, `amount`, `decimal`, and `fromAccountAddress` (must be a labeled wallet account with sufficient MINIMA on that address); no generic Minima command proxy.
+- Audit event `tokens.create` records `tokenId`, `name`, `amount`, `decimal`, `txpowId`, and `fromAccountAddress` — no secrets.
 - SQLite `custom_tokens` stores operator metadata for tokens created through this API.
 
 Status: Documented. Verify `tokencreate` RPC shape on a live Minima node before field use.
