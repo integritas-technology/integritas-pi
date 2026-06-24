@@ -324,6 +324,28 @@ Plan:
 
 Status: Accepted prototype risk.
 
+### GPIO Input Data Sources
+
+Risk: Enabled GPIO input automation workflows allow the backend container to watch Raspberry Pi GPIO line events through `gpiomon` when `/dev/gpiochip0` is mounted into the container.
+
+Impact: Misconfigured pins can record incorrect physical events; unsafe wiring can damage the Pi or connected hardware. GPIO device access also expands the backend container's host hardware access.
+
+Current Controls:
+
+- GPIO source creation/editing requires admin role.
+- GPIO sources are input-only in V1; no GPIO output/control actions are exposed.
+- GPIO watchers start only while an enabled automation workflow exists for the source.
+- The backend uses fixed `gpiomon` arguments built from validated source config, not arbitrary shell command execution.
+- GPIO config uses BCM pin numbering, explicit edge selection, and debounce controls.
+
+Plan:
+
+- Add clearer hardware availability/status reporting for missing `/dev/gpiochip0`, permission failures, and missing `gpiomon`.
+- Add hardware setup documentation for common Pi OS group/device mappings.
+- Keep output/control actions separate and high-risk if added later.
+
+Status: Accepted prototype risk. Pi GPIO pins are 3.3V only; use proper level shifting, resistors, and isolation for external or industrial signals.
+
 ### Integritas Request Proxy
 
 Risk: Backend proxies stamp/status/verify calls to Integritas using a stored API key.

@@ -331,9 +331,9 @@ backend container
 - Integritas hash, stamp, status, verify endpoints
 - Data source APIs and historic read log at `/api/data-sources` and `/api/data-reads`
   - Data sources can include an optional health status URL. The browser polls saved health URLs once per minute through the backend and shows the latest status in the Added data sources table.
-  - Data source protocols currently include HTTP JSON API fetches, webhook JSON receives, and MQTT JSON subscriptions. Data Sources define connection details; Automation workflows decide whether reads are recorded and stamped.
+  - Data source protocols currently include HTTP JSON API fetches, webhook JSON receives, MQTT JSON subscriptions, and Raspberry Pi GPIO input events. Data Sources define connection details; Automation workflows decide whether reads are recorded and stamped.
   - Automation workflows are rule collections. V1 creates a Collect data rule first, then an optional Integritas stamping rule can be added to stamp collected hashes.
-  - HTTP Collect data rules poll on a schedule. Webhook Collect data rules record pushed JSON at generated `/api/data-source-webhooks/:token` URLs while enabled. MQTT Collect data rules subscribe to the configured broker/topic only while enabled.
+  - HTTP Collect data rules poll on a schedule. Webhook Collect data rules record pushed JSON at generated `/api/data-source-webhooks/:token` URLs while enabled. MQTT Collect data rules subscribe to the configured broker/topic only while enabled. GPIO Collect data rules watch configured BCM pins only while enabled.
   - Reads /host-files only
   - Reads Minima status from http://minima:9005/status
   - Calls https://integritas.technology/core with backend-only API key
@@ -498,6 +498,7 @@ See [`SECURITY.md`](./SECURITY.md) for the current risk register, known vulnerab
 - Minima RPC binds to `127.0.0.1` by default
 - Integritas API key is backend-only and encrypted at rest in SQLite when saved from the UI
 - Backend mounts `/var/run/docker.sock:ro` to read container status and resource usage for the App status page. This is useful for the prototype, but Docker socket access is sensitive and should be replaced with a narrower monitoring approach before production.
+- GPIO input sources use the `gpiomon` tool inside the backend container and require explicit GPIO device access on Raspberry Pi deployments. Add an override such as `devices: ["/dev/gpiochip0:/dev/gpiochip0"]` and a suitable GPIO group when enabling GPIO hardware ingestion.
 - Admin authentication with password + TOTP and HttpOnly session cookies (see [Authentication](#authentication))
 - Set `COOKIE_SECURE=true` when exposing the UI over HTTPS on untrusted networks
 

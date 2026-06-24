@@ -20,6 +20,15 @@ export type MqttConfig = {
   topic: string;
 };
 
+export type GpioInputConfig = {
+  chip: string;
+  pin: number;
+  pull: "off" | "up" | "down";
+  edge: "rising" | "falling" | "both";
+  debounceMs: number;
+  activeState: "high" | "low";
+};
+
 export function serializeDataSource(record: DataSourceRecord) {
   return {
     id: record.id,
@@ -52,6 +61,7 @@ export function parseJsonApiConfig(value: unknown): JsonApiConfig {
 export function parseDataSourceConfig(type: string, value: unknown, existingConfig?: unknown) {
   if (type === "webhook") return parseWebhookConfig(value, existingConfig);
   if (type === "mqtt") return parseMqttConfig(value);
+  if (type === "gpio-input") return parseGpioInputConfig(value);
   return parseJsonApiConfig(value);
 }
 
@@ -69,6 +79,22 @@ export function parseMqttConfig(value: unknown): MqttConfig {
   if (!brokerUrl) throw new Error("config.brokerUrl is required");
   if (!topic) throw new Error("config.topic is required");
   return { brokerUrl, topic };
+}
+
+export function parseGpioInputConfig(value: unknown): GpioInputConfig {
+  const config = value as Partial<GpioInputConfig> | undefined;
+  const chip = typeof config?.chip === "string" && config.chip.trim() ? config.chip.trim() : "gpiochip0";
+  const pin = Number(config?.pin);
+  const pull = config?.pull === "up" || config?.pull === "down" || config?.pull === "off" ? config.pull : "off";
+  const edge = config?.edge === "rising" || config?.edge === "falling" || config?.edge === "both" ? config.edge : "both";
+  const debounceMs = Number(config?.debounceMs ?? 100);
+  const activeState = config?.activeState === "low" ? "low" : "high";
+
+  if (!/^gpiochip\d+$/.test(chip) && !/^\/dev\/gpiochip\d+$/.test(chip)) throw new Error("config.chip must be gpiochipN or /dev/gpiochipN");
+  if (!Number.isInteger(pin) || pin < 0 || pin > 27) throw new Error("config.pin must be a BCM GPIO number from 0 to 27");
+  if (!Number.isFinite(debounceMs) || debounceMs < 0 || debounceMs > 60000) throw new Error("config.debounceMs must be between 0 and 60000");
+
+  return { chip, pin, pull, edge, debounceMs, activeState };
 }
 
 export async function checkDataSourceHealth(config: JsonApiConfig) {
@@ -111,6 +137,11 @@ export function processWebhookPayload(payload: unknown) {
 }
 
 export function processMqttPayload(payload: unknown) {
+  const canonical = `${JSON.stringify(payload, null, 2)}\n`;
+  return { contentType: "application/json", bytesHash: sha3HashHex(canonical), canonicalBytes: canonical, preview: payload, receivedAt: new Date().toISOString() };
+}
+
+export function processGpioPayload(payload: unknown) {
   const canonical = `${JSON.stringify(payload, null, 2)}\n`;
   return { contentType: "application/json", bytesHash: sha3HashHex(canonical), canonicalBytes: canonical, preview: payload, receivedAt: new Date().toISOString() };
 }

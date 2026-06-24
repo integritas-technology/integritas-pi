@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- GPIO Input data sources for Raspberry Pi BCM pin edge events. GPIO sources are input-only, automation-gated, and recorded as JSON payloads through the existing read history/stamping path.
+
 ## [0.7.1] - 2026-06-24
 
 ### Changed

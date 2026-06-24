@@ -139,19 +139,20 @@ CLI rules:
 
 ## Data Source Rules
 
-- Supported V1 data source types are HTTP JSON API fetches, webhook JSON receives, and MQTT JSON subscriptions.
+- Supported V1 data source types are HTTP JSON API fetches, webhook JSON receives, MQTT JSON subscriptions, and Raspberry Pi GPIO input events.
 - Skip file-source and manual-upload source types unless explicitly requested.
 - Store the latest JSON preview and latest hash on the data source.
 - Do not impose arbitrary app-level file/data limits unless required for safety.
 - Webhook sources receive JSON through public `/api/data-source-webhooks/:token` endpoints generated per source. They are push-only and only record incoming data when an enabled Automation workflow exists for the source.
 - MQTT sources define a broker URL/topic and expect JSON payloads. The backend only subscribes while an enabled Automation workflow exists for the MQTT source.
+- GPIO input sources define a BCM pin, edge, pull resistor, debounce, and active state. They are input-only and only watch pins while an enabled Automation workflow exists for the source.
 
 ## Automation Rules
 
 - Automation workflows are collections of ordered rules. V1 supports a required Collect data rule and an optional Integritas stamping rule.
 - Each rule follows When / Condition / Then. Keep rules atomic; chain rules instead of adding multiple unrelated actions to one rule.
-- Collect data rules either poll an HTTP JSON API source at an interval or enable event-driven webhook/MQTT ingestion for a push source.
-- The backend scheduler owns HTTP polling execution; webhook/MQTT collect rules are triggered by incoming data while enabled.
+- Collect data rules either poll an HTTP JSON API source at an interval or enable event-driven webhook/MQTT/GPIO ingestion for a push/source event.
+- The backend scheduler owns HTTP polling execution; webhook/MQTT/GPIO collect rules are triggered by incoming data while enabled.
 - Store `last_run_at`, `next_run_at`, `last_hash`, `last_proof_id`, and `last_error`.
 - Save `last_hash` after successful data fetch or push ingestion even if Integritas stamping fails.
 - Surface detailed upstream errors where possible without leaking secrets.
@@ -164,6 +165,7 @@ CLI rules:
 - Minima data lives in `${MINIMA_DATA_DIR:-./minima}`.
 - Host files are mounted read-only to `/host-files`.
 - Docker socket is mounted read-only for prototype status only; treat it as sensitive.
+- GPIO input requires explicit `/dev/gpiochip0` device access and `gpiomon`; keep it optional, input-only, and documented as host hardware access.
 - `host.docker.internal` is mapped for Linux via `extra_hosts` for host-gateway access.
 
 ## Verification

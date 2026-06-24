@@ -3,7 +3,7 @@ export type DataSource = {
   createdAt: string;
   updatedAt: string;
   name: string;
-  type: "json-api" | "internal-json-api" | "webhook" | "mqtt";
+  type: "json-api" | "internal-json-api" | "webhook" | "mqtt" | "gpio-input";
   status: string;
   description: string | null;
   config: {
@@ -14,6 +14,12 @@ export type DataSource = {
     webhookToken?: string;
     brokerUrl?: string;
     topic?: string;
+    chip?: string;
+    pin?: number;
+    pull?: "off" | "up" | "down";
+    edge?: "rising" | "falling" | "both";
+    debounceMs?: number;
+    activeState?: "high" | "low";
     body?: unknown;
   };
   lastReadAt: string | null;
