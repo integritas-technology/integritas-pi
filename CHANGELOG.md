@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `npm run dev:https` — native dev over HTTPS using the same self-signed certs as Docker (`data/certs`), with `COOKIE_SECURE=true` on the backend.
 - Self-signed HTTPS for the default Docker deploy: installer and `scripts/generate-tls-cert.sh` generate TLS certs in `DATA_DIR/certs`; nginx serves HTTPS on `${FRONTEND_PORT}` (mapped to container port 443).
 
 ### Changed

@@ -176,6 +176,18 @@ Open:
 http://localhost:5173
 ```
 
+### HTTPS dev (matches Docker self-signed behavior)
+
+To test secure cookies and HTTPS-only browser APIs during native dev:
+
+```bash
+npm run dev:https
+```
+
+Open `https://localhost:5173` and accept the self-signed certificate warning (same certs as `scripts/generate-tls-cert.sh` / Docker). The backend runs with `COOKIE_SECURE=true`.
+
+Plain `npm run dev` stays on HTTP for fast iteration.
+
 The backend loads the repo-root `.env` automatically in dev. `DATABASE_PATH`, `DATA_DIR`, and `HOST_FILES_DIR` are resolved relative to the repo root.
 
 Frontend styling direction: component and page styling should use Tailwind utilities going forward. Plain CSS should be limited to root/body/base global rules, with existing component-level CSS migrated incrementally as frontend files are touched.
