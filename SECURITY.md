@@ -22,7 +22,7 @@ We document recommended setup in README; we cannot enforce it on the device.
 ## Current Security Posture
 
 - Admin authentication is implemented: password + TOTP login, stateful HttpOnly session cookies, protected `/api/*` routes.
-- The frontend is reachable on the LAN through `http://<pi-ip>:8080`.
+- The frontend is reachable on the LAN through `https://<pi-ip>:8080` with a self-signed TLS certificate.
 - Backend APIs are reachable through the frontend Nginx `/api` proxy.
 - The backend stores local settings in SQLite under `/data/integritas-pi.db`.
 - Integritas API keys entered in the UI are encrypted before storage with AES-256-GCM using `APP_SECRET`.
@@ -30,26 +30,27 @@ We document recommended setup in README; we cannot enforce it on the device.
 - The backend can read the configured host file directory through `/host-files:ro`.
 - Minima RPC is bound to `127.0.0.1` on the host by default, but is reachable by backend over the Docker network.
 
-**Auth (Phase 1 — implemented):** Admin login with password + TOTP, stateful sessions (hashed in SQLite), protected `/api/*` routes, login/setup rate limiting, audit log for secret changes. See `docs/plans/auth-security.md`. Default HTTP LAN deploy uses `COOKIE_SECURE=false`; use HTTPS + `COOKIE_SECURE=true` on untrusted networks.
+**Auth (Phase 1 — implemented):** Admin login with password + TOTP, stateful sessions (hashed in SQLite), protected `/api/*` routes, login/setup rate limiting, audit log for secret changes. See `docs/plans/auth-security.md`. Default Docker deploy uses HTTPS with a self-signed certificate and `COOKIE_SECURE=true`.
 
 ## High Priority Risks
 
-### Unauthenticated LAN Access (mitigated, residual HTTP risk)
+### Unauthenticated LAN Access (mitigated, residual TLS trust risk)
 
-Risk: On a trusted home LAN with default HTTP deploy, session cookies are not marked `Secure` and can be observed on the network.
+Risk: On the default HTTPS deploy, browsers do not trust the self-signed certificate. Users must click through a warning. A network attacker could present a different certificate if users are not careful.
 
-Impact: Session theft on untrusted networks; unauthorized admin access if credentials or cookies are intercepted.
+Impact: Session theft remains possible on untrusted networks if users accept a malicious certificate; passive sniffing is mitigated by TLS encryption.
 
 Controls (V1):
 
 - Login required for all `/api/*` routes except health, setup, and login.
-- HttpOnly + `SameSite=Strict` session cookies; token hashes stored in SQLite.
+- HttpOnly + `SameSite=Strict` session cookies with `Secure` on the default HTTPS deploy; token hashes stored in SQLite.
 - TOTP required at setup and login.
 - Login/setup rate limiting and generic login errors.
+- Self-signed TLS encrypts browser-to-Pi traffic by default.
 
-Residual gap: Use HTTPS and `COOKIE_SECURE=true` before internet or untrusted network exposure. CSRF tokens are a follow-up (`SameSite=Strict` is the V1 baseline).
+Residual gap: Self-signed certificates do not prove server identity. CSRF tokens are a follow-up (`SameSite=Strict` is the V1 baseline). Custom trusted certificates or operator-managed reverse-proxy TLS are planned for a later release.
 
-Status: Mitigated for trusted LAN; see `docs/qa/auth-gaps.md` for gaps.
+Status: Partially mitigated; see `docs/qa/auth-gaps.md` for follow-up items (HSTS, custom certs).
 
 ### Docker Socket Mount
 
@@ -84,9 +85,9 @@ Current Controls:
 - Input is validated server-side (minimum 12 words) before calling Minima RPC.
 - Minima RPC call uses a 30 s timeout to allow node processing time.
 
-**Required before field deployment:** Enable HTTPS and set `COOKIE_SECURE=true` on any network where seed phrase import will be used. Never import a seed phrase over an untrusted or monitored network.
+**Required before field deployment:** Use the default HTTPS deploy on any network where seed phrase import will be used. Understand that the self-signed certificate requires a browser warning; traffic is encrypted but server identity is not publicly attested. Never import a seed phrase over an untrusted or monitored network if you cannot verify you reached your Pi.
 
-Status: Documented. HTTPS required before field deployment.
+Status: HTTPS enabled by default on Docker deploy; self-signed trust limitations documented.
 
 > **Megammr resync interaction:** The Minima `restore` command used by `/api/wallet/import` triggers a node restart, which may overlap with active or auto-triggered Megammr resyncs. If a malicious or misconfigured Megammr host is set at the time of a resync, the resulting chain state could force the node to re-derive keys in an unexpected state. Operators should verify the Megammr host URL before importing a wallet and before enabling `MINIMA_AUTO_RESYNC`. This is a known prototype risk — investigate before production use.
 
@@ -151,19 +152,24 @@ Status: Partially mitigated by installer preservation. Production design open.
 
 ## Medium Priority Risks
 
-### HTTP Only UI
+### Self-Signed HTTPS UI
 
-Risk: The app is served over plain HTTP.
+Risk: The app is served over HTTPS with an installer-generated self-signed certificate.
 
-Impact: LAN attackers can observe or modify traffic, including canonical document bytes and the API key when it is submitted through the UI.
+Impact: Browsers show security warnings. Users may click through without verifying the certificate, which weakens protection against active man-in-the-middle attacks. Passive LAN sniffing of credentials, cookies, API keys, and seed phrases is mitigated by TLS encryption.
+
+Current Controls:
+
+- Installer generates TLS certificate with SANs for `localhost`, `127.0.0.1`, and the detected LAN IP.
+- Nginx terminates TLS; `COOKIE_SECURE=true` on the default Docker deploy.
+- Certificates stored under `DATA_DIR/certs`; regenerate with `INTEGRITAS_TLS_FORCE=1 bash scripts/generate-tls-cert.sh` after a LAN IP change.
 
 Plan:
 
-- Add HTTPS option for local network use.
-- Consider Caddy or Traefik reverse proxy with local certificates.
-- At minimum, warn users not to submit secrets over untrusted networks.
+- V2+: optional custom certificates or external reverse-proxy TLS.
+- Consider HSTS only after trusted certificate workflows exist.
 
-Status: Open. Target: HTTPS + `COOKIE_SECURE=true` for field deployments; HTTP acceptable on trusted home LAN only until then.
+Status: Mitigated for passive sniffing; residual self-signed trust risk documented.
 
 ### File Browser Metadata Exposure
 
@@ -434,7 +440,7 @@ Status: Open. Auth test cases and gaps: `docs/qa/auth-gaps.md` (model: `docs/pla
 
 1. ~~Add authentication and admin authorization.~~ Done (Phase 1).
 2. Replace direct Docker socket mount with a safer monitoring path.
-3. Add HTTPS or a documented trusted-network-only mode.
+3. ~~Add HTTPS or a documented trusted-network-only mode.~~ Done (self-signed HTTPS default on Docker deploy).
 4. Add rate limiting and audit logs.
 5. Persist Integritas proof records in SQLite with schema migrations.
 6. Add automated tests for security-sensitive endpoints.

@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Self-signed HTTPS for the default Docker deploy: installer and `scripts/generate-tls-cert.sh` generate TLS certs in `DATA_DIR/certs`; nginx serves HTTPS on `${FRONTEND_PORT}` (mapped to container port 443).
+
+### Changed
+
+- Docker Compose UI port mapping is now `${FRONTEND_PORT}:443` (HTTPS) instead of `:80` (HTTP). Open `https://<pi-ip>:8080` and accept the browser warning for the self-signed certificate.
+- Default `COOKIE_SECURE` is `true` in Docker Compose and installer-generated `.env`.
+- CLI default API URL is `https://localhost:8080/api` with `curl -k` for the self-signed cert.
+
+### Security
+
+- Browser-to-Pi traffic is encrypted on the default deploy. Residual risk: self-signed cert warnings and click-through MITM on untrusted networks. Custom certificates and reverse-proxy TLS are planned for a later release.
+
 ## [0.7.1] - 2026-06-24
 
 ### Changed
