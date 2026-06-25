@@ -2,7 +2,7 @@
 
 This project is a learning prototype. It is not production-ready and should only be run on a trusted local network while these risks are understood and actively managed.
 
-This file is the **general** risk register for the whole app. Auth-specific threat model, controls, and Phase 1 checklist live in `docs/plans/auth-security.md` (implementation: `docs/plans/auth-implementation.md`). Open QA hardening: `docs/qa/auth-gaps.md`. Docs index: `docs/README.md`.
+This file is the **general** risk register for the whole app. Auth-specific threat model, controls, and Phase 1 checklist live in `docs/plans/auth-security.md` (implementation: `docs/plans/auth-implementation.md`). V1 security sign-off: `docs/plans/v1-security.md`. Open QA hardening: `docs/qa/auth-gaps.md`. Docs index: `docs/README.md`.
 
 ## Scope And Responsibility
 
