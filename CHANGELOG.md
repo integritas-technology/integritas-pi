@@ -25,7 +25,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Removed routes: `GET /api/wallet/accounts`, `POST /api/wallet/accounts`, `POST /api/wallet/debug/clear-wallet-accounts`.
 - Wallet page hero card restructured: action buttons moved to top-right, MINIMA balance moved to bottom spanning full card width with text wrapping enabled. The Minima icon aligns with the first line of the amount when it wraps.
 - Import wallet and Export wallet removed from hero card actions — deferred to a wallet settings modal (not yet implemented).
-- Amount display now uses precision-aware formatting: wallet page uses `formatAmountAdaptive` (full precision, trailing zeros trimmed, no decimal cap); dashboard uses `formatAmountThreshold` (6-decimal truncation with `< 0.000001` for sub-threshold values and `> 0.123456` when non-zero digits are hidden beyond 6 places).
+- Amount display now uses precision-aware formatting: `formatAmountThreshold` on dashboard and wallet page hero card / assets list (6-decimal truncation with `< 0.000001` for sub-threshold values and `> 0.123456` when non-zero digits are hidden beyond 6 places); `formatAmountAdaptive` used in the asset detail modal and create token modal where full precision is appropriate.
+- Assets card rows are now clickable: tapping a row opens an asset detail modal showing full-precision sendable, confirmed, and unconfirmed balances alongside the copyable token ID.
 
 ## [0.7.3] - 2026-06-26
 

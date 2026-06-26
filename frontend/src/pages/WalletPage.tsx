@@ -10,7 +10,7 @@ import {
   getTokenCreateRequirements,
 } from '../features/tokens/tokensApi';
 import type { TokenCreateRequirements } from '../features/tokens/tokensTypes';
-import { formatAmountAdaptive } from '../lib/format';
+import { formatAmountAdaptive, formatAmountThreshold } from '../lib/format';
 import {
   clearWalletHistoryForDebug,
   getReceiveAddress,
@@ -22,6 +22,7 @@ import {
 import type {
   ImportWalletResult,
   ReceiveAddress,
+  TokenBalance,
   WalletSendHistoryItem,
   WalletStatus,
 } from '../features/wallet/walletTypes';
@@ -107,6 +108,7 @@ export function WalletPage() {
     useState<WalletSendHistoryItem | null>(null);
   const [debugClearingHistory, setDebugClearingHistory] = useState(false);
   const [assetTab, setAssetTab] = useState<'all' | 'minima' | 'tokens'>('all');
+  const [selectedAsset, setSelectedAsset] = useState<TokenBalance | null>(null);
   const [receiveOpen, setReceiveOpen] = useState(false);
 
   async function refresh() {
@@ -230,7 +232,7 @@ export function WalletPage() {
               className='wallet-amount-number'
               title={loading ? undefined : totalMinima}
             >
-              {loading ? '…' : formatAmountAdaptive(totalMinima)}
+              {loading ? '…' : formatAmountThreshold(totalMinima)}
             </span>
           </div>
         </div>
@@ -266,9 +268,11 @@ export function WalletPage() {
         )}
         <div className='divide-y divide-slate-100'>
           {visibleAssets.map((token) => (
-            <div
+            <button
               key={token.tokenId}
-              className='flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0'
+              type='button'
+              onClick={() => setSelectedAsset(token)}
+              className='w-full flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 text-left hover:bg-slate-50 -mx-1 px-1 rounded-lg transition-colors'
             >
               <div className='min-w-0'>
                 <p className='text-sm font-semibold text-slate-900 truncate'>
@@ -281,11 +285,11 @@ export function WalletPage() {
               <div className='shrink-0 text-right'>
                 <p className='text-sm font-bold text-slate-900 tabular-nums inline-flex items-center gap-1.5'>
                   <TokenGlyph isNative={token.isNative} />
-                  {formatAmountAdaptive(token.sendable)}
+                  {formatAmountThreshold(token.sendable)}
                 </p>
                 <p className='text-xs text-slate-400'>sendable</p>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </Card>
@@ -353,6 +357,12 @@ export function WalletPage() {
         )}
       </Card>
 
+      {selectedAsset && (
+        <AssetDetailModal
+          token={selectedAsset}
+          onClose={() => setSelectedAsset(null)}
+        />
+      )}
       {selectedHistoryItem && (
         <HistoryDetailModal
           item={selectedHistoryItem}
@@ -377,6 +387,52 @@ export function WalletPage() {
         />
       )}
     </Page>
+  );
+}
+
+function AssetDetailModal({
+  token,
+  onClose,
+}: {
+  token: TokenBalance;
+  onClose: () => void;
+}) {
+  return (
+    <Modal title={token.name} onClose={onClose}>
+      <div className='grid gap-4'>
+        <div className='grid gap-1'>
+          <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+            Token ID
+          </p>
+          <CopyableCode value={token.tokenId} />
+        </div>
+        <div className='grid gap-1'>
+          <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+            Sendable
+          </p>
+          <p className='text-lg font-semibold text-slate-900 tabular-nums inline-flex items-center gap-2'>
+            <TokenGlyph isNative={token.isNative} />
+            {formatAmountAdaptive(token.sendable)}
+          </p>
+        </div>
+        <div className='grid gap-1'>
+          <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+            Confirmed
+          </p>
+          <p className='text-sm font-medium text-slate-900 tabular-nums'>
+            {formatAmountAdaptive(token.confirmed)}
+          </p>
+        </div>
+        <div className='grid gap-1'>
+          <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+            Unconfirmed
+          </p>
+          <p className='text-sm font-medium text-slate-500 tabular-nums'>
+            {formatAmountAdaptive(token.unconfirmed)}
+          </p>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
