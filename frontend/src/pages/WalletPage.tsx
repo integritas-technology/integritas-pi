@@ -10,7 +10,7 @@ import {
   getTokenCreateRequirements,
 } from '../features/tokens/tokensApi';
 import type { TokenCreateRequirements } from '../features/tokens/tokensTypes';
-import { formatMinimaAmount } from '../lib/format';
+import { formatAmountAdaptive } from '../lib/format';
 import {
   clearWalletHistoryForDebug,
   getWalletStatus,
@@ -173,24 +173,12 @@ export function WalletPage() {
       desc='Node wallet balance and transaction history.'
     >
       <div className='hero-card wallet-balance-card'>
-        <div className='wallet-hero-left'>
+        <div className='wallet-hero-top'>
           <div className='wallet-hero-header'>
             <div className='wallet-hero-icon'>
               <MinimaIcon size={18} />
             </div>
             <p className='eyebrow'>Node wallet</p>
-          </div>
-          <p className='wallet-amount-label'>Total sendable MINIMA</p>
-        </div>
-        <div className='wallet-hero-right'>
-          <div className='wallet-amount-row'>
-            <MinimaIcon size={36} className='wallet-amount-icon' />
-            <span
-              className='wallet-amount-number'
-              title={loading ? undefined : formatMinimaAmount(totalMinima)}
-            >
-              {loading ? '…' : formatMinimaAmount(totalMinima)}
-            </span>
           </div>
           <div className='wallet-hero-actions'>
             <button
@@ -203,16 +191,16 @@ export function WalletPage() {
             <button
               type='button'
               className='wallet-action-btn wallet-action-btn-ghost'
-              onClick={() => setImportOpen(true)}
+              onClick={() => setCreateTokenOpen(true)}
             >
-              Import wallet
+              Create token
             </button>
             <button
               type='button'
               className='wallet-action-btn wallet-action-btn-ghost'
-              onClick={() => setCreateTokenOpen(true)}
+              onClick={() => setImportOpen(true)}
             >
-              Create token
+              Import wallet
             </button>
             <button
               type='button'
@@ -222,6 +210,18 @@ export function WalletPage() {
             >
               Export wallet
             </button>
+          </div>
+        </div>
+        <div>
+          <p className='wallet-amount-label'>Total sendable MINIMA</p>
+          <div className='wallet-amount-row'>
+            <MinimaIcon size={36} className='wallet-amount-icon' />
+            <span
+              className='wallet-amount-number'
+              title={loading ? undefined : totalMinima}
+            >
+              {loading ? '…' : formatAmountAdaptive(totalMinima)}
+            </span>
           </div>
         </div>
       </div>
@@ -249,7 +249,9 @@ export function WalletPage() {
         {loading && <p className='muted'>Loading…</p>}
         {!loading && visibleAssets.length === 0 && (
           <p className='muted'>
-            {assetTab === 'tokens' ? 'No custom tokens in wallet.' : 'No assets found.'}
+            {assetTab === 'tokens'
+              ? 'No custom tokens in wallet.'
+              : 'No assets found.'}
           </p>
         )}
         <div className='divide-y divide-slate-100'>
@@ -269,7 +271,7 @@ export function WalletPage() {
               <div className='shrink-0 text-right'>
                 <p className='text-sm font-bold text-slate-900 tabular-nums inline-flex items-center gap-1.5'>
                   <TokenGlyph isNative={token.isNative} />
-                  {formatMinimaAmount(token.sendable)}
+                  {formatAmountAdaptive(token.sendable)}
                 </p>
                 <p className='text-xs text-slate-400'>sendable</p>
               </div>
@@ -394,8 +396,8 @@ function SendPaymentModal({
 
   const exceedsBalance = Boolean(
     selectedToken &&
-      isPositiveDecimal(amount) &&
-      compareDecimalStrings(amount.trim(), availableSendable) > 0,
+    isPositiveDecimal(amount) &&
+    compareDecimalStrings(amount.trim(), availableSendable) > 0,
   );
   const canSubmit = !exceedsBalance && !submitting;
 
@@ -639,11 +641,9 @@ function CreateTokenModal({
         <p className='text-sm text-slate-500'>
           Wallet MINIMA:{' '}
           <span
-            className={
-              hasSufficientMinima ? 'text-slate-900' : 'text-red-700'
-            }
+            className={hasSufficientMinima ? 'text-slate-900' : 'text-red-700'}
           >
-            {formatMinimaAmount(availableMinima)} sendable
+            {formatAmountAdaptive(availableMinima)} sendable
           </span>{' '}
           (minimum: {minimumBalance})
         </p>

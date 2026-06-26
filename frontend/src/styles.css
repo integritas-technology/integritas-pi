@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
   color: #020617;
@@ -9,7 +9,7 @@
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
-    "Segoe UI",
+    'Segoe UI',
     sans-serif;
 }
 
@@ -349,7 +349,7 @@ button:disabled {
 .time-stack strong {
   color: #020617;
   font-family:
-    ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
   font-size: 0.86rem;
 }
 
@@ -450,7 +450,7 @@ button:disabled {
 .hero-card::before,
 .hero-card::after {
   position: absolute;
-  content: "";
+  content: '';
   width: 260px;
   height: 260px;
   border-radius: 999px;
@@ -544,7 +544,11 @@ button:disabled {
   padding: 18px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 24px;
-  background: linear-gradient(145deg, rgba(45, 75, 89, 0.72), rgba(64, 62, 86, 0.72));
+  background: linear-gradient(
+    145deg,
+    rgba(45, 75, 89, 0.72),
+    rgba(64, 62, 86, 0.72)
+  );
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
@@ -660,7 +664,8 @@ button:disabled {
 
 .activity-item time {
   color: #475569;
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
   font-size: 0.85rem;
   font-weight: 800;
 }
@@ -730,11 +735,11 @@ button:disabled {
   grid-template-columns: 1fr;
 }
 
-.wallet-hero-left,
-.wallet-hero-right {
-  display: grid;
+.wallet-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 16px;
-  min-width: 0;
 }
 
 .hero-card .eyebrow {
@@ -758,17 +763,20 @@ button:disabled {
 
 .wallet-amount-row {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  align-items: flex-start;
   gap: 16px;
   margin-top: 8px;
   width: 100%;
   min-width: 0;
+  /* establishes em context so the icon offset calc can reference the clamp value */
+  font-size: clamp(2.5rem, 6vw, 3.5rem);
 }
 
 .wallet-amount-icon {
   flex-shrink: 0;
   opacity: 0.55;
+  /* vertically centre icon on the first text line: (line-height - icon-height) / 2 */
+  margin-top: calc((1.1em - 36px) / 2);
 }
 
 .wallet-amount-number {
@@ -776,11 +784,9 @@ button:disabled {
   font-size: clamp(2.5rem, 6vw, 3.5rem);
   font-weight: 700;
   letter-spacing: -0.04em;
-  line-height: 1;
+  line-height: 1.1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-all;
 }
 
 .wallet-amount-label {
@@ -818,11 +824,10 @@ button:disabled {
 
 /* Wallet hero action buttons */
 .wallet-hero-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  padding-top: 18px;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .wallet-action-btn:disabled {
@@ -1308,7 +1313,7 @@ select {
 textarea {
   resize: vertical;
   font-family:
-    ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
 }
 
 .button-row button,
@@ -1468,18 +1473,7 @@ th {
   }
 
   .wallet-balance-card {
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 0.8fr);
-    align-items: start;
-    column-gap: 32px;
-  }
-
-  .wallet-hero-right {
-    justify-items: end;
-    width: 100%;
-  }
-
-  .wallet-hero-actions {
-    width: 100%;
+    grid-template-columns: 1fr;
   }
 
   .two-column {
@@ -1494,10 +1488,6 @@ th {
     align-items: flex-start;
     grid-template-columns: 1fr;
     flex-direction: column;
-  }
-
-  .wallet-hero-actions {
-    grid-template-columns: 1fr;
   }
 }
 
