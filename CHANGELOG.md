@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Wallet page **Assets card**: lists all wallet tokens (Minima + custom) above send history with tab filters — All / Minima / Tokens. Each row shows token name, full token ID, icon, and sendable balance.
+
+### Fixed
+
+- Custom token names now correctly extracted from Minima's `balance` RPC response. Minima encodes custom-token metadata as a JSON object (`{ name, description, … }`) rather than a plain string; the parser previously fell back to the token ID for all custom tokens.
+
 ### Changed
 
 - Wallet simplified to Minima's default single-wallet model — labeled account architecture removed. Balance, send, and token creation now use the full wallet UTXO pool via `balance`, `getaddress`, and `send` RPC commands. The `wallet_accounts` table is retained in SQLite for backward compatibility but is no longer written to.
@@ -14,6 +22,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Create token modal simplified: no account picker; wallet total sendable MINIMA checked against minimum threshold.
 - Token create (`POST /api/tokens/create`) no longer requires `fromAccountAddress`; pre-flight check uses total wallet sendable MINIMA.
 - Removed routes: `GET /api/wallet/accounts`, `POST /api/wallet/accounts`, `POST /api/wallet/debug/clear-wallet-accounts`.
+- Wallet page hero card restructured: action buttons moved to top-right, MINIMA balance moved to bottom spanning full card width with text wrapping enabled. The Minima icon aligns with the first line of the amount when it wraps.
+- Amount display now uses precision-aware formatting: wallet page uses `formatAmountAdaptive` (full precision, trailing zeros trimmed, no decimal cap); dashboard uses `formatAmountThreshold` (6-decimal truncation with `< 0.000001` for sub-threshold values and `> 0.123456` when non-zero digits are hidden beyond 6 places).
 
 ## [0.7.3] - 2026-06-26
 
