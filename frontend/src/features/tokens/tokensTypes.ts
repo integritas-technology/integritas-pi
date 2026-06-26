@@ -8,7 +8,6 @@ export type CreateTokenRequest = {
   name: string;
   amount: string;
   decimal: number;
-  fromAccountAddress: string;
 };
 
 export type CreateTokenResult = {
