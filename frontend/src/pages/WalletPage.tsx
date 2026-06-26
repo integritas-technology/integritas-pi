@@ -13,6 +13,7 @@ import type { TokenCreateRequirements } from '../features/tokens/tokensTypes';
 import { formatAmountAdaptive } from '../lib/format';
 import {
   clearWalletHistoryForDebug,
+  getReceiveAddress,
   getWalletStatus,
   importWallet as importWalletApi,
   listWalletSendHistory,
@@ -20,6 +21,7 @@ import {
 } from '../features/wallet/walletApi';
 import type {
   ImportWalletResult,
+  ReceiveAddress,
   WalletSendHistoryItem,
   WalletStatus,
 } from '../features/wallet/walletTypes';
@@ -105,6 +107,7 @@ export function WalletPage() {
     useState<WalletSendHistoryItem | null>(null);
   const [debugClearingHistory, setDebugClearingHistory] = useState(false);
   const [assetTab, setAssetTab] = useState<'all' | 'minima' | 'tokens'>('all');
+  const [receiveOpen, setReceiveOpen] = useState(false);
 
   async function refresh() {
     setLoading(true);
@@ -184,6 +187,13 @@ export function WalletPage() {
             <button
               type='button'
               className='wallet-action-btn wallet-action-btn-ghost'
+              onClick={() => setReceiveOpen(true)}
+            >
+              Receive payment
+            </button>
+            <button
+              type='button'
+              className='wallet-action-btn wallet-action-btn-ghost'
               onClick={() => setSendOpen(true)}
             >
               Send payment
@@ -195,7 +205,7 @@ export function WalletPage() {
             >
               Create token
             </button>
-            <button
+            {/* <button
               type='button'
               className='wallet-action-btn wallet-action-btn-ghost'
               onClick={() => setImportOpen(true)}
@@ -209,7 +219,7 @@ export function WalletPage() {
               title='Export wallet backup — coming soon'
             >
               Export wallet
-            </button>
+            </button> */}
           </div>
         </div>
         <div>
@@ -349,6 +359,9 @@ export function WalletPage() {
           onClose={() => setSelectedHistoryItem(null)}
         />
       )}
+      {receiveOpen && (
+        <ReceiveAddressModal onClose={() => setReceiveOpen(false)} />
+      )}
       {sendOpen && (
         <SendPaymentModal
           walletStatus={walletStatus}
@@ -364,6 +377,56 @@ export function WalletPage() {
         />
       )}
     </Page>
+  );
+}
+
+function ReceiveAddressModal({ onClose }: { onClose: () => void }) {
+  const [address, setAddress] = useState<ReceiveAddress | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getReceiveAddress()
+      .then(setAddress)
+      .catch((err) =>
+        setError(
+          err instanceof Error ? err.message : 'Could not fetch address.',
+        ),
+      )
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <Modal title='Receive funds' onClose={onClose}>
+      <div className='grid gap-4'>
+        <p className='text-sm text-slate-500'>
+          Share an address below to receive MINIMA or tokens. All addresses
+          belong to this wallet.
+        </p>
+        {loading && <p className='muted'>Fetching address…</p>}
+        {error && (
+          <div className='rounded-xl bg-red-50 border border-red-200 p-3'>
+            <p className='text-sm text-red-700'>{error}</p>
+          </div>
+        )}
+        {address && (
+          <>
+            <div className='grid gap-1'>
+              <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+                Minima address
+              </p>
+              <CopyableCode value={address.miniAddress} />
+            </div>
+            <div className='grid gap-1'>
+              <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+                Hex address
+              </p>
+              <CopyableCode value={address.address} />
+            </div>
+          </>
+        )}
+      </div>
+    </Modal>
   );
 }
 

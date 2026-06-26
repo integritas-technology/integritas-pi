@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - Wallet page **Assets card**: lists all wallet tokens (Minima + custom) above send history with tab filters — All / Minima / Tokens. Each row shows token name, full token ID, icon, and sendable balance.
+- Wallet page **Receive** button: opens a modal that fetches a wallet address via `POST /api/wallet/receive-address` and displays both the Minima (`Mx…`) and hex (`0x…`) formats with copy buttons.
 
 ### Fixed
 
@@ -23,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Token create (`POST /api/tokens/create`) no longer requires `fromAccountAddress`; pre-flight check uses total wallet sendable MINIMA.
 - Removed routes: `GET /api/wallet/accounts`, `POST /api/wallet/accounts`, `POST /api/wallet/debug/clear-wallet-accounts`.
 - Wallet page hero card restructured: action buttons moved to top-right, MINIMA balance moved to bottom spanning full card width with text wrapping enabled. The Minima icon aligns with the first line of the amount when it wraps.
+- Import wallet and Export wallet removed from hero card actions — deferred to a wallet settings modal (not yet implemented).
 - Amount display now uses precision-aware formatting: wallet page uses `formatAmountAdaptive` (full precision, trailing zeros trimmed, no decimal cap); dashboard uses `formatAmountThreshold` (6-decimal truncation with `< 0.000001` for sub-threshold values and `> 0.123456` when non-zero digits are hidden beyond 6 places).
 
 ## [0.7.3] - 2026-06-26
