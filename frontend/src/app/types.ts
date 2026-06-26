@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 
 export type Tone = "neutral" | "good" | "warn" | "future";
-export type NavId = "dashboard" | "setup" | "node" | "wallet" | "integritas" | "data" | "automation" | "diagnostics";
+export type NavId = "dashboard" | "setup" | "node" | "wallet" | "integritas" | "data" | "automation" | "diagnostics" | "settings";
 export type NavItem = { id: NavId; label: string; icon: LucideIcon; badge?: string };
 
 export type Health = { status: string; service: string };

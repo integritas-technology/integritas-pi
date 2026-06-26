@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { env } from "../../config/env.js";
-import { login } from "./auth.service.js";
+import { login, changePassword, initTotpReset, verifyTotpReset, AuthSettingsError } from "./auth.service.js";
 import { recordAuditEvent } from "./audit.service.js";
 import { authRateLimiter } from "./rate-limit.middleware.js";
 import { deleteSession, sessionCookieOptions } from "./session.service.js";
@@ -49,4 +49,49 @@ authProtectedRouter.get("/me", (req, res) => {
     role: req.user.role,
     lastLogin: req.user.lastLogin
   });
+});
+
+authProtectedRouter.post("/settings/password", authRateLimiter, async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    const currentPassword = typeof req.body?.currentPassword === "string" ? req.body.currentPassword : "";
+    const newPassword = typeof req.body?.newPassword === "string" ? req.body.newPassword : "";
+    const totpToken = typeof req.body?.totpToken === "string" ? req.body.totpToken : "";
+    await changePassword(req.user.id, { currentPassword, newPassword, totpToken });
+    return res.json({ success: true });
+  } catch (error) {
+    if (error instanceof AuthSettingsError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    return res.status(500).json({ error: "Failed to change password" });
+  }
+});
+
+authProtectedRouter.post("/settings/totp/init", authRateLimiter, async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    const currentPassword = typeof req.body?.currentPassword === "string" ? req.body.currentPassword : "";
+    const totpToken = typeof req.body?.totpToken === "string" ? req.body.totpToken : "";
+    const result = await initTotpReset(req.user.id, { currentPassword, totpToken });
+    return res.json(result);
+  } catch (error) {
+    if (error instanceof AuthSettingsError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    return res.status(500).json({ error: "Failed to initialize TOTP reset" });
+  }
+});
+
+authProtectedRouter.post("/settings/totp/verify", authRateLimiter, async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    const totpToken = typeof req.body?.totpToken === "string" ? req.body.totpToken : "";
+    await verifyTotpReset(req.user.id, totpToken);
+    return res.json({ success: true });
+  } catch (error) {
+    if (error instanceof AuthSettingsError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    return res.status(500).json({ error: "Failed to verify TOTP reset" });
+  }
 });

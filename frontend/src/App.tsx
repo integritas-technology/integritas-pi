@@ -11,6 +11,7 @@ import { MinimaPage } from "./pages/MinimaPage";
 import { AutomationPage } from "./pages/AutomationPage";
 import { SetupPage } from "./pages/SetupPage";
 import { WalletPage } from "./pages/WalletPage";
+import { AuthSettingsPage } from "./pages/AuthSettingsPage";
 
 function ActivePage({
   active,
@@ -29,7 +30,8 @@ function ActivePage({
     integritas: <IntegritasPage />,
     data: <DataSourcesPage />,
     automation: <AutomationPage />,
-    diagnostics: <DiagnosticsPage />
+    diagnostics: <DiagnosticsPage />,
+    settings: <AuthSettingsPage onBack={() => setActive("dashboard")} />
   };
   return <>{pages[active]}</>;
 }

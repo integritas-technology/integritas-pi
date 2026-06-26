@@ -46,7 +46,7 @@ export function AppShell({
             <div><p>Minima Edge Stack</p><h1>Edge Workbench</h1></div>
           </div>
 
-          <SidebarUserBox user={user} onSignOut={onSignOut} />
+          <SidebarUserBox user={user} onSignOut={onSignOut} onSettings={() => setActive("settings")} />
 
           <nav className="nav-list">
             {nav.map(({ id, label, icon: Icon, badge }) => (
