@@ -4,7 +4,6 @@ import type {
   ReceiveAddress,
   SendPaymentResult,
   TokenBalance,
-  WalletAccountTokenBalance,
   WalletStatus
 } from "./wallet.types.js";
 
@@ -106,107 +105,4 @@ export function parseImportResponse(body: unknown): ImportWalletResult {
     return { ok: false, message: asString(record.error ?? record.message, "Import failed") };
   }
   return { ok: true, message: "Wallet restored. The node may restart to apply the new seed." };
-}
-
-type CoinRecord = {
-  amount: string;
-  address: string;
-  tokenId: string;
-  tokenName: string;
-  spent: boolean;
-};
-
-function getTokenName(rawToken: unknown, tokenId: string): string {
-  if (typeof rawToken === "string" && rawToken.trim()) return rawToken.trim();
-  const tokenObj = asRecord(rawToken);
-  if (!tokenObj) return tokenId;
-  const nameValue = tokenObj.name;
-  if (typeof nameValue === "string" && nameValue.trim()) return nameValue.trim();
-  const nestedName = asRecord(nameValue);
-  if (nestedName && typeof nestedName.name === "string" && nestedName.name.trim()) {
-    return nestedName.name.trim();
-  }
-  return tokenId;
-}
-
-export function addDecimalStrings(a: string, b: string): string {
-  const [aInt, aFrac = ""] = a.split(".");
-  const [bInt, bFrac = ""] = b.split(".");
-  const fracLen = Math.max(aFrac.length, bFrac.length);
-  const aNorm = `${aInt || "0"}${aFrac.padEnd(fracLen, "0")}`;
-  const bNorm = `${bInt || "0"}${bFrac.padEnd(fracLen, "0")}`;
-  const sum = (BigInt(aNorm || "0") + BigInt(bNorm || "0")).toString().padStart(fracLen + 1, "0");
-  if (fracLen === 0) return sum;
-  const intPart = sum.slice(0, -fracLen).replace(/^0+(?=\d)/, "");
-  const fracPart = sum.slice(-fracLen).replace(/0+$/, "");
-  return fracPart ? `${intPart}.${fracPart}` : intPart;
-}
-
-export function compareDecimalStrings(a: string, b: string): number {
-  const normalize = (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed || trimmed === ".") return { int: "0", frac: "" };
-    const [intPart = "0", fracPart = ""] = trimmed.split(".");
-    return {
-      int: intPart.replace(/^0+(?=\d)/, "") || "0",
-      frac: fracPart
-    };
-  };
-  const aNorm = normalize(a);
-  const bNorm = normalize(b);
-  const fracLen = Math.max(aNorm.frac.length, bNorm.frac.length);
-  const aCombined = `${aNorm.int}${aNorm.frac.padEnd(fracLen, "0")}`;
-  const bCombined = `${bNorm.int}${bNorm.frac.padEnd(fracLen, "0")}`;
-  if (aCombined === bCombined) return 0;
-  return BigInt(aCombined) > BigInt(bCombined) ? 1 : -1;
-}
-
-export function parseCoinsResponse(body: unknown): CoinRecord[] {
-  const record = asRecord(body);
-  if (!record || record.status === false) return [];
-  const response = record.response;
-  if (!Array.isArray(response)) return [];
-  const result: CoinRecord[] = [];
-  for (const item of response) {
-    const coin = asRecord(item);
-    if (!coin) continue;
-    const address = asString(coin.address, "");
-    const tokenId = asString(coin.tokenid, "");
-    const amount = asString(coin.tokenamount, asString(coin.amount, "0"));
-    if (!address || !tokenId) continue;
-    result.push({
-      amount,
-      address,
-      tokenId,
-      tokenName: getTokenName(coin.token, tokenId),
-      spent: coin.spent === true
-    });
-  }
-  return result;
-}
-
-export function buildAccountTokenBalances(coins: CoinRecord[]): WalletAccountTokenBalance[] {
-  const byToken = new Map<string, { amount: string; name: string; isNative: boolean }>();
-  for (const coin of coins) {
-    if (coin.spent) continue;
-    if (!coin.amount || coin.amount === "0") continue;
-    const existing = byToken.get(coin.tokenId);
-    if (existing) {
-      existing.amount = addDecimalStrings(existing.amount, coin.amount);
-      continue;
-    }
-    byToken.set(coin.tokenId, {
-      amount: coin.amount,
-      name: coin.tokenId === "0x00" ? "Minima" : coin.tokenName,
-      isNative: coin.tokenId === "0x00"
-    });
-  }
-  return [...byToken.entries()]
-    .map(([tokenId, value]) => ({
-      tokenId,
-      name: value.name,
-      amount: value.amount,
-      isNative: value.isNative
-    }))
-    .sort((a, b) => Number(b.isNative) - Number(a.isNative) || a.name.localeCompare(b.name));
 }
