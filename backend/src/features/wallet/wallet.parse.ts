@@ -29,6 +29,11 @@ function parseToken(raw: unknown): TokenBalance | null {
     name = "Minima";
   } else if (typeof rawName === "string" && rawName.trim()) {
     name = rawName.trim();
+  } else if (rawName && typeof rawName === "object" && !Array.isArray(rawName)) {
+    // Minima returns custom-token metadata as a JSON object: { name, description, url, ... }
+    const meta = rawName as Record<string, unknown>;
+    const metaName = typeof meta.name === "string" ? meta.name.trim() : "";
+    name = metaName || tokenId;
   } else {
     name = tokenId;
   }
