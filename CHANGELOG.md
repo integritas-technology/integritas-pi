@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- Wallet simplified to Minima's default single-wallet model — labeled account architecture removed. Balance, send, and token creation now use the full wallet UTXO pool via `balance`, `getaddress`, and `send` RPC commands. The `wallet_accounts` table is retained in SQLite for backward compatibility but is no longer written to.
+- Wallet page hero card now shows total sendable MINIMA from `GET /api/wallet` instead of aggregating per-labeled-account balances.
+- Send payment modal simplified: no source account selection, token list and sendable balance sourced from live wallet status.
+- Create token modal simplified: no account picker; wallet total sendable MINIMA checked against minimum threshold.
+- Token create (`POST /api/tokens/create`) no longer requires `fromAccountAddress`; pre-flight check uses total wallet sendable MINIMA.
+- Removed routes: `GET /api/wallet/accounts`, `POST /api/wallet/accounts`, `POST /api/wallet/debug/clear-wallet-accounts`.
+
 ## [0.7.3] - 2026-06-26
 
 ### Added
