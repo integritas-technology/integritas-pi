@@ -104,6 +104,7 @@ export function WalletPage() {
   const [selectedHistoryItem, setSelectedHistoryItem] =
     useState<WalletSendHistoryItem | null>(null);
   const [debugClearingHistory, setDebugClearingHistory] = useState(false);
+  const [assetTab, setAssetTab] = useState<'all' | 'minima' | 'tokens'>('all');
 
   async function refresh() {
     setLoading(true);
@@ -129,6 +130,13 @@ export function WalletPage() {
   const nativeToken = walletStatus?.tokens.find((t) => t.isNative);
   const totalMinima = nativeToken?.sendable ?? '0';
   const isDev = import.meta.env.DEV;
+
+  const allTokens = walletStatus?.tokens ?? [];
+  const visibleAssets = allTokens.filter((t) => {
+    if (assetTab === 'minima') return t.isNative;
+    if (assetTab === 'tokens') return !t.isNative;
+    return true;
+  });
 
   async function handleDebugClearWalletHistory() {
     const confirmed = window.confirm(
@@ -217,6 +225,58 @@ export function WalletPage() {
           </div>
         </div>
       </div>
+
+      <Card>
+        <div className='flex items-center justify-between gap-3 mb-4'>
+          <p className='eyebrow'>Assets</p>
+          <div className='flex gap-1 rounded-lg bg-slate-100 p-0.5'>
+            {(['all', 'minima', 'tokens'] as const).map((tab) => (
+              <button
+                key={tab}
+                type='button'
+                onClick={() => setAssetTab(tab)}
+                className={`px-3 py-1 rounded-md text-xs font-semibold capitalize transition-colors ${
+                  assetTab === tab
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {tab === 'all' ? 'All' : tab === 'minima' ? 'Minima' : 'Tokens'}
+              </button>
+            ))}
+          </div>
+        </div>
+        {loading && <p className='muted'>Loading…</p>}
+        {!loading && visibleAssets.length === 0 && (
+          <p className='muted'>
+            {assetTab === 'tokens' ? 'No custom tokens in wallet.' : 'No assets found.'}
+          </p>
+        )}
+        <div className='divide-y divide-slate-100'>
+          {visibleAssets.map((token) => (
+            <div
+              key={token.tokenId}
+              className='flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0'
+            >
+              <div className='min-w-0'>
+                <p className='text-sm font-semibold text-slate-900 truncate'>
+                  {token.name}
+                </p>
+                <p className='text-xs text-slate-400 font-mono truncate'>
+                  {token.tokenId}
+                </p>
+              </div>
+              <div className='shrink-0 text-right'>
+                <p className='text-sm font-bold text-slate-900 tabular-nums inline-flex items-center gap-1.5'>
+                  <TokenGlyph isNative={token.isNative} />
+                  {formatMinimaAmount(token.sendable)}
+                </p>
+                <p className='text-xs text-slate-400'>sendable</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
 
       <Card>
         <div className='flex items-center justify-between gap-3 mb-4'>
