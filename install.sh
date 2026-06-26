@@ -297,12 +297,11 @@ services:
   backend:
     devices:
       - /dev/gpiochip0:/dev/gpiochip0
-    group_add:
-      - "\${DOCKER_GID:-0}"
 EOF
 
   if [ "$gpio_group" != "$docker_group" ]; then
     cat >> "$APP_DIR/docker-compose.override.yml" <<EOF
+    group_add:
       - "\${GPIO_GID:-0}"
 EOF
   fi
