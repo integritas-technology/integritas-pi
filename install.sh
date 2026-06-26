@@ -275,10 +275,16 @@ EOF
 }
 
 write_compose_override() {
+  local docker_group
+  local gpio_group
+
   if ! is_truthy "$ENABLE_GPIO"; then
     rm -f "$APP_DIR/docker-compose.override.yml"
     return
   fi
+
+  docker_group="${DOCKER_GID:-0}"
+  gpio_group="${GPIO_GID:-0}"
 
   log "Enabling GPIO device access"
 
@@ -295,7 +301,7 @@ services:
       - "\${DOCKER_GID:-0}"
 EOF
 
-  if [ "$GPIO_GID" != "$DOCKER_GID" ]; then
+  if [ "$gpio_group" != "$docker_group" ]; then
     cat >> "$APP_DIR/docker-compose.override.yml" <<EOF
       - "\${GPIO_GID:-0}"
 EOF
