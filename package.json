@@ -4,8 +4,12 @@
   "private": true,
   "scripts": {
     "dev:frontend": "npm --prefix frontend run dev",
+    "dev:frontend:https": "npm --prefix frontend run dev:https",
     "dev:backend": "npm --prefix backend run dev",
+    "dev:backend:https": "COOKIE_SECURE=true npm run dev:backend",
+    "dev:https:prepare": "bash scripts/generate-tls-cert.sh",
     "dev": "concurrently -n backend,frontend -c magenta,cyan \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:https": "npm run dev:https:prepare && concurrently -n backend,frontend -c magenta,cyan \"npm run dev:backend:https\" \"npm run dev:frontend:https\"",
     "typecheck": "npm --prefix backend run typecheck && npm --prefix frontend run typecheck",
     "build": "npm --prefix backend run build && npm --prefix frontend run build",
     "audit:moderate": "npm --prefix backend audit --audit-level=moderate && npm --prefix frontend audit --audit-level=moderate",

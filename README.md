@@ -33,19 +33,22 @@ The installer will:
 - Verify Docker Compose
 - Clone this repository to `/opt/integritas-pi`
 - Write `/opt/integritas-pi/.env`
+- Generate a self-signed TLS certificate in `DATA_DIR/certs`
 - Start the app with `docker compose up -d --build`
 
 Open the UI at:
 
 ```txt
-http://<pi-ip>:8080
+https://<pi-ip>:8080
 ```
 
 Or locally on the Pi:
 
 ```txt
-http://localhost:8080
+https://localhost:8080
 ```
+
+Your browser will warn about the self-signed certificate. That is expected — choose Advanced / Continue. Traffic is encrypted after that.
 
 ## Configuration
 
@@ -72,10 +75,12 @@ INTEGRITAS_REQUEST_TIMEOUT_MS=15000
 INTEGRITAS_POLL_INTERVAL_SECONDS=30
 INTEGRITAS_PROOF_POLL_TIMEOUT_MINUTES=5
 INTEGRITAS_PORTAL_URL=
-COOKIE_SECURE=false
+COOKIE_SECURE=true
 SESSION_MAX_AGE_DAYS=7
 SESSION_IDLE_HOURS=24
 ```
+
+The installer sets `COOKIE_SECURE=true` for the default HTTPS Docker deploy. Use `COOKIE_SECURE=false` only for native `npm run dev` (HTTP on port 5173).
 
 `HOST_FILES_DIR` is mounted into the backend container as `/host-files:ro`. The `:ro` flag is intentional for this prototype.
 
@@ -122,7 +127,17 @@ Minima RPC commands should be transmitted as a single percent-encoded URL path c
 http://minima:9005/megammrsync%20action%3Aresync%20host%3Amegammr.minima.global%3A9001
 ```
 
-`COOKIE_SECURE` controls the session cookie `Secure` flag. Leave `false` for the default HTTP LAN deploy (`http://<pi-ip>:8080`). Set `true` when serving the UI over HTTPS.
+`COOKIE_SECURE` controls the session cookie `Secure` flag. The Docker deploy uses HTTPS with `COOKIE_SECURE=true` (`https://<pi-ip>:8080`). Native dev uses HTTP on `http://localhost:5173` with `COOKIE_SECURE=false`.
+
+TLS certificates are stored in `DATA_DIR/certs` (`server.crt`, `server.key`). The installer generates them automatically. To regenerate after a Pi IP change:
+
+```bash
+cd /opt/integritas-pi
+INTEGRITAS_TLS_FORCE=1 bash scripts/generate-tls-cert.sh
+docker compose up -d --build frontend
+```
+
+Future versions may support custom certificates or an external reverse proxy.
 
 `SESSION_MAX_AGE_DAYS` and `SESSION_IDLE_HOURS` control session lifetime (default 7 days max, 24 hours idle).
 
@@ -161,6 +176,18 @@ Open:
 http://localhost:5173
 ```
 
+### HTTPS dev (matches Docker self-signed behavior)
+
+To test secure cookies and HTTPS-only browser APIs during native dev:
+
+```bash
+npm run dev:https
+```
+
+Open `https://localhost:5173` and accept the self-signed certificate warning (same certs as `scripts/generate-tls-cert.sh` / Docker). The backend runs with `COOKIE_SECURE=true`.
+
+Plain `npm run dev` stays on HTTP for fast iteration.
+
 The backend loads the repo-root `.env` automatically in dev. `DATABASE_PATH`, `DATA_DIR`, and `HOST_FILES_DIR` are resolved relative to the repo root.
 
 Frontend styling direction: component and page styling should use Tailwind utilities going forward. Plain CSS should be limited to root/body/base global rules, with existing component-level CSS migrated incrementally as frontend files are touched.
@@ -177,6 +204,12 @@ Without Minima, the rest of the app still works; the status overview will report
 
 ### Full stack in Docker
 
+Generate a TLS certificate (once per machine, or after a LAN IP change):
+
+```bash
+bash scripts/generate-tls-cert.sh
+```
+
 Start everything:
 
 ```bash
@@ -186,8 +219,10 @@ docker compose up -d --build
 Open:
 
 ```txt
-http://localhost:8080
+https://localhost:8080
 ```
+
+Accept the browser warning for the self-signed certificate.
 
 View logs:
 
@@ -245,14 +280,16 @@ integritas-pi integritas history
 By default the CLI calls:
 
 ```txt
-http://localhost:8080/api
+https://localhost:8080/api
 ```
 
 Override it when calling a remote Pi:
 
 ```bash
-INTEGRITAS_PI_API_URL=http://<pi-ip>:8080/api integritas-pi status
+INTEGRITAS_PI_API_URL=https://<pi-ip>:8080/api integritas-pi status
 ```
+
+The CLI uses `curl -k` because the default deploy uses a self-signed certificate.
 
 Run checks before pushing or installing on a Pi:
 
@@ -312,7 +349,7 @@ curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi
 ```txt
 Browser
   |
-  | http://<pi-ip>:8080
+  | https://<pi-ip>:8080
   v
 frontend container
   - React static app
@@ -499,7 +536,7 @@ See [`SECURITY.md`](./SECURITY.md) for the current risk register, known vulnerab
 - Integritas API key is backend-only and encrypted at rest in SQLite when saved from the UI
 - Backend mounts `/var/run/docker.sock:ro` to read container status and resource usage for the App status page. This is useful for the prototype, but Docker socket access is sensitive and should be replaced with a narrower monitoring approach before production.
 - Admin authentication with password + TOTP and HttpOnly session cookies (see [Authentication](#authentication))
-- Set `COOKIE_SECURE=true` when exposing the UI over HTTPS on untrusted networks
+- HTTPS with a self-signed certificate on the default Docker deploy (`COOKIE_SECURE=true`)
 
 ## Future Services
 

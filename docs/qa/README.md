@@ -32,14 +32,14 @@ Do **not** block Phase 5 Integritas UI or other product work on completing QA �
 
 ## QA exit criteria (project-level)
 
-- [ ] Auth P0 gaps closed or accepted — see [auth-gaps.md](./auth-gaps.md#exit-criteria-auth-qa-sign-off)
+- [ ] Auth P0 gaps closed or accepted — see [auth-gaps.md](./auth-gaps.md#exit-criteria-auth-qa-sign-off) and [v1-security.md](../plans/v1-security.md)
 - [ ] Integritas sandbox integration tests passing locally with `INTEGRITAS_SANDBOX_API_KEY` (optional in CI)
 - [ ] Integritas manual checklist below passed on a Pi or dev stack with a real API key
 - [ ] Device status P0 gaps verified — see [device-status-gaps.md](./device-status-gaps.md#exit-criteria-device-status-qa-sign-off)
 - [ ] Wallet P0 gaps verified — see [wallet-gaps.md](./wallet-gaps.md#exit-criteria-wallet-qa-sign-off) (HTTPS required before seed phrase import)
 - [ ] Tokens P0 gaps verified — see [tokens-gaps.md](./tokens-gaps.md#exit-criteria-tokens-qa-sign-off) (live `tokencreate` on Pi hardware)
 - [ ] `npm run check` + `docker compose build` clean
-- [ ] `SECURITY.md` updated with deploy mode (HTTP LAN vs HTTPS) and any accepted risks
+- [ ] `SECURITY.md` updated with deploy mode (HTTPS self-signed) and any accepted risks
 
 ---
 
@@ -49,7 +49,7 @@ Do **not** block Phase 5 Integritas UI or other product work on completing QA �
 
 | Priority | Topic | Detail doc |
 |---|---|---|
-| **P0** | HTTPS / `COOKIE_SECURE` / HSTS | [GAP-01](./auth-gaps.md#gap-01--transport-security-https--secure-cookies) |
+| **P0** | HTTPS / `COOKIE_SECURE` (HSTS deferred) | [GAP-01](./auth-gaps.md#gap-01--transport-security-https--secure-cookies) · [v1-security.md](../plans/v1-security.md) |
 | **P0** | Automated auth route tests (401, rate limit, setup guard) | [GAP-02](./auth-gaps.md#gap-02--automated-auth-security-tests) |
 | **P0** | Manual wizard + login E2E checklist | [GAP-03](./auth-gaps.md#gap-03--manual-end-to-end-auth-test-script) |
 | **P0** | `APP_SECRET` production validation | [GAP-04](./auth-gaps.md#gap-04--app_secret-startup-validation) |
