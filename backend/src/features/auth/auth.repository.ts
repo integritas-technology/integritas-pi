@@ -115,6 +115,14 @@ export function getLatestSetupPending() {
     | undefined;
 }
 
+export function updateUserPassword(userId: string, passwordHash: string) {
+  db.prepare("UPDATE users SET password = ? WHERE id = ?").run(passwordHash, userId);
+}
+
+export function updateUserTotpSecret(userId: string, totpSecretEncrypted: string) {
+  db.prepare("UPDATE users SET totp_secret = ? WHERE id = ?").run(totpSecretEncrypted, userId);
+}
+
 export function insertAuditEvent(input: { userId?: string | null; action: string; detail?: string }) {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
