@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-06-26
+
 ### Added
 
 - V1 security sign-off checklist in `docs/plans/v1-security.md` (HTTPS done; headers, tests, and APP_SECRET guard remain).
