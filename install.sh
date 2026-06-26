@@ -293,8 +293,13 @@ services:
       - /dev/gpiochip0:/dev/gpiochip0
     group_add:
       - "\${DOCKER_GID:-0}"
+EOF
+
+  if [ "$GPIO_GID" != "$DOCKER_GID" ]; then
+    cat >> "$APP_DIR/docker-compose.override.yml" <<EOF
       - "\${GPIO_GID:-0}"
 EOF
+  fi
 }
 
 start_app() {
