@@ -1,4 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { existsSync } from "node:fs";
 import { listAutomationWorkflows, type AutomationWorkflowRecord } from "../automation/automation.repository.js";
 import { recordPushAutomationError, recordPushAutomationPayload } from "../automation/automation.service.js";
 import { listDataSources, updateDataSourceReadResult, type DataSourceRecord } from "./dataSources.repository.js";
@@ -11,6 +12,16 @@ type Watcher = {
 };
 
 const watchers = new Map<string, Watcher>();
+
+export function getGpioInputCapability() {
+  const devicePath = "/dev/gpiochip0";
+  const deviceAvailable = existsSync(devicePath);
+  return {
+    available: deviceAvailable,
+    devicePath,
+    reason: deviceAvailable ? null : `${devicePath} is not mounted in the backend container. Reinstall with ENABLE_GPIO=true or add a Docker Compose override.`
+  };
+}
 
 export function startGpioIngestion() {
   syncGpioDataSources();

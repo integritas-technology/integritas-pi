@@ -1,6 +1,6 @@
 import { Cpu, Globe2, Radio, Webhook } from "lucide-react";
 import { Card } from "../../components/Card";
-import type { DataSourceTemplate } from "./dataSourceTypes";
+import type { DataSourceCapabilities, DataSourceTemplate } from "./dataSourceTypes";
 
 export const dataSourceTemplates: DataSourceTemplate[] = [
   { title: "HTTP JSON API", description: "Fetch JSON from an external API, Pi service, or Docker-network endpoint", type: "json-api", config: { url: "https://example.com/data.json", method: "GET", headers: {} } },
@@ -9,17 +9,19 @@ export const dataSourceTemplates: DataSourceTemplate[] = [
   { title: "GPIO Input", description: "Record Raspberry Pi GPIO pin edge events as JSON", type: "gpio-input", config: { chip: "gpiochip0", pin: 17, pull: "off", edge: "both", debounceMs: 100, activeState: "high" } }
 ];
 
-export function DataSourceTemplates({ onSelect }: { onSelect: (template: DataSourceTemplate) => void }) {
+export function DataSourceTemplates({ capabilities, onSelect }: { capabilities: DataSourceCapabilities | null; onSelect: (template: DataSourceTemplate) => void }) {
   return (
     <div className="data-source-template-grid">
       {dataSourceTemplates.map((template, index) => {
         const Icon = template.type === "json-api" ? Globe2 : template.type === "webhook" ? Webhook : template.type === "mqtt" ? Radio : Cpu;
+        const disabled = template.type === "gpio-input" && capabilities?.gpioInput.available === false;
         return (
           <Card className="data-source-template" key={template.title}>
             <Icon size={24} />
             <h3>{template.title}</h3>
             <p>{template.description}</p>
-            <button type="button" onClick={() => onSelect(template)}>Add source</button>
+            {disabled && <p className="muted">{capabilities?.gpioInput.reason}</p>}
+            <button type="button" disabled={disabled} onClick={() => onSelect(template)}>Add source</button>
           </Card>
         );
       })}

@@ -1,8 +1,12 @@
 import { deleteJson, getJson, patchJson, postJson } from "../../lib/api";
-import type { DataSource, DataSourceHealthStatus } from "./dataSourceTypes";
+import type { DataSource, DataSourceCapabilities, DataSourceHealthStatus } from "./dataSourceTypes";
 
 export async function listDataSources() {
   return getJson<{ items: DataSource[] }>("/api/data-sources");
+}
+
+export async function getDataSourceCapabilities() {
+  return getJson<DataSourceCapabilities>("/api/data-sources/capabilities");
 }
 
 export async function createDataSource(input: { name: string; type: DataSource["type"]; description: string; config: DataSource["config"] }) {

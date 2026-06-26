@@ -2,15 +2,16 @@ import { useEffect, useState } from "react";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
 import { useToast } from "../components/ToastProvider";
-import { checkDataSourceHealth, createDataSource, deleteDataSource, listDataSources, readDataSource, updateDataSource } from "../features/data-sources/dataSourcesApi";
+import { checkDataSourceHealth, createDataSource, deleteDataSource, getDataSourceCapabilities, listDataSources, readDataSource, updateDataSource } from "../features/data-sources/dataSourcesApi";
 import { DataSourceForm } from "../features/data-sources/DataSourceForm";
 import { DataSourcesList } from "../features/data-sources/DataSourcesList";
 import { DataSourceTemplates } from "../features/data-sources/DataSourceTemplates";
-import type { DataSource, DataSourceHealthStatus, DataSourceTemplate } from "../features/data-sources/dataSourceTypes";
+import type { DataSource, DataSourceCapabilities, DataSourceHealthStatus, DataSourceTemplate } from "../features/data-sources/dataSourceTypes";
 
 export function DataSourcesPage() {
   const { showToast } = useToast();
   const [items, setItems] = useState<DataSource[]>([]);
+  const [capabilities, setCapabilities] = useState<DataSourceCapabilities | null>(null);
   const [template, setTemplate] = useState<DataSourceTemplate | null>(null);
   const [editingSource, setEditingSource] = useState<DataSource | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -42,8 +43,9 @@ export function DataSourcesPage() {
   }, [items]);
 
   async function refresh() {
-    const response = await listDataSources();
+    const [response, capabilityResponse] = await Promise.all([listDataSources(), getDataSourceCapabilities()]);
     setItems(response.items);
+    setCapabilities(capabilityResponse);
   }
 
   function refreshHealthStatuses() {
@@ -138,7 +140,7 @@ export function DataSourcesPage() {
 
   return (
     <Page eyebrow="Data Sources" title="Bring JSON data into the system" desc="Add sources by protocol. Fetch JSON from HTTP APIs, receive pushed JSON through webhooks/MQTT, or record GPIO input events.">
-      <DataSourceTemplates onSelect={applyTemplate} />
+      <DataSourceTemplates capabilities={capabilities} onSelect={applyTemplate} />
 
       {formOpen && (
         <Modal title={editingSource ? "Edit source" : "Add source"} onClose={closeForm}>

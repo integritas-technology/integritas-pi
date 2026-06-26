@@ -43,3 +43,11 @@ export type DataSourceHealthStatus = {
   checkedAt?: string;
   error?: string;
 };
+
+export type DataSourceCapabilities = {
+  gpioInput: {
+    available: boolean;
+    devicePath: string;
+    reason: string | null;
+  };
+};

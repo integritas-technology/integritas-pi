@@ -5,7 +5,7 @@ import { getEnabledAutomationWorkflowForDataSource } from "../automation/automat
 import { recordPushAutomationPayload } from "../automation/automation.service.js";
 import { createDataSource, deleteDataSource, findWebhookDataSource, getDataSource, listDataSources, updateDataSource, updateDataSourceReadResult } from "./dataSources.repository.js";
 import { syncMqttDataSources } from "./mqttIngestion.service.js";
-import { syncGpioDataSources } from "./gpioIngestion.service.js";
+import { getGpioInputCapability, syncGpioDataSources } from "./gpioIngestion.service.js";
 import { checkDataSourceHealth, parseDataSourceConfig, parseJsonApiConfig, processWebhookPayload, readJsonApiSource, serializeDataSource } from "./dataSources.service.js";
 
 export const dataSourcesRouter = Router();
@@ -31,6 +31,10 @@ dataSourcesRouter.get("/", (_req, res) => {
   res.json({ items: listDataSources().map(serializeDataSource) });
 });
 
+dataSourcesRouter.get("/capabilities", (_req, res) => {
+  res.json({ gpioInput: getGpioInputCapability() });
+});
+
 dataSourcesRouter.post("/", requireRole("admin"), (req, res) => {
   const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
   const type = typeof req.body?.type === "string" ? req.body.type : "json-api";
@@ -38,6 +42,7 @@ dataSourcesRouter.post("/", requireRole("admin"), (req, res) => {
 
   if (!name) return res.status(400).json({ error: "name is required" });
   if (type !== "json-api" && type !== "internal-json-api" && type !== "webhook" && type !== "mqtt" && type !== "gpio-input") return res.status(400).json({ error: "Only HTTP JSON API, webhook, MQTT, and GPIO input sources are supported" });
+  if (type === "gpio-input" && !getGpioInputCapability().available) return res.status(400).json({ error: getGpioInputCapability().reason });
 
   try {
     const config = parseDataSourceConfig(type, req.body?.config);
@@ -67,6 +72,7 @@ dataSourcesRouter.patch("/:id", requireRole("admin"), (req, res) => {
 
   if (!name) return res.status(400).json({ error: "name is required" });
   if (type !== "json-api" && type !== "internal-json-api" && type !== "webhook" && type !== "mqtt" && type !== "gpio-input") return res.status(400).json({ error: "Only HTTP JSON API, webhook, MQTT, and GPIO input sources are supported" });
+  if (type === "gpio-input" && !getGpioInputCapability().available) return res.status(400).json({ error: getGpioInputCapability().reason });
 
   try {
     const config = parseDataSourceConfig(type, req.body?.config, JSON.parse(existing.config) as unknown);

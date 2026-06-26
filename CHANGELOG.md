@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - GPIO Input data sources for Raspberry Pi BCM pin edge events. GPIO sources are input-only, automation-gated, and recorded as JSON payloads through the existing read history/stamping path.
 - Installer option `ENABLE_GPIO=true` now creates a Docker Compose override for `/dev/gpiochip0` and records the detected GPIO group id in `.env`.
+- Data Sources now reports backend capabilities and disables GPIO Input creation when GPIO device access is not available.
 
 ## [0.7.1] - 2026-06-24
 
