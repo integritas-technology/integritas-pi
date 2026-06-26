@@ -16,3 +16,15 @@ export async function login(input: { password: string; totpToken: string }) {
 export async function logout() {
   return postJson<{ success: boolean }>("/api/auth/logout");
 }
+
+export async function changePassword(input: { currentPassword: string; newPassword: string; totpToken: string }) {
+  return postJson<{ success: boolean }>("/api/auth/settings/password", input);
+}
+
+export async function initTotpReset(input: { currentPassword: string; totpToken: string }) {
+  return postJson<{ qrCodePngBase64: string; secret: string; expiresAt: string }>("/api/auth/settings/totp/init", input);
+}
+
+export async function verifyTotpReset(input: { totpToken: string }) {
+  return postJson<{ success: boolean }>("/api/auth/settings/totp/verify", input);
+}
