@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-06-26
+
 ### Added
 
 - Wallet page **Assets card**: lists all wallet tokens (Minima + custom) above send history with tab filters — All / Minima / Tokens. Each row shows token name, full token ID, icon, and sendable balance.
