@@ -23,6 +23,20 @@ Run:
 curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/install.sh | sudo bash
 ```
 
+To install from a branch before it is merged to `main`, pass `APP_BRANCH`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/install.sh | sudo env APP_BRANCH=<branch-name> bash
+```
+
+To enable Raspberry Pi GPIO input sources during install, pass `ENABLE_GPIO=true`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/install.sh | sudo env ENABLE_GPIO=true bash
+```
+
+`ENABLE_GPIO=true` writes `/opt/integritas-pi/docker-compose.override.yml` with `/dev/gpiochip0` mounted into the backend container and detects the host GPIO group id. Leave it disabled unless this deployment needs GPIO hardware ingestion.
+
 The installer will:
 
 - Check that it runs as root or through `sudo`
@@ -57,6 +71,8 @@ FRONTEND_PORT=8080
 DATA_DIR=./data
 APP_SECRET=dev-change-me
 DOCKER_GID=0
+ENABLE_GPIO=false
+GPIO_GID=0
 MINIMA_DATA_DIR=./minima
 MINIMA_P2P_PORT=9003
 MINIMA_RPC_BIND=127.0.0.1
@@ -90,6 +106,8 @@ The backend runs a Minima health poller on `MINIMA_HEALTH_POLL_INTERVAL_SECONDS`
 `APP_SECRET` is used by the backend to encrypt local secrets before storing them in SQLite. The installer generates this automatically and preserves it on updates. If it changes, previously encrypted secrets cannot be decrypted.
 
 `DOCKER_GID` lets the non-root backend user read Docker status through `/var/run/docker.sock`. The installer detects this automatically from the socket group id.
+
+`ENABLE_GPIO=true` lets the installer create a Docker Compose override that mounts `/dev/gpiochip0` for GPIO input sources. `GPIO_GID` is detected from `/dev/gpiochip0` or the host `gpio` group when possible. GPIO stays disabled by default because it grants the backend container host hardware access.
 
 `INTEGRITAS_API_KEY` is optional. You can leave it empty and save the API key from the Integritas page in the UI. The key is sent to the backend once, encrypted, and stored in SQLite. It is never exposed in the frontend bundle.
 

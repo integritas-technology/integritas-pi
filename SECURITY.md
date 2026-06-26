@@ -337,6 +337,7 @@ Current Controls:
 - GPIO watchers start only while an enabled automation workflow exists for the source.
 - The backend uses fixed `gpiomon` arguments built from validated source config, not arbitrary shell command execution.
 - GPIO config uses BCM pin numbering, explicit edge selection, and debounce controls.
+- GPIO Docker device access is opt-in through `ENABLE_GPIO=true` in the installer, which writes a Compose override for `/dev/gpiochip0`.
 
 Plan:
 

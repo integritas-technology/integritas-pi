@@ -10,6 +10,8 @@ FRONTEND_PORT_INPUT="${FRONTEND_PORT-}"
 DATA_DIR_INPUT="${DATA_DIR-}"
 APP_SECRET_INPUT="${APP_SECRET-}"
 DOCKER_GID_INPUT="${DOCKER_GID-}"
+ENABLE_GPIO_INPUT="${ENABLE_GPIO-}"
+GPIO_GID_INPUT="${GPIO_GID-}"
 MINIMA_DATA_DIR_INPUT="${MINIMA_DATA_DIR-}"
 MINIMA_P2P_PORT_INPUT="${MINIMA_P2P_PORT-}"
 MINIMA_RPC_BIND_INPUT="${MINIMA_RPC_BIND-}"
@@ -22,6 +24,8 @@ FRONTEND_PORT="${FRONTEND_PORT:-8080}"
 DATA_DIR="${DATA_DIR:-./data}"
 APP_SECRET="${APP_SECRET:-}"
 DOCKER_GID="${DOCKER_GID:-}"
+ENABLE_GPIO="${ENABLE_GPIO:-false}"
+GPIO_GID="${GPIO_GID:-}"
 MINIMA_DATA_DIR="${MINIMA_DATA_DIR:-./minima}"
 MINIMA_P2P_PORT="${MINIMA_P2P_PORT:-9003}"
 MINIMA_RPC_BIND="${MINIMA_RPC_BIND:-127.0.0.1}"
@@ -143,6 +147,8 @@ load_existing_config() {
   DATA_DIR="${DATA_DIR_INPUT:-${DATA_DIR:-./data}}"
   APP_SECRET="${APP_SECRET_INPUT:-${APP_SECRET:-}}"
   DOCKER_GID="${DOCKER_GID_INPUT:-${DOCKER_GID:-}}"
+  ENABLE_GPIO="${ENABLE_GPIO_INPUT:-${ENABLE_GPIO:-false}}"
+  GPIO_GID="${GPIO_GID_INPUT:-${GPIO_GID:-}}"
   MINIMA_DATA_DIR="${MINIMA_DATA_DIR_INPUT:-${MINIMA_DATA_DIR:-./minima}}"
   MINIMA_P2P_PORT="${MINIMA_P2P_PORT_INPUT:-${MINIMA_P2P_PORT:-9003}}"
   MINIMA_RPC_BIND="${MINIMA_RPC_BIND_INPUT:-${MINIMA_RPC_BIND:-127.0.0.1}}"
@@ -170,6 +176,34 @@ detect_docker_gid() {
     DOCKER_GID="$(stat -c '%g' /var/run/docker.sock)"
   else
     DOCKER_GID="0"
+  fi
+}
+
+is_truthy() {
+  case "${1:-}" in
+    1|true|TRUE|yes|YES|on|ON) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+detect_gpio_gid() {
+  if ! is_truthy "$ENABLE_GPIO"; then
+    ENABLE_GPIO="false"
+    return
+  fi
+
+  ENABLE_GPIO="true"
+
+  if [ -n "$GPIO_GID" ]; then
+    return
+  fi
+
+  if [ -e /dev/gpiochip0 ]; then
+    GPIO_GID="$(stat -c '%g' /dev/gpiochip0)"
+  elif getent group gpio >/dev/null 2>&1; then
+    GPIO_GID="$(getent group gpio | cut -d: -f3)"
+  else
+    GPIO_GID="0"
   fi
 }
 
@@ -228,6 +262,8 @@ FRONTEND_PORT=$FRONTEND_PORT
 DATA_DIR=$DATA_DIR
 APP_SECRET=$APP_SECRET
 DOCKER_GID=$DOCKER_GID
+ENABLE_GPIO=$ENABLE_GPIO
+GPIO_GID=$GPIO_GID
 MINIMA_DATA_DIR=$MINIMA_DATA_DIR
 MINIMA_P2P_PORT=$MINIMA_P2P_PORT
 MINIMA_RPC_BIND=$MINIMA_RPC_BIND
@@ -235,6 +271,29 @@ MINIMA_RPC_PORT=$MINIMA_RPC_PORT
 INTEGRITAS_BASE_URL=$INTEGRITAS_BASE_URL
 INTEGRITAS_API_KEY=$INTEGRITAS_API_KEY
 INTEGRITAS_REQUEST_ID=$INTEGRITAS_REQUEST_ID
+EOF
+}
+
+write_compose_override() {
+  if ! is_truthy "$ENABLE_GPIO"; then
+    rm -f "$APP_DIR/docker-compose.override.yml"
+    return
+  fi
+
+  log "Enabling GPIO device access"
+
+  if [ ! -e /dev/gpiochip0 ]; then
+    log "Warning: /dev/gpiochip0 was not found on this host. GPIO sources will not work until the device exists."
+  fi
+
+  cat > "$APP_DIR/docker-compose.override.yml" <<EOF
+services:
+  backend:
+    devices:
+      - /dev/gpiochip0:/dev/gpiochip0
+    group_add:
+      - "\${DOCKER_GID:-0}"
+      - "\${GPIO_GID:-0}"
 EOF
 }
 
@@ -284,9 +343,11 @@ main() {
   load_existing_config
   ensure_app_secret
   detect_docker_gid
+  detect_gpio_gid
   download_app
   prepare_runtime_directories
   write_env_file
+  write_compose_override
   install_cli
   start_app
   print_success_message
