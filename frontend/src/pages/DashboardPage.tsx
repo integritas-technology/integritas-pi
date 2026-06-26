@@ -28,7 +28,7 @@ import type {
 import { getWalletStatus } from '../features/wallet/walletApi';
 import { MinimaIcon } from '../components/MinimaIcon';
 import { cx } from '../lib/cx';
-import { formatMinimaAmount } from '../lib/format';
+import { formatAmountThreshold } from '../lib/format';
 import { formatLocalTime } from '../lib/time';
 
 type ActivityItem = {
@@ -325,9 +325,9 @@ function DeviceStatusCard({
                 <MinimaIcon size={20} className='shrink-0 text-slate-600' />
                 <span
                   className='min-w-0 truncate'
-                  title={formatMinimaAmount(walletBalance)}
+                  title={walletBalance}
                 >
-                  {formatMinimaAmount(walletBalance)}
+                  {formatAmountThreshold(walletBalance)}
                 </span>
               </span>
             )

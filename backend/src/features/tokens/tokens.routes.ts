@@ -22,10 +22,8 @@ tokensRouter.post("/create", requireRole("admin"), async (req, res) => {
   const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
   const amount = typeof req.body?.amount === "string" ? req.body.amount.trim() : "";
   const decimal = Number(req.body?.decimal);
-  const fromAccountAddress = typeof req.body?.fromAccountAddress === "string" ? req.body.fromAccountAddress.trim() : "";
 
   if (!name) return res.status(400).json({ ok: false, error: "name is required" });
-  if (!fromAccountAddress) return res.status(400).json({ ok: false, error: "fromAccountAddress is required" });
   if (!amount || !Number.isFinite(Number(amount)) || Number(amount) <= 0) {
     return res.status(400).json({ ok: false, error: "amount must be a positive number" });
   }
@@ -34,7 +32,7 @@ tokensRouter.post("/create", requireRole("admin"), async (req, res) => {
   }
 
   try {
-    const result = await createCustomToken({ name, amount, decimal, fromAccountAddress });
+    const result = await createCustomToken({ name, amount, decimal });
     if (!result.ok) {
       return res.status(502).json({
         ...result,
@@ -48,8 +46,7 @@ tokensRouter.post("/create", requireRole("admin"), async (req, res) => {
         name: result.name,
         amount: result.amount,
         decimal: result.decimal,
-        txpowId: result.txpowId,
-        fromAccountAddress
+        txpowId: result.txpowId
       })
     });
     res.status(201).json(result);
