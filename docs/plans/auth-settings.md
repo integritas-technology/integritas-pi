@@ -1,6 +1,6 @@
 # Auth settings
 
-**Status:** Planned  
+**Status:** Complete  
 **Branch:** `auth-settings`  
 **Goal:** Add a settings page where the user can change their password and reset their 2FA after initial setup. Replace the static "Administrator" label in the sidebar with a settings entry point.
 

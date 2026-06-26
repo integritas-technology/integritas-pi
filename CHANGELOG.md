@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Account settings page**: accessible via the sidebar user box (gear icon replaces the static "Administrator" label). Allows changing the admin password and resetting the TOTP 2FA secret post-setup. Password change requires the current password and a valid 2FA code. TOTP reset follows the same "see once" principle as setup — the QR code and manual key are shown inline once during the reset flow and not retrievable afterward.
+
 ## [0.8.0] - 2026-06-26
 
 ### Added
