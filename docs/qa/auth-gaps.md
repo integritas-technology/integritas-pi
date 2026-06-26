@@ -44,23 +44,23 @@ Until then, treat auth as **feature-complete, security-incomplete**.
 
 ### GAP-01 — Transport security (HTTPS + Secure cookies)
 
-**Risk:** Session cookies and credentials visible on the network (default HTTP LAN deploy).
+**Risk:** Session cookies and credentials visible on the network.
 
-**Current:** `COOKIE_SECURE=false` by default; no HSTS.
+**Current (2026-06-25):** HTTPS shipped on default Docker deploy (self-signed cert, nginx TLS, `COOKIE_SECURE=true`). **HSTS deferred** — out of scope for self-hosted IP access; see [v1-security.md](../plans/v1-security.md).
 
 **QA work:**
 
-| Type | Task |
-|------|------|
-| Implement | Document or ship HTTPS path (nginx TLS, reverse proxy, or installer step). |
-| Implement | Set `COOKIE_SECURE=true` when HTTPS is enabled. |
-| Implement | Add HSTS header on HTTPS deploys (`Strict-Transport-Security`). |
-| Manual test | Login over HTTPS; confirm cookie has `Secure` flag in DevTools. |
-| Manual test | HTTP-only deploy still works when `COOKIE_SECURE=false` (home LAN). |
+| Type | Task | Status |
+|------|------|--------|
+| Implement | Ship HTTPS path (nginx TLS + installer cert generation). | Done |
+| Implement | Set `COOKIE_SECURE=true` when HTTPS is enabled. | Done |
+| Implement | Add HSTS header on HTTPS deploys. | **Deferred (V2+)** |
+| Manual test | Login over HTTPS; confirm cookie has `Secure` flag in DevTools. | |
+| Manual test | Plain HTTP on `${FRONTEND_PORT}` rejected (HTTPS-only port). | |
 
-**Acceptance:** Operator knows which mode they are in; untrusted-network deploy requires HTTPS checklist in README.
+**Acceptance:** Operator uses `https://<pi-ip>:8080`; browser warning documented. See [v1-security.md](../plans/v1-security.md) verify checklist.
 
-**Files likely touched:** `frontend/nginx.conf`, `docker-compose.yml`, `.env.example`, `README.md`, `SECURITY.md`
+**Files touched:** `frontend/nginx.conf`, `docker-compose.yml`, `scripts/generate-tls-cert.sh`, `install.sh`, `.env.example`, `README.md`, `SECURITY.md`
 
 ---
 

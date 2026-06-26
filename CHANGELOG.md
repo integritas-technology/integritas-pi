@@ -6,11 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-06-26
+
 ### Added
 
 - GPIO Input data sources for Raspberry Pi BCM pin edge events. GPIO sources are input-only, automation-gated, and recorded as JSON payloads through the existing read history/stamping path.
 - Installer option `ENABLE_GPIO=true` now creates a Docker Compose override for `/dev/gpiochip0` and records the detected GPIO group id in `.env`.
 - Data Sources now reports backend capabilities and disables GPIO Input creation when GPIO device access is not available.
+
+## [0.7.2] - 2026-06-26
+
+### Added
+
+- V1 security sign-off checklist in `docs/plans/v1-security.md` (HTTPS done; headers, tests, and APP_SECRET guard remain).
+- `npm run dev:https` — native dev over HTTPS using the same self-signed certs as Docker (`data/certs`), with `COOKIE_SECURE=true` on the backend.
+- Self-signed HTTPS for the default Docker deploy: installer and `scripts/generate-tls-cert.sh` generate TLS certs in `DATA_DIR/certs`; nginx serves HTTPS on `${FRONTEND_PORT}` (mapped to container port 443).
+- Light and dark mode favicons (`favicon-light.svg`, `favicon-dark.svg`) served from `frontend/public`; the browser picks the appropriate variant via `prefers-color-scheme`.
+
+### Changed
+
+- Docker Compose UI port mapping is now `${FRONTEND_PORT}:443` (HTTPS) instead of `:80` (HTTP). Open `https://<pi-ip>:8080` and accept the browser warning for the self-signed certificate.
+- Default `COOKIE_SECURE` is `true` in Docker Compose and installer-generated `.env`.
+- CLI default API URL is `https://localhost:8080/api` with `curl -k` for the self-signed cert.
+
+### Security
+
+- Browser-to-Pi traffic is encrypted on the default deploy. Residual risk: self-signed cert warnings and click-through MITM on untrusted networks.
 
 ## [0.7.1] - 2026-06-24
 

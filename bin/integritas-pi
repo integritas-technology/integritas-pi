@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-API_URL="${INTEGRITAS_PI_API_URL:-http://localhost:8080/api}"
+API_URL="${INTEGRITAS_PI_API_URL:-https://localhost:8080/api}"
 APP_DIR="${INTEGRITAS_PI_APP_DIR:-/opt/integritas-pi}"
 
 usage() {
@@ -21,7 +21,7 @@ Commands:
   logs [service]                      Show Docker Compose logs
 
 Environment:
-  INTEGRITAS_PI_API_URL               Defaults to http://localhost:8080/api
+  INTEGRITAS_PI_API_URL               Defaults to https://localhost:8080/api
   INTEGRITAS_PI_APP_DIR               Defaults to /opt/integritas-pi
 EOF
 }
@@ -39,9 +39,9 @@ api() {
   path="$2"
   body="${3-}"
   if [ -n "$body" ]; then
-    curl -fsS -X "$method" "$API_URL$path" -H "Content-Type: application/json" --data "$body" | pretty_json
+    curl -fsSk -X "$method" "$API_URL$path" -H "Content-Type: application/json" --data "$body" | pretty_json
   else
-    curl -fsS -X "$method" "$API_URL$path" | pretty_json
+    curl -fsSk -X "$method" "$API_URL$path" | pretty_json
   fi
 }
 

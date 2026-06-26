@@ -159,7 +159,7 @@ CLI rules:
 
 ## Docker / Pi Rules
 
-- UI is exposed on `${FRONTEND_PORT:-8080}`.
+- UI is exposed on HTTPS at `${FRONTEND_PORT:-8080}` (container port 443) with a self-signed cert in `${DATA_DIR:-./data}/certs`.
 - Backend is internal behind frontend `/api` proxy.
 - SQLite data lives in `${DATA_DIR:-./data}` mounted to `/data`.
 - Minima data lives in `${MINIMA_DATA_DIR:-./minima}`.

@@ -271,6 +271,7 @@ MINIMA_RPC_PORT=$MINIMA_RPC_PORT
 INTEGRITAS_BASE_URL=$INTEGRITAS_BASE_URL
 INTEGRITAS_API_KEY=$INTEGRITAS_API_KEY
 INTEGRITAS_REQUEST_ID=$INTEGRITAS_REQUEST_ID
+COOKIE_SECURE=true
 EOF
 }
 
@@ -307,6 +308,14 @@ EOF
   fi
 }
 
+generate_tls_cert() {
+  log "Generating self-signed TLS certificate"
+  (
+    cd "$APP_DIR"
+    DATA_DIR="$DATA_DIR" INTEGRITAS_TLS_IP="$(get_ip_address)" bash scripts/generate-tls-cert.sh
+  )
+}
+
 start_app() {
   log "Starting Docker services"
   cd "$APP_DIR"
@@ -334,12 +343,15 @@ print_success_message() {
   echo "Open your browser and go to:"
   echo
   if [ -n "$ip_address" ]; then
-    echo "http://$ip_address:$FRONTEND_PORT"
+    echo "https://$ip_address:$FRONTEND_PORT"
   else
-    echo "http://<pi-ip>:$FRONTEND_PORT"
+    echo "https://<pi-ip>:$FRONTEND_PORT"
   fi
   echo
-  echo "Local URL on the Pi: http://localhost:$FRONTEND_PORT"
+  echo "Local URL on the Pi: https://localhost:$FRONTEND_PORT"
+  echo
+  echo "Your browser will warn about the self-signed certificate. That is expected."
+  echo "Choose Advanced / Continue to proceed. Traffic is encrypted after that."
 }
 
 main() {
@@ -358,6 +370,7 @@ main() {
   prepare_runtime_directories
   write_env_file
   write_compose_override
+  generate_tls_cert
   install_cli
   start_app
   print_success_message

@@ -38,6 +38,7 @@ Root-level operator docs stay outside this tree: [README.md](../README.md), [SEC
 | [device-status.md](./plans/device-status.md) | **Complete** | Device info service, `GET /api/status` summary, graceful shutdown; unit tests deferred → [qa/device-status-gaps.md](./qa/device-status-gaps.md) |
 | [wallet.md](./plans/wallet.md) | **Complete** | Phases 1–4 shipped (`wallet-service` branch); export backup + on-chain receive history deferred; QA gaps → [qa/wallet-gaps.md](./qa/wallet-gaps.md) |
 | [tokens.md](./plans/tokens.md) | **Complete** | Phases 1–2 shipped; event listeners deferred → [qa/tokens-gaps.md](./qa/tokens-gaps.md) |
+| [v1-security.md](./plans/v1-security.md) | **In progress** | V1 security sign-off checklist (HTTPS done; headers, tests, APP_SECRET remain) |
 
 When starting a new feature, copy [templates/feature-plan.md](./templates/feature-plan.md) into `plans/` before large diffs. Mark it **Complete** when shipped and move follow-up testing/hardening to `qa/`.
 
@@ -93,6 +94,7 @@ Add new reports when completing a major milestone or external review; do not gro
 |------------|------|
 | Implement auth (already done) | [plans/auth-implementation.md](./plans/auth-implementation.md) + [reports/auth-implementation-audit.md](./reports/auth-implementation-audit.md) |
 | Understand auth risks | [plans/auth-security.md](./plans/auth-security.md) → [qa/auth-gaps.md](./qa/auth-gaps.md) for open items |
+| V1 security sign-off checklist | [plans/v1-security.md](./plans/v1-security.md) |
 | Review Integritas delivery | [plans/integritas-integration.md](./plans/integritas-integration.md) + [reports/integritas-integration-audit.md](./reports/integritas-integration-audit.md) |
 | Run QA / hardening | [qa/README.md](./qa/README.md) |
 | Start a new feature plan | [templates/feature-plan.md](./templates/feature-plan.md) |
