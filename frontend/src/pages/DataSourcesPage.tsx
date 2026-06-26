@@ -2,15 +2,16 @@ import { useEffect, useState } from "react";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
 import { useToast } from "../components/ToastProvider";
-import { checkDataSourceHealth, createDataSource, deleteDataSource, listDataSources, readDataSource, updateDataSource } from "../features/data-sources/dataSourcesApi";
+import { checkDataSourceHealth, createDataSource, deleteDataSource, getDataSourceCapabilities, listDataSources, readDataSource, updateDataSource } from "../features/data-sources/dataSourcesApi";
 import { DataSourceForm } from "../features/data-sources/DataSourceForm";
 import { DataSourcesList } from "../features/data-sources/DataSourcesList";
 import { DataSourceTemplates } from "../features/data-sources/DataSourceTemplates";
-import type { DataSource, DataSourceHealthStatus, DataSourceTemplate } from "../features/data-sources/dataSourceTypes";
+import type { DataSource, DataSourceCapabilities, DataSourceHealthStatus, DataSourceTemplate } from "../features/data-sources/dataSourceTypes";
 
 export function DataSourcesPage() {
   const { showToast } = useToast();
   const [items, setItems] = useState<DataSource[]>([]);
+  const [capabilities, setCapabilities] = useState<DataSourceCapabilities | null>(null);
   const [template, setTemplate] = useState<DataSourceTemplate | null>(null);
   const [editingSource, setEditingSource] = useState<DataSource | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -21,6 +22,12 @@ export function DataSourcesPage() {
   const [healthStatusUrl, setHealthStatusUrl] = useState("");
   const [brokerUrl, setBrokerUrl] = useState("");
   const [topic, setTopic] = useState("");
+  const [gpioChip, setGpioChip] = useState("gpiochip0");
+  const [gpioPin, setGpioPin] = useState("17");
+  const [gpioPull, setGpioPull] = useState<"off" | "up" | "down">("off");
+  const [gpioEdge, setGpioEdge] = useState<"rising" | "falling" | "both">("both");
+  const [gpioDebounceMs, setGpioDebounceMs] = useState("100");
+  const [gpioActiveState, setGpioActiveState] = useState<"high" | "low">("high");
   const [method, setMethod] = useState<"GET" | "POST">("GET");
   const [healthStatuses, setHealthStatuses] = useState<Record<string, DataSourceHealthStatus>>({});
   const [busy, setBusy] = useState(false);
@@ -36,8 +43,9 @@ export function DataSourcesPage() {
   }, [items]);
 
   async function refresh() {
-    const response = await listDataSources();
+    const [response, capabilityResponse] = await Promise.all([listDataSources(), getDataSourceCapabilities()]);
     setItems(response.items);
+    setCapabilities(capabilityResponse);
   }
 
   function refreshHealthStatuses() {
@@ -61,6 +69,12 @@ export function DataSourcesPage() {
     setHealthStatusUrl(nextTemplate.config.healthStatusUrl ?? "");
     setBrokerUrl(nextTemplate.config.brokerUrl ?? "");
     setTopic(nextTemplate.config.topic ?? "");
+    setGpioChip(nextTemplate.config.chip ?? "gpiochip0");
+    setGpioPin(String(nextTemplate.config.pin ?? 17));
+    setGpioPull(nextTemplate.config.pull ?? "off");
+    setGpioEdge(nextTemplate.config.edge ?? "both");
+    setGpioDebounceMs(String(nextTemplate.config.debounceMs ?? 100));
+    setGpioActiveState(nextTemplate.config.activeState ?? "high");
     setMethod(nextTemplate.config.method ?? "GET");
     setFormOpen(true);
   }
@@ -75,6 +89,12 @@ export function DataSourcesPage() {
     setHealthStatusUrl(source.config.healthStatusUrl ?? "");
     setBrokerUrl(source.config.brokerUrl ?? "");
     setTopic(source.config.topic ?? "");
+    setGpioChip(source.config.chip ?? "gpiochip0");
+    setGpioPin(String(source.config.pin ?? 17));
+    setGpioPull(source.config.pull ?? "off");
+    setGpioEdge(source.config.edge ?? "both");
+    setGpioDebounceMs(String(source.config.debounceMs ?? 100));
+    setGpioActiveState(source.config.activeState ?? "high");
     setMethod(source.config.method ?? "GET");
     setFormOpen(true);
   }
@@ -89,6 +109,12 @@ export function DataSourcesPage() {
     setHealthStatusUrl("");
     setBrokerUrl("");
     setTopic("");
+    setGpioChip("gpiochip0");
+    setGpioPin("17");
+    setGpioPull("off");
+    setGpioEdge("both");
+    setGpioDebounceMs("100");
+    setGpioActiveState("high");
     setMethod("GET");
   }
 
@@ -113,8 +139,8 @@ export function DataSourcesPage() {
   }
 
   return (
-    <Page eyebrow="Data Sources" title="Bring JSON data into the system" desc="Add sources by protocol. Fetch JSON from HTTP APIs, or receive pushed JSON through webhooks.">
-      <DataSourceTemplates onSelect={applyTemplate} />
+    <Page eyebrow="Data Sources" title="Bring JSON data into the system" desc="Add sources by protocol. Fetch JSON from HTTP APIs, receive pushed JSON through webhooks/MQTT, or record GPIO input events.">
+      <DataSourceTemplates capabilities={capabilities} onSelect={applyTemplate} />
 
       {formOpen && (
         <Modal title={editingSource ? "Edit source" : "Add source"} onClose={closeForm}>
@@ -134,12 +160,24 @@ export function DataSourcesPage() {
             setBrokerUrl={setBrokerUrl}
             topic={topic}
             setTopic={setTopic}
+            gpioChip={gpioChip}
+            setGpioChip={setGpioChip}
+            gpioPin={gpioPin}
+            setGpioPin={setGpioPin}
+            gpioPull={gpioPull}
+            setGpioPull={setGpioPull}
+            gpioEdge={gpioEdge}
+            setGpioEdge={setGpioEdge}
+            gpioDebounceMs={gpioDebounceMs}
+            setGpioDebounceMs={setGpioDebounceMs}
+            gpioActiveState={gpioActiveState}
+            setGpioActiveState={setGpioActiveState}
             method={method}
             setMethod={setMethod}
             busy={busy}
             submitLabel={editingSource ? "Save source" : "Add source"}
             onSubmit={() => run(async () => {
-              const input = { name, description, type, config: type === "webhook" ? { webhookToken: editingSource?.config.webhookToken } : type === "mqtt" ? { brokerUrl, topic } : { url, method, healthStatusUrl: healthStatusUrl.trim() || undefined, headers: {} } };
+              const input = { name, description, type, config: type === "webhook" ? { webhookToken: editingSource?.config.webhookToken } : type === "mqtt" ? { brokerUrl, topic } : type === "gpio-input" ? { chip: gpioChip, pin: Number(gpioPin), pull: gpioPull, edge: gpioEdge, debounceMs: Number(gpioDebounceMs), activeState: gpioActiveState } : { url, method, healthStatusUrl: healthStatusUrl.trim() || undefined, headers: {} } };
               if (editingSource) await updateDataSource(editingSource.id, input);
               else await createDataSource(input);
               setFormOpen(false);

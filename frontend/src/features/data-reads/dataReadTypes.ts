@@ -6,7 +6,7 @@ export type DataSourceRead = {
   integritasProofId: string | null;
   sourceName: string;
   sourceUrl: string;
-  triggerType: "manual" | "automation" | "webhook" | "mqtt";
+  triggerType: "manual" | "automation" | "webhook" | "mqtt" | "gpio";
   status: "success" | "failed";
   hash: string | null;
   preview: unknown;

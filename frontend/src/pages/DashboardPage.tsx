@@ -424,8 +424,10 @@ function buildActivity(
           ? 'MQTT event'
           : read.triggerType === 'webhook'
             ? 'Webhook event'
+            : read.triggerType === 'gpio'
+              ? 'GPIO event'
             : 'Data read log',
-    message: `${read.sourceName} ${read.triggerType === 'automation' ? 'automation poll' : read.triggerType === 'mqtt' ? 'MQTT message received' : read.triggerType === 'webhook' ? 'webhook payload received' : 'manual read'}`,
+    message: `${read.sourceName} ${read.triggerType === 'automation' ? 'automation poll' : read.triggerType === 'mqtt' ? 'MQTT message received' : read.triggerType === 'webhook' ? 'webhook payload received' : read.triggerType === 'gpio' ? 'GPIO edge detected' : 'manual read'}`,
     status: read.status === 'success' ? 'Success' : 'Failed',
     good: read.status === 'success',
   }));

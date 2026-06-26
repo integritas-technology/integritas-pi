@@ -4,6 +4,7 @@ import { createAutomationWorkflow, createStampIntegritasRule, deleteAutomationRu
 import { runAutomationWorkflow, serializeAutomationRule, serializeAutomationWorkflow } from "./automation.service.js";
 import { getDataSource } from "../data-sources/dataSources.repository.js";
 import { syncMqttDataSources } from "../data-sources/mqttIngestion.service.js";
+import { syncGpioDataSources } from "../data-sources/gpioIngestion.service.js";
 
 export const automationRouter = Router();
 
@@ -21,12 +22,13 @@ automationRouter.post("/workflows", requireRole("admin"), (req, res) => {
   if (!name) return res.status(400).json({ error: "name is required" });
   const dataSource = getDataSource(dataSourceId);
   if (!dataSource) return res.status(400).json({ error: "dataSourceId must reference an existing data source" });
-  const isPushSource = dataSource.type === "webhook" || dataSource.type === "mqtt";
+  const isPushSource = dataSource.type === "webhook" || dataSource.type === "mqtt" || dataSource.type === "gpio-input";
   if (isPushSource && enabled && getEnabledAutomationWorkflowForDataSource(dataSource.id)) return res.status(409).json({ error: "This push source already has an enabled automation workflow" });
   if (!isPushSource && (!Number.isFinite(pollingIntervalSeconds) || pollingIntervalSeconds < 10)) return res.status(400).json({ error: "pollingIntervalSeconds must be at least 10" });
 
   const workflow = createAutomationWorkflow({ name, dataSourceId, enabled, pollingIntervalSeconds: isPushSource ? 0 : pollingIntervalSeconds, stampWithIntegritas });
   syncMqttDataSources();
+  syncGpioDataSources();
   return res.json({ item: serializeAutomationWorkflow(workflow) });
 });
 
@@ -35,7 +37,7 @@ automationRouter.patch("/workflows/:id", requireRole("admin"), (req, res) => {
   if (!current) return res.status(404).json({ error: "Automation workflow not found" });
   const dataSource = getDataSource(current.data_source_id);
   if (!dataSource) return res.status(400).json({ error: "Workflow data source no longer exists" });
-  const isPushSource = dataSource.type === "webhook" || dataSource.type === "mqtt";
+  const isPushSource = dataSource.type === "webhook" || dataSource.type === "mqtt" || dataSource.type === "gpio-input";
   const enabled = typeof req.body?.enabled === "boolean" ? req.body.enabled : undefined;
   if (isPushSource && enabled) {
     const existing = getEnabledAutomationWorkflowForDataSource(dataSource.id);
@@ -51,6 +53,7 @@ automationRouter.patch("/workflows/:id", requireRole("admin"), (req, res) => {
     stampWithIntegritas: typeof req.body?.stampWithIntegritas === "boolean" ? req.body.stampWithIntegritas : undefined
   });
   syncMqttDataSources();
+  syncGpioDataSources();
   return res.json({ item: serializeAutomationWorkflow(workflow!) });
 });
 
@@ -61,6 +64,7 @@ automationRouter.post("/workflows/:id/rules", requireRole("admin"), (req, res) =
   if (type !== "stamp_integritas") return res.status(400).json({ error: "Only Integritas stamping rules can be added in V1" });
   const rule = createStampIntegritasRule(workflow.id);
   syncMqttDataSources();
+  syncGpioDataSources();
   return res.json({ item: serializeAutomationRule(rule), workflow: serializeAutomationWorkflow(getAutomationWorkflow(workflow.id)!) });
 });
 
@@ -70,12 +74,14 @@ automationRouter.delete("/workflows/:workflowId/rules/:ruleId", requireRole("adm
   const deleted = deleteAutomationRule(req.params.workflowId, req.params.ruleId);
   if (!deleted) return res.status(400).json({ error: "Rule cannot be deleted" });
   syncMqttDataSources();
+  syncGpioDataSources();
   return res.json({ deleted: true, workflow: serializeAutomationWorkflow(getAutomationWorkflow(workflow.id)!) });
 });
 
 automationRouter.delete("/workflows/:id", requireRole("admin"), (req, res) => {
   deleteAutomationWorkflow(req.params.id);
   syncMqttDataSources();
+  syncGpioDataSources();
   res.json({ deleted: true });
 });
 

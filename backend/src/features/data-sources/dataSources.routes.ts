@@ -5,6 +5,7 @@ import { getEnabledAutomationWorkflowForDataSource } from "../automation/automat
 import { recordPushAutomationPayload } from "../automation/automation.service.js";
 import { createDataSource, deleteDataSource, findWebhookDataSource, getDataSource, listDataSources, updateDataSource, updateDataSourceReadResult } from "./dataSources.repository.js";
 import { syncMqttDataSources } from "./mqttIngestion.service.js";
+import { getGpioInputCapability, syncGpioDataSources } from "./gpioIngestion.service.js";
 import { checkDataSourceHealth, parseDataSourceConfig, parseJsonApiConfig, processWebhookPayload, readJsonApiSource, serializeDataSource } from "./dataSources.service.js";
 
 export const dataSourcesRouter = Router();
@@ -30,18 +31,24 @@ dataSourcesRouter.get("/", (_req, res) => {
   res.json({ items: listDataSources().map(serializeDataSource) });
 });
 
+dataSourcesRouter.get("/capabilities", (_req, res) => {
+  res.json({ gpioInput: getGpioInputCapability() });
+});
+
 dataSourcesRouter.post("/", requireRole("admin"), (req, res) => {
   const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
   const type = typeof req.body?.type === "string" ? req.body.type : "json-api";
   const description = typeof req.body?.description === "string" ? req.body.description : "";
 
   if (!name) return res.status(400).json({ error: "name is required" });
-  if (type !== "json-api" && type !== "internal-json-api" && type !== "webhook" && type !== "mqtt") return res.status(400).json({ error: "Only HTTP JSON API, webhook, and MQTT sources are supported" });
+  if (type !== "json-api" && type !== "internal-json-api" && type !== "webhook" && type !== "mqtt" && type !== "gpio-input") return res.status(400).json({ error: "Only HTTP JSON API, webhook, MQTT, and GPIO input sources are supported" });
+  if (type === "gpio-input" && !getGpioInputCapability().available) return res.status(400).json({ error: getGpioInputCapability().reason });
 
   try {
     const config = parseDataSourceConfig(type, req.body?.config);
     const record = createDataSource({ name, type, description, config });
     syncMqttDataSources();
+    syncGpioDataSources();
     return res.json({ item: serializeDataSource(record) });
   } catch (error) {
     return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid data source" });
@@ -51,6 +58,7 @@ dataSourcesRouter.post("/", requireRole("admin"), (req, res) => {
 dataSourcesRouter.delete("/:id", requireRole("admin"), (req, res) => {
   deleteDataSource(req.params.id);
   syncMqttDataSources();
+  syncGpioDataSources();
   res.json({ deleted: true });
 });
 
@@ -63,12 +71,14 @@ dataSourcesRouter.patch("/:id", requireRole("admin"), (req, res) => {
   const description = typeof req.body?.description === "string" ? req.body.description : "";
 
   if (!name) return res.status(400).json({ error: "name is required" });
-  if (type !== "json-api" && type !== "internal-json-api" && type !== "webhook" && type !== "mqtt") return res.status(400).json({ error: "Only HTTP JSON API, webhook, and MQTT sources are supported" });
+  if (type !== "json-api" && type !== "internal-json-api" && type !== "webhook" && type !== "mqtt" && type !== "gpio-input") return res.status(400).json({ error: "Only HTTP JSON API, webhook, MQTT, and GPIO input sources are supported" });
+  if (type === "gpio-input" && !getGpioInputCapability().available) return res.status(400).json({ error: getGpioInputCapability().reason });
 
   try {
     const config = parseDataSourceConfig(type, req.body?.config, JSON.parse(existing.config) as unknown);
     const record = updateDataSource(req.params.id, { name, type, description, config });
     syncMqttDataSources();
+    syncGpioDataSources();
     return res.json({ item: serializeDataSource(record!) });
   } catch (error) {
     return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid data source" });
@@ -78,7 +88,7 @@ dataSourcesRouter.patch("/:id", requireRole("admin"), (req, res) => {
 dataSourcesRouter.get("/:id/health", async (req, res) => {
   const record = getDataSource(req.params.id);
   if (!record) return res.status(404).json({ error: "Data source not found" });
-  if (record.type === "webhook" || record.type === "mqtt") return res.status(400).json({ error: "Push sources do not have a health URL" });
+  if (record.type === "webhook" || record.type === "mqtt" || record.type === "gpio-input") return res.status(400).json({ error: "Push sources do not have a health URL" });
 
   try {
     const config = parseJsonApiConfig(JSON.parse(record.config) as unknown);
@@ -92,7 +102,7 @@ dataSourcesRouter.get("/:id/health", async (req, res) => {
 dataSourcesRouter.post("/:id/read", requireRole("admin"), async (req, res) => {
   const record = getDataSource(req.params.id);
   if (!record) return res.status(404).json({ error: "Data source not found" });
-  if (record.type === "webhook" || record.type === "mqtt") return res.status(400).json({ error: "Push sources receive data and cannot be triggered manually" });
+  if (record.type === "webhook" || record.type === "mqtt" || record.type === "gpio-input") return res.status(400).json({ error: "Push sources receive data and cannot be triggered manually" });
 
   try {
     const config = parseJsonApiConfig(JSON.parse(record.config) as unknown);

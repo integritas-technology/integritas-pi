@@ -62,7 +62,7 @@ export function AutomationPage() {
   }
 
   const selectedSource = sources.find((source) => source.id === dataSourceId);
-  const selectedSourceIsPush = selectedSource?.type === "webhook" || selectedSource?.type === "mqtt";
+  const selectedSourceIsPush = selectedSource?.type === "webhook" || selectedSource?.type === "mqtt" || selectedSource?.type === "gpio-input";
   const sourceById = (id: string) => sources.find((source) => source.id === id);
   const sourceName = (id: string) => sourceById(id)?.name ?? "Unknown source";
   const workspaceWorkflow = workflows.find((workflow) => workflow.id === workspaceWorkflowId) ?? null;
@@ -217,6 +217,7 @@ function describeWhen(rule: AutomationRule, workflow: AutomationWorkflow, source
   if (rule.type === "stamp_integritas") return "After data is collected";
   if (source?.type === "webhook") return "Webhook payload is received";
   if (source?.type === "mqtt") return "MQTT message is received";
+  if (source?.type === "gpio-input") return `GPIO${source.config.pin ?? ""} edge is detected`;
   return workflow.pollingIntervalSeconds > 0 ? formatInterval(workflow.pollingIntervalSeconds) : "Incoming data is received";
 }
 
@@ -236,6 +237,7 @@ function summarizeRules(workflow: AutomationWorkflow) {
 function sourceLabel(source: DataSource) {
   if (source.type === "webhook") return "Webhook receive URL";
   if (source.type === "mqtt") return `${source.config.brokerUrl ?? "MQTT broker"} ${source.config.topic ?? ""}`;
+  if (source.type === "gpio-input") return `${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"}`;
   return source.config.url ?? "HTTP JSON API";
 }
 

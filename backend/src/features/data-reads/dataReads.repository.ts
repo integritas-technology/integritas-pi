@@ -24,7 +24,7 @@ export function getDataSourceRead(id: string) {
   return db.prepare("SELECT * FROM data_source_reads WHERE id = ?").get(id) as DataSourceReadRecord | undefined;
 }
 
-export function createDataSourceRead(input: { dataSourceId: string; workflowId?: string | null; sourceName: string; sourceUrl: string; triggerType: "manual" | "automation" | "webhook" | "mqtt"; status: "success" | "failed"; hash?: string | null; preview?: unknown; error?: string | null }) {
+export function createDataSourceRead(input: { dataSourceId: string; workflowId?: string | null; sourceName: string; sourceUrl: string; triggerType: "manual" | "automation" | "webhook" | "mqtt" | "gpio"; status: "success" | "failed"; hash?: string | null; preview?: unknown; error?: string | null }) {
   const id = crypto.randomUUID();
   db.prepare(`
     INSERT INTO data_source_reads (id, created_at, data_source_id, workflow_id, source_name, source_url, trigger_type, status, hash, preview_json, error)

@@ -107,7 +107,7 @@ export async function recordPushAutomationPayload(input: {
   workflow: AutomationWorkflowRecord;
   dataSource: { id: string; name: string };
   sourceUrl: string;
-  triggerType: "webhook" | "mqtt";
+  triggerType: "webhook" | "mqtt" | "gpio";
   result: { bytesHash: string; preview: unknown; canonicalBytes: string };
 }) {
   let proofId: string | null = null;
@@ -139,7 +139,7 @@ export async function recordPushAutomationPayload(input: {
   }
 }
 
-export function recordPushAutomationError(input: { workflow: AutomationWorkflowRecord; dataSource: { id: string; name: string }; sourceUrl: string; triggerType: "webhook" | "mqtt"; error: string }) {
+export function recordPushAutomationError(input: { workflow: AutomationWorkflowRecord; dataSource: { id: string; name: string }; sourceUrl: string; triggerType: "webhook" | "mqtt" | "gpio"; error: string }) {
   updateDataSourceReadResult(input.dataSource.id, { error: input.error });
   createDataSourceRead({ dataSourceId: input.dataSource.id, workflowId: input.workflow.id, sourceName: input.dataSource.name, sourceUrl: input.sourceUrl, triggerType: input.triggerType, status: "failed", error: input.error });
   const updatedWorkflow = updateAutomationRunError(input.workflow.id, input.error);
