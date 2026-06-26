@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - V1 security sign-off checklist in `docs/plans/v1-security.md` (HTTPS done; headers, tests, and APP_SECRET guard remain).
 - `npm run dev:https` — native dev over HTTPS using the same self-signed certs as Docker (`data/certs`), with `COOKIE_SECURE=true` on the backend.
 - Self-signed HTTPS for the default Docker deploy: installer and `scripts/generate-tls-cert.sh` generate TLS certs in `DATA_DIR/certs`; nginx serves HTTPS on `${FRONTEND_PORT}` (mapped to container port 443).
+- Light and dark mode favicons (`favicon-light.svg`, `favicon-dark.svg`) served from `frontend/public`; the browser picks the appropriate variant via `prefers-color-scheme`.
 
 ### Changed
 
