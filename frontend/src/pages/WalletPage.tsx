@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import { Card } from '../components/Card';
 import { CopyableCode } from '../components/CopyableCode';
 import { MinimaIcon } from '../components/MinimaIcon';
@@ -101,7 +102,7 @@ export function WalletPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
+
   const [createTokenOpen, setCreateTokenOpen] = useState(false);
   const [sendHistory, setSendHistory] = useState<WalletSendHistoryItem[]>([]);
   const [selectedHistoryItem, setSelectedHistoryItem] =
@@ -110,6 +111,7 @@ export function WalletPage() {
   const [assetTab, setAssetTab] = useState<'all' | 'minima' | 'tokens'>('all');
   const [selectedAsset, setSelectedAsset] = useState<TokenBalance | null>(null);
   const [receiveOpen, setReceiveOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   async function refresh() {
     setLoading(true);
@@ -176,6 +178,16 @@ export function WalletPage() {
       eyebrow='Wallet'
       title='Wallet'
       desc='Node wallet balance and transaction history.'
+      action={
+        <button
+          type='button'
+          className='section-action-button'
+          onClick={() => setSettingsOpen(true)}
+          aria-label='Wallet settings'
+        >
+          <Settings size={20} />
+        </button>
+      }
     >
       <div className='hero-card wallet-balance-card'>
         <div className='wallet-hero-top'>
@@ -207,21 +219,6 @@ export function WalletPage() {
             >
               Create token
             </button>
-            {/* <button
-              type='button'
-              className='wallet-action-btn wallet-action-btn-ghost'
-              onClick={() => setImportOpen(true)}
-            >
-              Import wallet
-            </button>
-            <button
-              type='button'
-              className='wallet-action-btn wallet-action-btn-ghost'
-              disabled
-              title='Export wallet backup — coming soon'
-            >
-              Export wallet
-            </button> */}
           </div>
         </div>
         <div>
@@ -357,6 +354,11 @@ export function WalletPage() {
         )}
       </Card>
 
+      {settingsOpen && (
+        <WalletSettingsModal
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
       {selectedAsset && (
         <AssetDetailModal
           token={selectedAsset}
@@ -378,7 +380,7 @@ export function WalletPage() {
           onClose={() => setSendOpen(false)}
         />
       )}
-      {importOpen && <ImportWalletModal onClose={() => setImportOpen(false)} />}
+
       {createTokenOpen && (
         <CreateTokenModal
           walletStatus={walletStatus}
@@ -387,6 +389,139 @@ export function WalletPage() {
         />
       )}
     </Page>
+  );
+}
+
+function WalletSettingsModal({ onClose }: { onClose: () => void }) {
+  const { showToast } = useToast();
+  const [view, setView] = useState<'menu' | 'import'>('menu');
+  const [phrase, setPhrase] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<ImportWalletResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  function goBack() {
+    setView('menu');
+    setPhrase('');
+    setError(null);
+    setResult(null);
+  }
+
+  async function handleImport(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = phrase.trim();
+    const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+    if (wordCount < 12) {
+      setError('Seed phrase must be at least 12 words.');
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      const res = await importWalletApi(trimmed);
+      setResult(res);
+      if (res.ok) {
+        showToast({ tone: 'success', title: 'Wallet imported', message: res.message });
+      } else {
+        setError(res.message);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Import failed.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Modal title='Wallet settings' onClose={onClose}>
+      {view === 'menu' ? (
+        <div className='divide-y divide-slate-100'>
+          <button
+            type='button'
+            onClick={() => setView('import')}
+            className='flex w-full items-center justify-between gap-3 py-3 pt-0 text-left hover:bg-slate-50 -mx-1 px-1 rounded-lg transition-colors'
+          >
+            <div>
+              <p className='text-sm font-semibold text-slate-900'>Import wallet</p>
+              <p className='text-xs text-slate-500 mt-0.5'>
+                Restore from a 24-word seed phrase
+              </p>
+            </div>
+            <ChevronRight size={16} className='text-slate-400 shrink-0' />
+          </button>
+          <button
+            type='button'
+            disabled
+            title='Export wallet backup — coming soon'
+            className='flex w-full items-center justify-between gap-3 py-3 pb-0 text-left opacity-40 cursor-not-allowed'
+          >
+            <div>
+              <p className='text-sm font-semibold text-slate-900'>Export wallet</p>
+              <p className='text-xs text-slate-500 mt-0.5'>
+                Download a wallet backup — coming soon
+              </p>
+            </div>
+            <ChevronRight size={16} className='text-slate-400 shrink-0' />
+          </button>
+        </div>
+      ) : (
+        <div className='grid gap-4'>
+          <button
+            type='button'
+            onClick={goBack}
+            className='inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-900 transition-colors w-fit'
+          >
+            <ChevronLeft size={15} />
+            Back
+          </button>
+          <div className='rounded-xl bg-amber-50 border border-amber-200 p-4'>
+            <p className='text-sm font-bold text-amber-800'>
+              This will replace the current wallet
+            </p>
+            <p className='text-sm text-amber-700 mt-1'>
+              Restoring from a seed phrase overwrites the node's existing wallet.
+              The node may restart after import. The phrase is transmitted over
+              HTTPS to the local Pi node — only do this on your own network.
+            </p>
+          </div>
+          {result?.ok ? (
+            <div className='rounded-2xl bg-emerald-50 border border-emerald-200 p-5 text-center grid gap-2'>
+              <p className='text-lg font-bold text-emerald-700'>Wallet imported</p>
+              <p className='text-sm text-emerald-600'>{result.message}</p>
+            </div>
+          ) : (
+            <form onSubmit={handleImport} className='grid gap-4'>
+              <label className='grid gap-1.5'>
+                <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+                  Seed phrase (12 or 24 words)
+                </span>
+                <textarea
+                  rows={4}
+                  value={phrase}
+                  onChange={(e) => setPhrase(e.target.value)}
+                  placeholder='word1 word2 word3 …'
+                  autoComplete='off'
+                  spellCheck={false}
+                  className='rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-slate-400'
+                />
+              </label>
+              {error && (
+                <div className='rounded-xl bg-red-50 border border-red-200 p-3'>
+                  <p className='text-sm text-red-700'>{error}</p>
+                </div>
+              )}
+              <button
+                type='submit'
+                disabled={submitting}
+                className='rounded-xl border-0 bg-slate-950 px-5 py-3 text-sm font-bold text-white disabled:opacity-50'
+              >
+                {submitting ? 'Importing…' : 'Import wallet'}
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+    </Modal>
   );
 }
 
@@ -824,99 +959,6 @@ function CreateTokenModal({
   );
 }
 
-function ImportWalletModal({ onClose }: { onClose: () => void }) {
-  const { showToast } = useToast();
-  const [phrase, setPhrase] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<ImportWalletResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const trimmed = phrase.trim();
-    const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
-    if (wordCount < 12) {
-      setError('Seed phrase must be at least 12 words.');
-      return;
-    }
-    setError(null);
-    setSubmitting(true);
-    try {
-      const res = await importWalletApi(trimmed);
-      setResult(res);
-      if (res.ok) {
-        showToast({
-          tone: 'success',
-          title: 'Wallet imported',
-          message: res.message,
-        });
-      } else {
-        setError(res.message);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Import failed.');
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Modal title='Import wallet' onClose={onClose}>
-      <div className='grid gap-4'>
-        <div className='rounded-xl bg-amber-50 border border-amber-200 p-4'>
-          <p className='text-sm font-bold text-amber-800'>
-            This will replace the current wallet
-          </p>
-          <p className='text-sm text-amber-700 mt-1'>
-            Restoring from a seed phrase overwrites the node's existing wallet.
-            The node may restart after import. Only proceed on a trusted local
-            network — the phrase is sent over HTTP.
-          </p>
-        </div>
-
-        {result?.ok ? (
-          <div className='rounded-2xl bg-emerald-50 border border-emerald-200 p-5 text-center grid gap-2'>
-            <p className='text-lg font-bold text-emerald-700'>
-              Wallet imported
-            </p>
-            <p className='text-sm text-emerald-600'>{result.message}</p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className='grid gap-4'>
-            <label className='grid gap-1.5'>
-              <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
-                Seed phrase (12 or 24 words)
-              </span>
-              <textarea
-                rows={4}
-                value={phrase}
-                onChange={(e) => setPhrase(e.target.value)}
-                placeholder='word1 word2 word3 …'
-                autoComplete='off'
-                spellCheck={false}
-                className='rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-slate-400'
-              />
-            </label>
-
-            {error && (
-              <div className='rounded-xl bg-red-50 border border-red-200 p-3'>
-                <p className='text-sm text-red-700'>{error}</p>
-              </div>
-            )}
-
-            <button
-              type='submit'
-              disabled={submitting}
-              className='rounded-xl border-0 bg-slate-950 px-5 py-3 text-sm font-bold text-white disabled:opacity-50'
-            >
-              {submitting ? 'Importing…' : 'Import wallet'}
-            </button>
-          </form>
-        )}
-      </div>
-    </Modal>
-  );
-}
 
 function HistoryDetailModal({
   item,
