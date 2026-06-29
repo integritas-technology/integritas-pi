@@ -2,7 +2,7 @@
 
 This project is a learning prototype. It is not production-ready and should only be run on a trusted local network while these risks are understood and actively managed.
 
-This file is the **general** risk register for the whole app. Auth-specific threat model, controls, and Phase 1 checklist live in `docs/plans/auth-security.md` (implementation: `docs/plans/auth-implementation.md`). V1 security sign-off: `docs/plans/v1-security.md`. Open QA hardening: `docs/qa/auth-gaps.md`. Docs index: `docs/README.md`.
+This file is the **general** risk register for the whole app. V1 security sign-off checklist: `docs/plans/security-checklist.md`. Open QA hardening: `docs/qa/gaps.md`. Docs index: `docs/README.md`.
 
 ## Scope And Responsibility
 
@@ -50,7 +50,7 @@ Controls (V1):
 
 Residual gap: Self-signed certificates do not prove server identity. CSRF tokens are a follow-up (`SameSite=Strict` is the V1 baseline). Custom trusted certificates or operator-managed reverse-proxy TLS are planned for a later release.
 
-Status: Partially mitigated; see `docs/qa/auth-gaps.md` for follow-up items (HSTS, custom certs).
+Status: Partially mitigated; see `docs/qa/gaps.md` (GAP-01) for follow-up items (HSTS, custom certs).
 
 ### Docker Socket Mount
 
@@ -457,7 +457,7 @@ Impact: Regressions may go unnoticed.
 
 Plan: Add automated tests for file traversal, auth once added, Integritas key storage, encryption/decryption, and API error handling.
 
-Status: Open. Auth test cases and gaps: `docs/qa/auth-gaps.md` (model: `docs/plans/auth-security.md`).
+Status: Open. Auth test cases and gaps: `docs/qa/gaps.md`.
 
 ## Development Security Plan
 
