@@ -27,6 +27,9 @@ import type {
   WalletSendHistoryItem,
   WalletStatus,
 } from '../features/wallet/walletTypes';
+import { AddressBookPanel } from '../features/address-book/AddressBookPanel';
+import { listAddressBookEntries } from '../features/address-book/addressBookApi';
+import type { AddressBookEntry } from '../features/address-book/addressBookTypes';
 
 function isNativeTokenId(tokenId: string): boolean {
   return tokenId.trim().toLowerCase() === '0x00';
@@ -354,6 +357,8 @@ export function WalletPage() {
         )}
       </Card>
 
+      <AddressBookPanel />
+
       {settingsOpen && (
         <WalletSettingsModal
           onClose={() => setSettingsOpen(false)}
@@ -634,6 +639,12 @@ function SendPaymentModal({
   const [tokenId, setTokenId] = useState('0x00');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [contacts, setContacts] = useState<AddressBookEntry[]>([]);
+
+  useEffect(() => {
+    listAddressBookEntries().then(setContacts).catch(() => {});
+  }, []);
 
   const tokens = walletStatus?.tokens ?? [];
   const tokenOptions = tokens.map((token) => ({
@@ -707,19 +718,59 @@ function SendPaymentModal({
   return (
     <Modal title='Send payment' onClose={onClose}>
       <form onSubmit={handleSubmit} className='grid gap-4'>
-        <label className='grid gap-1.5'>
-          <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
-            Recipient address
-          </span>
+        <div className='grid gap-1.5'>
+          <div className='flex items-center justify-between gap-3'>
+            <label
+              htmlFor='send-address'
+              className='text-xs font-bold uppercase tracking-widest text-slate-500'
+            >
+              Recipient address
+            </label>
+            {contacts.length > 0 && (
+              <button
+                type='button'
+                className='text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors'
+                onClick={() => setPickerOpen((v) => !v)}
+              >
+                {pickerOpen ? 'Close' : 'Address book'}
+              </button>
+            )}
+          </div>
           <input
+            id='send-address'
             type='text'
             value={address}
-            onChange={(e) => setAddress(e.target.value)}
+            onChange={(e) => {
+              setAddress(e.target.value);
+              setPickerOpen(false);
+            }}
             placeholder='Mx… or 0x…'
             autoComplete='off'
             spellCheck={false}
           />
-        </label>
+          {pickerOpen && (
+            <div className='rounded-xl border border-slate-200 bg-white shadow-sm divide-y divide-slate-100 max-h-48 overflow-y-auto'>
+              {contacts.map((contact) => (
+                <button
+                  key={contact.id}
+                  type='button'
+                  onClick={() => {
+                    setAddress(contact.address);
+                    setPickerOpen(false);
+                  }}
+                  className='w-full flex items-center justify-between gap-3 px-3 py-2 text-left hover:bg-slate-50 transition-colors first:rounded-t-xl last:rounded-b-xl'
+                >
+                  <span className='text-sm font-semibold text-slate-900'>
+                    {contact.label}
+                  </span>
+                  <span className='text-xs text-slate-400 font-mono'>
+                    {shortAddress(contact.address)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         <label className='grid gap-1.5'>
           <span className='flex items-center justify-between gap-3'>
