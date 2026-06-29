@@ -6,10 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Wallet address book**: save and reuse external Mx/0x addresses when sending MINIMA or tokens. Contacts are stored in a new `address_book` SQLite table. The wallet page shows an Address Book card below send history with a full list, inline add/edit/delete forms, and a copy-to-clipboard button per row. The Send payment modal gains an "Address book" picker that populates the recipient address field from saved contacts.
+- Address book REST API (`GET /PATCH /DELETE /api/wallet/address-book/:id`, `POST /api/wallet/address-book`): all mutations require admin role and emit audit events (`address-book.create`, `address-book.update`, `address-book.delete`).
+
+### Changed
+
+- `wallet.routes.ts` send-payment now rejects addresses that do not start with `Mx` or `0x`, consistent with address book validation.
+- `TokenListItem.isNative` widened from literal `false` to `boolean`, removing a needless type constraint ahead of known-token support.
+
 ### Fixed
 
 - GPIO input watchers now run `gpiomon` continuously and avoid the unsupported `--both-edges` flag on older Raspberry Pi OS/libgpiod versions.
 - GPIO input reads now line-buffer `gpiomon` output and ignore stale events from deleted sources instead of crashing on foreign-key errors.
+
+### Removed
+
+- `wallet_accounts` SQLite table dropped — the multi-wallet design it supported was replaced in 0.8.0 and the table has been unused since.
+
+### Internal
+
+- `backend/src/shared/minima-address.ts` — shared `isMinimaAddress` helper used by both address book and wallet send routes.
 
 ## [0.10.0] - 2026-06-29
 

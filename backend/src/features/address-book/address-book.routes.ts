@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { recordAuditEvent } from "../auth/audit.service.js";
 import { requireRole } from "../auth/auth.middleware.js";
+import { isMinimaAddress } from "../../shared/minima-address.js";
 import {
   deleteAddressBookEntry,
   getAddressBookEntryByAddress,
@@ -24,7 +25,7 @@ addressBookRouter.post("/", requireRole("admin"), (req, res) => {
   if (!label) return res.status(400).json({ ok: false, error: "label is required" });
   if (label.length > 80) return res.status(400).json({ ok: false, error: "label must be 80 characters or fewer" });
   if (!address) return res.status(400).json({ ok: false, error: "address is required" });
-  if (!/^(Mx|0x)/i.test(address)) {
+  if (!isMinimaAddress(address)) {
     return res.status(400).json({ ok: false, error: "address must start with Mx or 0x" });
   }
 
