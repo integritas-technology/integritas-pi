@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **URL-backed navigation**: replaced local `useState` nav with React Router. Each section now has a real URL (`/dashboard`, `/node`, `/wallet`, etc.), browser history and the back button work, and deep links or page refreshes land on the correct section instead of resetting to dashboard. Sidebar and mobile nav items are `<NavLink>` elements whose active state comes from the router. The `*` catch-all and `/` redirect ensure no dead ends.
+
 ## [0.9.0] - 2026-06-26
 
 ### Added
