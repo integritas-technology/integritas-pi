@@ -119,7 +119,7 @@ async function handleGpioLine(source: DataSourceRecord, workflow: AutomationWork
 function gpiomonArgs(config: GpioInputConfig) {
   const bias = config.pull === "up" ? "pull-up" : config.pull === "down" ? "pull-down" : "disable";
   const edgeArgs = config.edge === "rising" ? ["--rising-edge"] : config.edge === "falling" ? ["--falling-edge"] : [];
-  return [...edgeArgs, `--bias=${bias}`, config.chip, String(config.pin)];
+  return [...edgeArgs, "--num-events=0", `--bias=${bias}`, config.chip, String(config.pin)];
 }
 
 function parseEdge(line: string) {

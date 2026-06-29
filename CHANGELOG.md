@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- GPIO input watchers now run `gpiomon` continuously and avoid the unsupported `--both-edges` flag on older Raspberry Pi OS/libgpiod versions.
+
 ## [0.7.3] - 2026-06-26
 
 ### Added
