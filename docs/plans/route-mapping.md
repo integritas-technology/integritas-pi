@@ -1,6 +1,6 @@
 # Route Mapping & Navigation State
 
-**Status:** Pending  
+**Status:** Complete  
 **Created:** 2026-06-29  
 **Goal:** Replace prototype's local `useState` navigation with URL-backed routes using React Router. Each nav item maps to a defined path with browser history, deep linking, and refresh-safe state.
 
@@ -32,7 +32,7 @@
 
 ## Part 2 — Cleanup
 
-- [ ] Remove `active: NavId` state and `setActive` from `AppContent`
-- [ ] Remove `active` / `setActive` props from `AppShell`
-- [ ] Delete the `ActivePage` component
-- [ ] Replace `onBack={() => setActive("dashboard")}` and `onStartSetup={() => setActive("setup")}` patterns with `useNavigate()` inside those pages directly
+- [x] Remove `active: NavId` state and `setActive` from `AppContent`
+- [x] Remove `active` / `setActive` props from `AppShell`
+- [x] Delete the `ActivePage` component
+- [x] Replace `onBack={() => setActive("dashboard")}` and `onStartSetup={() => setActive("setup")}` patterns with `useNavigate()` inside those pages directly
