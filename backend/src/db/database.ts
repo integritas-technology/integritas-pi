@@ -197,4 +197,14 @@ export function runMigrations() {
       created_at TEXT NOT NULL
     )
   `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS address_book (
+      id         TEXT PRIMARY KEY,
+      label      TEXT NOT NULL,
+      address    TEXT NOT NULL UNIQUE,
+      notes      TEXT,
+      created_at TEXT NOT NULL
+    )
+  `);
 }
