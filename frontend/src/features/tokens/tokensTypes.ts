@@ -26,7 +26,7 @@ export type TokenListItem = {
   confirmed: string;
   unconfirmed: string;
   sendable: string;
-  isNative: false;
+  isNative: boolean;
   createdLocally: boolean;
   decimal?: number;
 };

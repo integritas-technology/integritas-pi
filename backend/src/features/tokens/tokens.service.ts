@@ -122,7 +122,7 @@ export async function listWalletTokens(): Promise<TokenListResponse> {
         confirmed: token.confirmed,
         unconfirmed: token.unconfirmed,
         sendable: token.sendable,
-        isNative: false as const,
+        isNative: false,
         createdLocally: Boolean(local),
         decimal: local?.decimal
       };

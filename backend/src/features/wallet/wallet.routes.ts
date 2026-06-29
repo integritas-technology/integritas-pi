@@ -2,6 +2,7 @@ import { Router } from "express";
 import { env } from "../../config/env.js";
 import { recordAuditEvent } from "../auth/audit.service.js";
 import { requireRole } from "../auth/auth.middleware.js";
+import { isMinimaAddress } from "../../shared/minima-address.js";
 import { clearWalletSendHistoryForDebug, getPaymentStatus, getReceiveAddress, getWalletStatus, importWallet, listWalletSendHistory, recordWalletSendHistory, sendPayment } from "./wallet.service.js";
 
 export const walletRouter = Router();
@@ -33,6 +34,7 @@ walletRouter.post("/send-payment", requireRole("admin"), async (req, res) => {
   const tokenName = typeof req.body?.tokenName === "string" ? req.body.tokenName.trim() : "";
 
   if (!address) return res.status(400).json({ ok: false, error: "address is required" });
+  if (!isMinimaAddress(address)) return res.status(400).json({ ok: false, error: "address must start with Mx or 0x" });
   if (!amount || !Number.isFinite(Number(amount)) || Number(amount) <= 0) {
     return res.status(400).json({ ok: false, error: "amount must be a positive number" });
   }

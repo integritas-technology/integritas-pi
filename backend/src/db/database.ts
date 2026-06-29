@@ -207,4 +207,6 @@ export function runMigrations() {
       created_at TEXT NOT NULL
     )
   `);
+
+  db.exec(`DROP TABLE IF EXISTS wallet_accounts`);
 }
