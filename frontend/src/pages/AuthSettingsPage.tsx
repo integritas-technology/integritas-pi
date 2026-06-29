@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Check, CheckCircle2, Copy, Eye, EyeOff, RotateCcw, ShieldAlert } from "lucide-react";
 import { Card } from "../components/Card";
 import { Page } from "../components/Page";
@@ -6,7 +7,8 @@ import { changePassword, initTotpReset, verifyTotpReset } from "../features/auth
 
 type TotpResetPhase = "idle" | "scan" | "done";
 
-export function AuthSettingsPage({ onBack }: { onBack: () => void }) {
+export function AuthSettingsPage() {
+  const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [pwTotpToken, setPwTotpToken] = useState("");
@@ -105,7 +107,7 @@ export function AuthSettingsPage({ onBack }: { onBack: () => void }) {
       action={
         <button
           type="button"
-          onClick={onBack}
+          onClick={() => navigate("/dashboard")}
           className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 flex items-center gap-1.5"
         >
           <ArrowLeft size={14} /> Back

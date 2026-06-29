@@ -1,5 +1,6 @@
 import { CheckCircle2, Circle, LockKeyhole, LogOut, RadioTower, ShieldCheck } from "lucide-react";
 import { Page } from "../components/Page";
+import { useAuth } from "../features/auth";
 
 const setupSteps = [
   { title: "Install package", description: "Confirm the Minima Edge Stack Pi Edition bundle is installed and running as a local service.", complete: true },
@@ -10,7 +11,8 @@ const setupSteps = [
   { title: "Secure your data origination", description: "Stamp source data with Integritas.", complete: false, icon: ShieldCheck }
 ];
 
-export function SetupPage({ onSignOut }: { onSignOut?: () => void }) {
+export function SetupPage() {
+  const { signOut } = useAuth();
   const completed = setupSteps.filter((step) => step.complete).length;
 
   return (
@@ -19,13 +21,11 @@ export function SetupPage({ onSignOut }: { onSignOut?: () => void }) {
       title="Get your edge data workflow running"
       desc="Follow these steps to connect devices, collect data, and create verifiable Integritas records from the Pi."
       action={
-        onSignOut ? (
-          <div className="setup-page-actions">
-            <button type="button" className="setup-relaunch-button setup-signout-button" onClick={onSignOut}>
-              <LogOut size={16} /> Sign out
-            </button>
-          </div>
-        ) : undefined
+        <div className="setup-page-actions">
+          <button type="button" className="setup-relaunch-button setup-signout-button" onClick={() => void signOut()}>
+            <LogOut size={16} /> Sign out
+          </button>
+        </div>
       }
     >
       <section className="card setup-progress-card">

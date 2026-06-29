@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -100,7 +101,8 @@ const buildSteps = [
   },
 ];
 
-export function DashboardPage({ onStartSetup }: { onStartSetup: () => void }) {
+export function DashboardPage() {
+  const navigate = useNavigate();
   const [deviceStatus, setDeviceStatus] = useState<DeviceStatus | null>(null);
   const [walletBalance, setWalletBalance] = useState<string | null>(null);
   const [proofs, setProofs] = useState<IntegritasProofRecord[]>([]);
@@ -157,7 +159,7 @@ export function DashboardPage({ onStartSetup }: { onStartSetup: () => void }) {
             UI.
           </p>
           <div className='hero-actions'>
-            <button type='button' onClick={onStartSetup}>
+            <button type='button' onClick={() => navigate("/setup")}>
               Start setup
             </button>
           </div>
