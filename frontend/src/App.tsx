@@ -3,6 +3,7 @@ import { AppShell } from "./components/AppShell";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ToastProvider } from "./components/ToastProvider";
 import { AuthProvider, useAuth } from "./features/auth";
+import { LoginPage } from "./features/auth/LoginPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { DataSourcesPage } from "./pages/DataSourcesPage";
 import { DiagnosticsPage } from "./pages/DiagnosticsPage";
@@ -12,6 +13,12 @@ import { AutomationPage } from "./pages/AutomationPage";
 import { SetupPage } from "./pages/SetupPage";
 import { WalletPage } from "./pages/WalletPage";
 import { AuthSettingsPage } from "./pages/AuthSettingsPage";
+
+function LoginRoute() {
+  const { user, refreshSession } = useAuth();
+  if (user) return <Navigate to="/dashboard" replace />;
+  return <LoginPage onSuccess={() => void refreshSession()} />;
+}
 
 function AppContent() {
   const { user, signOut } = useAuth();
@@ -39,9 +46,17 @@ export default function App() {
   return (
     <ToastProvider>
       <AuthProvider>
-        <ProtectedRoute>
-          <AppContent />
-        </ProtectedRoute>
+        <Routes>
+          <Route path="/login" element={<LoginRoute />} />
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <AppContent />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
       </AuthProvider>
     </ToastProvider>
   );

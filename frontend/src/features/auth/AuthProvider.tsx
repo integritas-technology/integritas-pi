@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { setUnauthorizedHandler } from "../../lib/api";
 import { getMe, getSetupStatus, logout } from "./api";
 import { AuthContext } from "./hooks";
-import { LoginPage } from "./LoginPage";
 import { OnboardingWizard } from "../setup/OnboardingWizard";
 import type { AuthUser } from "./types";
 
@@ -83,10 +82,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   if (showSetup) {
     return <OnboardingWizard onComplete={() => void refreshSession()} />;
-  }
-
-  if (showLogin || !user) {
-    return <LoginPage onSuccess={() => void refreshSession()} />;
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
