@@ -1,24 +1,26 @@
-import { LogOut, ShieldCheck, UserRound } from "lucide-react";
+import { LogOut, Settings, ShieldCheck } from "lucide-react";
 import type { AuthUser } from "./types";
 
 export function SidebarUserBox({
   user,
   onSignOut,
+  onSettings,
 }: {
   user: AuthUser;
   onSignOut: () => void;
+  onSettings: () => void;
 }) {
   return (
     <div className="sidebar-user-box">
-      <div className="sidebar-user-box-main">
+      <button type="button" className="sidebar-user-box-main" onClick={onSettings}>
         <div className="sidebar-user-box-avatar" aria-hidden="true">
-          <UserRound size={18} />
+          <Settings size={18} />
         </div>
         <div className="sidebar-user-box-copy">
           <strong>{user.displayName}</strong>
-          <p>Administrator</p>
+          <p>Account settings</p>
         </div>
-      </div>
+      </button>
 
       <div className="sidebar-user-box-meta">
         <span className="sidebar-user-box-pill sidebar-user-box-pill-good">

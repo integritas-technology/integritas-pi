@@ -1,0 +1,311 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft, Check, CheckCircle2, Copy, Eye, EyeOff, RotateCcw, ShieldAlert } from "lucide-react";
+import { Card } from "../components/Card";
+import { Page } from "../components/Page";
+import { changePassword, initTotpReset, verifyTotpReset } from "../features/auth/api";
+
+type TotpResetPhase = "idle" | "scan" | "done";
+
+export function AuthSettingsPage() {
+  const navigate = useNavigate();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [pwTotpToken, setPwTotpToken] = useState("");
+  const [pwSubmitting, setPwSubmitting] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwSuccess, setPwSuccess] = useState(false);
+
+  const [totpPhase, setTotpPhase] = useState<TotpResetPhase>("idle");
+  const [resetCurrentPassword, setResetCurrentPassword] = useState("");
+  const [resetCurrentToken, setResetCurrentToken] = useState("");
+  const [resetSubmitting, setResetSubmitting] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [totpSecret, setTotpSecret] = useState<string | null>(null);
+  const [showManualKey, setShowManualKey] = useState(false);
+  const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
+  const [verifyCode, setVerifyCode] = useState("");
+  const [verifySubmitting, setVerifySubmitting] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwSubmitting(true);
+    setPwError(null);
+    setPwSuccess(false);
+    try {
+      await changePassword({ currentPassword, newPassword, totpToken: pwTotpToken });
+      setPwSuccess(true);
+      setCurrentPassword("");
+      setNewPassword("");
+      setPwTotpToken("");
+    } catch (err) {
+      setPwError(err instanceof Error ? err.message : "Failed to change password");
+    } finally {
+      setPwSubmitting(false);
+    }
+  };
+
+  const handleInitTotpReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetSubmitting(true);
+    setResetError(null);
+    try {
+      const result = await initTotpReset({ currentPassword: resetCurrentPassword, totpToken: resetCurrentToken });
+      setQrCode(result.qrCodePngBase64);
+      setTotpSecret(result.secret);
+      setTotpPhase("scan");
+    } catch (err) {
+      setResetError(err instanceof Error ? err.message : "Failed to start 2FA reset");
+    } finally {
+      setResetSubmitting(false);
+    }
+  };
+
+  const handleVerifyTotpReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setVerifySubmitting(true);
+    setVerifyError(null);
+    try {
+      await verifyTotpReset({ totpToken: verifyCode });
+      setQrCode(null);
+      setTotpSecret(null);
+      setTotpPhase("done");
+    } catch (err) {
+      setVerifyError(err instanceof Error ? err.message : "Invalid code — try again");
+    } finally {
+      setVerifySubmitting(false);
+    }
+  };
+
+  const copyManualKey = async () => {
+    if (!totpSecret) return;
+    try {
+      await navigator.clipboard.writeText(totpSecret);
+      setCopyState("copied");
+      window.setTimeout(() => setCopyState("idle"), 2000);
+    } catch {
+      setCopyState("idle");
+    }
+  };
+
+  const resetTotpFlow = () => {
+    setTotpPhase("idle");
+    setResetCurrentPassword("");
+    setResetCurrentToken("");
+    setVerifyCode("");
+    setVerifyError(null);
+    setResetError(null);
+    setShowManualKey(false);
+  };
+
+  return (
+    <Page
+      eyebrow="Admin account"
+      title="Account settings"
+      action={
+        <button
+          type="button"
+          onClick={() => navigate("/dashboard")}
+          className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 flex items-center gap-1.5"
+        >
+          <ArrowLeft size={14} /> Back
+        </button>
+      }
+    >
+      <Card>
+        <div className="grid gap-1" style={{ marginBottom: 16 }}>
+          <h3 style={{ margin: 0 }}>Change password</h3>
+          <p style={{ margin: 0, color: "#64748b", fontSize: "0.875rem" }}>
+            Requires your current password and a valid 2FA code.
+          </p>
+        </div>
+
+        {pwSuccess && (
+          <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3" style={{ marginBottom: 16 }}>
+            <p className="text-sm text-emerald-700 flex items-center gap-2" style={{ margin: 0 }}>
+              <Check size={14} /> Password changed successfully.
+            </p>
+          </div>
+        )}
+
+        <form onSubmit={(e) => void handleChangePassword(e)} className="form-card">
+          <label>
+            Current password
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => { setCurrentPassword(e.target.value); setPwError(null); setPwSuccess(false); }}
+              placeholder="Your current password"
+              autoComplete="current-password"
+            />
+          </label>
+          <label>
+            New password
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => { setNewPassword(e.target.value); setPwError(null); setPwSuccess(false); }}
+              placeholder="At least 8 characters"
+              autoComplete="new-password"
+            />
+          </label>
+          <label>
+            2FA code
+            <input
+              value={pwTotpToken}
+              onChange={(e) => { setPwTotpToken(e.target.value.replace(/\D/g, "").slice(0, 6)); setPwError(null); setPwSuccess(false); }}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="000000"
+              maxLength={6}
+            />
+          </label>
+          {pwError && <p className="error-text" style={{ margin: 0 }}>{pwError}</p>}
+          <div className="button-row">
+            <button
+              type="submit"
+              disabled={pwSubmitting || !currentPassword || newPassword.length < 8 || pwTotpToken.length !== 6}
+            >
+              {pwSubmitting ? "Updating…" : "Change password"}
+            </button>
+          </div>
+        </form>
+      </Card>
+
+      <Card>
+        <div className="grid gap-1" style={{ marginBottom: 16 }}>
+          <h3 style={{ margin: 0 }}>Reset two-factor authentication</h3>
+          <p style={{ margin: 0, color: "#64748b", fontSize: "0.875rem" }}>
+            Generates a new TOTP secret. The QR code is shown once — save it in your authenticator before closing.
+          </p>
+        </div>
+
+        {totpPhase === "idle" && (
+          <form onSubmit={(e) => void handleInitTotpReset(e)} className="form-card">
+            <div className="rounded-xl bg-amber-50 border border-amber-200 p-3">
+              <p className="flex items-center gap-2" style={{ margin: 0, fontSize: "0.875rem", color: "#92400e" }}>
+                <ShieldAlert size={14} />
+                Your current 2FA secret will be replaced. Make sure your authenticator app is available before continuing.
+              </p>
+            </div>
+            <label>
+              Current password
+              <input
+                type="password"
+                value={resetCurrentPassword}
+                onChange={(e) => { setResetCurrentPassword(e.target.value); setResetError(null); }}
+                placeholder="Your current password"
+                autoComplete="current-password"
+              />
+            </label>
+            <label>
+              Current 2FA code
+              <input
+                value={resetCurrentToken}
+                onChange={(e) => { setResetCurrentToken(e.target.value.replace(/\D/g, "").slice(0, 6)); setResetError(null); }}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="000000"
+                maxLength={6}
+              />
+            </label>
+            {resetError && <p className="error-text" style={{ margin: 0 }}>{resetError}</p>}
+            <div className="button-row">
+              <button
+                type="submit"
+                disabled={resetSubmitting || !resetCurrentPassword || resetCurrentToken.length !== 6}
+              >
+                {resetSubmitting ? "Verifying…" : "Start 2FA reset"}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {totpPhase === "scan" && qrCode && (
+          <div className="grid gap-6">
+            <div className="flex gap-6 flex-wrap items-start">
+              <img
+                src={qrCode}
+                alt="TOTP QR code"
+                style={{ width: 160, height: 160, borderRadius: 12, border: "1px solid #e2e8f0" }}
+              />
+              {totpSecret && (
+                <div className="grid gap-3 flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <span style={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#64748b" }}>
+                      Manual setup key
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowManualKey((v) => !v)}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 flex items-center gap-1"
+                    >
+                      {showManualKey ? <><EyeOff size={12} /> Hide</> : <><Eye size={12} /> Show</>}
+                    </button>
+                  </div>
+                  <p style={{ margin: 0, fontSize: "0.75rem", color: "#64748b" }}>
+                    Issuer: <strong>Integritas Pi</strong>, Account: <strong>Edge Workbench</strong>
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      readOnly
+                      value={showManualKey ? totpSecret : "•".repeat(Math.min(totpSecret.length, 32))}
+                      style={{ fontFamily: "ui-monospace, monospace", fontSize: "0.875rem" }}
+                      aria-label="Authenticator setup key"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void copyManualKey()}
+                      className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 flex items-center gap-1.5"
+                    >
+                      <Copy size={13} />
+                      {copyState === "copied" ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={(e) => void handleVerifyTotpReset(e)} className="form-card">
+              <label>
+                Confirmation code
+                <input
+                  value={verifyCode}
+                  onChange={(e) => { setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 6)); setVerifyError(null); }}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="000000"
+                  maxLength={6}
+                />
+              </label>
+              {verifyError && <p className="error-text" style={{ margin: 0 }}>{verifyError}</p>}
+              <div className="button-row">
+                <button type="submit" disabled={verifySubmitting || verifyCode.length !== 6}>
+                  {verifySubmitting ? "Verifying…" : "Confirm new 2FA"}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {totpPhase === "done" && (
+          <div className="grid gap-4">
+            <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3">
+              <p className="flex items-center gap-2" style={{ margin: 0, fontSize: "0.875rem", color: "#065f46" }}>
+                <CheckCircle2 size={14} />
+                Two-factor authentication has been reset. Your authenticator app is now linked to the new secret.
+              </p>
+            </div>
+            <div className="button-row">
+              <button type="button" onClick={resetTotpFlow} className="flex items-center gap-1.5">
+                <RotateCcw size={14} /> Reset again
+              </button>
+            </div>
+          </div>
+        )}
+      </Card>
+    </Page>
+  );
+}

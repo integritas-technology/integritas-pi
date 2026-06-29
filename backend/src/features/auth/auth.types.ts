@@ -23,6 +23,16 @@ export type AuthenticatedRequest = Request & {
   user: SessionUser;
 };
 
+export type ChangePasswordRequest = {
+  currentPassword: string;
+  newPassword: string;
+  totpToken: string;
+};
+
+export type TotpResetVerifyRequest = {
+  totpToken: string;
+};
+
 declare global {
   namespace Express {
     interface Request {
