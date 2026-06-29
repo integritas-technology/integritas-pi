@@ -1,6 +1,6 @@
-import { useState } from "react";
-import type { NavId } from "./app/types";
+import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ToastProvider } from "./components/ToastProvider";
 import { AuthProvider, useAuth } from "./features/auth";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -13,47 +13,25 @@ import { SetupPage } from "./pages/SetupPage";
 import { WalletPage } from "./pages/WalletPage";
 import { AuthSettingsPage } from "./pages/AuthSettingsPage";
 
-function ActivePage({
-  active,
-  setActive,
-  onSignOut,
-}: {
-  active: NavId;
-  setActive: (id: NavId) => void;
-  onSignOut: () => void;
-}) {
-  const pages: Record<NavId, React.ReactNode> = {
-    dashboard: <DashboardPage onStartSetup={() => setActive("setup")} />,
-    setup: <SetupPage onSignOut={onSignOut} />,
-    node: <MinimaPage />,
-    wallet: <WalletPage />,
-    integritas: <IntegritasPage />,
-    data: <DataSourcesPage />,
-    automation: <AutomationPage />,
-    diagnostics: <DiagnosticsPage />,
-    settings: <AuthSettingsPage onBack={() => setActive("dashboard")} />
-  };
-  return <>{pages[active]}</>;
-}
-
 function AppContent() {
-  const [active, setActive] = useState<NavId>("dashboard");
   const { user, signOut } = useAuth();
-
-  if (!user) return null;
+  const navigate = useNavigate();
 
   return (
-    <AppShell
-      active={active}
-      setActive={setActive}
-      user={user}
-      onSignOut={() => void signOut()}
-    >
-      <ActivePage
-        active={active}
-        setActive={setActive}
-        onSignOut={() => void signOut()}
-      />
+    <AppShell user={user!} onSignOut={() => void signOut()}>
+      <Routes>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<DashboardPage onStartSetup={() => navigate("/setup")} />} />
+        <Route path="/setup" element={<SetupPage onSignOut={() => void signOut()} />} />
+        <Route path="/node" element={<MinimaPage />} />
+        <Route path="/wallet" element={<WalletPage />} />
+        <Route path="/integritas" element={<IntegritasPage />} />
+        <Route path="/data" element={<DataSourcesPage />} />
+        <Route path="/automation" element={<AutomationPage />} />
+        <Route path="/diagnostics" element={<DiagnosticsPage />} />
+        <Route path="/settings" element={<AuthSettingsPage onBack={() => navigate("/dashboard")} />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
     </AppShell>
   );
 }
@@ -62,7 +40,9 @@ export default function App() {
   return (
     <ToastProvider>
       <AuthProvider>
-        <AppContent />
+        <ProtectedRoute>
+          <AppContent />
+        </ProtectedRoute>
       </AuthProvider>
     </ToastProvider>
   );

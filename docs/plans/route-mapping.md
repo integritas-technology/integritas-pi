@@ -24,11 +24,11 @@
 
 ## Part 1 — Implementation
 
-- [ ] Wrap `main.tsx` in `<BrowserRouter>`
-- [ ] Add `<ProtectedRoute>` component — reads `useAuth().user`, redirects to `/login` if null, shows loader while `loading` is true
-- [ ] Replace `ActivePage` with `<Routes>` + `<Route>` entries (9 routes) inside `AppShell`'s content area
-- [ ] Replace sidebar `setActive(id)` calls with `<NavLink to="/path">` (active state comes for free)
-- [ ] Add `/` → `/dashboard` redirect and a `*` 404 fallback route
+- [x] Wrap `main.tsx` in `<BrowserRouter>`
+- [x] Add `<ProtectedRoute>` component — reads `useAuth().user`, redirects to `/login` if null, shows loader while `loading` is true
+- [x] Replace `ActivePage` with `<Routes>` + `<Route>` entries (9 routes) inside `AppShell`'s content area
+- [x] Replace sidebar `setActive(id)` calls with `<NavLink to="/path">` (active state comes for free)
+- [x] Add `/` → `/dashboard` redirect and a `*` 404 fallback route
 
 ## Part 2 — Cleanup
 

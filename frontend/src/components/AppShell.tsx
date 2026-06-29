@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Layers3, ShieldCheck } from "lucide-react";
 import { nav } from "../app/nav";
-import type { NavId, StatusOverview } from "../app/types";
+import type { StatusOverview } from "../app/types";
 import { SidebarUserBox } from "../features/auth/SidebarUserBox";
 import type { AuthUser } from "../features/auth/types";
 import { cx } from "../lib/cx";
@@ -10,19 +11,22 @@ import { Clock } from "./Clock";
 import { StatusBadge } from "./StatusBadge";
 
 export function AppShell({
-  active,
-  setActive,
   user,
   onSignOut,
   children,
 }: {
-  active: NavId;
-  setActive: (id: NavId) => void;
   user: AuthUser;
   onSignOut: () => void;
   children: React.ReactNode;
 }) {
-  const activeItem = useMemo(() => nav.find((item) => item.id === active) ?? nav[0], [active]);
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  const activeItem = useMemo(
+    () => nav.find((item) => pathname === `/${item.id}`) ?? nav[0],
+    [pathname]
+  );
+
   const [overview, setOverview] = useState<StatusOverview | null>(null);
 
   useEffect(() => {
@@ -46,14 +50,18 @@ export function AppShell({
             <div><p>Minima Edge Stack</p><h1>Edge Workbench</h1></div>
           </div>
 
-          <SidebarUserBox user={user} onSignOut={onSignOut} onSettings={() => setActive("settings")} />
+          <SidebarUserBox user={user} onSignOut={onSignOut} onSettings={() => navigate("/settings")} />
 
           <nav className="nav-list">
             {nav.map(({ id, label, icon: Icon, badge }) => (
-              <button key={id} type="button" onClick={() => setActive(id)} className={cx("nav-item", active === id && "active") }>
+              <NavLink
+                key={id}
+                to={`/${id}`}
+                className={({ isActive }) => cx("nav-item", isActive && "active")}
+              >
                 <span><Icon size={19} />{label}</span>
                 {badge && <span className="nav-badge">{badge}</span>}
-              </button>
+              </NavLink>
             ))}
           </nav>
 
@@ -80,7 +88,13 @@ export function AppShell({
 
           <div className="mobile-nav">
             {nav.map(({ id, label }) => (
-              <button key={id} type="button" onClick={() => setActive(id)} className={cx(active === id && "active")}>{label}</button>
+              <NavLink
+                key={id}
+                to={`/${id}`}
+                className={({ isActive }) => cx(isActive && "active")}
+              >
+                {label}
+              </NavLink>
             ))}
           </div>
 
