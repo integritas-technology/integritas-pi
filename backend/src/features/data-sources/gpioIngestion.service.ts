@@ -63,7 +63,7 @@ export function syncGpioDataSources() {
 }
 
 function watchGpioSource(source: DataSourceRecord, workflow: AutomationWorkflowRecord, config: GpioInputConfig) {
-  const child = spawn("gpiomon", gpiomonArgs(config), { shell: false });
+  const child = spawn("stdbuf", ["-oL", "-eL", "gpiomon", ...gpiomonArgs(config)], { shell: false });
   child.stdout.setEncoding("utf8");
   child.stderr.setEncoding("utf8");
 
@@ -92,6 +92,8 @@ function watchGpioSource(source: DataSourceRecord, workflow: AutomationWorkflowR
 }
 
 async function handleGpioLine(source: DataSourceRecord, workflow: AutomationWorkflowRecord, config: GpioInputConfig, line: string) {
+  if (!listDataSources().some((current) => current.id === source.id)) return;
+
   const watcher = watchers.get(source.id);
   const now = Date.now();
   if (watcher && config.debounceMs > 0 && now - watcher.lastEventAt < config.debounceMs) return;

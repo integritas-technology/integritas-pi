@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - GPIO input watchers now run `gpiomon` continuously and avoid the unsupported `--both-edges` flag on older Raspberry Pi OS/libgpiod versions.
+- GPIO input reads now line-buffer `gpiomon` output and ignore stale events from deleted sources instead of crashing on foreign-key errors.
 
 ## [0.10.0] - 2026-06-29
 
