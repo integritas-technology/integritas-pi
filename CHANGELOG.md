@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-06-29
+
 ### Changed
 
 - **QA docs**: consolidated five per-area gap files into `docs/qa/gaps.md`; updated `docs/README.md` to remove stale plan references.
