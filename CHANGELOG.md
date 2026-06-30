@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - **Wallet address book**: save and reuse external Mx/0x addresses when sending MINIMA or tokens. Contacts are stored in a new `address_book` SQLite table. The wallet page shows an Address Book card below send history with a full list, inline add/edit/delete forms, and a copy-to-clipboard button per row. The Send payment modal gains an "Address book" picker that populates the recipient address field from saved contacts.
-- Address book REST API (`GET /PATCH /DELETE /api/wallet/address-book/:id`, `POST /api/wallet/address-book`): all mutations require admin role and emit audit events (`address-book.create`, `address-book.update`, `address-book.delete`).
+- Address book REST API (`GET`, `POST /api/wallet/address-book`, `PATCH /DELETE /api/wallet/address-book/:id`): all mutations require admin role and emit audit events (`address-book.create`, `address-book.update`, `address-book.delete`).
 
 ### Changed
 
