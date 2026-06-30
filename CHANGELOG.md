@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-06-30
+
 ### Added
 
 - **Wallet address book**: save and reuse external Mx/0x addresses when sending MINIMA or tokens. Contacts are stored in a new `address_book` SQLite table with a full list, inline add/edit/delete forms, and a copy-to-clipboard button per row. The address book is accessible via a `BookUser` icon button in the wallet page header, opening as a modal. The Send payment modal gains an External / Address book mode toggle — Address book mode shows a dropdown of saved contacts to populate the recipient field.
