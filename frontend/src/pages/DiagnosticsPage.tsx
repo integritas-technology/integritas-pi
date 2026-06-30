@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { JsonPreview } from "../components/JsonPreview";
 import { Page } from "../components/Page";
 import { useToast } from "../components/ToastProvider";
@@ -10,12 +11,17 @@ import { deleteSelected, downloadSelected, getHistory, pollPendingRecords, verif
 import { IntegritasHistoryTable } from "../features/integritas/IntegritasHistoryTable";
 import type { IntegritasProofRecord } from "../features/integritas/integritasTypes";
 import { useIntegritasHistoryAutoRefresh } from "../features/integritas/useIntegritasHistoryAutoRefresh";
-
-type DiagnosticsTab = "proofs" | "reads";
+import {
+  diagnosticsTabToSearchParams,
+  isValidDiagnosticsTab,
+  parseDiagnosticsTab,
+  type DiagnosticsTab,
+} from "./diagnosticsQuery";
 
 export function DiagnosticsPage() {
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState<DiagnosticsTab>("proofs");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = parseDiagnosticsTab(searchParams);
   const [records, setRecords] = useState<IntegritasProofRecord[]>([]);
   const [reads, setReads] = useState<DataSourceRead[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -24,9 +30,20 @@ export function DiagnosticsPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    refreshProofs().catch((err: Error) => setError(err.message));
+    const rawTab = searchParams.get("tab");
+    if (rawTab !== null && !isValidDiagnosticsTab(rawTab)) {
+      setSearchParams(diagnosticsTabToSearchParams("proofs", searchParams), { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    setError(null);
+    if (activeTab === "proofs") {
+      refreshProofs().catch((err: Error) => setError(err.message));
+      return;
+    }
     refreshReads().catch((err: Error) => setError(err.message));
-  }, []);
+  }, [activeTab]);
 
   useIntegritasHistoryAutoRefresh(records, setRecords, { enabled: activeTab === "proofs" });
 
@@ -38,6 +55,10 @@ export function DiagnosticsPage() {
   async function refreshReads() {
     const response = await listDataReads();
     setReads(response.items);
+  }
+
+  function selectTab(tab: DiagnosticsTab) {
+    setSearchParams(diagnosticsTabToSearchParams(tab, searchParams), { replace: true });
   }
 
   async function run(action: () => Promise<unknown>) {
@@ -65,8 +86,8 @@ export function DiagnosticsPage() {
   return (
     <Page eyebrow="Diagnostics" title="Operational history" desc="Inspect stored proof requests and data-source read logs from one diagnostics workspace.">
       <div className="subtabs" role="tablist" aria-label="Diagnostics history">
-        <button type="button" role="tab" aria-selected={activeTab === "proofs"} className={activeTab === "proofs" ? "active" : ""} onClick={() => setActiveTab("proofs")}>Proof history</button>
-        <button type="button" role="tab" aria-selected={activeTab === "reads"} className={activeTab === "reads" ? "active" : ""} onClick={() => setActiveTab("reads")}>Read history</button>
+        <button type="button" role="tab" aria-selected={activeTab === "proofs"} className={activeTab === "proofs" ? "active" : ""} onClick={() => selectTab("proofs")}>Proof history</button>
+        <button type="button" role="tab" aria-selected={activeTab === "reads"} className={activeTab === "reads" ? "active" : ""} onClick={() => selectTab("reads")}>Read history</button>
       </div>
 
       {activeTab === "proofs" ? (

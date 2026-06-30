@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **Diagnostics tabs**: proof vs read history is reflected in the URL (`/diagnostics?tab=reads`). Refreshing or sharing the link opens the correct tab; only the active tab's list is fetched on load.
+
 ## [0.11.0] - 2026-06-30
 
 ### Added

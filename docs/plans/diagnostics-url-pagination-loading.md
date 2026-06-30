@@ -1,6 +1,6 @@
 # Diagnostics: URL query, pagination, loading state
 
-**Status:** Planned  
+**Status:** In progress (Part 1 done)  
 **Created:** 2026-06-30  
 **Goal:** Make the Diagnostics page shareable, scalable, and honest about fetch state — without duplicating business logic outside the backend API.
 
@@ -51,9 +51,9 @@ Examples:
 
 ### Acceptance
 
-- [ ] Refreshing `/diagnostics?tab=reads` stays on read history.
-- [ ] Back/forward after visiting another section still works; tab switches inside diagnostics use `replace`.
-- [ ] Invalid `tab` values normalize to `proofs`.
+- [x] Refreshing `/diagnostics?tab=reads` stays on read history.
+- [x] Back/forward after visiting another section still works; tab switches inside diagnostics use `replace`.
+- [x] Invalid `tab` values normalize to `proofs`.
 
 ---
 
