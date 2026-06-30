@@ -70,6 +70,7 @@ function watchGpioSource(source: DataSourceRecord, workflow: AutomationWorkflowR
   child.stdout.on("data", (chunk: string) => {
     for (const line of chunk.split(/\r?\n/).filter(Boolean)) {
       handleGpioLine(source, workflow, config, line).catch((error: Error) => {
+        if ("code" in error && error.code === "WORKFLOW_ALREADY_RUNNING") return;
         recordPushAutomationError({ workflow, dataSource: source, sourceUrl: sourceUrl(config), triggerType: "gpio", error: error.message });
       });
     }

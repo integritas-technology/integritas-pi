@@ -75,7 +75,7 @@ export function serializeAutomationWorkflow(record: AutomationWorkflowRecord) {
     dataSourceId,
     pollingIntervalSeconds,
     stampWithIntegritas: Boolean(stampBlock),
-    rules: blocks.map(blockToLegacyRule)
+    rules: blocks.filter((block) => !block.type.endsWith("_start")).map(blockToLegacyRule)
   };
 }
 
@@ -101,7 +101,7 @@ export async function runAutomationWorkflow(id: string, trigger: WorkflowContext
 }
 
 export async function executeWorkflow(workflow: AutomationWorkflowRecord, trigger: WorkflowContext["trigger"]) {
-  if (runningWorkflowIds.has(workflow.id)) throw new Error("Automation workflow is already running");
+  if (runningWorkflowIds.has(workflow.id)) throw Object.assign(new Error("Automation workflow is already running"), { code: "WORKFLOW_ALREADY_RUNNING" });
   if (!workflow.enabled && trigger.type !== "manual") throw new Error("Automation workflow is disabled");
 
   runningWorkflowIds.add(workflow.id);

@@ -64,6 +64,7 @@ function connectMqttSource(source: DataSourceRecord, workflow: AutomationWorkflo
 
   client.on("message", (_topic, payload) => {
     handleMqttMessage(source, workflow, config, payload).catch((error: Error) => {
+      if ("code" in error && error.code === "WORKFLOW_ALREADY_RUNNING") return;
       recordPushAutomationError({ workflow, dataSource: source, sourceUrl: `${config.brokerUrl} ${config.topic}`, triggerType: "mqtt", error: error.message });
     });
   });
