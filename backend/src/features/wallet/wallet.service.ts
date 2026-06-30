@@ -1,6 +1,7 @@
 import { runMinimaPathCommand } from "../minima/minima.rpc.js";
 import { db } from "../../db/database.js";
 import { parseAddressResponse, parseBalanceResponse, parseImportResponse, parsePaymentStatusResponse, parseSendResponse } from "./wallet.parse.js";
+import { KNOWN_TOKENS, lookupKnownToken } from "../tokens/tokens.known.js";
 import type {
   ImportWalletResult,
   PaymentStatus,
@@ -13,7 +14,34 @@ import type {
 
 export async function getWalletStatus(): Promise<WalletStatus> {
   const result = await runMinimaPathCommand("balance");
-  return parseBalanceResponse(result.body);
+  const status = parseBalanceResponse(result.body);
+
+  const existingIds = new Set(status.tokens.map((t) => t.tokenId.toLowerCase()));
+
+  // Attach known-token metadata to any token already in the wallet
+  const tokens = status.tokens.map((token) => {
+    const known = lookupKnownToken(token.tokenId);
+    if (!known) return token;
+    return { ...token, name: known.name, knownSymbol: known.symbol, knownName: known.name };
+  });
+
+  // Inject zero-balance placeholders for known tokens absent from the wallet
+  for (const kt of KNOWN_TOKENS) {
+    if (!existingIds.has(kt.tokenId.toLowerCase())) {
+      tokens.push({
+        tokenId: kt.tokenId,
+        name: kt.name,
+        confirmed: "0",
+        unconfirmed: "0",
+        sendable: "0",
+        isNative: false,
+        knownSymbol: kt.symbol,
+        knownName: kt.name,
+      });
+    }
+  }
+
+  return { ...status, tokens };
 }
 
 // Returns one of the 64 pre-created default wallet addresses at random.

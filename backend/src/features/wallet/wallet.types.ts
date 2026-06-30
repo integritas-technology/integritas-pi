@@ -5,6 +5,8 @@ export type TokenBalance = {
   unconfirmed: string;
   sendable: string;
   isNative: boolean;
+  knownSymbol?: string;
+  knownName?: string;
 };
 
 export type WalletStatus = {

@@ -3,6 +3,7 @@ import { BookUser, ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import { Card } from '../components/Card';
 import { CopyableCode } from '../components/CopyableCode';
 import { MinimaIcon } from '../components/MinimaIcon';
+import { UsdtIcon } from '../components/UsdtIcon';
 import { Modal } from '../components/Modal';
 import { Page } from '../components/Page';
 import { useToast } from '../components/ToastProvider';
@@ -92,9 +93,12 @@ function FilledHexTokenIcon({
   );
 }
 
-function TokenGlyph({ isNative }: { isNative: boolean }) {
+function TokenGlyph({ isNative, knownSymbol }: { isNative: boolean; knownSymbol?: string }) {
   if (isNative) {
     return <MinimaIcon size={13} className='text-slate-400 shrink-0' />;
+  }
+  if (knownSymbol === 'USDT') {
+    return <UsdtIcon size={13} className='text-slate-400 shrink-0' />;
   }
   return <FilledHexTokenIcon size={13} className='text-slate-400 shrink-0' />;
 }
@@ -111,7 +115,7 @@ export function WalletPage() {
   const [selectedHistoryItem, setSelectedHistoryItem] =
     useState<WalletSendHistoryItem | null>(null);
   const [debugClearingHistory, setDebugClearingHistory] = useState(false);
-  const [assetTab, setAssetTab] = useState<'all' | 'minima' | 'tokens'>('all');
+  const [assetTab, setAssetTab] = useState<'all' | 'coins' | 'tokens'>('all');
   const [selectedAsset, setSelectedAsset] = useState<TokenBalance | null>(null);
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -141,12 +145,16 @@ export function WalletPage() {
 
   const nativeToken = walletStatus?.tokens.find((t) => t.isNative);
   const totalMinima = nativeToken?.sendable ?? '0';
+  const usdtToken = walletStatus?.tokens.find((t) => t.knownSymbol === 'USDT') ?? null;
   const isDev = import.meta.env.DEV;
 
-  const allTokens = walletStatus?.tokens ?? [];
+  const allTokens = (walletStatus?.tokens ?? []).slice().sort((a, b) => {
+    const rank = (t: typeof a) => (t.isNative ? 0 : t.knownSymbol === 'USDT' ? 1 : 2);
+    return rank(a) - rank(b);
+  });
   const visibleAssets = allTokens.filter((t) => {
-    if (assetTab === 'minima') return t.isNative;
-    if (assetTab === 'tokens') return !t.isNative;
+    if (assetTab === 'coins') return t.isNative || t.knownSymbol === 'USDT';
+    if (assetTab === 'tokens') return !t.isNative && t.knownSymbol !== 'USDT';
     return true;
   });
 
@@ -236,17 +244,33 @@ export function WalletPage() {
             </button>
           </div>
         </div>
-        <div>
-          <p className='wallet-amount-label'>Total sendable MINIMA</p>
-          <div className='wallet-amount-row'>
-            <MinimaIcon size={36} className='wallet-amount-icon' />
-            <span
-              className='wallet-amount-number'
-              title={loading ? undefined : totalMinima}
-            >
-              {loading ? '…' : formatAmountThreshold(totalMinima)}
-            </span>
+        <div className='flex items-end gap-8 flex-wrap'>
+          <div>
+            <p className='wallet-amount-label'>Total sendable MINIMA</p>
+            <div className='wallet-amount-row'>
+              <MinimaIcon size={36} className='wallet-amount-icon' />
+              <span
+                className='wallet-amount-number'
+                title={loading ? undefined : totalMinima}
+              >
+                {loading ? '…' : formatAmountThreshold(totalMinima)}
+              </span>
+            </div>
           </div>
+          {usdtToken && (
+            <div>
+              <p className='wallet-amount-label'>Total sendable USDT</p>
+              <div className='wallet-amount-row'>
+                <UsdtIcon size={36} className='wallet-amount-icon' />
+                <span
+                  className='wallet-amount-number'
+                  title={usdtToken.sendable}
+                >
+                  {formatAmountThreshold(usdtToken.sendable)}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -277,7 +301,7 @@ export function WalletPage() {
             <div className='flex items-center justify-between gap-3 mb-4'>
               <p className='eyebrow'>Assets</p>
               <div className='flex gap-1 rounded-lg bg-slate-100 p-0.5'>
-                {(['all', 'minima', 'tokens'] as const).map((tab) => (
+                {(['all', 'coins', 'tokens'] as const).map((tab) => (
                   <button
                     key={tab}
                     type='button'
@@ -288,7 +312,7 @@ export function WalletPage() {
                         : 'text-slate-500 hover:text-slate-700'
                     }`}
                   >
-                    {tab === 'all' ? 'All' : tab === 'minima' ? 'Minima' : 'Tokens'}
+                    {tab === 'all' ? 'All' : tab === 'coins' ? 'Coins' : 'Tokens'}
                   </button>
                 ))}
               </div>
@@ -319,7 +343,7 @@ export function WalletPage() {
                   </div>
                   <div className='shrink-0 text-right'>
                     <p className='text-sm font-bold text-slate-900 tabular-nums inline-flex items-center gap-1.5'>
-                      <TokenGlyph isNative={token.isNative} />
+                      <TokenGlyph isNative={token.isNative} knownSymbol={token.knownSymbol} />
                       {formatAmountThreshold(token.sendable)}
                     </p>
                     <p className='text-xs text-slate-400'>sendable</p>
@@ -578,6 +602,14 @@ function AssetDetailModal({
   return (
     <Modal title={token.name} onClose={onClose}>
       <div className='grid gap-4'>
+        {token.knownSymbol && (
+          <div className='grid gap-1'>
+            <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+              Symbol
+            </p>
+            <p className='text-sm font-medium text-slate-900'>{token.knownSymbol}</p>
+          </div>
+        )}
         <div className='grid gap-1'>
           <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
             Token ID
@@ -589,7 +621,7 @@ function AssetDetailModal({
             Sendable
           </p>
           <p className='text-lg font-semibold text-slate-900 tabular-nums inline-flex items-center gap-2'>
-            <TokenGlyph isNative={token.isNative} />
+            <TokenGlyph isNative={token.isNative} knownSymbol={token.knownSymbol} />
             {formatAmountAdaptive(token.sendable)}
           </p>
         </div>
