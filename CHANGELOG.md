@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Block automation workflow implementation plan for replacing coarse automation rules with small composable start/action/logic blocks.
+- Automation backend now stores workflows as ordered blocks, resets the disposable legacy automation schema, records trigger metadata on data reads, and executes schedule/manual/GPIO/webhook/MQTT workflows through the new block executor while preserving the existing UI/API compatibility surface.
+
 ## [0.11.0] - 2026-06-30
 
 ### Added

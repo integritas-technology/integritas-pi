@@ -1,6 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { existsSync } from "node:fs";
-import { listAutomationWorkflows, type AutomationWorkflowRecord } from "../automation/automation.repository.js";
+import { listEnabledEventWorkflows, type AutomationWorkflowRecord } from "../automation/automation.repository.js";
 import { recordPushAutomationError, recordPushAutomationPayload } from "../automation/automation.service.js";
 import { listDataSources, updateDataSourceReadResult, type DataSourceRecord } from "./dataSources.repository.js";
 import { parseGpioInputConfig, processGpioPayload, type GpioInputConfig } from "./dataSources.service.js";
@@ -36,8 +36,8 @@ export function stopGpioIngestion() {
 
 export function syncGpioDataSources() {
   const gpioSources = new Map(listDataSources().filter((source) => source.type === "gpio-input").map((source) => [source.id, source]));
-  const gpioWorkflows = listAutomationWorkflows().filter((workflow) => workflow.enabled && gpioSources.has(workflow.data_source_id));
-  const activeIds = new Set(gpioWorkflows.map((workflow) => workflow.data_source_id));
+  const gpioWorkflows = new Map([...gpioSources.keys()].map((sourceId) => [sourceId, listEnabledEventWorkflows("gpio_event_start", sourceId)[0]]).filter((entry): entry is [string, AutomationWorkflowRecord] => Boolean(entry[1])));
+  const activeIds = new Set(gpioWorkflows.keys());
 
   for (const [sourceId, watcher] of watchers.entries()) {
     if (!activeIds.has(sourceId)) {
@@ -46,11 +46,11 @@ export function syncGpioDataSources() {
     }
   }
 
-  for (const workflow of gpioWorkflows) {
-    const source = gpioSources.get(workflow.data_source_id)!;
+  for (const [sourceId, workflow] of gpioWorkflows.entries()) {
+    const source = gpioSources.get(sourceId)!;
     try {
       const config = parseGpioInputConfig(JSON.parse(source.config) as unknown);
-      const key = `${workflow.id}|${workflow.stamp_with_integritas}|${config.chip}|${config.pin}|${config.pull}|${config.edge}|${config.debounceMs}|${config.activeState}`;
+      const key = `${workflow.id}|${workflow.updated_at}|${config.chip}|${config.pin}|${config.pull}|${config.edge}|${config.debounceMs}|${config.activeState}`;
       const existing = watchers.get(source.id);
       if (existing?.key === key) continue;
 

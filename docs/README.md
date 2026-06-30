@@ -13,6 +13,7 @@ docs/
 
 | Plan | Status |
 |---|---|
+| [plans/block-automation-workflows.md](./plans/block-automation-workflows.md) | Planned |
 | [plans/security-checklist.md](./plans/security-checklist.md) | In progress |
 
 ---

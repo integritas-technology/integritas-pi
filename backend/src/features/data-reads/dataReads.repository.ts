@@ -14,6 +14,9 @@ export type DataSourceReadRecord = {
   hash: string | null;
   preview_json: string | null;
   error: string | null;
+  trigger_source_id: string | null;
+  trigger_payload_json: string | null;
+  block_id: string | null;
 };
 
 export function listDataSourceReads() {
@@ -24,12 +27,12 @@ export function getDataSourceRead(id: string) {
   return db.prepare("SELECT * FROM data_source_reads WHERE id = ?").get(id) as DataSourceReadRecord | undefined;
 }
 
-export function createDataSourceRead(input: { dataSourceId: string; workflowId?: string | null; sourceName: string; sourceUrl: string; triggerType: "manual" | "automation" | "webhook" | "mqtt" | "gpio"; status: "success" | "failed"; hash?: string | null; preview?: unknown; error?: string | null }) {
+export function createDataSourceRead(input: { dataSourceId: string; workflowId?: string | null; sourceName: string; sourceUrl: string; triggerType: "manual" | "automation" | "webhook" | "mqtt" | "gpio" | "schedule"; status: "success" | "failed"; hash?: string | null; preview?: unknown; error?: string | null; triggerSourceId?: string | null; triggerPayload?: unknown; blockId?: string | null }) {
   const id = crypto.randomUUID();
   db.prepare(`
-    INSERT INTO data_source_reads (id, created_at, data_source_id, workflow_id, source_name, source_url, trigger_type, status, hash, preview_json, error)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, new Date().toISOString(), input.dataSourceId, input.workflowId ?? null, input.sourceName, input.sourceUrl, input.triggerType, input.status, input.hash ?? null, input.preview === undefined ? null : JSON.stringify(input.preview), input.error ?? null);
+    INSERT INTO data_source_reads (id, created_at, data_source_id, workflow_id, source_name, source_url, trigger_type, status, hash, preview_json, error, trigger_source_id, trigger_payload_json, block_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, new Date().toISOString(), input.dataSourceId, input.workflowId ?? null, input.sourceName, input.sourceUrl, input.triggerType, input.status, input.hash ?? null, input.preview === undefined ? null : JSON.stringify(input.preview), input.error ?? null, input.triggerSourceId ?? null, input.triggerPayload === undefined ? null : JSON.stringify(input.triggerPayload), input.blockId ?? null);
   return getDataSourceRead(id)!;
 }
 

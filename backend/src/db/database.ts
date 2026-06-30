@@ -9,6 +9,8 @@ export const db = new Database(env.databasePath);
 db.pragma("journal_mode = WAL");
 
 export function runMigrations() {
+  resetLegacyAutomationSchema();
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
@@ -57,32 +59,25 @@ export function runMigrations() {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       name TEXT NOT NULL,
-      data_source_id TEXT NOT NULL,
       enabled INTEGER NOT NULL,
-      polling_interval_seconds INTEGER NOT NULL,
-      stamp_with_integritas INTEGER NOT NULL,
       last_run_at TEXT,
       next_run_at TEXT,
       last_hash TEXT,
       last_proof_id TEXT,
-      last_error TEXT,
-      FOREIGN KEY (data_source_id) REFERENCES data_sources(id) ON DELETE CASCADE
+      last_error TEXT
     )
   `);
 
   db.exec(`
-    CREATE TABLE IF NOT EXISTS automation_rules (
+    CREATE TABLE IF NOT EXISTS automation_blocks (
       id TEXT PRIMARY KEY,
       workflow_id TEXT NOT NULL,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
-      name TEXT NOT NULL,
       type TEXT NOT NULL,
       enabled INTEGER NOT NULL,
       order_index INTEGER NOT NULL,
-      when_json TEXT NOT NULL,
-      condition_json TEXT NOT NULL,
-      then_json TEXT NOT NULL,
+      config_json TEXT NOT NULL,
       last_run_at TEXT,
       last_error TEXT,
       FOREIGN KEY (workflow_id) REFERENCES automation_workflows(id) ON DELETE CASCADE
@@ -103,11 +98,19 @@ export function runMigrations() {
       hash TEXT,
       preview_json TEXT,
       error TEXT,
+      trigger_source_id TEXT,
+      trigger_payload_json TEXT,
+      block_id TEXT,
       FOREIGN KEY (data_source_id) REFERENCES data_sources(id) ON DELETE CASCADE,
       FOREIGN KEY (workflow_id) REFERENCES automation_workflows(id) ON DELETE SET NULL,
-      FOREIGN KEY (integritas_proof_id) REFERENCES integritas_proofs(id) ON DELETE SET NULL
+      FOREIGN KEY (integritas_proof_id) REFERENCES integritas_proofs(id) ON DELETE SET NULL,
+      FOREIGN KEY (block_id) REFERENCES automation_blocks(id) ON DELETE SET NULL
     )
   `);
+
+  ensureColumn("data_source_reads", "trigger_source_id", "TEXT");
+  ensureColumn("data_source_reads", "trigger_payload_json", "TEXT");
+  ensureColumn("data_source_reads", "block_id", "TEXT");
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -209,4 +212,21 @@ export function runMigrations() {
   `);
 
   db.exec(`DROP TABLE IF EXISTS wallet_accounts`);
+}
+
+function resetLegacyAutomationSchema() {
+  const workflowColumns = db.prepare("PRAGMA table_info(automation_workflows)").all() as { name: string }[];
+  if (!workflowColumns.some((column) => column.name === "data_source_id")) return;
+
+  db.exec(`
+    DROP TABLE IF EXISTS data_source_reads;
+    DROP TABLE IF EXISTS automation_rules;
+    DROP TABLE IF EXISTS automation_blocks;
+    DROP TABLE IF EXISTS automation_workflows;
+  `);
+}
+
+function ensureColumn(table: string, column: string, definition: string) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!columns.some((item) => item.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
 }
