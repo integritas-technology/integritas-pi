@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Check, Copy, Pencil, Trash2 } from 'lucide-react';
-import { Card } from '../../components/Card';
+import { Modal } from '../../components/Modal';
 import { useToast } from '../../components/ToastProvider';
 import {
   createAddressBookEntry,
@@ -26,7 +26,7 @@ function sortByLabel(entries: AddressBookEntry[]): AddressBookEntry[] {
   );
 }
 
-export function AddressBookPanel() {
+export function AddressBookModal({ onClose }: { onClose: () => void }) {
   const { showToast } = useToast();
   const [entries, setEntries] = useState<AddressBookEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +40,9 @@ export function AddressBookPanel() {
     listAddressBookEntries()
       .then(setEntries)
       .catch((err) =>
-        setError(err instanceof Error ? err.message : 'Failed to load address book.'),
+        setError(
+          err instanceof Error ? err.message : 'Failed to load address book.',
+        ),
       )
       .finally(() => setLoading(false));
   }, []);
@@ -54,10 +56,7 @@ export function AddressBookPanel() {
   async function handleCopy(entry: AddressBookEntry) {
     await navigator.clipboard.writeText(entry.address);
     setCopiedId(entry.id);
-    setTimeout(
-      () => setCopiedId((id) => (id === entry.id ? null : id)),
-      2000,
-    );
+    setTimeout(() => setCopiedId((id) => (id === entry.id ? null : id)), 2000);
   }
 
   async function handleDelete(id: string) {
@@ -76,24 +75,7 @@ export function AddressBookPanel() {
   }
 
   return (
-    <Card>
-      <div className='flex items-center justify-between gap-3 mb-4'>
-        <p className='eyebrow'>Address book</p>
-        {!addOpen && (
-          <button
-            type='button'
-            className='btn btn-secondary'
-            onClick={() => {
-              setAddOpen(true);
-              setEditingId(null);
-              setDeletingId(null);
-            }}
-          >
-            Add contact
-          </button>
-        )}
-      </div>
-
+    <Modal title='Address book' onClose={onClose}>
       {loading && <p className='muted'>Loading…</p>}
       {error && <p className='error-text'>{error}</p>}
 
@@ -122,7 +104,10 @@ export function AddressBookPanel() {
                   key={entry.id}
                   entry={entry}
                   onSave={async (data) => {
-                    const updated = await updateAddressBookEntry(entry.id, data);
+                    const updated = await updateAddressBookEntry(
+                      entry.id,
+                      data,
+                    );
                     upsertEntry(updated);
                     setEditingId(null);
                     showToast({ tone: 'success', title: 'Contact updated' });
@@ -162,7 +147,23 @@ export function AddressBookPanel() {
           })}
         </div>
       )}
-    </Card>
+
+      {!addOpen && (
+        <div className='mt-4'>
+          <button
+            type='button'
+            className='btn btn-secondary w-full'
+            onClick={() => {
+              setAddOpen(true);
+              setEditingId(null);
+              setDeletingId(null);
+            }}
+          >
+            Add contact
+          </button>
+        </div>
+      )}
+    </Modal>
   );
 }
 
@@ -183,7 +184,9 @@ function ContactRow({
     <div className='flex items-center gap-3 py-2.5 first:pt-0 last:pb-0'>
       <div className='min-w-0 flex-1'>
         <p className='text-sm font-semibold text-slate-900'>{entry.label}</p>
-        <p className='text-xs text-slate-400 font-mono'>{shortAddr(entry.address)}</p>
+        <p className='text-xs text-slate-400 font-mono'>
+          {shortAddr(entry.address)}
+        </p>
         {entry.notes && (
           <p className='text-xs text-slate-500 mt-0.5'>{entry.notes}</p>
         )}
@@ -239,9 +242,18 @@ function AddContactForm({
     e.preventDefault();
     const trimLabel = label.trim();
     const trimAddress = address.trim();
-    if (!trimLabel) { setFormError('Label is required.'); return; }
-    if (trimLabel.length > 80) { setFormError('Label must be 80 characters or fewer.'); return; }
-    if (!trimAddress) { setFormError('Address is required.'); return; }
+    if (!trimLabel) {
+      setFormError('Label is required.');
+      return;
+    }
+    if (trimLabel.length > 80) {
+      setFormError('Label must be 80 characters or fewer.');
+      return;
+    }
+    if (!trimAddress) {
+      setFormError('Address is required.');
+      return;
+    }
     if (!/^(Mx|0x)/i.test(trimAddress)) {
       setFormError('Address must start with Mx or 0x.');
       return;
@@ -249,15 +261,24 @@ function AddContactForm({
     setFormError(null);
     setSubmitting(true);
     try {
-      await onSave({ label: trimLabel, address: trimAddress, notes: notes.trim() || null });
+      await onSave({
+        label: trimLabel,
+        address: trimAddress,
+        notes: notes.trim() || null,
+      });
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Could not save contact.');
+      setFormError(
+        err instanceof Error ? err.message : 'Could not save contact.',
+      );
       setSubmitting(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className='grid gap-3 pb-4 mb-2 border-b border-slate-100'>
+    <form
+      onSubmit={handleSubmit}
+      className='grid gap-3 pb-4 mb-2 border-b border-slate-100'
+    >
       <div className='grid gap-3 sm:grid-cols-2'>
         <label className='grid gap-1.5'>
           <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
@@ -289,7 +310,9 @@ function AddContactForm({
       <label className='grid gap-1.5'>
         <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
           Notes{' '}
-          <span className='normal-case font-normal text-slate-400'>(optional)</span>
+          <span className='normal-case font-normal text-slate-400'>
+            (optional)
+          </span>
         </span>
         <input
           type='text'
@@ -341,21 +364,31 @@ function EditContactForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimLabel = label.trim();
-    if (!trimLabel) { setFormError('Label is required.'); return; }
-    if (trimLabel.length > 80) { setFormError('Label must be 80 characters or fewer.'); return; }
+    if (!trimLabel) {
+      setFormError('Label is required.');
+      return;
+    }
+    if (trimLabel.length > 80) {
+      setFormError('Label must be 80 characters or fewer.');
+      return;
+    }
     setFormError(null);
     setSubmitting(true);
     try {
       await onSave({ label: trimLabel, notes: notes.trim() || null });
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Could not update contact.');
+      setFormError(
+        err instanceof Error ? err.message : 'Could not update contact.',
+      );
       setSubmitting(false);
     }
   }
 
   return (
     <form onSubmit={handleSubmit} className='grid gap-3 py-3'>
-      <p className='text-xs text-slate-400 font-mono truncate'>{entry.address}</p>
+      <p className='text-xs text-slate-400 font-mono truncate'>
+        {entry.address}
+      </p>
       <div className='grid gap-3 sm:grid-cols-2'>
         <label className='grid gap-1.5'>
           <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
@@ -372,7 +405,9 @@ function EditContactForm({
         <label className='grid gap-1.5'>
           <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
             Notes{' '}
-            <span className='normal-case font-normal text-slate-400'>(optional)</span>
+            <span className='normal-case font-normal text-slate-400'>
+              (optional)
+            </span>
           </span>
           <input
             type='text'

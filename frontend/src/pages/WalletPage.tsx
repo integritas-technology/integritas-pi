@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
+import { BookUser, ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import { Card } from '../components/Card';
 import { CopyableCode } from '../components/CopyableCode';
 import { MinimaIcon } from '../components/MinimaIcon';
@@ -27,7 +27,7 @@ import type {
   WalletSendHistoryItem,
   WalletStatus,
 } from '../features/wallet/walletTypes';
-import { AddressBookPanel } from '../features/address-book/AddressBookPanel';
+import { AddressBookModal } from '../features/address-book/AddressBookPanel';
 import { listAddressBookEntries } from '../features/address-book/addressBookApi';
 import type { AddressBookEntry } from '../features/address-book/addressBookTypes';
 
@@ -115,6 +115,7 @@ export function WalletPage() {
   const [selectedAsset, setSelectedAsset] = useState<TokenBalance | null>(null);
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [addressBookOpen, setAddressBookOpen] = useState(false);
 
   async function refresh() {
     setLoading(true);
@@ -182,14 +183,24 @@ export function WalletPage() {
       title='Wallet'
       desc='Node wallet balance and transaction history.'
       action={
-        <button
-          type='button'
-          className='section-action-button'
-          onClick={() => setSettingsOpen(true)}
-          aria-label='Wallet settings'
-        >
-          <Settings size={20} />
-        </button>
+        <div className='flex items-center gap-1'>
+          <button
+            type='button'
+            className='section-action-button'
+            onClick={() => setAddressBookOpen(true)}
+            aria-label='Address book'
+          >
+            <BookUser size={20} />
+          </button>
+          <button
+            type='button'
+            className='section-action-button'
+            onClick={() => setSettingsOpen(true)}
+            aria-label='Wallet settings'
+          >
+            <Settings size={20} />
+          </button>
+        </div>
       }
     >
       <div className='hero-card wallet-balance-card'>
@@ -357,8 +368,9 @@ export function WalletPage() {
         )}
       </Card>
 
-      <AddressBookPanel />
-
+      {addressBookOpen && (
+        <AddressBookModal onClose={() => setAddressBookOpen(false)} />
+      )}
       {settingsOpen && (
         <WalletSettingsModal
           onClose={() => setSettingsOpen(false)}
