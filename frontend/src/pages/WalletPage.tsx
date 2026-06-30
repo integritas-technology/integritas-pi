@@ -602,14 +602,14 @@ function AssetDetailModal({
   return (
     <Modal title={token.name} onClose={onClose}>
       <div className='grid gap-4'>
-        {token.knownSymbol && (
-          <div className='grid gap-1'>
-            <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
-              Symbol
-            </p>
-            <p className='text-sm font-medium text-slate-900'>{token.knownSymbol}</p>
-          </div>
-        )}
+        <div className='grid gap-1'>
+          <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+            Symbol
+          </p>
+          <p className='text-sm font-medium text-slate-900'>
+            {token.isNative ? 'MINIMA' : (token.knownSymbol ?? '—')}
+          </p>
+        </div>
         <div className='grid gap-1'>
           <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
             Token ID
