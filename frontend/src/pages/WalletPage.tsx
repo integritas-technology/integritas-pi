@@ -651,7 +651,7 @@ function SendPaymentModal({
   const [tokenId, setTokenId] = useState('0x00');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [addressMode, setAddressMode] = useState<'external' | 'address-book'>('external');
   const [contacts, setContacts] = useState<AddressBookEntry[]>([]);
 
   useEffect(() => {
@@ -732,55 +732,54 @@ function SendPaymentModal({
       <form onSubmit={handleSubmit} className='grid gap-4'>
         <div className='grid gap-1.5'>
           <div className='flex items-center justify-between gap-3'>
-            <label
-              htmlFor='send-address'
-              className='text-xs font-bold uppercase tracking-widest text-slate-500'
-            >
+            <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
               Recipient address
-            </label>
-            {contacts.length > 0 && (
-              <button
-                type='button'
-                className='text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors'
-                onClick={() => setPickerOpen((v) => !v)}
-              >
-                {pickerOpen ? 'Close' : 'Address book'}
-              </button>
-            )}
-          </div>
-          <input
-            id='send-address'
-            type='text'
-            value={address}
-            onChange={(e) => {
-              setAddress(e.target.value);
-              setPickerOpen(false);
-            }}
-            placeholder='Mx… or 0x…'
-            autoComplete='off'
-            spellCheck={false}
-          />
-          {pickerOpen && (
-            <div className='rounded-xl border border-slate-200 bg-white shadow-sm divide-y divide-slate-100 max-h-48 overflow-y-auto'>
-              {contacts.map((contact) => (
+            </span>
+            <div className='flex gap-1 rounded-lg bg-slate-100 p-0.5'>
+              {(['external', 'address-book'] as const).map((mode) => (
                 <button
-                  key={contact.id}
+                  key={mode}
                   type='button'
                   onClick={() => {
-                    setAddress(contact.address);
-                    setPickerOpen(false);
+                    setAddressMode(mode);
+                    setAddress('');
+                    setFormError(null);
                   }}
-                  className='w-full flex items-center justify-between gap-3 px-3 py-2 text-left hover:bg-slate-50 transition-colors first:rounded-t-xl last:rounded-b-xl'
+                  className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
+                    addressMode === mode
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
                 >
-                  <span className='text-sm font-semibold text-slate-900'>
-                    {contact.label}
-                  </span>
-                  <span className='text-xs text-slate-400 font-mono'>
-                    {shortAddress(contact.address)}
-                  </span>
+                  {mode === 'external' ? 'External' : 'Address book'}
                 </button>
               ))}
             </div>
+          </div>
+          {addressMode === 'external' ? (
+            <input
+              id='send-address'
+              type='text'
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder='Mx… or 0x…'
+              autoComplete='off'
+              spellCheck={false}
+            />
+          ) : contacts.length === 0 ? (
+            <p className='text-sm text-slate-500'>No contacts saved in address book.</p>
+          ) : (
+            <select
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+            >
+              <option value=''>Select a contact…</option>
+              {contacts.map((contact) => (
+                <option key={contact.id} value={contact.address}>
+                  {contact.label}
+                </option>
+              ))}
+            </select>
           )}
         </div>
 
