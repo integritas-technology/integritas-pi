@@ -116,6 +116,7 @@ export function WalletPage() {
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [addressBookOpen, setAddressBookOpen] = useState(false);
+  const [mainTab, setMainTab] = useState<'assets' | 'history'>('assets');
 
   async function refresh() {
     setLoading(true);
@@ -249,122 +250,147 @@ export function WalletPage() {
         </div>
       </div>
 
-      <Card>
-        <div className='flex items-center justify-between gap-3 mb-4'>
-          <p className='eyebrow'>Assets</p>
-          <div className='flex gap-1 rounded-lg bg-slate-100 p-0.5'>
-            {(['all', 'minima', 'tokens'] as const).map((tab) => (
-              <button
-                key={tab}
-                type='button'
-                onClick={() => setAssetTab(tab)}
-                className={`px-3 py-1 rounded-md text-xs font-semibold capitalize transition-colors ${
-                  assetTab === tab
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {tab === 'all' ? 'All' : tab === 'minima' ? 'Minima' : 'Tokens'}
-              </button>
-            ))}
-          </div>
-        </div>
-        {loading && <p className='muted'>Loading…</p>}
-        {!loading && visibleAssets.length === 0 && (
-          <p className='muted'>
-            {assetTab === 'tokens'
-              ? 'No custom tokens in wallet.'
-              : 'No assets found.'}
-          </p>
-        )}
-        <div className='divide-y divide-slate-100'>
-          {visibleAssets.map((token) => (
-            <button
-              key={token.tokenId}
-              type='button'
-              onClick={() => setSelectedAsset(token)}
-              className='w-full flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 text-left hover:bg-slate-50 -mx-1 px-1 rounded-lg transition-colors'
-            >
-              <div className='min-w-0'>
-                <p className='text-sm font-semibold text-slate-900 truncate'>
-                  {token.name}
-                </p>
-                <p className='text-xs text-slate-400 font-mono truncate'>
-                  {token.tokenId}
-                </p>
-              </div>
-              <div className='shrink-0 text-right'>
-                <p className='text-sm font-bold text-slate-900 tabular-nums inline-flex items-center gap-1.5'>
-                  <TokenGlyph isNative={token.isNative} />
-                  {formatAmountThreshold(token.sendable)}
-                </p>
-                <p className='text-xs text-slate-400'>sendable</p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </Card>
+      <div className='subtabs' role='tablist' aria-label='Wallet sections'>
+        <button
+          type='button'
+          role='tab'
+          aria-selected={mainTab === 'assets'}
+          className={mainTab === 'assets' ? 'active' : ''}
+          onClick={() => setMainTab('assets')}
+        >
+          Assets
+        </button>
+        <button
+          type='button'
+          role='tab'
+          aria-selected={mainTab === 'history'}
+          className={mainTab === 'history' ? 'active' : ''}
+          onClick={() => setMainTab('history')}
+        >
+          History
+        </button>
+      </div>
 
       <Card>
-        <div className='flex items-center justify-between gap-3 mb-4'>
-          <p className='eyebrow'>History</p>
-          <div className='flex items-center gap-3'>
-            <p className='text-xs text-slate-500'>Sent</p>
-            <button
-              type='button'
-              className='btn btn-secondary'
-              onClick={refresh}
-              disabled={loading}
-            >
-              Refresh
-            </button>
-          </div>
-        </div>
-        {loading && <p className='muted'>Loading…</p>}
-        {error && <p className='error-text'>{error}</p>}
-        {!loading && !error && sendHistory.length === 0 && (
-          <p className='muted'>No send activity yet.</p>
-        )}
-        <div className='grid gap-2'>
-          {sendHistory.map((entry) => (
-            <button
-              key={entry.id}
-              type='button'
-              onClick={() => setSelectedHistoryItem(entry)}
-              className='w-full text-left rounded-xl border border-slate-200 bg-white p-3 hover:border-slate-400 transition'
-            >
-              <div className='flex items-start justify-between gap-3'>
-                <div>
-                  <p className='text-sm font-semibold text-slate-900 inline-flex items-center gap-1.5'>
-                    <TokenGlyph isNative={isNativeTokenId(entry.tokenId)} />
-                    {entry.amount} {entry.tokenName}
-                  </p>
-                  <p className='text-xs text-slate-500 mt-1'>
-                    {formatHistoryFlow(entry)}
-                  </p>
-                  <p className='text-xs text-slate-400 mt-1'>
-                    {new Date(entry.createdAt).toLocaleString()}
-                  </p>
-                </div>
-                <span className='text-xs font-semibold uppercase tracking-wide text-slate-500'>
-                  {entry.status}
-                </span>
+        {mainTab === 'assets' ? (
+          <>
+            <div className='flex items-center justify-between gap-3 mb-4'>
+              <p className='eyebrow'>Assets</p>
+              <div className='flex gap-1 rounded-lg bg-slate-100 p-0.5'>
+                {(['all', 'minima', 'tokens'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type='button'
+                    onClick={() => setAssetTab(tab)}
+                    className={`px-3 py-1 rounded-md text-xs font-semibold capitalize transition-colors ${
+                      assetTab === tab
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    {tab === 'all' ? 'All' : tab === 'minima' ? 'Minima' : 'Tokens'}
+                  </button>
+                ))}
               </div>
-            </button>
-          ))}
-        </div>
-        {isDev && (
-          <div className='mt-4 flex justify-start'>
-            <button
-              type='button'
-              className='btn btn-secondary'
-              onClick={handleDebugClearWalletHistory}
-              disabled={debugClearingHistory}
-              title='Dev-only: clears wallet_send_history table'
-            >
-              {debugClearingHistory ? 'Clearing…' : 'Debug: clear history'}
-            </button>
-          </div>
+            </div>
+            {loading && <p className='muted'>Loading…</p>}
+            {!loading && visibleAssets.length === 0 && (
+              <p className='muted'>
+                {assetTab === 'tokens'
+                  ? 'No custom tokens in wallet.'
+                  : 'No assets found.'}
+              </p>
+            )}
+            <div className='divide-y divide-slate-100'>
+              {visibleAssets.map((token) => (
+                <button
+                  key={token.tokenId}
+                  type='button'
+                  onClick={() => setSelectedAsset(token)}
+                  className='w-full flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 text-left hover:bg-slate-50 -mx-1 px-1 rounded-lg transition-colors'
+                >
+                  <div className='min-w-0'>
+                    <p className='text-sm font-semibold text-slate-900 truncate'>
+                      {token.name}
+                    </p>
+                    <p className='text-xs text-slate-400 font-mono truncate'>
+                      {token.tokenId}
+                    </p>
+                  </div>
+                  <div className='shrink-0 text-right'>
+                    <p className='text-sm font-bold text-slate-900 tabular-nums inline-flex items-center gap-1.5'>
+                      <TokenGlyph isNative={token.isNative} />
+                      {formatAmountThreshold(token.sendable)}
+                    </p>
+                    <p className='text-xs text-slate-400'>sendable</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className='flex items-center justify-between gap-3 mb-4'>
+              <p className='eyebrow'>History</p>
+              <div className='flex items-center gap-3'>
+                <p className='text-xs text-slate-500'>Sent</p>
+                <button
+                  type='button'
+                  className='btn btn-secondary'
+                  onClick={refresh}
+                  disabled={loading}
+                >
+                  Refresh
+                </button>
+              </div>
+            </div>
+            {loading && <p className='muted'>Loading…</p>}
+            {error && <p className='error-text'>{error}</p>}
+            {!loading && !error && sendHistory.length === 0 && (
+              <p className='muted'>No send activity yet.</p>
+            )}
+            <div className='grid gap-2'>
+              {sendHistory.map((entry) => (
+                <button
+                  key={entry.id}
+                  type='button'
+                  onClick={() => setSelectedHistoryItem(entry)}
+                  className='w-full text-left rounded-xl border border-slate-200 bg-white p-3 hover:border-slate-400 transition'
+                >
+                  <div className='flex items-start justify-between gap-3'>
+                    <div>
+                      <p className='text-sm font-semibold text-slate-900 inline-flex items-center gap-1.5'>
+                        <TokenGlyph isNative={isNativeTokenId(entry.tokenId)} />
+                        {entry.amount} {entry.tokenName}
+                      </p>
+                      <p className='text-xs text-slate-500 mt-1'>
+                        {formatHistoryFlow(entry)}
+                      </p>
+                      <p className='text-xs text-slate-400 mt-1'>
+                        {new Date(entry.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                    <span className='text-xs font-semibold uppercase tracking-wide text-slate-500'>
+                      {entry.status}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+            {isDev && (
+              <div className='mt-4 flex justify-start'>
+                <button
+                  type='button'
+                  className='btn btn-secondary'
+                  onClick={handleDebugClearWalletHistory}
+                  disabled={debugClearingHistory}
+                  title='Dev-only: clears wallet_send_history table'
+                >
+                  {debugClearingHistory ? 'Clearing…' : 'Debug: clear history'}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </Card>
 
