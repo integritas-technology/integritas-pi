@@ -8,14 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- **Wallet address book**: save and reuse external Mx/0x addresses when sending MINIMA or tokens. Contacts are stored in a new `address_book` SQLite table with a full list, inline add/edit/delete forms, and a copy-to-clipboard button per row. The address book is accessible via a `BookUser` icon button in the wallet page header, opening as a modal. The Send payment modal gains an External / Address book mode toggle — Address book mode shows a dropdown of saved contacts to populate the recipient field.
+- **Wallet address book**: save and reuse external Mx/0x addresses when sending MINIMA or tokens. Contacts are stored in a new `address_book` SQLite table with a full list, inline add/edit/delete forms, and a copy-to-clipboard button per row.
+- The address book is accessible via a `BookUser` icon button in the wallet page header, opening as a modal. The Send payment modal gains an External / Address book mode toggle — Address book mode shows a dropdown of saved contacts to populate the recipient field.
 - Address book REST API (`GET`, `POST /api/wallet/address-book`, `PATCH /DELETE /api/wallet/address-book/:id`): all mutations require admin role and emit audit events (`address-book.create`, `address-book.update`, `address-book.delete`).
+- **USDT support**: USDT (Tether USD, bridged via MiniSwap) is now a recognized asset throughout the wallet UI. A backend known-token registry (`tokens.known.ts`) maps the canonical USDT token ID to its symbol and name; the frontend derives all labels from the API response and never hardcodes a token ID.
+- USDT is always shown — a zero-balance placeholder is injected into the wallet status when the node holds none.
+- Adding further known tokens (e.g. wMINIMA) requires a one-line entry in `KNOWN_TOKENS`.
 
 ### Changed
 
 - **Wallet page layout**: Assets and History are now tabs (using the shared `subtabs` component style) below the hero card instead of separate stacked cards, reducing page height.
+- **Wallet asset filter tabs** changed from All / Minima / Tokens to **All / Coins / Tokens** — Coins groups Minima and USDT together; Tokens shows only custom-minted tokens.
 - `wallet.routes.ts` send-payment now rejects addresses that do not start with `Mx` or `0x`, consistent with address book validation.
 - `TokenListItem.isNative` widened from literal `false` to `boolean`, removing a needless type constraint ahead of known-token support.
+- **USDT support**: USDT appears in the hero card alongside Minima, gets its own tether icon, is sorted immediately below Minima in all asset lists and the send modal token dropdown, and lives under a dedicated **Coins** filter tab (alongside Minima) separate from custom tokens.
+- The asset detail modal shows a Symbol field for both Minima (`MINIMA`) and USDT (`USDT`).
 
 ### Removed
 
@@ -24,6 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Internal
 
 - `backend/src/shared/minima-address.ts` — shared `isMinimaAddress` helper used by both address book and wallet send routes.
+- `backend/src/features/tokens/tokens.known.ts` — known-token registry; single source of truth for recognised token IDs, symbols, and names.
 
 ## [0.10.0] - 2026-06-29
 
