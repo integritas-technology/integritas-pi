@@ -8,11 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- **Wallet address book**: save and reuse external Mx/0x addresses when sending MINIMA or tokens. Contacts are stored in a new `address_book` SQLite table. The wallet page shows an Address Book card below send history with a full list, inline add/edit/delete forms, and a copy-to-clipboard button per row. The Send payment modal gains an "Address book" picker that populates the recipient address field from saved contacts.
+- **Wallet address book**: save and reuse external Mx/0x addresses when sending MINIMA or tokens. Contacts are stored in a new `address_book` SQLite table with a full list, inline add/edit/delete forms, and a copy-to-clipboard button per row. The address book is accessible via a `BookUser` icon button in the wallet page header, opening as a modal. The Send payment modal gains an External / Address book mode toggle — Address book mode shows a dropdown of saved contacts to populate the recipient field.
 - Address book REST API (`GET`, `POST /api/wallet/address-book`, `PATCH /DELETE /api/wallet/address-book/:id`): all mutations require admin role and emit audit events (`address-book.create`, `address-book.update`, `address-book.delete`).
 
 ### Changed
 
+- **Wallet page layout**: Assets and History are now tabs (using the shared `subtabs` component style) below the hero card instead of separate stacked cards, reducing page height.
 - `wallet.routes.ts` send-payment now rejects addresses that do not start with `Mx` or `0x`, consistent with address book validation.
 - `TokenListItem.isNative` widened from literal `false` to `boolean`, removing a needless type constraint ahead of known-token support.
 
