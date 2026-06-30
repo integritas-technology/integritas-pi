@@ -2,6 +2,7 @@ import { runMinimaPathCommand } from "../minima/minima.rpc.js";
 import { getWalletStatus } from "../wallet/wallet.service.js";
 import { parseTokenCreateResponse } from "./tokens.parse.js";
 import { getCustomTokenByTokenId, insertCustomToken, listCustomTokens } from "./tokens.repository.js";
+import { lookupKnownToken } from "./tokens.known.js";
 import type { CreateTokenRequest, CreateTokenResult, TokenCreateRequirements, TokenListResponse } from "./tokens.types.js";
 
 const TOKEN_CREATE_TIMEOUT_MS = 60_000;
@@ -116,15 +117,17 @@ export async function listWalletTokens(): Promise<TokenListResponse> {
     .filter((token) => !token.isNative)
     .map((token) => {
       const local = localByTokenId.get(token.tokenId);
+      const known = lookupKnownToken(token.tokenId);
       return {
         tokenId: token.tokenId,
-        name: local?.name ?? token.name,
+        name: known?.name ?? local?.name ?? token.name,
         confirmed: token.confirmed,
         unconfirmed: token.unconfirmed,
         sendable: token.sendable,
         isNative: false,
         createdLocally: Boolean(local),
-        decimal: local?.decimal
+        decimal: local?.decimal,
+        ...(known && { knownSymbol: known.symbol, knownName: known.name }),
       };
     });
 

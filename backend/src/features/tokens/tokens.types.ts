@@ -29,6 +29,8 @@ export type TokenListItem = {
   isNative: boolean;
   createdLocally: boolean;
   decimal?: number;
+  knownSymbol?: string;
+  knownName?: string;
 };
 
 export type TokenListResponse = {
