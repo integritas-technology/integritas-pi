@@ -716,7 +716,10 @@ function SendPaymentModal({
     listAddressBookEntries().then(setContacts).catch(() => {});
   }, []);
 
-  const tokens = walletStatus?.tokens ?? [];
+  const tokens = (walletStatus?.tokens ?? []).slice().sort((a, b) => {
+    const rank = (t: typeof a) => (t.isNative ? 0 : t.knownSymbol === 'USDT' ? 1 : 2);
+    return rank(a) - rank(b);
+  });
   const tokenOptions = tokens.map((token) => ({
     value: token.tokenId,
     label: token.isNative ? 'Minima (native)' : token.name,
