@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
-import { addAutomationBlock, addAutomationRule, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationRule, deleteAutomationWorkflow, listAutomationWorkflows, runAutomationWorkflow, updateAutomationWorkflow } from "../features/automation/automationApi";
+import { addAutomationBlock, addAutomationRule, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationRule, deleteAutomationWorkflow, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow } from "../features/automation/automationApi";
 import type { AutomationBlock, AutomationWorkflow } from "../features/automation/automationTypes";
 import { listDataSources } from "../features/data-sources/dataSourcesApi";
 import type { DataSource } from "../features/data-sources/dataSourceTypes";
@@ -104,6 +104,8 @@ export function AutomationPage() {
             onAddStampRule={() => run(() => addAutomationRule(workspaceWorkflow.id, { type: "stamp_integritas" }))}
             onDeleteBlock={(blockId) => run(() => deleteAutomationBlock(workspaceWorkflow.id, blockId))}
             onDeleteRule={(ruleId) => run(() => deleteAutomationRule(workspaceWorkflow.id, ruleId))}
+            onUpdateBlock={(blockId, input) => run(() => updateAutomationBlock(workspaceWorkflow.id, blockId, input))}
+            onReorderBlocks={(blockIds) => run(() => reorderAutomationBlocks(workspaceWorkflow.id, blockIds))}
             onRunNow={() => run(() => runAutomationWorkflow(workspaceWorkflow.id))}
             onToggleEnabled={() => run(() => updateAutomationWorkflow(workspaceWorkflow.id, { enabled: !workspaceWorkflow.enabled }))}
             onDelete={() => run(async () => {
@@ -154,7 +156,7 @@ export function AutomationPage() {
   );
 }
 
-function WorkflowWorkspace({ workflow, source, sources, busy, onAddBlock, onAddStampRule, onDeleteBlock, onDeleteRule, onRunNow, onToggleEnabled, onDelete }: { workflow: AutomationWorkflow; source: DataSource | undefined; sources: DataSource[]; busy: boolean; onAddBlock: (input: Parameters<typeof addAutomationBlock>[1]) => void; onAddStampRule: () => void; onDeleteBlock: (blockId: string) => void; onDeleteRule: (ruleId: string) => void; onRunNow: () => void; onToggleEnabled: () => void; onDelete: () => void }) {
+function WorkflowWorkspace({ workflow, source, sources, busy, onAddBlock, onAddStampRule, onDeleteBlock, onDeleteRule, onUpdateBlock, onReorderBlocks, onRunNow, onToggleEnabled, onDelete }: { workflow: AutomationWorkflow; source: DataSource | undefined; sources: DataSource[]; busy: boolean; onAddBlock: (input: Parameters<typeof addAutomationBlock>[1]) => void; onAddStampRule: () => void; onDeleteBlock: (blockId: string) => void; onDeleteRule: (ruleId: string) => void; onUpdateBlock: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onReorderBlocks: (blockIds: string[]) => void; onRunNow: () => void; onToggleEnabled: () => void; onDelete: () => void }) {
   const [fetchSourceId, setFetchSourceId] = useState(() => sources.find((item) => item.type === "json-api" || item.type === "internal-json-api")?.id ?? "");
   const [waitMs, setWaitMs] = useState("1000");
   const hasStampBlock = workflow.blocks.some((block) => block.type === "stamp_integritas");
@@ -180,7 +182,18 @@ function WorkflowWorkspace({ workflow, source, sources, busy, onAddBlock, onAddS
       </div>
 
       <div className="grid-list">
-        {workflow.blocks.map((block) => <BlockCard key={block.id} block={block} sources={sources} busy={busy} onDelete={() => block.type.endsWith("_start") ? undefined : onDeleteBlock(block.id)} />)}
+        {workflow.blocks.map((block, index) => <BlockCard
+          key={block.id}
+          block={block}
+          sources={sources}
+          busy={busy}
+          canMoveUp={index > 1}
+          canMoveDown={index > 0 && index < workflow.blocks.length - 1}
+          onMoveUp={() => onReorderBlocks(moveBlock(workflow.blocks, index, index - 1))}
+          onMoveDown={() => onReorderBlocks(moveBlock(workflow.blocks, index, index + 1))}
+          onUpdate={(input) => onUpdateBlock(block.id, input)}
+          onDelete={() => block.type.endsWith("_start") ? undefined : onDeleteBlock(block.id)}
+        />)}
       </div>
 
       <section className="card soft-card">
@@ -220,8 +233,11 @@ function WorkflowWorkspace({ workflow, source, sources, busy, onAddBlock, onAddS
   );
 }
 
-function BlockCard({ block, sources, busy, onDelete }: { block: AutomationBlock; sources: DataSource[]; busy: boolean; onDelete: () => void }) {
+function BlockCard({ block, sources, busy, canMoveUp, canMoveDown, onMoveUp, onMoveDown, onUpdate, onDelete }: { block: AutomationBlock; sources: DataSource[]; busy: boolean; canMoveUp: boolean; canMoveDown: boolean; onMoveUp: () => void; onMoveDown: () => void; onUpdate: (input: Parameters<typeof updateAutomationBlock>[2]) => void; onDelete: () => void }) {
+  const [fetchSourceId, setFetchSourceId] = useState(block.config.sourceId ?? "");
+  const [durationMs, setDurationMs] = useState(String(block.config.durationMs ?? 1000));
   const removable = !block.type.endsWith("_start");
+  const fetchSources = sources.filter((item) => item.type === "json-api" || item.type === "internal-json-api");
   return (
     <div className="card">
       <div className="status-row">
@@ -234,9 +250,33 @@ function BlockCard({ block, sources, busy, onDelete }: { block: AutomationBlock;
         <RulePart title="Output" value={blockOutput(block)} />
       </div>
       {block.lastError && <p className="error-text">{block.lastError}</p>}
-      {removable && <div className="row-actions"><button type="button" disabled={busy} onClick={onDelete}>Remove block</button></div>}
+      {block.type === "fetch_data_source" && (
+        <div className="automation-form">
+          <label>Fetch source<select value={fetchSourceId} onChange={(event) => setFetchSourceId(event.target.value)}>{fetchSources.map((item) => <option key={item.id} value={item.id}>{item.name} - {sourceLabel(item)}</option>)}</select></label>
+          <button type="button" disabled={busy || !fetchSourceId || fetchSourceId === block.config.sourceId} onClick={() => onUpdate({ config: { sourceId: fetchSourceId } })}>Save fetch source</button>
+        </div>
+      )}
+      {block.type === "wait" && (
+        <div className="automation-form">
+          <label>Wait duration ms<input value={durationMs} onChange={(event) => setDurationMs(event.target.value)} inputMode="numeric" /></label>
+          <button type="button" disabled={busy || !Number.isFinite(Number(durationMs)) || Number(durationMs) === block.config.durationMs} onClick={() => onUpdate({ config: { durationMs: Number(durationMs) } })}>Save wait duration</button>
+        </div>
+      )}
+      {removable && <div className="row-actions">
+        <button type="button" disabled={busy || !canMoveUp} onClick={onMoveUp}>Move up</button>
+        <button type="button" disabled={busy || !canMoveDown} onClick={onMoveDown}>Move down</button>
+        <button type="button" disabled={busy} onClick={() => onUpdate({ enabled: !block.enabled })}>{block.enabled ? "Disable" : "Enable"}</button>
+        <button type="button" disabled={busy} onClick={onDelete}>Remove block</button>
+      </div>}
     </div>
   );
+}
+
+function moveBlock(blocks: AutomationBlock[], from: number, to: number) {
+  const next = blocks.map((block) => block.id);
+  const [id] = next.splice(from, 1);
+  next.splice(to, 0, id);
+  return next;
 }
 
 function RulePart({ title, value }: { title: string; value: string }) {

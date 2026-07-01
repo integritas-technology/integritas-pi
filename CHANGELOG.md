@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Automation backend now stores workflows as ordered blocks, resets the disposable legacy automation schema, records trigger metadata on data reads, and executes schedule/manual/GPIO/webhook/MQTT workflows through the new block executor while preserving the existing UI/API compatibility surface.
 - GPIO and MQTT event workflows no longer create failed read-history rows for ignored overlapping events while the same workflow is still running, and the compatibility UI no longer shows start blocks as duplicate collect rules.
 - Automation workspace now displays real workflow blocks and can append fetch, wait, and Integritas stamp blocks from the UI.
+- Automation blocks can now be updated and reordered from the workspace, including changing fetch targets, wait durations, and action-block enabled state.
 
 ## [0.11.0] - 2026-06-30
 

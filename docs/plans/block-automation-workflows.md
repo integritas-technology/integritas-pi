@@ -571,8 +571,8 @@ Button -> fetch API -> blink LED.
 - [x] Replace rule API with block API.
 - [x] Build simple block-list workflow UI.
 - [x] Add block picker categories.
-- [ ] Add configure-block modal.
-- [ ] Add move up/down ordering.
+- [x] Add configure-block modal.
+- [x] Add move up/down ordering.
 - [x] Add frontend validation hints.
 
 ### Milestone 6: Wait And Run History
@@ -599,3 +599,4 @@ Button -> fetch API -> blink LED.
 - Agreed that the long-term automation UX should use small composable blocks rather than large When / Condition / Then rules.
 - Implemented the first backend block foundation: destructive legacy automation reset, `automation_blocks`, trigger metadata on reads, block executor, schedule/manual fetch, event recording, Integritas stamping, and compatibility endpoints for the existing UI.
 - Added the first frontend block-list workspace: workflows now show actual blocks, support appending fetch/wait/stamp blocks, and avoid showing internal start blocks as duplicate collect rules.
+- Added block editing and ordering controls: fetch blocks can change target source, wait blocks can change duration, action blocks can be enabled/disabled, and blocks can move up/down while preserving the required start block at the top.

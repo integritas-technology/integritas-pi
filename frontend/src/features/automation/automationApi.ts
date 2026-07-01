@@ -25,6 +25,14 @@ export async function deleteAutomationBlock(workflowId: string, blockId: string)
   return deleteJson<{ deleted: boolean; workflow: AutomationWorkflow }>(`/api/automation/workflows/${workflowId}/blocks/${blockId}`);
 }
 
+export async function updateAutomationBlock(workflowId: string, blockId: string, input: { config?: AutomationBlock["config"]; enabled?: boolean }) {
+  return patchJson<{ item: AutomationBlock; workflow: AutomationWorkflow }>(`/api/automation/workflows/${workflowId}/blocks/${blockId}`, input);
+}
+
+export async function reorderAutomationBlocks(workflowId: string, blockIds: string[]) {
+  return postJson<{ items: AutomationBlock[]; workflow: AutomationWorkflow }>(`/api/automation/workflows/${workflowId}/blocks/reorder`, { blockIds });
+}
+
 export async function deleteAutomationRule(workflowId: string, ruleId: string) {
   return deleteJson<{ deleted: boolean; workflow: AutomationWorkflow }>(`/api/automation/workflows/${workflowId}/rules/${ruleId}`);
 }

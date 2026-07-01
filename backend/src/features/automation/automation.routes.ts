@@ -3,7 +3,7 @@ import { requireRole } from "../auth/auth.middleware.js";
 import { getDataSource } from "../data-sources/dataSources.repository.js";
 import { syncGpioDataSources } from "../data-sources/gpioIngestion.service.js";
 import { syncMqttDataSources } from "../data-sources/mqttIngestion.service.js";
-import { createAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, getAutomationWorkflow, listAutomationBlocks, listAutomationWorkflows, replaceAutomationBlocks, updateAutomationWorkflow, type AutomationBlockType } from "./automation.repository.js";
+import { createAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, getAutomationWorkflow, listAutomationBlocks, listAutomationWorkflows, reorderAutomationBlocks, replaceAutomationBlocks, updateAutomationBlock, updateAutomationWorkflow, type AutomationBlockType } from "./automation.repository.js";
 import { runAutomationWorkflow, serializeAutomationBlock, serializeAutomationWorkflow } from "./automation.service.js";
 
 export const automationRouter = Router();
@@ -70,6 +70,7 @@ automationRouter.post("/workflows/:id/blocks", requireRole("admin"), (req, res) 
   const workflow = getAutomationWorkflow(req.params.id);
   if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
   const type = typeof req.body?.type === "string" ? req.body.type as AutomationBlockType : "" as AutomationBlockType;
+  if (!isAutomationBlockType(type)) return res.status(400).json({ error: "Invalid block type" });
   try {
     const block = createAutomationBlock(workflow.id, { type, config: req.body?.config ?? {}, enabled: req.body?.enabled !== false });
     syncMqttDataSources();
@@ -77,6 +78,33 @@ automationRouter.post("/workflows/:id/blocks", requireRole("admin"), (req, res) 
     return res.json({ item: serializeAutomationBlock(block), workflow: serializeAutomationWorkflow(getAutomationWorkflow(workflow.id)!) });
   } catch (error) {
     return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid block" });
+  }
+});
+
+automationRouter.patch("/workflows/:workflowId/blocks/:blockId", requireRole("admin"), (req, res) => {
+  const workflow = getAutomationWorkflow(req.params.workflowId);
+  if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
+  const block = updateAutomationBlock(req.params.workflowId, req.params.blockId, {
+    config: req.body?.config,
+    enabled: typeof req.body?.enabled === "boolean" ? req.body.enabled : undefined
+  });
+  if (!block) return res.status(404).json({ error: "Block not found" });
+  syncMqttDataSources();
+  syncGpioDataSources();
+  return res.json({ item: serializeAutomationBlock(block), workflow: serializeAutomationWorkflow(getAutomationWorkflow(workflow.id)!) });
+});
+
+automationRouter.post("/workflows/:id/blocks/reorder", requireRole("admin"), (req, res) => {
+  const workflow = getAutomationWorkflow(req.params.id);
+  if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
+  const blockIds = Array.isArray(req.body?.blockIds) ? req.body.blockIds.filter((id: unknown): id is string => typeof id === "string") : [];
+  try {
+    const blocks = reorderAutomationBlocks(workflow.id, blockIds);
+    syncMqttDataSources();
+    syncGpioDataSources();
+    return res.json({ items: blocks.map(serializeAutomationBlock), workflow: serializeAutomationWorkflow(getAutomationWorkflow(workflow.id)!) });
+  } catch (error) {
+    return res.status(400).json({ error: error instanceof Error ? error.message : "Could not reorder blocks" });
   }
 });
 
@@ -141,4 +169,16 @@ function setStampBlock(workflowId: string, enabled: boolean) {
   if (enabled) return createAutomationBlock(workflowId, { type: "stamp_integritas", config: {} });
   if (existing) deleteAutomationBlock(workflowId, existing.id);
   return undefined;
+}
+
+function isAutomationBlockType(type: string): type is AutomationBlockType {
+  return type === "manual_start"
+    || type === "schedule_start"
+    || type === "gpio_event_start"
+    || type === "webhook_event_start"
+    || type === "mqtt_event_start"
+    || type === "record_trigger_event"
+    || type === "fetch_data_source"
+    || type === "wait"
+    || type === "stamp_integritas";
 }

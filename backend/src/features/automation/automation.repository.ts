@@ -154,6 +154,40 @@ export function createAutomationBlock(workflowId: string, input: { type: Automat
   return getAutomationBlock(id)!;
 }
 
+export function updateAutomationBlock(workflowId: string, blockId: string, input: { config?: unknown; enabled?: boolean }) {
+  const current = db.prepare("SELECT * FROM automation_blocks WHERE id = ? AND workflow_id = ?").get(blockId, workflowId) as AutomationBlockRecord | undefined;
+  if (!current) return undefined;
+  db.prepare(`
+    UPDATE automation_blocks
+    SET updated_at = ?, enabled = ?, config_json = ?, last_error = NULL
+    WHERE id = ? AND workflow_id = ?
+  `).run(
+    new Date().toISOString(),
+    input.enabled === undefined ? current.enabled : input.enabled ? 1 : 0,
+    input.config === undefined ? current.config_json : JSON.stringify(input.config),
+    blockId,
+    workflowId
+  );
+  return getAutomationBlock(blockId)!;
+}
+
+export function reorderAutomationBlocks(workflowId: string, blockIds: string[]) {
+  const currentBlocks = listAutomationBlocks(workflowId);
+  const currentIds = currentBlocks.map((block) => block.id);
+  if (blockIds.length !== currentIds.length || new Set(blockIds).size !== blockIds.length || !currentIds.every((id) => blockIds.includes(id))) {
+    throw new Error("blockIds must include every workflow block exactly once");
+  }
+
+  const firstBlock = currentBlocks.find((block) => block.id === blockIds[0]);
+  if (!firstBlock?.type.endsWith("_start")) throw new Error("The first workflow block must be a start block");
+  if (blockIds.slice(1).some((id) => currentBlocks.find((block) => block.id === id)?.type.endsWith("_start"))) throw new Error("Start blocks cannot be moved after action blocks");
+
+  const update = db.prepare("UPDATE automation_blocks SET updated_at = ?, order_index = ? WHERE id = ? AND workflow_id = ?");
+  const nowIso = new Date().toISOString();
+  for (const [index, id] of blockIds.entries()) update.run(nowIso, index + 1, id, workflowId);
+  return listAutomationBlocks(workflowId);
+}
+
 export function deleteAutomationBlock(workflowId: string, blockId: string) {
   const block = db.prepare("SELECT * FROM automation_blocks WHERE id = ? AND workflow_id = ?").get(blockId, workflowId) as AutomationBlockRecord | undefined;
   if (!block) return undefined;
