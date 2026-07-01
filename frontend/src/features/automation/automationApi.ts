@@ -1,5 +1,5 @@
 import { deleteJson, getJson, patchJson, postJson } from "../../lib/api";
-import type { AutomationWorkflow } from "./automationTypes";
+import type { AutomationBlock, AutomationBlockType, AutomationWorkflow } from "./automationTypes";
 
 export async function listAutomationWorkflows() {
   return getJson<{ items: AutomationWorkflow[] }>("/api/automation/workflows");
@@ -15,6 +15,14 @@ export async function updateAutomationWorkflow(id: string, input: Partial<Pick<A
 
 export async function addAutomationRule(workflowId: string, input: { type: "stamp_integritas" }) {
   return postJson<{ item: AutomationWorkflow["rules"][number]; workflow: AutomationWorkflow }>(`/api/automation/workflows/${workflowId}/rules`, input);
+}
+
+export async function addAutomationBlock(workflowId: string, input: { type: AutomationBlockType; config?: AutomationBlock["config"]; enabled?: boolean }) {
+  return postJson<{ item: AutomationBlock; workflow: AutomationWorkflow }>(`/api/automation/workflows/${workflowId}/blocks`, input);
+}
+
+export async function deleteAutomationBlock(workflowId: string, blockId: string) {
+  return deleteJson<{ deleted: boolean; workflow: AutomationWorkflow }>(`/api/automation/workflows/${workflowId}/blocks/${blockId}`);
 }
 
 export async function deleteAutomationRule(workflowId: string, ruleId: string) {

@@ -12,7 +12,37 @@ export type AutomationWorkflow = {
   lastHash: string | null;
   lastProofId: string | null;
   lastError: string | null;
+  blocks: AutomationBlock[];
   rules: AutomationRule[];
+};
+
+export type AutomationBlockType =
+  | "manual_start"
+  | "schedule_start"
+  | "gpio_event_start"
+  | "webhook_event_start"
+  | "mqtt_event_start"
+  | "record_trigger_event"
+  | "fetch_data_source"
+  | "wait"
+  | "stamp_integritas";
+
+export type AutomationBlock = {
+  id: string;
+  workflowId: string;
+  createdAt: string;
+  updatedAt: string;
+  type: AutomationBlockType;
+  enabled: boolean;
+  order: number;
+  config: {
+    sourceId?: string;
+    intervalSeconds?: number;
+    durationMs?: number;
+    activeOnly?: boolean;
+  };
+  lastRunAt: string | null;
+  lastError: string | null;
 };
 
 export type AutomationRule = {

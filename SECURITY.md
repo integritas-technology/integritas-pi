@@ -292,6 +292,8 @@ Status: Accepted prototype risk.
 
 Risk: Webhook data sources expose generated public receive URLs under `/api/data-source-webhooks/:token` so external systems can POST JSON without a browser session.
 
+TLS note: The default Docker deploy serves webhook URLs through the same self-signed HTTPS endpoint as the UI, for example `https://<pi-ip>:8080/api/data-source-webhooks/:token`. Webhook senders must use `https://` on this port. Plain `http://` requests to the HTTPS port fail with nginx's "plain HTTP request was sent to HTTPS port" error. Because the certificate is self-signed, some webhook senders will reject it unless they explicitly trust the Pi certificate or allow self-signed certificates for local prototype testing.
+
 Impact: Anyone with a webhook URL can submit JSON to that source. If an automation workflow is enabled for the source, submitted JSON can update its latest preview/hash and create read-history rows.
 
 Current Controls:
@@ -301,11 +303,13 @@ Current Controls:
 - Webhook sources accept JSON only through the existing Express JSON parser.
 - Admin authentication is still required to create, edit, list, or delete webhook sources.
 - Incoming webhook payloads are recorded only when the source has an enabled automation workflow; otherwise the endpoint returns a disabled-ingestion error.
+- HTTPS encrypts webhook payload transport by default, but self-signed certificate trust must be handled by the sending system.
 
 Plan:
 
 - Add optional webhook secret headers/signatures and rate limiting before production use.
 - Add optional event retention limits if webhook volume grows.
+- Add custom/trusted certificate support or documented reverse-proxy TLS for senders that cannot accept self-signed certificates.
 
 Status: Accepted prototype risk.
 
