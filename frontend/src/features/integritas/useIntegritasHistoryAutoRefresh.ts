@@ -1,12 +1,17 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { getHistory } from './integritasApi';
 import type { ListQueryParams } from '../../lib/paginated';
-import type { IntegritasHistoryPage, IntegritasProofRecord } from './integritasTypes';
+import type {
+  IntegritasHistoryPage,
+  IntegritasProofRecord,
+} from './integritasTypes';
 
 const DEFAULT_INTERVAL_MS = 15_000;
 
 export function hasPendingProofs(records: IntegritasProofRecord[]) {
-  return records.some((record) => record.proof_status === 'pending' && record.proof_uid);
+  return records.some(
+    (record) => record.proof_status === 'pending' && record.proof_uid,
+  );
 }
 
 export function useIntegritasHistoryAutoRefresh(
@@ -25,7 +30,13 @@ export function useIntegritasHistoryAutoRefresh(
   const query = options?.query;
   const pendingTotal = options?.pendingTotal ?? 0;
   const onPage = options?.onPage;
-  const shouldRefresh = enabled && (pendingTotal > 0 || hasPendingProofs(records));
+  const shouldRefresh =
+    enabled && (pendingTotal > 0 || hasPendingProofs(records));
+
+  const callbacksRef = useRef({ onPage, onRecords });
+  useEffect(() => {
+    callbacksRef.current = { onPage, onRecords };
+  });
 
   useEffect(() => {
     if (!shouldRefresh) return;
@@ -36,6 +47,7 @@ export function useIntegritasHistoryAutoRefresh(
       try {
         const response = await getHistory(query);
         if (cancelled) return;
+        const { onPage, onRecords } = callbacksRef.current;
         if (onPage) onPage(response);
         else onRecords?.(response.items);
       } catch {
@@ -50,5 +62,12 @@ export function useIntegritasHistoryAutoRefresh(
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [shouldRefresh, intervalMs, onRecords, onPage, query?.page, query?.pageSize, query?.status, query?.q]);
+  }, [
+    shouldRefresh,
+    intervalMs,
+    query?.page,
+    query?.pageSize,
+    query?.status,
+    query?.q,
+  ]);
 }

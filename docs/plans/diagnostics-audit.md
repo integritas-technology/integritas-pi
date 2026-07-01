@@ -46,7 +46,7 @@
 
 **Pass**
 
-- URL helpers: valid bookmarks round-trip; defaults omitted from URL (`tab=proofs`, `page=1`, `pageSize=50`).
+- URL helpers: valid bookmarks round-trip. `tab`, `page`, `pageSize` are always written explicitly to the URL (including defaults) — intentional, per `6259cd0` / CHANGELOG.
 - `useEffect` fetch branches on `activeTab` only — reads not fetched on proofs tab.
 - `updateListQuery` resets `page` when `status`, `q`, or `pageSize` change.
 - `apply*Response` redirects URL when `page > totalPages` (with items); empty-all case shows empty table, pager displays page 1.
@@ -57,18 +57,17 @@
 **Fixed**
 
 - `DashboardPage`: auto-refresh used default `pageSize: 50` while initial load used `100` — activity list could shrink after first poll. Now passes `{ page: 1, pageSize: 100 }`.
+- `useIntegritasHistoryAutoRefresh`: `onPage`/`onRecords` were unstable inline closures included directly in the effect's dependency array. Since the effect calls `refresh()` immediately on (re)run, and `refresh()` sets state → re-renders `DiagnosticsPage` → recreates the closure → re-triggers the effect, the hook fired `getHistory` back-to-back (no ~15s gap) for as long as a proof stayed pending, instead of on the intended `DEFAULT_INTERVAL_MS` cadence. Pre-existing bug (present before `6259cd0` too via the old `onRecords` closure), not caught by the original Part 1 pass. Fixed by reading the latest callbacks from a ref instead of the effect's dependency list, so the effect only re-runs when `shouldRefresh`/`intervalMs`/query params actually change. `DashboardPage`'s usage was unaffected (it passes the stable `setProofs` setter directly).
 
 **Minor gaps (no fix yet — Part 4 or accept)**
 
 - Invalid `status` for active tab is ignored in parse but left in URL (`?tab=reads&status=ready` → UI shows “All”, API unfiltered).
 - Clamped `pageSize` in URL (e.g. `pageSize=5`) not rewritten to `10` until user changes pager.
 - When `totalPages=0` and URL has `page>1`, URL not auto-normalized (display is correct via pager bar).
-- Diagnostics auto-refresh updates `items` only, not `total` / `totalPages` — matters mainly with `status=pending` filter when rows leave the page.
 - Tab switch resets all list params (per feature plan).
 
 **Initial suspects**
 
-- Auto-refresh hook updates only `items`, not `total` / `totalPages` — totals may drift after pending rows resolve
 - Frontend silently drops invalid `status`; backend returns `400` — inconsistent but probably harmless
 - Tab switch resets all list params (`defaultDiagnosticsListQuery`) — intentional per plan, but worth confirming UX
 
