@@ -143,7 +143,6 @@ export function DiagnosticsPage() {
 
   async function run(action: () => Promise<unknown>, options?: { refresh?: boolean }) {
     setBusy(true);
-    setError(null);
     try {
       await action();
       if (options?.refresh !== false) {
@@ -157,7 +156,6 @@ export function DiagnosticsPage() {
     } catch (err) {
       const { title, message } = integritasErrorToast(err);
       showToast({ tone: 'error', title, message, timeoutMs: 9000 });
-      setError(message);
     } finally {
       setBusy(false);
     }

@@ -130,15 +130,17 @@
 
 **Pass**
 
-- `busy` + `integritasErrorToast` + inline `error-text` matches `IntegritasPage` / `DataSourcesPage`.
 - Subtabs use shared `.subtabs` CSS (same as `WalletPage`), not a one-off pattern.
 - `ListPagerFilterBar` uses Tailwind for controls + global `button` / `muted` classes for pager — matches AGENTS.md direction and `WalletPage` filter chips.
 - `integritasApi` / `dataReadsApi` follow existing `*Api.ts` shape (`getJson` + typed return); pagination params appended via `buildListQueryString`.
-- Backend list routes are thin: parse → count → list → `toPaginatedResult` (same in `integritas.routes.ts` and `dataReads.routes.ts`).
+- Backend list routes are thin: parse → count → list → `toPaginatedResult` (same in `integritas.routes.ts` and `dataReads.routes.ts`); `proofHistoryPage` living as a small router-local helper in `integritas.routes.ts` has precedent (`status.routes.ts` does the same).
+
+**Fixed**
+
+- `run()`'s catch block called both `showToast` and `setError(message)` for mutation failures (verify/delete/download) — the only page in the app that double-reports a mutation error via toast *and* a persistent inline banner. Checked `WalletPage`, `IntegritasPage`, `DataSourcesPage`: all three set the inline `error-text` state exclusively from their load/refresh path, and use toast-only for mutation failures. Removed `setError(message)` from `run()`'s catch — `error` state is now driven solely by the list-load `useEffect`, matching the sibling pattern.
 
 **Aligned (code changed)**
 
-- `DiagnosticsPage` + `diagnosticsQuery.ts`: single quotes (peer pages use single; `*Api.ts` files use double — existing split).
 - Subtabs markup formatted like `WalletPage` (multi-line tab buttons).
 - Renamed `runProofMutation` → `run`; merged duplicate `handleDownloadSelected` into `run(..., { refresh: false })` — same helper pattern as `IntegritasPage.run`.
 
@@ -146,6 +148,7 @@
 
 - `useCallback` / `useMemo` on DiagnosticsPage — needed for URL-synced fetch deps; `DashboardPage` is simpler because it has no query string.
 - `diagnosticsQuery.ts` as a separate module — matches how other pages keep helpers out of the main component when logic is non-trivial.
+- Quote style: repo-wide split, not specific to this feature (`WalletPage`/`IntegritasPage`/`DashboardPage`/`DiagnosticsPage` use single quotes; `DataSourcesPage`/`MinimaPage`/`AutomationPage`/`AuthSettingsPage`/`SetupPage` use double). Previous "peer pages use single" note overstated this as a settled convention — it isn't, and it's out of scope for this feature to fix repo-wide.
 
 **Initial suspects**
 
