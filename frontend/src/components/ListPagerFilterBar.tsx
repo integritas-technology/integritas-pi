@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { DEFAULT_PAGE_SIZE_OPTIONS, listRangeLabel } from "../lib/paginated";
 
 export type ListPagerFilterStatusOption = {
   value: string;
@@ -18,13 +19,6 @@ type ListPagerFilterBarProps = {
   onStatusChange: (status: string) => void;
   onQueryChange: (q: string) => void;
 };
-
-function rangeLabel(page: number, pageSize: number, total: number) {
-  if (total === 0) return "Showing 0 of 0";
-  const start = (page - 1) * pageSize + 1;
-  const end = Math.min(page * pageSize, total);
-  return `Showing ${start}–${end} of ${total}`;
-}
 
 export function ListPagerFilterBar({
   page,
@@ -83,7 +77,7 @@ export function ListPagerFilterBar({
         </label>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="muted text-sm">{rangeLabel(currentPage, pageSize, total)}</p>
+        <p className="muted text-sm">{listRangeLabel(currentPage, pageSize, total)}</p>
         <div className="flex flex-wrap items-center gap-2">
           <label className="flex items-center gap-2 text-sm">
             <span className="muted">Rows</span>
@@ -92,7 +86,7 @@ export function ListPagerFilterBar({
               value={pageSize}
               onChange={(event) => onPageSizeChange(Number(event.target.value))}
             >
-              {[10, 25, 50, 100].map((size) => (
+              {DEFAULT_PAGE_SIZE_OPTIONS.map((size) => (
                 <option key={size} value={size}>{size}</option>
               ))}
             </select>

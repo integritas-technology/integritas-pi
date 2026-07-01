@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { JsonPreview } from "../components/JsonPreview";
 import { ListPagerFilterBar } from "../components/ListPagerFilterBar";
 import { Page } from "../components/Page";
 import { useToast } from "../components/ToastProvider";
@@ -55,7 +54,6 @@ export function DiagnosticsPage() {
   const [proofsPage, setProofsPage] = useState(emptyProofsPage);
   const [readsPage, setReadsPage] = useState(emptyReadsPage);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [result, setResult] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -67,6 +65,26 @@ export function DiagnosticsPage() {
     }
     setSearchParams(diagnosticsSearchParams({ tab: activeTab, query: next }), { replace: true });
   }, [activeTab, searchParams, setSearchParams]);
+
+  const applyProofsResponse = useCallback((response: PaginatedResponse<IntegritasProofRecord>) => {
+    if (response.totalPages > 0 && listQuery.page > response.totalPages) {
+      updateListQuery({ page: response.totalPages });
+      return;
+    }
+    setProofsPage(response);
+  }, [listQuery.page, updateListQuery]);
+
+  const applyReadsResponse = useCallback((response: PaginatedResponse<DataSourceRead>) => {
+    if (response.totalPages > 0 && listQuery.page > response.totalPages) {
+      updateListQuery({ page: response.totalPages });
+      return;
+    }
+    setReadsPage(response);
+  }, [listQuery.page, updateListQuery]);
+
+  const loadProofsPage = useCallback(async () => {
+    applyProofsResponse(await getHistory(listQueryParams));
+  }, [applyProofsResponse, listQueryParams]);
 
   useEffect(() => {
     const rawTab = searchParams.get("tab");
@@ -90,21 +108,13 @@ export function DiagnosticsPage() {
         if (activeTab === "proofs") {
           const response = await getHistory(listQueryParams);
           if (cancelled) return;
-          if (response.totalPages > 0 && listQuery.page > response.totalPages) {
-            updateListQuery({ page: response.totalPages });
-            return;
-          }
-          setProofsPage(response);
+          applyProofsResponse(response);
           return;
         }
 
         const response = await listDataReads(listQueryParams);
         if (cancelled) return;
-        if (response.totalPages > 0 && listQuery.page > response.totalPages) {
-          updateListQuery({ page: response.totalPages });
-          return;
-        }
-        setReadsPage(response);
+        applyReadsResponse(response);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Failed to load diagnostics history.");
@@ -116,7 +126,7 @@ export function DiagnosticsPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, listQuery.page, listQuery.pageSize, listQuery.status, listQuery.q]);
+  }, [activeTab, listQueryParams, applyProofsResponse, applyReadsResponse]);
 
   useIntegritasHistoryAutoRefresh(proofsPage.items, (items) => {
     setProofsPage((current) => ({ ...current, items }));
@@ -132,32 +142,28 @@ export function DiagnosticsPage() {
     );
   }
 
-  async function refreshProofs() {
-    const response = await getHistory(listQueryParams);
-    if (response.totalPages > 0 && listQuery.page > response.totalPages) {
-      updateListQuery({ page: response.totalPages });
-      return response;
-    }
-    setProofsPage(response);
-    return response;
-  }
-
-  async function run(action: () => Promise<unknown>) {
+  async function runProofMutation(action: () => Promise<unknown>, options?: { refresh?: boolean }) {
     setBusy(true);
     setError(null);
     try {
-      const response = await action();
-      setResult(response);
-      await refreshProofs();
-      return response;
+      await action();
+      if (options?.refresh !== false) {
+        await loadProofsPage();
+      }
     } catch (err) {
       const { title, message } = integritasErrorToast(err);
       showToast({ tone: "error", title, message, timeoutMs: 9000 });
       setError(message);
-      return null;
     } finally {
       setBusy(false);
     }
+  }
+
+  async function handleRefreshPending() {
+    await runProofMutation(async () => {
+      const response = await pollPendingRecords(listQueryParams);
+      applyProofsResponse(response);
+    }, { refresh: false });
   }
 
   async function handleDownloadSelected() {
@@ -208,9 +214,12 @@ export function DiagnosticsPage() {
           selectedIds={selectedIds}
           busy={busy}
           onToggle={toggleSelected}
-          onRefreshPending={() => run(() => pollPendingRecords(listQueryParams))}
-          onVerify={(record) => run(() => verifyRecord(record.id))}
-          onDeleteSelected={() => run(async () => { const response = await deleteSelected(selectedIds); setSelectedIds([]); return response; })}
+          onRefreshPending={() => void handleRefreshPending()}
+          onVerify={(record) => runProofMutation(() => verifyRecord(record.id))}
+          onDeleteSelected={() => runProofMutation(async () => {
+            await deleteSelected(selectedIds);
+            setSelectedIds([]);
+          })}
           onDownloadSelected={() => void handleDownloadSelected()}
         />
       ) : (
@@ -218,7 +227,6 @@ export function DiagnosticsPage() {
       )}
 
       {error && <p className="error-text">{error}</p>}
-      {result !== null && <JsonPreview value={result} />}
     </Page>
   );
 }

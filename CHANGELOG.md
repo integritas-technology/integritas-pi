@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - **Diagnostics tabs**: proof vs read history is reflected in the URL (`/diagnostics?tab=reads`). Refreshing or sharing the link opens the correct tab; only the active tab's list is fetched on load.
 - **Diagnostics pagination**: proof and read history lists are server-paginated with URL-backed `page`, `pageSize`, `status`, and `q` filters. Shared pager/filter bar on the Diagnostics page.
+- **Diagnostics cleanup**: removed debug `JsonPreview` footer, deduplicated paginated fetch helpers, and avoid double-fetch after poll-pending (uses paginated poll response directly).
 
 ### Added
 

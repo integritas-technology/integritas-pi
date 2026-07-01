@@ -1,6 +1,6 @@
 # Diagnostics: URL query, pagination, loading state
 
-**Status:** In progress (Parts 1 and 2 done; Part 3 deferred to UX)  
+**Status:** Complete (Part 3 deferred — loading/fetch UX out of scope for now)  
 **Created:** 2026-06-30  
 **Goal:** Make the Diagnostics page shareable, scalable, and honest about fetch state — without duplicating business logic outside the backend API.
 
@@ -134,6 +134,8 @@ Reset `page` to `1` when `tab`, `status`, or `q` changes.
 
 ## Part 3 — Loading + fetching status (simple state machine)
 
+**Status:** Deferred — operator loading/fetch UX left for a separate UX pass.
+
 **Scope:** Separate **list fetch lifecycle** from **mutation `busy`** (verify, delete, download).
 
 ### State machine (per tab)
@@ -183,17 +185,17 @@ type FetchPhase = "idle" | "loading" | "ready" | "fetching" | "error";
 
 ### Code cleanup
 
-- [ ] Stop fetching both lists on mount; fetch only active tab (Part 1) with pagination params (Part 2).
-- [ ] Extract shared tab buttons if diagnostics and wallet subtabs diverge — optional; only if it reduces copy-paste.
-- [ ] Remove stale copy: DataReadsHistoryTable “Showing the latest 500…” → dynamic “Showing X–Y of Z”.
-- [ ] Ensure `poll-pending` / `getHistory` responses stay consistent with paginated list shape (poll may return updated rows for current view only, or trigger a refetch — pick one approach and document in code comment).
-- [ ] Drop unused `result` / `JsonPreview` at page bottom if nothing sets it anymore, or scope it to debug-only actions.
+- [x] Stop fetching both lists on mount; fetch only active tab (Part 1) with pagination params (Part 2).
+- [x] Extract shared tab buttons if diagnostics and wallet subtabs diverge — optional; only if it reduces copy-paste. *(skipped — not enough duplication to justify)*
+- [x] Remove stale copy: DataReadsHistoryTable “Showing the latest 500…” → range shown in `ListPagerFilterBar`.
+- [x] Ensure `poll-pending` / `getHistory` responses stay consistent with paginated list shape (poll may return updated rows for current view only, or trigger a refetch — pick one approach and document in code comment).
+- [x] Drop unused `result` / `JsonPreview` at page bottom if nothing sets it anymore, or scope it to debug-only actions.
 
 ### Docs / changelog
 
-- [ ] `CHANGELOG.md` under `[Unreleased]`: URL-backed diagnostics tab, paginated/filtered log APIs, loading indicators.
-- [ ] `README.md` API section: document new query params on history endpoints (brief).
-- [ ] No `SECURITY.md` change expected (same auth boundaries).
+- [x] `CHANGELOG.md` under `[Unreleased]`: URL-backed diagnostics tab, paginated/filtered log APIs.
+- [x] `README.md` API section: document new query params on history endpoints (brief).
+- [x] No `SECURITY.md` change expected (same auth boundaries).
 
 ### Verification
 

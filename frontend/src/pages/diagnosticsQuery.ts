@@ -74,14 +74,3 @@ export function diagnosticsSearchParams(input: {
   if (input.query.q) next.set("q", input.query.q);
   return next;
 }
-
-/** @deprecated Use diagnosticsSearchParams — kept for tab-only updates during migration */
-export function diagnosticsTabToSearchParams(
-  tab: DiagnosticsTab,
-  current?: URLSearchParams,
-): URLSearchParams {
-  const query = current
-    ? parseDiagnosticsListQuery(current, tab)
-    : defaultDiagnosticsListQuery();
-  return diagnosticsSearchParams({ tab, query });
-}

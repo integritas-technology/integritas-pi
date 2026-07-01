@@ -29,3 +29,5 @@ export function listRangeLabel(page: number, pageSize: number, total: number) {
   const end = Math.min(page * pageSize, total);
   return `Showing ${start}–${end} of ${total}`;
 }
+
+export const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
