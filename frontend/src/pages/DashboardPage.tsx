@@ -137,7 +137,7 @@ export function DashboardPage() {
     return () => clearInterval(statusInterval);
   }, []);
 
-  useIntegritasHistoryAutoRefresh(proofs, setProofs);
+  useIntegritasHistoryAutoRefresh(proofs, setProofs, { query: { page: 1, pageSize: 100 } });
 
   const activity = useMemo(() => buildActivity(proofs, reads), [proofs, reads]);
 

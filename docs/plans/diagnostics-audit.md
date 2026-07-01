@@ -19,7 +19,7 @@
 
 | # | Part | Status | Notes |
 | --- | --- | --- | --- |
-| 1 | Logic sound | ⬜ pending | |
+| 1 | Logic sound | ✅ done | Dashboard auto-refresh pageSize fixed; see Part 1 notes below |
 | 2 | Over-engineering / simplify | ⬜ pending | |
 | 3 | Coding style consistency | ⬜ pending | |
 | 4 | Broken flows | ⬜ pending | |
@@ -34,13 +34,37 @@
 
 **Check**
 
-- [ ] URL params (`tab`, `page`, `pageSize`, `status`, `q`) parse ↔ serialize round-trip correctly
-- [ ] Only the active tab fetches on load / tab change
-- [ ] Filter or page-size change resets `page` to 1
-- [ ] Out-of-range `page` (after delete/filter) clamps instead of showing empty wrongly
-- [ ] `GET /history` and `POST /history/poll-pending` return the same paginated envelope for the same query
-- [ ] Auto-refresh uses current query params, not full history
-- [ ] Dashboard / `StampResultModal` still work with paginated APIs
+- [x] URL params (`tab`, `page`, `pageSize`, `status`, `q`) parse ↔ serialize round-trip correctly
+- [x] Only the active tab fetches on load / tab change
+- [x] Filter or page-size change resets `page` to 1
+- [x] Out-of-range `page` (after delete/filter) clamps instead of showing empty wrongly
+- [x] `GET /history` and `POST /history/poll-pending` return the same paginated envelope for the same query
+- [x] Auto-refresh uses current query params, not full history
+- [x] Dashboard / `StampResultModal` still work with paginated APIs
+
+### Part 1 results
+
+**Pass**
+
+- URL helpers: valid bookmarks round-trip; defaults omitted from URL (`tab=proofs`, `page=1`, `pageSize=50`).
+- `useEffect` fetch branches on `activeTab` only — reads not fetched on proofs tab.
+- `updateListQuery` resets `page` when `status`, `q`, or `pageSize` change.
+- `apply*Response` redirects URL when `page > totalPages` (with items); empty-all case shows empty table, pager displays page 1.
+- Backend `GET /history` and `POST /history/poll-pending` share identical list path after poll.
+- Diagnostics auto-refresh passes `listQueryParams` (page, filters).
+- `StampResultModal` uses `GET /history/:id` — unaffected by list pagination.
+
+**Fixed**
+
+- `DashboardPage`: auto-refresh used default `pageSize: 50` while initial load used `100` — activity list could shrink after first poll. Now passes `{ page: 1, pageSize: 100 }`.
+
+**Minor gaps (no fix yet — Part 4 or accept)**
+
+- Invalid `status` for active tab is ignored in parse but left in URL (`?tab=reads&status=ready` → UI shows “All”, API unfiltered).
+- Clamped `pageSize` in URL (e.g. `pageSize=5`) not rewritten to `10` until user changes pager.
+- When `totalPages=0` and URL has `page>1`, URL not auto-normalized (display is correct via pager bar).
+- Diagnostics auto-refresh updates `items` only, not `total` / `totalPages` — matters mainly with `status=pending` filter when rows leave the page.
+- Tab switch resets all list params (per feature plan).
 
 **Initial suspects**
 
