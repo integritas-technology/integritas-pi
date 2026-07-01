@@ -21,7 +21,7 @@
 | --- | --- | --- | --- |
 | 1 | Logic sound | ✅ done | Dashboard auto-refresh pageSize fixed; see Part 1 notes below |
 | 2 | Over-engineering / simplify | ✅ done | See Part 2 notes below |
-| 3 | Coding style consistency | ⬜ pending | |
+| 3 | Coding style consistency | ✅ done | See Part 3 notes below |
 | 4 | Broken flows | ⬜ pending | |
 | 5 | Security | ⬜ pending | |
 | 6 | Dead code cleanup | ⬜ pending | |
@@ -118,15 +118,33 @@
 
 **Check**
 
-- [ ] Compare `DiagnosticsPage` with peer pages (`WalletPage`, `DashboardPage`) — hooks, error handling, `busy` pattern
-- [ ] `ListPagerFilterBar` matches existing card/table/button patterns (Tailwind vs legacy CSS)
-- [ ] API wrappers follow `*Api.ts` conventions elsewhere
-- [ ] Backend list routes match style of other feature routers (thin routes, logic in repository)
+- [x] Compare `DiagnosticsPage` with peer pages (`WalletPage`, `DashboardPage`) — hooks, error handling, `busy` pattern
+- [x] `ListPagerFilterBar` matches existing card/table/button patterns (Tailwind vs legacy CSS)
+- [x] API wrappers follow `*Api.ts` conventions elsewhere
+- [x] Backend list routes match style of other feature routers (thin routes, logic in repository)
+
+### Part 3 results
+
+**Pass**
+
+- `busy` + `integritasErrorToast` + inline `error-text` matches `IntegritasPage` / `DataSourcesPage`.
+- Subtabs use shared `.subtabs` CSS (same as `WalletPage`), not a one-off pattern.
+- `ListPagerFilterBar` uses Tailwind for controls + global `button` / `muted` classes for pager — matches AGENTS.md direction and `WalletPage` filter chips.
+- `integritasApi` / `dataReadsApi` follow existing `*Api.ts` shape (`getJson` + typed return); pagination params appended via `buildListQueryString`.
+- Backend list routes are thin: parse → count → list → `toPaginatedResult` (same in `integritas.routes.ts` and `dataReads.routes.ts`).
+
+**Aligned (code changed)**
+
+- `DiagnosticsPage` + `diagnosticsQuery.ts`: single quotes (peer pages use single; `*Api.ts` files use double — existing split).
+- Subtabs markup formatted like `WalletPage` (multi-line tab buttons).
+- Renamed `runProofMutation` → `run`; merged duplicate `handleDownloadSelected` into `run(..., { refresh: false })` — same helper pattern as `IntegritasPage.run`.
+
+**Accepted differences**
+
+- `useCallback` / `useMemo` on DiagnosticsPage — needed for URL-synced fetch deps; `DashboardPage` is simpler because it has no query string.
+- `diagnosticsQuery.ts` as a separate module — matches how other pages keep helpers out of the main component when logic is non-trivial.
 
 **Initial suspects**
-
-- `DiagnosticsPage` is more callback/memo-heavy than older pages — may be justified by URL sync
-- Quote style mix (double vs single) — pre-existing across pages, only fix if we touch lines
 
 ---
 

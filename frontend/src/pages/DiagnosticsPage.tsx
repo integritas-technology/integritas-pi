@@ -1,17 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { ListPagerFilterBar } from "../components/ListPagerFilterBar";
-import { Page } from "../components/Page";
-import { useToast } from "../components/ToastProvider";
-import { integritasErrorToast } from "../features/integritas/integritasErrors";
-import { listDataReads } from "../features/data-reads/dataReadsApi";
-import { DataReadsHistoryTable } from "../features/data-reads/DataReadsHistoryTable";
-import type { DataSourceRead } from "../features/data-reads/dataReadTypes";
-import { deleteSelected, downloadSelected, getHistory, pollPendingRecords, verifyRecord } from "../features/integritas/integritasApi";
-import { IntegritasHistoryTable } from "../features/integritas/IntegritasHistoryTable";
-import type { IntegritasProofRecord } from "../features/integritas/integritasTypes";
-import { useIntegritasHistoryAutoRefresh } from "../features/integritas/useIntegritasHistoryAutoRefresh";
-import { emptyPaginatedPage, type PaginatedResponse } from "../lib/paginated";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { ListPagerFilterBar } from '../components/ListPagerFilterBar';
+import { Page } from '../components/Page';
+import { useToast } from '../components/ToastProvider';
+import { integritasErrorToast } from '../features/integritas/integritasErrors';
+import { listDataReads } from '../features/data-reads/dataReadsApi';
+import { DataReadsHistoryTable } from '../features/data-reads/DataReadsHistoryTable';
+import type { DataSourceRead } from '../features/data-reads/dataReadTypes';
+import { deleteSelected, downloadSelected, getHistory, pollPendingRecords, verifyRecord } from '../features/integritas/integritasApi';
+import { IntegritasHistoryTable } from '../features/integritas/IntegritasHistoryTable';
+import type { IntegritasProofRecord } from '../features/integritas/integritasTypes';
+import { useIntegritasHistoryAutoRefresh } from '../features/integritas/useIntegritasHistoryAutoRefresh';
+import { emptyPaginatedPage, type PaginatedResponse } from '../lib/paginated';
 import {
   defaultDiagnosticsListQuery,
   diagnosticsSearchParams,
@@ -22,7 +22,7 @@ import {
   READ_STATUS_OPTIONS,
   type DiagnosticsListQuery,
   type DiagnosticsTab,
-} from "./diagnosticsQuery";
+} from './diagnosticsQuery';
 
 function applyPaginatedPage<T>(
   response: PaginatedResponse<T>,
@@ -54,7 +54,7 @@ export function DiagnosticsPage() {
   const updateListQuery = useCallback((patch: Partial<DiagnosticsListQuery>) => {
     const current = parseDiagnosticsListQuery(searchParams, activeTab);
     const next = { ...current, ...patch };
-    if ("status" in patch || "q" in patch || "pageSize" in patch) {
+    if ('status' in patch || 'q' in patch || 'pageSize' in patch) {
       next.page = 1;
     }
     setSearchParams(diagnosticsSearchParams({ tab: activeTab, query: next }), { replace: true });
@@ -65,12 +65,12 @@ export function DiagnosticsPage() {
   }, [updateListQuery]);
 
   useEffect(() => {
-    const rawTab = searchParams.get("tab");
+    const rawTab = searchParams.get('tab');
     if (rawTab !== null && !isValidDiagnosticsTab(rawTab)) {
       setSearchParams(
         diagnosticsSearchParams({
-          tab: "proofs",
-          query: parseDiagnosticsListQuery(searchParams, "proofs"),
+          tab: 'proofs',
+          query: parseDiagnosticsListQuery(searchParams, 'proofs'),
         }),
         { replace: true },
       );
@@ -83,7 +83,7 @@ export function DiagnosticsPage() {
     async function load() {
       setError(null);
       try {
-        if (activeTab === "proofs") {
+        if (activeTab === 'proofs') {
           const response = await getHistory(listQuery);
           if (cancelled) return;
           applyPaginatedPage(response, listQuery.page, setProofsPage, clampPage);
@@ -95,7 +95,7 @@ export function DiagnosticsPage() {
         applyPaginatedPage(response, listQuery.page, setReadsPage, clampPage);
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load diagnostics history.");
+          setError(err instanceof Error ? err.message : 'Failed to load diagnostics history.');
         }
       }
     }
@@ -109,7 +109,7 @@ export function DiagnosticsPage() {
   useIntegritasHistoryAutoRefresh(proofsPage.items, (items) => {
     setProofsPage((current) => ({ ...current, items }));
   }, {
-    enabled: activeTab === "proofs",
+    enabled: activeTab === 'proofs',
     query: listQuery,
   });
 
@@ -120,7 +120,7 @@ export function DiagnosticsPage() {
     );
   }
 
-  async function runProofMutation(action: () => Promise<unknown>, options?: { refresh?: boolean }) {
+  async function run(action: () => Promise<unknown>, options?: { refresh?: boolean }) {
     setBusy(true);
     setError(null);
     try {
@@ -135,7 +135,7 @@ export function DiagnosticsPage() {
       }
     } catch (err) {
       const { title, message } = integritasErrorToast(err);
-      showToast({ tone: "error", title, message, timeoutMs: 9000 });
+      showToast({ tone: 'error', title, message, timeoutMs: 9000 });
       setError(message);
     } finally {
       setBusy(false);
@@ -143,7 +143,7 @@ export function DiagnosticsPage() {
   }
 
   async function handleRefreshPending() {
-    await runProofMutation(async () => {
+    await run(async () => {
       applyPaginatedPage(
         await pollPendingRecords(listQuery),
         listQuery.page,
@@ -153,32 +153,34 @@ export function DiagnosticsPage() {
     }, { refresh: false });
   }
 
-  async function handleDownloadSelected() {
-    setBusy(true);
-    setError(null);
-    try {
-      await downloadSelected(selectedIds);
-    } catch (err) {
-      const { title, message } = integritasErrorToast(err);
-      showToast({ tone: "error", title, message, timeoutMs: 9000 });
-      setError(message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function toggleSelected(id: string) {
-    setSelectedIds((ids) => ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id]);
-  }
-
-  const activePager = activeTab === "proofs" ? proofsPage : readsPage;
-  const statusOptions = activeTab === "proofs" ? PROOF_STATUS_OPTIONS : READ_STATUS_OPTIONS;
+  const activePager = activeTab === 'proofs' ? proofsPage : readsPage;
+  const statusOptions = activeTab === 'proofs' ? PROOF_STATUS_OPTIONS : READ_STATUS_OPTIONS;
 
   return (
-    <Page eyebrow="Diagnostics" title="Operational history" desc="Inspect stored proof requests and data-source read logs from one diagnostics workspace.">
+    <Page
+      eyebrow="Diagnostics"
+      title="Operational history"
+      desc="Inspect stored proof requests and data-source read logs from one diagnostics workspace."
+    >
       <div className="subtabs" role="tablist" aria-label="Diagnostics history">
-        <button type="button" role="tab" aria-selected={activeTab === "proofs"} className={activeTab === "proofs" ? "active" : ""} onClick={() => selectTab("proofs")}>Proof history</button>
-        <button type="button" role="tab" aria-selected={activeTab === "reads"} className={activeTab === "reads" ? "active" : ""} onClick={() => selectTab("reads")}>Read history</button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'proofs'}
+          className={activeTab === 'proofs' ? 'active' : ''}
+          onClick={() => selectTab('proofs')}
+        >
+          Proof history
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'reads'}
+          className={activeTab === 'reads' ? 'active' : ''}
+          onClick={() => selectTab('reads')}
+        >
+          Read history
+        </button>
       </div>
 
       <ListPagerFilterBar
@@ -195,19 +197,21 @@ export function DiagnosticsPage() {
         onQueryChange={(q) => updateListQuery({ q })}
       />
 
-      {activeTab === "proofs" ? (
+      {activeTab === 'proofs' ? (
         <IntegritasHistoryTable
           records={proofsPage.items}
           selectedIds={selectedIds}
           busy={busy}
-          onToggle={toggleSelected}
+          onToggle={(id) => {
+            setSelectedIds((ids) => ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id]);
+          }}
           onRefreshPending={() => void handleRefreshPending()}
-          onVerify={(record) => runProofMutation(() => verifyRecord(record.id))}
-          onDeleteSelected={() => runProofMutation(async () => {
+          onVerify={(record) => run(() => verifyRecord(record.id))}
+          onDeleteSelected={() => run(async () => {
             await deleteSelected(selectedIds);
             setSelectedIds([]);
           })}
-          onDownloadSelected={() => void handleDownloadSelected()}
+          onDownloadSelected={() => run(() => downloadSelected(selectedIds), { refresh: false })}
         />
       ) : (
         <DataReadsHistoryTable items={readsPage.items} />

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { DEFAULT_PAGE_SIZE_OPTIONS, listRangeLabel } from "../lib/paginated";
+import { useEffect, useState } from 'react';
+import { DEFAULT_PAGE_SIZE_OPTIONS, listRangeLabel } from '../lib/paginated';
 
 export type ListPagerFilterStatusOption = {
   value: string;
@@ -59,7 +59,7 @@ export function ListPagerFilterBar({
             onChange={(event) => onStatusChange(event.target.value)}
           >
             {statusOptions.map((option) => (
-              <option key={option.value || "all"} value={option.value}>
+              <option key={option.value || 'all'} value={option.value}>
                 {option.label}
               </option>
             ))}
@@ -99,7 +99,7 @@ export function ListPagerFilterBar({
             Previous
           </button>
           <span className="text-sm text-slate-600">
-            Page {currentPage}{totalPages > 0 ? ` of ${totalPages}` : ""}
+            Page {currentPage}{totalPages > 0 ? ` of ${totalPages}` : ''}
           </span>
           <button
             type="button"
