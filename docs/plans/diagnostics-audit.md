@@ -96,9 +96,13 @@
 - Removed `loadProofsPage` — mutations call `getHistory(listQuery)` inline.
 - Single `DEFAULT_PAGE_SIZE` + `DEFAULT_PAGE_SIZE_OPTIONS` in `paginated.ts`; removed dead `PAGE_SIZE_OPTIONS` from `diagnosticsQuery.ts`.
 
+**Re-fixed (regressed after `6259cd0`)**
+
+- Adding `pendingTotal` to `IntegritasHistoryPage` reintroduced the split this section claims was merged: a proofs-only `applyProofsPage` sat next to the generic `applyPaginatedPage`, with the last two params in swapped order between them (`setPage, clampPage` vs `clampPage, setPage`) — a real footgun, not just duplication. `emptyProofsPage` stayed a thin one-line wrapper over `emptyPaginatedPage` (fine, not duplicated logic, left as-is). Fixed by widening `applyPaginatedPage<T extends { totalPages: number }>` so it works for `IntegritasHistoryPage` directly; `applyProofsPage` removed, all four call sites now use `applyPaginatedPage` with one consistent argument order.
+
 **Kept (earns its keep)**
 
-- `diagnosticsQuery.ts` — URL canonicalization (omit defaults, tab-specific status allowlist).
+- `diagnosticsQuery.ts` — URL canonicalization (tab-specific status allowlist; `tab`/`page`/`pageSize` are now always written explicitly, see Part 1).
 - `paginated.ts` — API query string + shared types/helpers for any list page.
 - `backend/list-query.ts` — server-side validation/clamping (frontend can't be trusted).
 

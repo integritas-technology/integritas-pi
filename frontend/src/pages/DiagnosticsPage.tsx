@@ -11,7 +11,7 @@ import { deleteSelected, downloadSelected, getHistory, pollPendingRecords, verif
 import { IntegritasHistoryTable } from '../features/integritas/IntegritasHistoryTable';
 import type { IntegritasHistoryPage, IntegritasProofRecord } from '../features/integritas/integritasTypes';
 import { useIntegritasHistoryAutoRefresh } from '../features/integritas/useIntegritasHistoryAutoRefresh';
-import { emptyPaginatedPage, type PaginatedResponse } from '../lib/paginated';
+import { emptyPaginatedPage } from '../lib/paginated';
 import {
   defaultDiagnosticsListQuery,
   diagnosticsSearchParams,
@@ -24,24 +24,11 @@ import {
   type DiagnosticsTab,
 } from './diagnosticsQuery';
 
-function applyPaginatedPage<T>(
-  response: PaginatedResponse<T>,
+function applyPaginatedPage<T extends { totalPages: number }>(
+  response: T,
   currentPage: number,
-  setPage: (page: PaginatedResponse<T>) => void,
+  setPage: (page: T) => void,
   clampPage: (page: number) => void,
-) {
-  if (response.totalPages > 0 && currentPage > response.totalPages) {
-    clampPage(response.totalPages);
-    return;
-  }
-  setPage(response);
-}
-
-function applyProofsPage(
-  response: IntegritasHistoryPage,
-  currentPage: number,
-  clampPage: (page: number) => void,
-  setPage: (page: IntegritasHistoryPage) => void,
 ) {
   if (response.totalPages > 0 && currentPage > response.totalPages) {
     clampPage(response.totalPages);
@@ -118,7 +105,7 @@ export function DiagnosticsPage() {
         if (activeTab === 'proofs') {
           const response = await getHistory(listQuery);
           if (cancelled) return;
-          applyProofsPage(response, listQuery.page, clampPage, setProofsPage);
+          applyPaginatedPage(response, listQuery.page, setProofsPage, clampPage);
           return;
         }
 
@@ -143,7 +130,7 @@ export function DiagnosticsPage() {
     query: listQuery,
     pendingTotal: proofsPage.pendingTotal,
     onPage: (response) => {
-      applyProofsPage(response, listQuery.page, clampPage, setProofsPage);
+      applyPaginatedPage(response, listQuery.page, setProofsPage, clampPage);
     },
   });
 
@@ -160,11 +147,11 @@ export function DiagnosticsPage() {
     try {
       await action();
       if (options?.refresh !== false) {
-        applyProofsPage(
+        applyPaginatedPage(
           await getHistory(listQuery),
           listQuery.page,
-          clampPage,
           setProofsPage,
+          clampPage,
         );
       }
     } catch (err) {
@@ -178,11 +165,11 @@ export function DiagnosticsPage() {
 
   async function handleRefreshPending() {
     await run(async () => {
-      applyProofsPage(
+      applyPaginatedPage(
         await pollPendingRecords(listQuery),
         listQuery.page,
-        clampPage,
         setProofsPage,
+        clampPage,
       );
     }, { refresh: false });
   }
