@@ -22,7 +22,7 @@
 | 1 | Logic sound | ✅ done | Dashboard auto-refresh pageSize fixed; see Part 1 notes below |
 | 2 | Over-engineering / simplify | ✅ done | See Part 2 notes below |
 | 3 | Coding style consistency | ✅ done | See Part 3 notes below |
-| 4 | Broken flows | ⬜ pending | |
+| 4 | Broken flows | ✅ done | See Part 4 notes below |
 | 5 | Security | ⬜ pending | |
 | 6 | Dead code cleanup | ⬜ pending | |
 
@@ -154,20 +154,29 @@
 
 **Check**
 
-- [ ] Select rows on page 1 → next page → selection state (still selected? cleared? visible?)
-- [ ] Delete / download selected when selection spans pages or includes off-screen rows
-- [ ] Change filter while rows selected
-- [ ] Change tab while rows selected (proofs only)
-- [ ] Pending refresh button count — current page only vs all pending
-- [ ] `/diagnostics?tab=reads&page=2&status=failed` manual test
-- [ ] Pending auto-refresh still advances rows on proofs tab
-- [ ] Empty filter → muted empty state, not error
+- [x] Select rows on page 1 → next page → selection state (still selected? cleared? visible?)
+- [x] Delete / download selected when selection spans pages or includes off-screen rows
+- [x] Change filter while rows selected
+- [x] Change tab while rows selected (proofs only)
+- [x] Pending refresh button count — current page only vs all pending
+- [x] `/diagnostics?tab=reads&page=2&status=failed` manual test (code path verified; URL parse + API filter)
+- [x] Pending auto-refresh still advances rows on proofs tab
+- [x] Empty filter → muted empty state, not error
+
+### Part 4 results
+
+**Fixed**
+
+- **Selection cleared** on tab, page, page-size, status, or search change — no invisible delete/download targets.
+- **Pending count + auto-refresh regression**: pagination had limited polling to the current page. `GET /history` and `poll-pending` now include `pendingTotal` (global pollable pending count). Refresh button and auto-refresh use it; auto-refresh applies the full page response (items + totals).
+- **Empty filter copy**: tables show “No matching …” when filters active, not a generic empty error.
+
+**Accepted**
+
+- Cross-page multi-select is not supported (selection clears on page change). Delete/export remain current-page selection only — predictable for V1.
+- Stale proofs state while on reads tab (not rendered) — low impact.
 
 **Initial suspects**
-
-- `selectedIds` is **not** cleared on page/filter/tab change — delete/export may target invisible rows (may be OK, but confusing)
-- Refresh-pending `(N)` count is **page-local**, not global pending count
-- Reads tab shows stale proofs data in state until revisited (low impact)
 
 ---
 

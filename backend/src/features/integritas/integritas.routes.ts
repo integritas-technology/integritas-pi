@@ -7,7 +7,7 @@ import { validateIntegritasApiKey } from "../auth/integritas-validation.service.
 import { sha3HashHex } from "../../shared/crypto.js";
 import { deleteIntegritasApiKey, getIntegritasApiKey, integritasApiKeySource, saveIntegritasApiKey } from "../settings/secrets.service.js";
 import { env } from "../../config/env.js";
-import { createProofRecord, deleteProofRecords, getProofRecord, listProofRecords, countProofRecords, PROOF_LIST_STATUSES, updateVerifyResponse } from "./integritas.repository.js";
+import { createProofRecord, deleteProofRecords, getProofRecord, listProofRecords, countProofRecords, countPollablePendingProofRecords, PROOF_LIST_STATUSES, updateVerifyResponse } from "./integritas.repository.js";
 import { pollPendingProofRecords } from "./integritas-poll.service.js";
 import { getIntegritasConfig, hashCanonicalBytes, parseProofPayload, pollProofStatus, refreshProofRecord, requestProofUid, sha3HashFile, verifyProof, writeProofExport } from "./integritas.service.js";
 import type { IntegritasApiFailure } from "./integritas.types.js";
@@ -15,6 +15,15 @@ import { parseListQuery, toPaginatedResult } from "../../shared/list-query.js";
 import { upload } from "./upload.middleware.js";
 
 export const integritasRouter = Router();
+
+function proofHistoryPage(query: { page: number; pageSize: number; status?: string; q?: string }) {
+  const total = countProofRecords(query);
+  const items = listProofRecords(query);
+  return {
+    ...toPaginatedResult(items, total, query),
+    pendingTotal: countPollablePendingProofRecords(),
+  };
+}
 
 function sendIntegritasError(res: Response, result: IntegritasApiFailure) {
   // Reserve HTTP 401 for browser session auth; upstream key rejection is an app error.
@@ -120,9 +129,7 @@ integritasRouter.get("/history", (req, res) => {
   const parsed = parseListQuery(req.query, { allowedStatuses: PROOF_LIST_STATUSES });
   if (!parsed.ok) return res.status(400).json({ error: parsed.error });
 
-  const total = countProofRecords(parsed.value);
-  const items = listProofRecords(parsed.value);
-  return res.json(toPaginatedResult(items, total, parsed.value));
+  return res.json(proofHistoryPage(parsed.value));
 });
 
 integritasRouter.get("/history/:id", (req, res) => {
@@ -160,9 +167,7 @@ integritasRouter.post("/history/poll-pending", async (req, res) => {
   const parsed = parseListQuery(req.query, { allowedStatuses: PROOF_LIST_STATUSES });
   if (!parsed.ok) return res.status(400).json({ error: parsed.error });
 
-  const total = countProofRecords(parsed.value);
-  const items = listProofRecords(parsed.value);
-  return res.json(toPaginatedResult(items, total, parsed.value));
+  return res.json(proofHistoryPage(parsed.value));
 });
 
 integritasRouter.post("/history/:id/poll", async (req, res) => {

@@ -1,27 +1,31 @@
-import { useEffect } from "react";
-import { getHistory } from "./integritasApi";
-import type { ListQueryParams } from "../../lib/paginated";
-import type { IntegritasProofRecord } from "./integritasTypes";
+import { useEffect } from 'react';
+import { getHistory } from './integritasApi';
+import type { ListQueryParams } from '../../lib/paginated';
+import type { IntegritasHistoryPage, IntegritasProofRecord } from './integritasTypes';
 
 const DEFAULT_INTERVAL_MS = 15_000;
 
 export function hasPendingProofs(records: IntegritasProofRecord[]) {
-  return records.some((record) => record.proof_status === "pending" && record.proof_uid);
+  return records.some((record) => record.proof_status === 'pending' && record.proof_uid);
 }
 
 export function useIntegritasHistoryAutoRefresh(
   records: IntegritasProofRecord[],
-  onRecords: (records: IntegritasProofRecord[]) => void,
+  onRecords: ((records: IntegritasProofRecord[]) => void) | undefined,
   options?: {
     intervalMs?: number;
     enabled?: boolean;
     query?: ListQueryParams;
+    pendingTotal?: number;
+    onPage?: (response: IntegritasHistoryPage) => void;
   },
 ) {
   const intervalMs = options?.intervalMs ?? DEFAULT_INTERVAL_MS;
   const enabled = options?.enabled ?? true;
   const query = options?.query;
-  const shouldRefresh = enabled && hasPendingProofs(records);
+  const pendingTotal = options?.pendingTotal ?? 0;
+  const onPage = options?.onPage;
+  const shouldRefresh = enabled && (pendingTotal > 0 || hasPendingProofs(records));
 
   useEffect(() => {
     if (!shouldRefresh) return;
@@ -31,7 +35,9 @@ export function useIntegritasHistoryAutoRefresh(
     async function refresh() {
       try {
         const response = await getHistory(query);
-        if (!cancelled) onRecords(response.items);
+        if (cancelled) return;
+        if (onPage) onPage(response);
+        else onRecords?.(response.items);
       } catch {
         // Background refresh only.
       }
@@ -44,5 +50,5 @@ export function useIntegritasHistoryAutoRefresh(
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [shouldRefresh, intervalMs, onRecords, query?.page, query?.pageSize, query?.status, query?.q]);
+  }, [shouldRefresh, intervalMs, onRecords, onPage, query?.page, query?.pageSize, query?.status, query?.q]);
 }

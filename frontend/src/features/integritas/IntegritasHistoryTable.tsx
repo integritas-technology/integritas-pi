@@ -6,6 +6,7 @@ import { hasPendingProofs } from './useIntegritasHistoryAutoRefresh';
 export function IntegritasHistoryTable({
   records,
   selectedIds,
+  filtered,
   onToggle,
   onRefreshPending,
   onVerify,
@@ -15,6 +16,7 @@ export function IntegritasHistoryTable({
 }: {
   records: IntegritasProofRecord[];
   selectedIds: string[];
+  filtered?: boolean;
   onToggle: (id: string) => void;
   onRefreshPending: () => void;
   onVerify: (record: IntegritasProofRecord) => void;
@@ -22,7 +24,7 @@ export function IntegritasHistoryTable({
   onDownloadSelected: () => void;
   busy: boolean;
 }) {
-  const pendingCount = records.filter(
+  const pendingOnPage = records.filter(
     (record) => record.proof_status === 'pending' && record.proof_uid,
   ).length;
 
@@ -44,7 +46,7 @@ export function IntegritasHistoryTable({
             onClick={onRefreshPending}
           >
             <RefreshCcwIcon size={20} />
-            <span className='text-sm font-medium'>({pendingCount})</span>
+            <span className='text-sm font-medium'>({pendingOnPage})</span>
           </button>
           {selectedIds.length > 0 && (
             <>
@@ -117,7 +119,9 @@ export function IntegritasHistoryTable({
           </tbody>
         </table>
       </div>
-      {records.length === 0 && <p className='muted'>No proof history yet.</p>}
+      {records.length === 0 && (
+        <p className='muted'>{filtered ? 'No matching proof history.' : 'No proof history yet.'}</p>
+      )}
     </section>
   );
 }

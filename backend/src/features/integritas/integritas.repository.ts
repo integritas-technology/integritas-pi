@@ -58,6 +58,14 @@ export function countProofRecords(query: Pick<ProofListQuery, "status" | "q"> = 
   return row.count;
 }
 
+export function countPollablePendingProofRecords() {
+  const row = db.prepare(`
+    SELECT COUNT(*) as count FROM integritas_proofs
+    WHERE proof_status = 'pending' AND proof_uid IS NOT NULL
+  `).get() as { count: number };
+  return row.count;
+}
+
 export function listProofRecords(query: ProofListQuery) {
   const { where, params } = buildProofListWhere(query);
   const offset = (query.page - 1) * query.pageSize;

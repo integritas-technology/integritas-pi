@@ -2,7 +2,13 @@ import { JsonPreview } from "../../components/JsonPreview";
 import { formatLocalTime, formatUtcTime } from "../../lib/time";
 import type { DataSourceRead } from "./dataReadTypes";
 
-export function DataReadsHistoryTable({ items }: { items: DataSourceRead[] }) {
+export function DataReadsHistoryTable({
+  items,
+  filtered,
+}: {
+  items: DataSourceRead[];
+  filtered?: boolean;
+}) {
   return (
     <section className="card data-read-list">
       <div><strong>Read history</strong></div>
@@ -24,7 +30,9 @@ export function DataReadsHistoryTable({ items }: { items: DataSourceRead[] }) {
           </tbody>
         </table>
       </div>
-      {items.length === 0 && <p className="muted">No reads recorded yet.</p>}
+      {items.length === 0 && (
+        <p className="muted">{filtered ? 'No matching read history.' : 'No reads recorded yet.'}</p>
+      )}
     </section>
   );
 }

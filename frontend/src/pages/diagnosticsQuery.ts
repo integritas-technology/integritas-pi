@@ -66,9 +66,9 @@ export function diagnosticsSearchParams(input: {
   query: DiagnosticsListQuery;
 }): URLSearchParams {
   const next = new URLSearchParams();
-  if (input.tab === 'reads') next.set('tab', 'reads');
-  if (input.query.page > 1) next.set('page', String(input.query.page));
-  if (input.query.pageSize !== DEFAULT_PAGE_SIZE) next.set('pageSize', String(input.query.pageSize));
+  next.set('tab', input.tab);
+  next.set('page', String(input.query.page));
+  next.set('pageSize', String(input.query.pageSize));
   if (input.query.status) next.set('status', input.query.status);
   if (input.query.q) next.set('q', input.query.q);
   return next;
