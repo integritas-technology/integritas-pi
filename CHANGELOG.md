@@ -9,6 +9,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - **Diagnostics tabs**: proof vs read history is reflected in the URL (`/diagnostics?tab=reads`). Refreshing or sharing the link opens the correct tab; only the active tab's list is fetched on load.
+- **Diagnostics pagination**: proof and read history lists are server-paginated with URL-backed `page`, `pageSize`, `status`, and `q` filters. Shared pager/filter bar on the Diagnostics page.
+
+### Added
+
+- `GET /api/integritas/history/:id` — fetch a single proof record by id (used by stamp result polling).
+- Paginated list responses on `GET /api/integritas/history` and `GET /api/data-reads` (`page`, `pageSize`, `status`, `q` query params).
+
+### Fixed
+
+- **Diagnostics proof export**: corrupt `proof_payload` JSON no longer risks an unhandled export error; export failures return `500` with a message instead.
+- **Diagnostics download**: export no longer runs through the post-mutation refresh path (download is read-only).
+- **Proof export in native dev**: `DATA_DIR` / `DATABASE_PATH` now drive the export directory (`./data/exports`) instead of always using `/data`, fixing `EACCES: permission denied, mkdir '/data'` on `npm run dev`.
 
 ## [0.11.0] - 2026-06-30
 

@@ -1,6 +1,6 @@
 # Diagnostics: URL query, pagination, loading state
 
-**Status:** In progress (Part 1 done)  
+**Status:** In progress (Parts 1 and 2 done; Part 3 deferred to UX)  
 **Created:** 2026-06-30  
 **Goal:** Make the Diagnostics page shareable, scalable, and honest about fetch state — without duplicating business logic outside the backend API.
 
@@ -125,10 +125,10 @@ Reset `page` to `1` when `tab`, `status`, or `q` changes.
 
 ### Acceptance
 
-- [ ] Large proof/read lists render one page at a time.
-- [ ] Filters and page changes update the URL and survive refresh.
-- [ ] `ListPagerFilterBar` is generic enough to reuse without diagnostics-specific logic inside it.
-- [ ] Empty filter result shows the existing muted empty state, not an error.
+- [x] Large proof/read lists render one page at a time.
+- [x] Filters and page changes update the URL and survive refresh.
+- [x] `ListPagerFilterBar` is generic enough to reuse without diagnostics-specific logic inside it.
+- [x] Empty filter result shows the existing muted empty state, not an error.
 
 ---
 
