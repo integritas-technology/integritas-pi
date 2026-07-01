@@ -1,3 +1,6 @@
+export const DEFAULT_PAGE_SIZE = 50;
+export const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+
 export type PaginatedResponse<T> = {
   items: T[];
   page: number;
@@ -5,6 +8,10 @@ export type PaginatedResponse<T> = {
   total: number;
   totalPages: number;
 };
+
+export function emptyPaginatedPage<T>(pageSize = DEFAULT_PAGE_SIZE): PaginatedResponse<T> {
+  return { items: [], page: 1, pageSize, total: 0, totalPages: 0 };
+}
 
 export type ListQueryParams = {
   page?: number;
@@ -29,5 +36,3 @@ export function listRangeLabel(page: number, pageSize: number, total: number) {
   const end = Math.min(page * pageSize, total);
   return `Showing ${start}–${end} of ${total}`;
 }
-
-export const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;

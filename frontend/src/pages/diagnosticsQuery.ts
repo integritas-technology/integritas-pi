@@ -1,9 +1,8 @@
+import { DEFAULT_PAGE_SIZE } from "../lib/paginated";
+
 export type DiagnosticsTab = "proofs" | "reads";
 
 const VALID_TABS = new Set<DiagnosticsTab>(["proofs", "reads"]);
-
-export const DEFAULT_PAGE_SIZE = 50;
-export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 
 export const PROOF_STATUS_OPTIONS = [
   { value: "", label: "All statuses" },

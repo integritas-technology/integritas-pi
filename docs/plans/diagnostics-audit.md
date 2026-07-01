@@ -20,7 +20,7 @@
 | # | Part | Status | Notes |
 | --- | --- | --- | --- |
 | 1 | Logic sound | ✅ done | Dashboard auto-refresh pageSize fixed; see Part 1 notes below |
-| 2 | Over-engineering / simplify | ⬜ pending | |
+| 2 | Over-engineering / simplify | ✅ done | See Part 2 notes below |
 | 3 | Coding style consistency | ⬜ pending | |
 | 4 | Broken flows | ⬜ pending | |
 | 5 | Security | ⬜ pending | |
@@ -80,18 +80,35 @@
 
 **Check**
 
-- [ ] Is `diagnosticsQuery.ts` + `paginated.ts` + backend `list-query.ts` the minimum needed (URL canonicalization vs API parsing)?
-- [ ] Can `applyProofsResponse` / `applyReadsResponse` merge?
-- [ ] Can `emptyProofsPage` / `emptyReadsPage` share one helper?
-- [ ] Is `toListQueryParams` needed or can `DiagnosticsListQuery` = `ListQueryParams`?
-- [ ] Is `loadProofsPage` worth keeping vs inlining in the one mutation path?
-- [ ] Duplicate page-size constants (`PAGE_SIZE_OPTIONS` vs `DEFAULT_PAGE_SIZE_OPTIONS`)
+- [x] Is `diagnosticsQuery.ts` + `paginated.ts` + backend `list-query.ts` the minimum needed (URL canonicalization vs API parsing)?
+- [x] Can `applyProofsResponse` / `applyReadsResponse` merge?
+- [x] Can `emptyProofsPage` / `emptyReadsPage` share one helper?
+- [x] Is `toListQueryParams` needed or can `DiagnosticsListQuery` = `ListQueryParams`?
+- [x] Is `loadProofsPage` worth keeping vs inlining in the one mutation path?
+- [x] Duplicate page-size constants (`PAGE_SIZE_OPTIONS` vs `DEFAULT_PAGE_SIZE_OPTIONS`)
+
+### Part 2 results
+
+**Simplified (code changed)**
+
+- Merged `applyProofsResponse` / `applyReadsResponse` → one `applyPaginatedPage` helper.
+- Merged `emptyProofsPage` / `emptyReadsPage` → `emptyPaginatedPage` in `paginated.ts`.
+- Removed `toListQueryParams` and `listQueryParams` memo — pass `listQuery` straight to API wrappers (`""` status/q omitted by `buildListQueryString`).
+- Removed `loadProofsPage` — mutations call `getHistory(listQuery)` inline.
+- Single `DEFAULT_PAGE_SIZE` + `DEFAULT_PAGE_SIZE_OPTIONS` in `paginated.ts`; removed dead `PAGE_SIZE_OPTIONS` from `diagnosticsQuery.ts`.
+
+**Kept (earns its keep)**
+
+- `diagnosticsQuery.ts` — URL canonicalization (omit defaults, tab-specific status allowlist).
+- `paginated.ts` — API query string + shared types/helpers for any list page.
+- `backend/list-query.ts` — server-side validation/clamping (frontend can't be trusted).
+
+**Not simplified (would cost clarity)**
+
+- Three parse layers stay — each targets a different boundary (browser URL / API client / server).
+- `DiagnosticsListQuery` vs `ListQueryParams` — URL model uses `""` for empty filters; API model omits them. Structurally compatible; no merge needed.
 
 **Initial suspects**
-
-- `PAGE_SIZE_OPTIONS` in `diagnosticsQuery.ts` is unused — dead duplicate
-- `toListQueryParams` is a 4-line spread wrapper
-- Fetch path split: main `useEffect` inlines fetch; mutations use `loadProofsPage` — could unify
 
 ---
 
@@ -163,14 +180,14 @@
 
 **Check**
 
-- [ ] Remove unused exports/constants (e.g. `PAGE_SIZE_OPTIONS` in `diagnosticsQuery.ts` if unused)
+- [x] Remove unused exports/constants (e.g. `PAGE_SIZE_OPTIONS` in `diagnosticsQuery.ts` if unused)
 - [ ] Plan doc still references removed `diagnosticsTabToSearchParams` — update when auditing
 - [ ] No orphaned imports or commented-out Part 3 loading code
 - [ ] No duplicate helpers superseded by shared modules
 
 **Known candidates**
 
-- `frontend/src/pages/diagnosticsQuery.ts` — `PAGE_SIZE_OPTIONS` (unused; bar uses `paginated.ts`)
+- ~~`frontend/src/pages/diagnosticsQuery.ts` — `PAGE_SIZE_OPTIONS`~~ removed in Part 2
 - `docs/plans/diagnostics-url-pagination-loading.md` — stale helper name in Part 1
 
 ---

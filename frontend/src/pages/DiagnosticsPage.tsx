@@ -11,9 +11,8 @@ import { deleteSelected, downloadSelected, getHistory, pollPendingRecords, verif
 import { IntegritasHistoryTable } from "../features/integritas/IntegritasHistoryTable";
 import type { IntegritasProofRecord } from "../features/integritas/integritasTypes";
 import { useIntegritasHistoryAutoRefresh } from "../features/integritas/useIntegritasHistoryAutoRefresh";
-import type { ListQueryParams, PaginatedResponse } from "../lib/paginated";
+import { emptyPaginatedPage, type PaginatedResponse } from "../lib/paginated";
 import {
-  DEFAULT_PAGE_SIZE,
   defaultDiagnosticsListQuery,
   diagnosticsSearchParams,
   isValidDiagnosticsTab,
@@ -25,21 +24,17 @@ import {
   type DiagnosticsTab,
 } from "./diagnosticsQuery";
 
-function emptyProofsPage(): PaginatedResponse<IntegritasProofRecord> {
-  return { items: [], page: 1, pageSize: DEFAULT_PAGE_SIZE, total: 0, totalPages: 0 };
-}
-
-function emptyReadsPage(): PaginatedResponse<DataSourceRead> {
-  return { items: [], page: 1, pageSize: DEFAULT_PAGE_SIZE, total: 0, totalPages: 0 };
-}
-
-function toListQueryParams(query: DiagnosticsListQuery): ListQueryParams {
-  return {
-    page: query.page,
-    pageSize: query.pageSize,
-    ...(query.status ? { status: query.status } : {}),
-    ...(query.q ? { q: query.q } : {}),
-  };
+function applyPaginatedPage<T>(
+  response: PaginatedResponse<T>,
+  currentPage: number,
+  setPage: (page: PaginatedResponse<T>) => void,
+  clampPage: (page: number) => void,
+) {
+  if (response.totalPages > 0 && currentPage > response.totalPages) {
+    clampPage(response.totalPages);
+    return;
+  }
+  setPage(response);
 }
 
 export function DiagnosticsPage() {
@@ -50,9 +45,8 @@ export function DiagnosticsPage() {
     () => parseDiagnosticsListQuery(searchParams, activeTab),
     [searchParams, activeTab],
   );
-  const listQueryParams = useMemo(() => toListQueryParams(listQuery), [listQuery]);
-  const [proofsPage, setProofsPage] = useState(emptyProofsPage);
-  const [readsPage, setReadsPage] = useState(emptyReadsPage);
+  const [proofsPage, setProofsPage] = useState(emptyPaginatedPage<IntegritasProofRecord>);
+  const [readsPage, setReadsPage] = useState(emptyPaginatedPage<DataSourceRead>);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -66,25 +60,9 @@ export function DiagnosticsPage() {
     setSearchParams(diagnosticsSearchParams({ tab: activeTab, query: next }), { replace: true });
   }, [activeTab, searchParams, setSearchParams]);
 
-  const applyProofsResponse = useCallback((response: PaginatedResponse<IntegritasProofRecord>) => {
-    if (response.totalPages > 0 && listQuery.page > response.totalPages) {
-      updateListQuery({ page: response.totalPages });
-      return;
-    }
-    setProofsPage(response);
-  }, [listQuery.page, updateListQuery]);
-
-  const applyReadsResponse = useCallback((response: PaginatedResponse<DataSourceRead>) => {
-    if (response.totalPages > 0 && listQuery.page > response.totalPages) {
-      updateListQuery({ page: response.totalPages });
-      return;
-    }
-    setReadsPage(response);
-  }, [listQuery.page, updateListQuery]);
-
-  const loadProofsPage = useCallback(async () => {
-    applyProofsResponse(await getHistory(listQueryParams));
-  }, [applyProofsResponse, listQueryParams]);
+  const clampPage = useCallback((page: number) => {
+    updateListQuery({ page });
+  }, [updateListQuery]);
 
   useEffect(() => {
     const rawTab = searchParams.get("tab");
@@ -106,15 +84,15 @@ export function DiagnosticsPage() {
       setError(null);
       try {
         if (activeTab === "proofs") {
-          const response = await getHistory(listQueryParams);
+          const response = await getHistory(listQuery);
           if (cancelled) return;
-          applyProofsResponse(response);
+          applyPaginatedPage(response, listQuery.page, setProofsPage, clampPage);
           return;
         }
 
-        const response = await listDataReads(listQueryParams);
+        const response = await listDataReads(listQuery);
         if (cancelled) return;
-        applyReadsResponse(response);
+        applyPaginatedPage(response, listQuery.page, setReadsPage, clampPage);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Failed to load diagnostics history.");
@@ -126,13 +104,13 @@ export function DiagnosticsPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, listQueryParams, applyProofsResponse, applyReadsResponse]);
+  }, [activeTab, listQuery, clampPage]);
 
   useIntegritasHistoryAutoRefresh(proofsPage.items, (items) => {
     setProofsPage((current) => ({ ...current, items }));
   }, {
     enabled: activeTab === "proofs",
-    query: listQueryParams,
+    query: listQuery,
   });
 
   function selectTab(tab: DiagnosticsTab) {
@@ -148,7 +126,12 @@ export function DiagnosticsPage() {
     try {
       await action();
       if (options?.refresh !== false) {
-        await loadProofsPage();
+        applyPaginatedPage(
+          await getHistory(listQuery),
+          listQuery.page,
+          setProofsPage,
+          clampPage,
+        );
       }
     } catch (err) {
       const { title, message } = integritasErrorToast(err);
@@ -161,8 +144,12 @@ export function DiagnosticsPage() {
 
   async function handleRefreshPending() {
     await runProofMutation(async () => {
-      const response = await pollPendingRecords(listQueryParams);
-      applyProofsResponse(response);
+      applyPaginatedPage(
+        await pollPendingRecords(listQuery),
+        listQuery.page,
+        setProofsPage,
+        clampPage,
+      );
     }, { refresh: false });
   }
 
