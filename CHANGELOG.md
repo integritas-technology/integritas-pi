@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Workflow creation is now block-first: operators choose a start block (manual, schedule, GPIO, webhook, or MQTT) and an optional initial record/fetch action instead of creating workflows from a single data source.
 - Workflow run history now records each workflow execution and per-block status/timing/error details, visible in the workflow workspace and in Diagnostics -> Workflow logs.
 - Devices now support GPIO Output targets with an LED profile, and Automation supports a generic Control output block that can pulse those LED targets from workflows.
+- GPIO Output devices can now be test-pulsed directly from the Devices page before wiring them into an automation workflow.
 
 ### Changed
 

@@ -6,6 +6,7 @@ import { recordPushAutomationPayload } from "../automation/automation.service.js
 import { createDataSource, deleteDataSource, findWebhookDataSource, getDataSource, listDataSources, updateDataSource, updateDataSourceReadResult } from "./dataSources.repository.js";
 import { syncMqttDataSources } from "./mqttIngestion.service.js";
 import { getGpioInputCapability, syncGpioDataSources } from "./gpioIngestion.service.js";
+import { pulseGpioOutput } from "./gpioOutput.service.js";
 import { checkDataSourceHealth, parseDataSourceConfig, parseGpioInputConfig, parseGpioOutputConfig, parseJsonApiConfig, processWebhookPayload, readJsonApiSource, serializeDataSource } from "./dataSources.service.js";
 
 export const dataSourcesRouter = Router();
@@ -118,6 +119,20 @@ dataSourcesRouter.post("/:id/read", requireRole("admin"), async (req, res) => {
     const updated = updateDataSourceReadResult(req.params.id, { error: message });
     createDataSourceRead({ dataSourceId: record.id, sourceName: record.name, sourceUrl: config.url, triggerType: "manual", status: "failed", error: message });
     return res.status(502).json({ error: updated.last_error, item: serializeDataSource(updated) });
+  }
+});
+
+dataSourcesRouter.post("/:id/test-output", requireRole("admin"), async (req, res) => {
+  const record = getDataSource(req.params.id);
+  if (!record) return res.status(404).json({ error: "Device not found" });
+  if (record.type !== "gpio-output") return res.status(400).json({ error: "Only GPIO output devices can be tested" });
+
+  const durationMs = req.body?.durationMs === undefined ? 500 : Number(req.body.durationMs);
+  try {
+    const result = await pulseGpioOutput({ targetId: record.id, durationMs });
+    return res.json({ item: serializeDataSource(record), result });
+  } catch (error) {
+    return res.status(502).json({ error: error instanceof Error ? error.message : "Failed to test GPIO output" });
   }
 });
 

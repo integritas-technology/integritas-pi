@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
 import { useToast } from "../components/ToastProvider";
-import { checkDataSourceHealth, createDataSource, deleteDataSource, getDataSourceCapabilities, listDataSources, readDataSource, updateDataSource } from "../features/data-sources/dataSourcesApi";
+import { checkDataSourceHealth, createDataSource, deleteDataSource, getDataSourceCapabilities, listDataSources, readDataSource, testDataSourceOutput, updateDataSource } from "../features/data-sources/dataSourcesApi";
 import { DataSourceForm } from "../features/data-sources/DataSourceForm";
 import { DataSourcesList } from "../features/data-sources/DataSourcesList";
 import { DataSourceTemplates } from "../features/data-sources/DataSourceTemplates";
@@ -192,6 +192,7 @@ export function DataSourcesPage() {
         healthStatuses={healthStatuses}
         busy={busy}
         onRead={(source) => run(() => readDataSource(source.id), "Manual read completed")}
+        onTestOutput={(source) => run(() => testDataSourceOutput(source.id), "Test pulse sent")}
         onEdit={editSource}
         onDelete={(source) => run(() => deleteDataSource(source.id), "Device deleted")}
       />

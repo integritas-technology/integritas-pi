@@ -1,4 +1,4 @@
-import { Pencil, Play, Trash2 } from "lucide-react";
+import { Pencil, Play, Trash2, Zap } from "lucide-react";
 import { JsonPreview } from "../../components/JsonPreview";
 import type { DataSource, DataSourceHealthStatus } from "./dataSourceTypes";
 
@@ -7,6 +7,7 @@ export function DataSourcesList({
   healthStatuses,
   busy,
   onRead,
+  onTestOutput,
   onEdit,
   onDelete,
 }: {
@@ -14,6 +15,7 @@ export function DataSourcesList({
   healthStatuses: Record<string, DataSourceHealthStatus>;
   busy: boolean;
   onRead: (source: DataSource) => void;
+  onTestOutput: (source: DataSource) => void;
   onEdit: (source: DataSource) => void;
   onDelete: (source: DataSource) => void;
 }) {
@@ -80,6 +82,18 @@ export function DataSourcesList({
                     >
                       <Play size={16} />
                     </button>
+                    {source.type === "gpio-output" && (
+                      <button
+                        className="icon-action-button"
+                        type="button"
+                        disabled={busy}
+                        title="Test pulse"
+                        aria-label={`Test pulse ${source.name}`}
+                        onClick={() => onTestOutput(source)}
+                      >
+                        <Zap size={16} />
+                      </button>
+                    )}
                     <button
                       className="icon-action-button"
                       type="button"
