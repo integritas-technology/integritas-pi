@@ -16,6 +16,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Workflow creation is now block-first: operators choose a start block (manual, schedule, GPIO, webhook, or MQTT) and an optional initial record/fetch action instead of creating workflows from a single data source.
 - Workflow run history now records each workflow execution and per-block status/timing/error details, visible in the workflow workspace and in Diagnostics -> Workflow logs.
 
+### Changed
+
+- Data Sources UI is now presented as Devices, with template cards split into Input sources and Output targets ahead of GPIO output support.
+
 ## [0.11.0] - 2026-06-30
 
 ### Added

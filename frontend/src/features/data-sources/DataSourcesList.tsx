@@ -20,15 +20,16 @@ export function DataSourcesList({
   return (
     <section className="card data-source-list">
       <div>
-        <strong>Added data sources</strong>
-        <p className="muted">JSON API sources saved in SQLite.</p>
+        <strong>Configured devices</strong>
+        <p className="muted">Input sources and future output targets saved in SQLite.</p>
       </div>
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
               <th>Name</th>
-              <th>Type</th>
+            <th>Direction</th>
+            <th>Type</th>
               <th>Endpoint</th>
               <th>Health</th>
               <th>Last hash</th>
@@ -43,6 +44,7 @@ export function DataSourcesList({
                   <strong>{source.name}</strong>
                   <p className="muted">{source.description}</p>
                 </td>
+                <td>{source.type === "json-api" || source.type === "internal-json-api" || source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" ? "Input" : "Output"}</td>
                 <td>{source.type}</td>
                 <td>
                   <code>{source.type === "webhook" ? webhookUrl(source) : source.type === "mqtt" ? mqttEndpoint(source) : source.type === "gpio-input" ? gpioEndpoint(source) : source.config.url}</code>
@@ -82,7 +84,7 @@ export function DataSourcesList({
                       className="icon-action-button"
                       type="button"
                       disabled={busy}
-                      title="Edit source"
+                      title="Edit device"
                       aria-label={`Edit ${source.name}`}
                       onClick={() => onEdit(source)}
                     >
@@ -106,7 +108,7 @@ export function DataSourcesList({
         </table>
       </div>
       {items.length === 0 && (
-        <p className="muted">No data sources added yet.</p>
+        <p className="muted">No devices added yet.</p>
       )}
     </section>
   );
