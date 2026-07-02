@@ -18,6 +18,18 @@ function resolveDatabasePath() {
   return "/data/integritas-pi.db";
 }
 
+function resolveDataDir(databasePath: string) {
+  if (process.env.DATA_DIR_IN_CONTAINER) {
+    return process.env.DATA_DIR_IN_CONTAINER;
+  }
+
+  if (process.env.DATA_DIR) {
+    return resolveConfigPath(process.env.DATA_DIR);
+  }
+
+  return path.dirname(databasePath);
+}
+
 function resolveHostFilesRoot() {
   const configured = process.env.HOST_FILES_ROOT ?? process.env.HOST_FILES_DIR;
   if (configured) {
@@ -36,6 +48,8 @@ function resolveMinimaStatusUrl() {
   return `http://127.0.0.1:${rpcPort}/status`;
 }
 
+const databasePath = resolveDatabasePath();
+
 export const env = {
   port: Number(process.env.PORT ?? 3000),
   hostFilesRoot: resolveHostFilesRoot(),
@@ -47,8 +61,8 @@ export const env = {
   integritasProofPollTimeoutMinutes: Number(process.env.INTEGRITAS_PROOF_POLL_TIMEOUT_MINUTES ?? 5),
   integritasPortalUrl: process.env.INTEGRITAS_PORTAL_URL ?? "",
   integritasApiKeyFallback: process.env.INTEGRITAS_API_KEY ?? "",
-  databasePath: resolveDatabasePath(),
-  dataDir: process.env.DATA_DIR_IN_CONTAINER ?? "/data",
+  databasePath,
+  dataDir: resolveDataDir(databasePath),
   appSecret: process.env.APP_SECRET ?? "dev-change-me",
   dockerSocketPath: process.env.DOCKER_SOCKET_PATH ?? "/var/run/docker.sock",
   cookieSecure: process.env.COOKIE_SECURE === "true",

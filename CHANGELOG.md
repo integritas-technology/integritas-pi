@@ -6,6 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **Diagnostics tabs**: proof vs read history is reflected in the URL (`/diagnostics?tab=reads`). Refreshing or sharing the link opens the correct tab; only the active tab's list is fetched on load.
+- **Diagnostics pagination**: proof and read history lists are server-paginated with URL-backed `tab`, `page`, `pageSize`, `status`, and `q` filters (`tab`, `page`, and `pageSize` are always written to the URL, including defaults). Shared pager/filter bar on the Diagnostics page.
+- **Diagnostics cleanup**: removed debug `JsonPreview` footer, deduplicated paginated fetch helpers, and avoid double-fetch after poll-pending (uses paginated poll response directly).
+- **Diagnostics query performance**: added indexes on `integritas_proofs(proof_status, created_at)` / `(created_at)` and `data_source_reads(status, created_at)` / `(created_at)` so paginated, filtered, and count queries use index seeks instead of full table scans with an in-memory sort. Applied automatically via the existing idempotent migration path — no manual step, existing rows are indexed in place.
+
+### Added
+
+- `GET /api/integritas/history/:id` — fetch a single proof record by id (used by stamp result polling).
+- Paginated list responses on `GET /api/integritas/history` and `GET /api/data-reads` (`page`, `pageSize`, `status`, `q` query params).
+- `pendingTotal` on proof history list responses — global count of pollable pending proofs for Diagnostics refresh UI and auto-poll.
+
+### Fixed
+
+- **Diagnostics proof export**: corrupt `proof_payload` JSON no longer risks an unhandled export error; export failures return `500` with a message instead.
+- **Diagnostics download**: export no longer runs through the post-mutation refresh path (download is read-only).
+- **Diagnostics selection**: row selection clears when changing page, filter, or tab so delete/export cannot target off-screen rows.
+- **Diagnostics pending poll**: `GET /history` and `poll-pending` return a global `pendingTotal` (pollable pending count across all pages); auto-refresh and the manual "Refresh pending" button (count and enabled state) both use it, so pending proofs on other pages/filters still show and still poll.
+- **Diagnostics page size**: rows-per-page control now follows the URL immediately instead of snapping back to the previous API response.
+- **Diagnostics auto-refresh loop**: an unstable callback reference caused the proofs auto-refresh to re-fire on every unrelated re-render (e.g. toggling a row checkbox), issuing `GET /history` back-to-back instead of on the intended ~15s interval while a proof was pending.
+- **Diagnostics mutation errors**: verify/delete/download failures now surface via toast only, matching every other page (`WalletPage`, `IntegritasPage`, `DataSourcesPage`); previously they also left a persistent inline banner until the next action.
+- **Dashboard activity list**: auto-refresh now uses the same `pageSize: 100` as the initial load, so the "Live activity" list no longer shrinks to 50 items after the first background refresh.
+- **Proof export in native dev**: `DATA_DIR` / `DATABASE_PATH` now drive the export directory (`./data/exports`) instead of always using `/data`, fixing `EACCES: permission denied, mkdir '/data'` on `npm run dev`.
+
+### Security
+
+- **Diagnostics bulk actions**: `delete-selected` / `export-selected` now cap the `ids` array at 500 entries, closing a self-inflicted DoS gap (an oversized array could stall the single-threaded backend in a synchronous delete/export loop). Well above the UI's actual maximum (selection can't exceed one page, capped at 100 rows).
+
 ## [0.11.0] - 2026-06-30
 
 ### Added

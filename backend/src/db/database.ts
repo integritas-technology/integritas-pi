@@ -35,6 +35,13 @@ export function runMigrations() {
   `);
 
   db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_integritas_proofs_status_created
+      ON integritas_proofs(proof_status, created_at);
+    CREATE INDEX IF NOT EXISTS idx_integritas_proofs_created
+      ON integritas_proofs(created_at);
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS data_sources (
       id TEXT PRIMARY KEY,
       created_at TEXT NOT NULL,
@@ -107,6 +114,13 @@ export function runMigrations() {
       FOREIGN KEY (workflow_id) REFERENCES automation_workflows(id) ON DELETE SET NULL,
       FOREIGN KEY (integritas_proof_id) REFERENCES integritas_proofs(id) ON DELETE SET NULL
     )
+  `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_data_source_reads_status_created
+      ON data_source_reads(status, created_at);
+    CREATE INDEX IF NOT EXISTS idx_data_source_reads_created
+      ON data_source_reads(created_at);
   `);
 
   db.exec(`
