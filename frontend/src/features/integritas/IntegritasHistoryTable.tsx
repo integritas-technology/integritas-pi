@@ -1,12 +1,12 @@
 import { RefreshCcwIcon } from 'lucide-react';
 import { JsonPreview } from '../../components/JsonPreview';
 import type { IntegritasProofRecord } from './integritasTypes';
-import { hasPendingProofs } from './useIntegritasHistoryAutoRefresh';
 
 export function IntegritasHistoryTable({
   records,
   selectedIds,
   filtered,
+  pendingTotal,
   onToggle,
   onRefreshPending,
   onVerify,
@@ -17,6 +17,7 @@ export function IntegritasHistoryTable({
   records: IntegritasProofRecord[];
   selectedIds: string[];
   filtered?: boolean;
+  pendingTotal: number;
   onToggle: (id: string) => void;
   onRefreshPending: () => void;
   onVerify: (record: IntegritasProofRecord) => void;
@@ -24,10 +25,6 @@ export function IntegritasHistoryTable({
   onDownloadSelected: () => void;
   busy: boolean;
 }) {
-  const pendingOnPage = records.filter(
-    (record) => record.proof_status === 'pending' && record.proof_uid,
-  ).length;
-
   return (
     <section className='card history-card'>
       <div className='status-row'>
@@ -42,11 +39,11 @@ export function IntegritasHistoryTable({
           <button
             className='flex items-center gap-2'
             type='button'
-            disabled={busy || !hasPendingProofs(records)}
+            disabled={busy || pendingTotal === 0}
             onClick={onRefreshPending}
           >
             <RefreshCcwIcon size={20} />
-            <span className='text-sm font-medium'>({pendingOnPage})</span>
+            <span className='text-sm font-medium'>({pendingTotal})</span>
           </button>
           {selectedIds.length > 0 && (
             <>

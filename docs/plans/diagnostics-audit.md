@@ -174,7 +174,7 @@
 **Fixed**
 
 - **Selection cleared** on tab, page, page-size, status, or search change — no invisible delete/download targets.
-- **Pending count + auto-refresh regression**: pagination had limited polling to the current page. `GET /history` and `poll-pending` now include `pendingTotal` (global pollable pending count). Refresh button and auto-refresh use it; auto-refresh applies the full page response (items + totals).
+- **Pending count + auto-refresh regression**: pagination had limited polling to the current page. `GET /history` and `poll-pending` now include `pendingTotal` (global pollable pending count). Auto-refresh uses it correctly (`shouldRefresh` in the hook). **Re-broken, now re-fixed:** despite this section's earlier claim, the "Refresh pending" button in `IntegritasHistoryTable` never actually received `pendingTotal` — it computed its own `pendingOnPage` from `records` (current page only) for both the displayed count and the `disabled` state. Practical effect: viewing page 2+ (or a filter that hides pending rows) while proofs were pending elsewhere showed the wrong count and **disabled the button entirely**, even though clicking it would have correctly triggered a global poll on the backend. Fixed by adding a `pendingTotal` prop to `IntegritasHistoryTable`, wired from `proofsPage.pendingTotal` in `DiagnosticsPage`; button count/disabled state now match what the click actually does. `DataReadsHistoryTable` has no equivalent concept (reads have no pending/poll state) — no change needed there.
 - **Empty filter copy**: tables show “No matching …” when filters active, not a generic empty error.
 
 **Accepted**

@@ -222,6 +222,7 @@ export function DiagnosticsPage() {
           records={proofsPage.items}
           selectedIds={selectedIds}
           filtered={listFiltered}
+          pendingTotal={proofsPage.pendingTotal}
           busy={busy}
           onToggle={(id) => {
             setSelectedIds((ids) => ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id]);
