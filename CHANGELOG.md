@@ -21,6 +21,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Data Sources UI is now presented as Devices, with template cards split into Input sources and Output targets ahead of GPIO output support.
 
+### Fixed
+
+- GPIO Output LED pulses now explicitly return the line to the inactive state after pulsing so LEDs do not remain stuck on after a workflow run.
+
 ## [0.11.0] - 2026-06-30
 
 ### Added
