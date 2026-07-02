@@ -49,12 +49,12 @@ export function ListPagerFilterBar({
   const currentPage = totalPages === 0 ? 1 : Math.min(page, totalPages);
 
   return (
-    <div className="mb-4 space-y-3">
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="flex min-w-[10rem] flex-col gap-1 text-sm">
-          <span className="font-medium text-slate-700">Status</span>
+    <div className='mb-4 space-y-3'>
+      <div className='flex flex-wrap items-end gap-3'>
+        <label className='flex min-w-40 flex-col gap-1 text-sm'>
+          <span className='font-medium text-slate-700'>Status</span>
           <select
-            className="rounded-md border border-slate-200 bg-white px-3 py-2"
+            className='rounded-md border border-slate-200 bg-white px-3 py-2'
             value={status}
             onChange={(event) => onStatusChange(event.target.value)}
           >
@@ -65,44 +65,49 @@ export function ListPagerFilterBar({
             ))}
           </select>
         </label>
-        <label className="flex min-w-[14rem] flex-1 flex-col gap-1 text-sm">
-          <span className="font-medium text-slate-700">Search</span>
+        <label className='flex min-w-56 flex-1 flex-col gap-1 text-sm'>
+          <span className='font-medium text-slate-700'>Search</span>
           <input
-            className="rounded-md border border-slate-200 bg-white px-3 py-2"
-            type="search"
-            placeholder="Hash, UID, or source name"
+            className='rounded-md border border-slate-200 bg-white px-3 py-2'
+            type='search'
+            placeholder='Hash, UID, or source name'
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
           />
         </label>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="muted text-sm">{listRangeLabel(currentPage, pageSize, total)}</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-2 text-sm">
-            <span className="muted">Rows</span>
+      <div className='flex flex-wrap items-center justify-between gap-3'>
+        <p className='muted text-sm'>
+          {listRangeLabel(currentPage, pageSize, total)}
+        </p>
+        <div className='flex flex-wrap items-center gap-2'>
+          <label className='flex items-center gap-2 text-sm'>
+            <span className='muted'>Rows</span>
             <select
-              className="rounded-md border border-slate-200 bg-white px-2 py-1"
+              className='rounded-md border border-slate-200 bg-white px-2 py-1'
               value={pageSize}
               onChange={(event) => onPageSizeChange(Number(event.target.value))}
             >
               {DEFAULT_PAGE_SIZE_OPTIONS.map((size) => (
-                <option key={size} value={size}>{size}</option>
+                <option key={size} value={size}>
+                  {size}
+                </option>
               ))}
             </select>
           </label>
           <button
-            type="button"
+            type='button'
             disabled={currentPage <= 1}
             onClick={() => onPageChange(currentPage - 1)}
           >
             Previous
           </button>
-          <span className="text-sm text-slate-600">
-            Page {currentPage}{totalPages > 0 ? ` of ${totalPages}` : ''}
+          <span className='text-sm text-slate-600'>
+            Page {currentPage}
+            {totalPages > 0 ? ` of ${totalPages}` : ''}
           </span>
           <button
-            type="button"
+            type='button'
             disabled={totalPages === 0 || currentPage >= totalPages}
             onClick={() => onPageChange(currentPage + 1)}
           >
