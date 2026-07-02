@@ -84,12 +84,16 @@ export function runMigrations() {
       type TEXT NOT NULL,
       enabled INTEGER NOT NULL,
       order_index INTEGER NOT NULL,
+      parent_block_id TEXT,
       config_json TEXT NOT NULL,
       last_run_at TEXT,
       last_error TEXT,
-      FOREIGN KEY (workflow_id) REFERENCES automation_workflows(id) ON DELETE CASCADE
+      FOREIGN KEY (workflow_id) REFERENCES automation_workflows(id) ON DELETE CASCADE,
+      FOREIGN KEY (parent_block_id) REFERENCES automation_blocks(id) ON DELETE CASCADE
     )
   `);
+
+  ensureColumn("automation_blocks", "parent_block_id", "TEXT");
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS automation_runs (

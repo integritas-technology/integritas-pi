@@ -34,6 +34,7 @@ export type AutomationBlockRecord = {
   type: AutomationBlockType;
   enabled: number;
   order_index: number;
+  parent_block_id: string | null;
   config_json: string;
   last_run_at: string | null;
   last_error: string | null;
@@ -62,6 +63,7 @@ export function listDueScheduleWorkflows(nowIso: string) {
     WHERE workflow.enabled = 1
       AND block.enabled = 1
       AND block.order_index = 1
+      AND block.parent_block_id IS NULL
       AND block.type = 'schedule_start'
       AND (workflow.next_run_at IS NULL OR workflow.next_run_at <= ?)
     ORDER BY workflow.next_run_at ASC
@@ -75,6 +77,7 @@ export function listEnabledEventWorkflows(type: "gpio_event_start" | "webhook_ev
     WHERE workflow.enabled = 1
       AND block.enabled = 1
       AND block.order_index = 1
+      AND block.parent_block_id IS NULL
       AND block.type = ?
       AND json_extract(block.config_json, '$.sourceId') = ?
     ORDER BY workflow.created_at ASC
@@ -87,7 +90,7 @@ export function getEnabledAutomationWorkflowForDataSource(dataSourceId: string) 
     ?? listEnabledEventWorkflows("gpio_event_start", dataSourceId)[0];
 }
 
-export function createAutomationWorkflow(input: { name: string; enabled: boolean; blocks?: { type: AutomationBlockType; config: unknown; enabled?: boolean }[]; nextRunAt?: string | null }) {
+export function createAutomationWorkflow(input: { name: string; enabled: boolean; blocks?: { type: AutomationBlockType; config: unknown; enabled?: boolean; parentBlockId?: string | null }[]; nextRunAt?: string | null }) {
   const id = crypto.randomUUID();
   const nowIso = new Date().toISOString();
   db.prepare(`
@@ -144,14 +147,14 @@ export function updateAutomationBlockRun(id: string, input: { error?: string | n
   return getAutomationBlock(id)!;
 }
 
-export function createAutomationBlock(workflowId: string, input: { type: AutomationBlockType; config: unknown; enabled?: boolean; orderIndex?: number }) {
+export function createAutomationBlock(workflowId: string, input: { type: AutomationBlockType; config: unknown; enabled?: boolean; orderIndex?: number; parentBlockId?: string | null }) {
   const id = crypto.randomUUID();
   const nowIso = new Date().toISOString();
-  const orderIndex = input.orderIndex ?? nextBlockOrder(workflowId);
+  const orderIndex = input.orderIndex ?? nextBlockOrder(workflowId, input.parentBlockId ?? null);
   db.prepare(`
-    INSERT INTO automation_blocks (id, workflow_id, created_at, updated_at, type, enabled, order_index, config_json)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, workflowId, nowIso, nowIso, input.type, input.enabled === false ? 0 : 1, orderIndex, JSON.stringify(input.config));
+    INSERT INTO automation_blocks (id, workflow_id, created_at, updated_at, type, enabled, order_index, parent_block_id, config_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, workflowId, nowIso, nowIso, input.type, input.enabled === false ? 0 : 1, orderIndex, input.parentBlockId ?? null, JSON.stringify(input.config));
   return getAutomationBlock(id)!;
 }
 
@@ -173,7 +176,7 @@ export function updateAutomationBlock(workflowId: string, blockId: string, input
 }
 
 export function reorderAutomationBlocks(workflowId: string, blockIds: string[]) {
-  const currentBlocks = listAutomationBlocks(workflowId);
+  const currentBlocks = listAutomationBlocks(workflowId).filter((block) => !block.parent_block_id);
   const currentIds = currentBlocks.map((block) => block.id);
   if (blockIds.length !== currentIds.length || new Set(blockIds).size !== blockIds.length || !currentIds.every((id) => blockIds.includes(id))) {
     throw new Error("blockIds must include every workflow block exactly once");
@@ -206,13 +209,19 @@ export function replaceAutomationBlocks(workflowId: string, blocks: { type: Auto
   for (const [index, block] of blocks.entries()) createAutomationBlock(workflowId, { ...block, orderIndex: index + 1 });
 }
 
-function nextBlockOrder(workflowId: string) {
-  const row = db.prepare("SELECT COALESCE(MAX(order_index), 0) + 1 as nextOrder FROM automation_blocks WHERE workflow_id = ?").get(workflowId) as { nextOrder: number };
+function nextBlockOrder(workflowId: string, parentBlockId: string | null) {
+  if (parentBlockId) {
+    const parent = db.prepare("SELECT order_index FROM automation_blocks WHERE id = ? AND workflow_id = ?").get(parentBlockId, workflowId) as { order_index: number } | undefined;
+    return parent?.order_index ?? 1;
+  }
+
+  const row = db.prepare("SELECT COALESCE(MAX(order_index), 0) + 1 as nextOrder FROM automation_blocks WHERE workflow_id = ? AND parent_block_id IS NULL").get(workflowId) as { nextOrder: number };
   return row.nextOrder;
 }
 
 function normalizeBlockOrder(workflowId: string) {
-  for (const [index, block] of listAutomationBlocks(workflowId).entries()) {
+  for (const [index, block] of listAutomationBlocks(workflowId).filter((item) => !item.parent_block_id).entries()) {
     db.prepare("UPDATE automation_blocks SET order_index = ? WHERE id = ?").run(index + 1, block.id);
+    db.prepare("UPDATE automation_blocks SET order_index = ? WHERE workflow_id = ? AND parent_block_id = ?").run(index + 1, workflowId, block.id);
   }
 }

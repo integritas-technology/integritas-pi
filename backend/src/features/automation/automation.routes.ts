@@ -4,7 +4,7 @@ import { getDataSource } from "../data-sources/dataSources.repository.js";
 import { parseGpioOutputConfig } from "../data-sources/dataSources.service.js";
 import { syncGpioDataSources } from "../data-sources/gpioIngestion.service.js";
 import { syncMqttDataSources } from "../data-sources/mqttIngestion.service.js";
-import { createAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, getAutomationWorkflow, listAutomationBlocks, listAutomationWorkflows, reorderAutomationBlocks, replaceAutomationBlocks, updateAutomationBlock, updateAutomationWorkflow, type AutomationBlockType } from "./automation.repository.js";
+import { createAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, getAutomationWorkflow, listAutomationBlocks, listAutomationWorkflows, reorderAutomationBlocks, updateAutomationBlock, updateAutomationWorkflow, type AutomationBlockType } from "./automation.repository.js";
 import { getSerializedAutomationRun, listSerializedAutomationRuns, listSerializedAutomationRunsForWorkflow, runAutomationWorkflow, serializeAutomationBlock, serializeAutomationWorkflow } from "./automation.service.js";
 
 export const automationRouter = Router();
@@ -62,15 +62,20 @@ automationRouter.post("/workflows", requireRole("admin"), (req, res) => {
   const isPushSource = dataSource.type === "webhook" || dataSource.type === "mqtt" || dataSource.type === "gpio-input";
   if (!isPushSource && (!Number.isFinite(pollingIntervalSeconds) || pollingIntervalSeconds < 10)) return res.status(400).json({ error: "pollingIntervalSeconds must be at least 10" });
 
-  const workflow = createAutomationWorkflow({
-    name,
-    enabled,
-    nextRunAt: enabled && !isPushSource ? new Date(Date.now() + pollingIntervalSeconds * 1000).toISOString() : null,
-    blocks: legacyBlocksForWorkflow(dataSource.id, dataSource.type, isPushSource ? 0 : pollingIntervalSeconds, stampWithIntegritas)
-  });
-  syncMqttDataSources();
-  syncGpioDataSources();
-  return res.json({ item: serializeAutomationWorkflow(workflow) });
+  try {
+    const workflow = createAutomationWorkflow({
+      name,
+      enabled,
+      nextRunAt: enabled && !isPushSource ? new Date(Date.now() + pollingIntervalSeconds * 1000).toISOString() : null,
+      blocks: legacyBlocksForWorkflow(dataSource.id, dataSource.type, isPushSource ? 0 : pollingIntervalSeconds)
+    });
+    if (stampWithIntegritas) setStampBlock(workflow.id, true);
+    syncMqttDataSources();
+    syncGpioDataSources();
+    return res.json({ item: serializeAutomationWorkflow(getAutomationWorkflow(workflow.id)!) });
+  } catch (error) {
+    return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid workflow" });
+  }
 });
 
 automationRouter.patch("/workflows/:id", requireRole("admin"), (req, res) => {
@@ -89,13 +94,17 @@ automationRouter.patch("/workflows/:id", requireRole("admin"), (req, res) => {
   });
 
   if (nextPollingIntervalSeconds !== undefined && serialized.pollingIntervalSeconds > 0) {
-    const blocks = listAutomationBlocks(req.params.id).map((block) => ({ type: block.type, enabled: Boolean(block.enabled), config: block.type === "schedule_start" ? { intervalSeconds: nextPollingIntervalSeconds } : JSON.parse(block.config_json) as unknown }));
-    replaceAutomationBlocks(req.params.id, blocks);
+    const scheduleBlock = listAutomationBlocks(req.params.id).find((block) => !block.parent_block_id && block.type === "schedule_start");
+    if (scheduleBlock) updateAutomationBlock(req.params.id, scheduleBlock.id, { config: { intervalSeconds: nextPollingIntervalSeconds } });
     if (enabled !== false) updateAutomationWorkflow(req.params.id, { nextRunAt: new Date(Date.now() + nextPollingIntervalSeconds * 1000).toISOString() });
   }
 
   if (typeof req.body?.stampWithIntegritas === "boolean") {
-    setStampBlock(req.params.id, req.body.stampWithIntegritas);
+    try {
+      setStampBlock(req.params.id, req.body.stampWithIntegritas);
+    } catch (error) {
+      return res.status(400).json({ error: error instanceof Error ? error.message : "Could not update Integritas stamping" });
+    }
   }
 
   syncMqttDataSources();
@@ -110,8 +119,10 @@ automationRouter.post("/workflows/:id/blocks", requireRole("admin"), (req, res) 
   if (!isAutomationBlockType(type)) return res.status(400).json({ error: "Invalid block type" });
   try {
     const config = req.body?.config && typeof req.body.config === "object" && !Array.isArray(req.body.config) ? req.body.config as Record<string, unknown> : {};
+    const parentBlockId = typeof req.body?.parentBlockId === "string" ? req.body.parentBlockId : null;
+    validateBlockAttachment(workflow.id, type, parentBlockId);
     validateBlockConfig(type, config);
-    const block = createAutomationBlock(workflow.id, { type, config, enabled: req.body?.enabled !== false });
+    const block = createAutomationBlock(workflow.id, { type, config, enabled: req.body?.enabled !== false, parentBlockId });
     syncMqttDataSources();
     syncGpioDataSources();
     return res.json({ item: serializeAutomationBlock(block), workflow: serializeAutomationWorkflow(getAutomationWorkflow(workflow.id)!) });
@@ -216,13 +227,12 @@ automationRouter.post("/workflows/:id/run", requireRole("admin"), async (req, re
   }
 });
 
-function legacyBlocksForWorkflow(sourceId: string, sourceType: string, pollingIntervalSeconds: number, stampWithIntegritas: boolean) {
+function legacyBlocksForWorkflow(sourceId: string, sourceType: string, pollingIntervalSeconds: number) {
   const blocks: { type: AutomationBlockType; config: unknown }[] = [];
   if (sourceType === "gpio-input") blocks.push({ type: "gpio_event_start", config: { sourceId, activeOnly: false } }, { type: "record_trigger_event", config: {} });
   else if (sourceType === "webhook") blocks.push({ type: "webhook_event_start", config: { sourceId } }, { type: "record_trigger_event", config: {} });
   else if (sourceType === "mqtt") blocks.push({ type: "mqtt_event_start", config: { sourceId } }, { type: "record_trigger_event", config: {} });
   else blocks.push({ type: "schedule_start", config: { intervalSeconds: pollingIntervalSeconds } }, { type: "fetch_data_source", config: { sourceId } });
-  if (stampWithIntegritas) blocks.push({ type: "stamp_integritas", config: {} });
   return blocks;
 }
 
@@ -289,11 +299,27 @@ function nextRunAtForBlocks(blocks: { type: AutomationBlockType; config: unknown
 
 function setStampBlock(workflowId: string, enabled: boolean) {
   const blocks = listAutomationBlocks(workflowId);
-  const existing = blocks.find((block) => block.type === "stamp_integritas");
+  const parent = blocks.find((block) => !block.parent_block_id && (block.type === "record_trigger_event" || block.type === "fetch_data_source"));
+  if (!parent) {
+    if (enabled) throw new Error("Add a record or fetch block before adding Integritas stamping");
+    return undefined;
+  }
+  const existing = blocks.find((block) => block.type === "stamp_integritas" && block.parent_block_id === parent.id);
   if (enabled && existing) return existing;
-  if (enabled) return createAutomationBlock(workflowId, { type: "stamp_integritas", config: {} });
+  if (enabled) return createAutomationBlock(workflowId, { type: "stamp_integritas", config: {}, parentBlockId: parent.id });
   if (existing) deleteAutomationBlock(workflowId, existing.id);
   return undefined;
+}
+
+function validateBlockAttachment(workflowId: string, type: AutomationBlockType, parentBlockId: string | null) {
+  if (type !== "stamp_integritas" && parentBlockId) throw new Error("Only Integritas stamp blocks can be attached to another block");
+  if (type === "stamp_integritas" && !parentBlockId) throw new Error("Integritas stamp blocks must be attached to a record or fetch block");
+  if (!parentBlockId) return;
+  const parent = listAutomationBlocks(workflowId).find((block) => block.id === parentBlockId);
+  if (!parent || parent.parent_block_id) throw new Error("Attached block parent not found");
+  if (parent.type !== "record_trigger_event" && parent.type !== "fetch_data_source") throw new Error("Integritas can only be attached to record or fetch blocks");
+  const existing = listAutomationBlocks(workflowId).find((block) => block.type === "stamp_integritas" && block.parent_block_id === parentBlockId);
+  if (existing) throw new Error("This block already has an Integritas stamp attached");
 }
 
 function isAutomationBlockType(type: string): type is AutomationBlockType {

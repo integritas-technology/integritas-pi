@@ -50,7 +50,8 @@ let scheduler: NodeJS.Timeout | null = null;
 
 export function serializeAutomationWorkflow(record: AutomationWorkflowRecord) {
   const blocks = listAutomationBlocks(record.id).map(serializeAutomationBlock);
-  const startBlock = blocks[0];
+  const mainBlocks = blocks.filter((block) => !block.parentBlockId);
+  const startBlock = mainBlocks[0];
   const fetchBlock = blocks.find((block) => block.type === "fetch_data_source");
   const stampBlock = blocks.find((block) => block.type === "stamp_integritas");
   const dataSourceId = typeof fetchBlock?.config === "object" && fetchBlock.config && "sourceId" in fetchBlock.config
@@ -78,7 +79,7 @@ export function serializeAutomationWorkflow(record: AutomationWorkflowRecord) {
     dataSourceId,
     pollingIntervalSeconds,
     stampWithIntegritas: Boolean(stampBlock),
-    rules: blocks.filter((block) => !block.type.endsWith("_start")).map(blockToLegacyRule)
+    rules: blocks.filter((block) => !block.type.endsWith("_start") && !block.parentBlockId).map(blockToLegacyRule)
   };
 }
 
@@ -91,6 +92,7 @@ export function serializeAutomationBlock(record: AutomationBlockRecord) {
     type: record.type,
     enabled: Boolean(record.enabled),
     order: record.order_index,
+    parentBlockId: record.parent_block_id,
     config: JSON.parse(record.config_json) as unknown,
     lastRunAt: record.last_run_at,
     lastError: record.last_error
@@ -164,13 +166,17 @@ export async function executeWorkflow(workflow: AutomationWorkflowRecord, trigge
 
   try {
     const blocks = listAutomationBlocks(workflow.id).filter((block) => block.enabled);
-    if (blocks.length === 0) throw new Error("Automation workflow has no blocks");
+    const mainBlocks = blocks.filter((block) => !block.parent_block_id);
+    if (mainBlocks.length === 0) throw new Error("Automation workflow has no blocks");
 
-    validateStartBlock(blocks[0], trigger);
+    validateStartBlock(mainBlocks[0], trigger);
     run = createAutomationRun({ workflowId: workflow.id, workflowName: workflow.name, triggerType: trigger.type, triggerSourceId: trigger.sourceId ?? null, triggerPayload: trigger.payload, blockCount: blocks.length });
 
-    for (const block of blocks) {
+    for (const block of mainBlocks) {
       await executeBlock(workflow, block, context, run.id);
+      for (const attachedBlock of blocks.filter((item) => item.parent_block_id === block.id)) {
+        await executeBlock(workflow, attachedBlock, context, run.id);
+      }
       if (block.type === "schedule_start") nextRunAt = nextScheduleRunAt(block);
     }
 

@@ -5,7 +5,7 @@ export async function listAutomationWorkflows() {
   return getJson<{ items: AutomationWorkflow[] }>("/api/automation/workflows");
 }
 
-export async function createAutomationWorkflow(input: { name: string; enabled: boolean; blocks: { type: AutomationBlockType; config?: AutomationBlock["config"]; enabled?: boolean }[] } | { name: string; dataSourceId: string; enabled: boolean; pollingIntervalSeconds: number; stampWithIntegritas: boolean }) {
+export async function createAutomationWorkflow(input: { name: string; enabled: boolean; blocks: { type: AutomationBlockType; config?: AutomationBlock["config"]; enabled?: boolean; parentBlockId?: string | null }[] } | { name: string; dataSourceId: string; enabled: boolean; pollingIntervalSeconds: number; stampWithIntegritas: boolean }) {
   return postJson<{ item: AutomationWorkflow }>("/api/automation/workflows", input);
 }
 
@@ -17,7 +17,7 @@ export async function addAutomationRule(workflowId: string, input: { type: "stam
   return postJson<{ item: AutomationWorkflow["rules"][number]; workflow: AutomationWorkflow }>(`/api/automation/workflows/${workflowId}/rules`, input);
 }
 
-export async function addAutomationBlock(workflowId: string, input: { type: AutomationBlockType; config?: AutomationBlock["config"]; enabled?: boolean }) {
+export async function addAutomationBlock(workflowId: string, input: { type: AutomationBlockType; config?: AutomationBlock["config"]; enabled?: boolean; parentBlockId?: string | null }) {
   return postJson<{ item: AutomationBlock; workflow: AutomationWorkflow }>(`/api/automation/workflows/${workflowId}/blocks`, input);
 }
 

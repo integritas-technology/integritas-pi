@@ -36,6 +36,7 @@ export type AutomationBlock = {
   type: AutomationBlockType;
   enabled: boolean;
   order: number;
+  parentBlockId: string | null;
   config: {
     sourceId?: string;
     targetId?: string;

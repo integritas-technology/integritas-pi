@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
-import { addAutomationBlock, addAutomationRule, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationRule, deleteAutomationWorkflow, listAutomationWorkflowRuns, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow } from "../features/automation/automationApi";
+import { addAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, listAutomationWorkflowRuns, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow } from "../features/automation/automationApi";
 import { AutomationRunsTable } from "../features/automation/AutomationRunsTable";
 import type { AutomationBlock, AutomationBlockType, AutomationRun, AutomationWorkflow } from "../features/automation/automationTypes";
 import { listDataSources } from "../features/data-sources/dataSourcesApi";
@@ -141,9 +141,7 @@ export function AutomationPage() {
             sources={sources}
             busy={busy}
             onAddBlock={(input) => run(() => addAutomationBlock(workspaceWorkflow.id, input))}
-            onAddStampRule={() => run(() => addAutomationRule(workspaceWorkflow.id, { type: "stamp_integritas" }))}
             onDeleteBlock={(blockId) => run(() => deleteAutomationBlock(workspaceWorkflow.id, blockId))}
-            onDeleteRule={(ruleId) => run(() => deleteAutomationRule(workspaceWorkflow.id, ruleId))}
             onUpdateBlock={(blockId, input) => run(() => updateAutomationBlock(workspaceWorkflow.id, blockId, input))}
             onReorderBlocks={(blockIds) => run(() => reorderAutomationBlocks(workspaceWorkflow.id, blockIds))}
             onRunNow={() => run(() => runAutomationWorkflow(workspaceWorkflow.id))}
@@ -196,13 +194,12 @@ export function AutomationPage() {
   );
 }
 
-function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, onAddStampRule, onDeleteBlock, onDeleteRule, onUpdateBlock, onReorderBlocks, onRunNow, onToggleEnabled, onDelete }: { workflow: AutomationWorkflow; runs: AutomationRun[]; source: DataSource | undefined; sources: DataSource[]; busy: boolean; onAddBlock: (input: Parameters<typeof addAutomationBlock>[1]) => void; onAddStampRule: () => void; onDeleteBlock: (blockId: string) => void; onDeleteRule: (ruleId: string) => void; onUpdateBlock: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onReorderBlocks: (blockIds: string[]) => void; onRunNow: () => void; onToggleEnabled: () => void; onDelete: () => void }) {
+function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, onDeleteBlock, onUpdateBlock, onReorderBlocks, onRunNow, onToggleEnabled, onDelete }: { workflow: AutomationWorkflow; runs: AutomationRun[]; source: DataSource | undefined; sources: DataSource[]; busy: boolean; onAddBlock: (input: Parameters<typeof addAutomationBlock>[1]) => void; onDeleteBlock: (blockId: string) => void; onUpdateBlock: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onReorderBlocks: (blockIds: string[]) => void; onRunNow: () => void; onToggleEnabled: () => void; onDelete: () => void }) {
   const [fetchSourceId, setFetchSourceId] = useState(() => sources.find((item) => item.type === "json-api" || item.type === "internal-json-api")?.id ?? "");
   const [outputTargetId, setOutputTargetId] = useState(() => sources.find((item) => item.type === "gpio-output")?.id ?? "");
   const [outputPulseMs, setOutputPulseMs] = useState("500");
   const [waitMs, setWaitMs] = useState("1000");
-  const hasStampBlock = workflow.blocks.some((block) => block.type === "stamp_integritas");
-  const canAppendAction = !hasStampBlock;
+  const mainBlocks = workflow.blocks.filter((block) => !block.parentBlockId);
   const fetchSources = sources.filter((item) => item.type === "json-api" || item.type === "internal-json-api");
   const outputTargets = sources.filter((item) => item.type === "gpio-output");
 
@@ -225,17 +222,20 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
       </div>
 
       <div className="grid-list">
-        {workflow.blocks.map((block, index) => <BlockCard
+        {mainBlocks.map((block, index) => <BlockCard
           key={block.id}
           block={block}
+          attachedBlocks={workflow.blocks.filter((item) => item.parentBlockId === block.id)}
           sources={sources}
           busy={busy}
           canMoveUp={index > 1}
-          canMoveDown={index > 0 && index < workflow.blocks.length - 1}
-          onMoveUp={() => onReorderBlocks(moveBlock(workflow.blocks, index, index - 1))}
-          onMoveDown={() => onReorderBlocks(moveBlock(workflow.blocks, index, index + 1))}
+          canMoveDown={index > 0 && index < mainBlocks.length - 1}
+          onMoveUp={() => onReorderBlocks(moveBlock(mainBlocks, index, index - 1))}
+          onMoveDown={() => onReorderBlocks(moveBlock(mainBlocks, index, index + 1))}
+          onAttachStamp={() => onAddBlock({ type: "stamp_integritas", config: {}, parentBlockId: block.id })}
           onUpdate={(input) => onUpdateBlock(block.id, input)}
           onDelete={() => block.type.endsWith("_start") ? undefined : onDeleteBlock(block.id)}
+          onDeleteAttached={onDeleteBlock}
         />)}
       </div>
 
@@ -243,35 +243,32 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
         <div className="status-row">
           <div>
             <strong>Add block</strong>
-            <p className="muted">Append small logic pieces to this workflow. Add action blocks before adding the final Integritas stamp block.</p>
+            <p className="muted">Append small logic pieces to this workflow. Attach Integritas stamps directly to record or fetch blocks.</p>
           </div>
-          {hasStampBlock && <span className="pill pill-neutral">Final stamp added</span>}
         </div>
         <div className="automation-form">
           <label>Fetch data source<select value={fetchSourceId} onChange={(event) => setFetchSourceId(event.target.value)}>{fetchSources.map((item) => <option key={item.id} value={item.id}>{item.name} - {sourceLabel(item)}</option>)}</select></label>
           <div className="row-actions">
-            <button type="button" disabled={busy || !canAppendAction || !fetchSourceId} onClick={() => onAddBlock({ type: "fetch_data_source", config: { sourceId: fetchSourceId } })}>Add fetch block</button>
+            <button type="button" disabled={busy || !fetchSourceId} onClick={() => onAddBlock({ type: "fetch_data_source", config: { sourceId: fetchSourceId } })}>Add fetch block</button>
           </div>
           <label>Wait duration ms<input value={waitMs} onChange={(event) => setWaitMs(event.target.value)} inputMode="numeric" placeholder="1000" /></label>
           <div className="row-actions">
-            <button type="button" disabled={busy || !canAppendAction || !Number.isFinite(Number(waitMs))} onClick={() => onAddBlock({ type: "wait", config: { durationMs: Number(waitMs) } })}>Add wait block</button>
+            <button type="button" disabled={busy || !Number.isFinite(Number(waitMs))} onClick={() => onAddBlock({ type: "wait", config: { durationMs: Number(waitMs) } })}>Add wait block</button>
           </div>
           <label>Output target<select value={outputTargetId} onChange={(event) => setOutputTargetId(event.target.value)}>{outputTargets.map((item) => <option key={item.id} value={item.id}>{item.name} - {sourceLabel(item)}</option>)}</select></label>
           <label>Pulse duration ms<input value={outputPulseMs} onChange={(event) => setOutputPulseMs(event.target.value)} inputMode="numeric" placeholder="500" /></label>
           <div className="row-actions">
-            <button type="button" disabled={busy || !canAppendAction || !outputTargetId || !Number.isFinite(Number(outputPulseMs))} onClick={() => onAddBlock({ type: "control_output", config: { targetId: outputTargetId, action: "pulse", durationMs: Number(outputPulseMs) } })}>Add output pulse block</button>
+            <button type="button" disabled={busy || !outputTargetId || !Number.isFinite(Number(outputPulseMs))} onClick={() => onAddBlock({ type: "control_output", config: { targetId: outputTargetId, action: "pulse", durationMs: Number(outputPulseMs) } })}>Add output pulse block</button>
           </div>
-          {!canAppendAction && <p className="muted">Remove the stamp block before adding more action blocks, then add stamping again at the end.</p>}
         </div>
       </section>
 
       <div className="status-row">
         <div>
           <strong>Improve this workflow</strong>
-          <p className="muted">Stamp the latest hash after record/fetch blocks, run the workflow manually, pause it, or delete it.</p>
+          <p className="muted">Run the workflow manually, pause it, or delete it. Add Integritas stamps from record/fetch blocks.</p>
         </div>
         <div className="row-actions">
-          <button type="button" disabled={busy || hasStampBlock} onClick={onAddStampRule}>Add Integritas block</button>
           <button type="button" disabled={busy} onClick={onRunNow}>Run now</button>
           <button type="button" disabled={busy} onClick={onToggleEnabled}>{workflow.enabled ? "Pause" : "Enable"}</button>
           <button type="button" disabled={busy} onClick={onDelete}>Delete workflow</button>
@@ -286,12 +283,14 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
   );
 }
 
-function BlockCard({ block, sources, busy, canMoveUp, canMoveDown, onMoveUp, onMoveDown, onUpdate, onDelete }: { block: AutomationBlock; sources: DataSource[]; busy: boolean; canMoveUp: boolean; canMoveDown: boolean; onMoveUp: () => void; onMoveDown: () => void; onUpdate: (input: Parameters<typeof updateAutomationBlock>[2]) => void; onDelete: () => void }) {
+function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDown, onMoveUp, onMoveDown, onAttachStamp, onUpdate, onDelete, onDeleteAttached }: { block: AutomationBlock; attachedBlocks: AutomationBlock[]; sources: DataSource[]; busy: boolean; canMoveUp: boolean; canMoveDown: boolean; onMoveUp: () => void; onMoveDown: () => void; onAttachStamp: () => void; onUpdate: (input: Parameters<typeof updateAutomationBlock>[2]) => void; onDelete: () => void; onDeleteAttached: (blockId: string) => void }) {
   const [fetchSourceId, setFetchSourceId] = useState(block.config.sourceId ?? "");
   const [outputTargetId, setOutputTargetId] = useState(block.config.targetId ?? "");
   const [outputDurationMs, setOutputDurationMs] = useState(String(block.config.durationMs ?? 500));
   const [durationMs, setDurationMs] = useState(String(block.config.durationMs ?? 1000));
   const removable = !block.type.endsWith("_start");
+  const canAttachStamp = block.type === "record_trigger_event" || block.type === "fetch_data_source";
+  const stampBlock = attachedBlocks.find((item) => item.type === "stamp_integritas");
   const fetchSources = sources.filter((item) => item.type === "json-api" || item.type === "internal-json-api");
   const outputTargets = sources.filter((item) => item.type === "gpio-output");
   return (
@@ -325,9 +324,22 @@ function BlockCard({ block, sources, busy, canMoveUp, canMoveDown, onMoveUp, onM
           <button type="button" disabled={busy || !outputTargetId || !Number.isFinite(Number(outputDurationMs))} onClick={() => onUpdate({ config: { targetId: outputTargetId, action: "pulse", durationMs: Number(outputDurationMs) } })}>Save output pulse</button>
         </div>
       )}
+      {stampBlock && (
+        <div className="card soft-card">
+          <div className="status-row">
+            <div><strong>+ Stamp with Integritas</strong><p className="muted">Side block attached to this data block. It stamps this block's hash immediately after data is recorded.</p></div>
+            <span className="pill pill-neutral">Attached</span>
+          </div>
+          {stampBlock.lastError && <p className="error-text">{stampBlock.lastError}</p>}
+          <div className="row-actions">
+            <button type="button" disabled={busy} onClick={() => onDeleteAttached(stampBlock.id)}>Remove stamp</button>
+          </div>
+        </div>
+      )}
       {removable && <div className="row-actions">
         <button type="button" disabled={busy || !canMoveUp} onClick={onMoveUp}>Move up</button>
         <button type="button" disabled={busy || !canMoveDown} onClick={onMoveDown}>Move down</button>
+        {canAttachStamp && !stampBlock && <button type="button" disabled={busy} onClick={onAttachStamp}>Attach Integritas</button>}
         <button type="button" disabled={busy} onClick={() => onUpdate({ enabled: !block.enabled })}>{block.enabled ? "Disable" : "Enable"}</button>
         <button type="button" disabled={busy} onClick={onDelete}>Remove block</button>
       </div>}
@@ -347,8 +359,12 @@ function RulePart({ title, value }: { title: string; value: string }) {
 }
 
 function summarizeBlocks(workflow: AutomationWorkflow) {
-  if (workflow.blocks.length === 0) return "No blocks";
-  return workflow.blocks.map((block) => blockShortLabel(block)).join(" -> ");
+  const mainBlocks = workflow.blocks.filter((block) => !block.parentBlockId);
+  if (mainBlocks.length === 0) return "No blocks";
+  return mainBlocks.map((block) => {
+    const hasStamp = workflow.blocks.some((item) => item.parentBlockId === block.id && item.type === "stamp_integritas");
+    return `${blockShortLabel(block)}${hasStamp ? " (+Stamp)" : ""}`;
+  }).join(" -> ");
 }
 
 function blockLabel(block: AutomationBlock) {
