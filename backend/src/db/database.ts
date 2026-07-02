@@ -37,6 +37,13 @@ export function runMigrations() {
   `);
 
   db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_integritas_proofs_status_created
+      ON integritas_proofs(proof_status, created_at);
+    CREATE INDEX IF NOT EXISTS idx_integritas_proofs_created
+      ON integritas_proofs(created_at);
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS data_sources (
       id TEXT PRIMARY KEY,
       created_at TEXT NOT NULL,
@@ -151,6 +158,13 @@ export function runMigrations() {
   ensureColumn("data_source_reads", "trigger_source_id", "TEXT");
   ensureColumn("data_source_reads", "trigger_payload_json", "TEXT");
   ensureColumn("data_source_reads", "block_id", "TEXT");
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_data_source_reads_status_created
+      ON data_source_reads(status, created_at);
+    CREATE INDEX IF NOT EXISTS idx_data_source_reads_created
+      ON data_source_reads(created_at);
+  `);
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (

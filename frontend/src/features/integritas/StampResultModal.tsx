@@ -3,7 +3,7 @@ import { JsonPreview } from "../../components/JsonPreview";
 import { Modal } from "../../components/Modal";
 import { StatusBadge } from "../../components/StatusBadge";
 import { useToast } from "../../components/ToastProvider";
-import { getHistory } from "./integritasApi";
+import { getHistoryRecord } from "./integritasApi";
 import { integritasErrorToast } from "./integritasErrors";
 import type { IntegritasProofRecord } from "./integritasTypes";
 
@@ -59,12 +59,10 @@ export function StampResultModal({
 
     async function refreshFromHistory() {
       try {
-        const response = await getHistory();
+        const response = await getHistoryRecord(record.id);
         if (cancelled) return;
-        const updated = response.items.find((item) => item.id === record.id);
-        if (!updated) return;
-        setRecord(updated);
-        if (updated.proof_status !== "pending") {
+        setRecord(response.record);
+        if (response.record.proof_status !== "pending") {
           setPolling(false);
         }
       } catch (error) {

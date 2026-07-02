@@ -1,9 +1,15 @@
 import { Router } from "express";
-import { listDataSourceReads } from "./dataReads.repository.js";
+import { countDataSourceReads, DATA_READ_LIST_STATUSES, listDataSourceReads } from "./dataReads.repository.js";
 import { serializeDataSourceRead } from "./dataReads.service.js";
+import { parseListQuery, toPaginatedResult } from "../../shared/list-query.js";
 
 export const dataReadsRouter = Router();
 
-dataReadsRouter.get("/", (_req, res) => {
-  res.json({ items: listDataSourceReads().map(serializeDataSourceRead) });
+dataReadsRouter.get("/", (req, res) => {
+  const parsed = parseListQuery(req.query, { allowedStatuses: DATA_READ_LIST_STATUSES });
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+
+  const total = countDataSourceReads(parsed.value);
+  const items = listDataSourceReads(parsed.value).map(serializeDataSourceRead);
+  return res.json(toPaginatedResult(items, total, parsed.value));
 });

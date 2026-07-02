@@ -527,6 +527,8 @@ POST /api/integritas/status
 POST /api/integritas/verify
 ```
 
+`GET /api/integritas/history` and `GET /api/data-reads` return paginated log rows. Query params: `page` (default `1`), `pageSize` (default `50`, clamped `10`–`100`), optional `status`, and optional `q` (substring match on hash/UID/source fields). Response shape: `{ items, page, pageSize, total, totalPages }`. `GET /api/integritas/history/:id` returns a single proof record.
+
 The frontend sends canonical bytes and proof payloads to the backend. The backend performs SHA3-256 hashing and calls Integritas with a backend-only API key.
 
 The API key can come from either:

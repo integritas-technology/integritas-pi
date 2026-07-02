@@ -1,6 +1,6 @@
 {
   "name": "integritas-pi",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "private": true,
   "scripts": {
     "dev:frontend": "npm --prefix frontend run dev",

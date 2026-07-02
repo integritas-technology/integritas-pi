@@ -124,7 +124,10 @@ export function DashboardPage() {
       })
       .catch(() => setWalletBalance(null));
 
-    Promise.all([getHistory(), listDataReads()])
+    Promise.all([
+      getHistory({ page: 1, pageSize: 100 }),
+      listDataReads({ page: 1, pageSize: 100 }),
+    ])
       .then(([proofHistory, readHistory]) => {
         setProofs(proofHistory.items);
         setReads(readHistory.items);
@@ -134,7 +137,7 @@ export function DashboardPage() {
     return () => clearInterval(statusInterval);
   }, []);
 
-  useIntegritasHistoryAutoRefresh(proofs, setProofs);
+  useIntegritasHistoryAutoRefresh(proofs, setProofs, { query: { page: 1, pageSize: 100 } });
 
   const activity = useMemo(() => buildActivity(proofs, reads), [proofs, reads]);
 

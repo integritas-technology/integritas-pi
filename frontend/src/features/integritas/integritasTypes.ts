@@ -21,3 +21,12 @@ export type IntegritasProofRecord = {
   verify_response: string | null;
   proof_error: string | null;
 };
+
+export type IntegritasHistoryPage = {
+  items: IntegritasProofRecord[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  pendingTotal: number;
+};

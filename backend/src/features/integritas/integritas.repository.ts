@@ -1,5 +1,8 @@
 import crypto from "node:crypto";
 import { db } from "../../db/database.js";
+import type { ParsedListQuery } from "../../shared/list-query.js";
+
+export const PROOF_LIST_STATUSES = ["pending", "ready", "failed"] as const;
 
 export type IntegritasProofRecord = {
   id: string;
@@ -16,6 +19,29 @@ export type IntegritasProofRecord = {
   proof_error: string | null;
 };
 
+export type ProofListQuery = ParsedListQuery;
+
+function buildProofListWhere(query: Pick<ProofListQuery, "status" | "q">) {
+  const clauses: string[] = [];
+  const params: unknown[] = [];
+
+  if (query.status) {
+    clauses.push("proof_status = ?");
+    params.push(query.status);
+  }
+
+  if (query.q) {
+    const like = `%${query.q}%`;
+    clauses.push("(hash LIKE ? OR proof_uid LIKE ? OR file_name LIKE ?)");
+    params.push(like, like, like);
+  }
+
+  return {
+    where: clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "",
+    params,
+  };
+}
+
 export function createProofRecord(input: { fileName?: string; fileSize?: number; hash: string; proofUid: string; proofStatus: string }) {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -26,8 +52,29 @@ export function createProofRecord(input: { fileName?: string; fileSize?: number;
   return getProofRecord(id)!;
 }
 
-export function listProofRecords() {
-  return db.prepare("SELECT * FROM integritas_proofs ORDER BY created_at DESC").all() as IntegritasProofRecord[];
+export function countProofRecords(query: Pick<ProofListQuery, "status" | "q"> = {}) {
+  const { where, params } = buildProofListWhere(query);
+  const row = db.prepare(`SELECT COUNT(*) as count FROM integritas_proofs ${where}`).get(...params) as { count: number };
+  return row.count;
+}
+
+export function countPollablePendingProofRecords() {
+  const row = db.prepare(`
+    SELECT COUNT(*) as count FROM integritas_proofs
+    WHERE proof_status = 'pending' AND proof_uid IS NOT NULL
+  `).get() as { count: number };
+  return row.count;
+}
+
+export function listProofRecords(query: ProofListQuery) {
+  const { where, params } = buildProofListWhere(query);
+  const offset = (query.page - 1) * query.pageSize;
+  return db.prepare(`
+    SELECT * FROM integritas_proofs
+    ${where}
+    ORDER BY created_at DESC
+    LIMIT ? OFFSET ?
+  `).all(...params, query.pageSize, offset) as IntegritasProofRecord[];
 }
 
 export function listPendingProofRecords(limit?: number) {

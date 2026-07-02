@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { db } from "../../db/database.js";
+import type { ParsedListQuery } from "../../shared/list-query.js";
 
 export type DataSourceReadRecord = {
   id: string;
@@ -19,8 +20,46 @@ export type DataSourceReadRecord = {
   block_id: string | null;
 };
 
-export function listDataSourceReads() {
-  return db.prepare("SELECT * FROM data_source_reads ORDER BY created_at DESC LIMIT 500").all() as DataSourceReadRecord[];
+export const DATA_READ_LIST_STATUSES = ["success", "failed"] as const;
+
+export type DataReadListQuery = ParsedListQuery;
+
+function buildDataReadListWhere(query: Pick<DataReadListQuery, "status" | "q">) {
+  const clauses: string[] = [];
+  const params: unknown[] = [];
+
+  if (query.status) {
+    clauses.push("status = ?");
+    params.push(query.status);
+  }
+
+  if (query.q) {
+    const like = `%${query.q}%`;
+    clauses.push("(hash LIKE ? OR source_name LIKE ? OR source_url LIKE ?)");
+    params.push(like, like, like);
+  }
+
+  return {
+    where: clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "",
+    params,
+  };
+}
+
+export function countDataSourceReads(query: Pick<DataReadListQuery, "status" | "q"> = {}) {
+  const { where, params } = buildDataReadListWhere(query);
+  const row = db.prepare(`SELECT COUNT(*) as count FROM data_source_reads ${where}`).get(...params) as { count: number };
+  return row.count;
+}
+
+export function listDataSourceReads(query: DataReadListQuery) {
+  const { where, params } = buildDataReadListWhere(query);
+  const offset = (query.page - 1) * query.pageSize;
+  return db.prepare(`
+    SELECT * FROM data_source_reads
+    ${where}
+    ORDER BY created_at DESC
+    LIMIT ? OFFSET ?
+  `).all(...params, query.pageSize, offset) as DataSourceReadRecord[];
 }
 
 export function getDataSourceRead(id: string) {

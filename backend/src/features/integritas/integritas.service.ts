@@ -285,8 +285,12 @@ export async function verifyProof({ apiKey, proofPayload }: { apiKey: string; pr
 
 export function parseProofPayload(value: string | null) {
   if (!value) return null;
-  const parsed = JSON.parse(value) as unknown;
-  return Array.isArray(parsed) ? parsed : null;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function writeProofExport(proofPayloads: unknown[]) {

@@ -7,13 +7,33 @@ import { validateIntegritasApiKey } from "../auth/integritas-validation.service.
 import { sha3HashHex } from "../../shared/crypto.js";
 import { deleteIntegritasApiKey, getIntegritasApiKey, integritasApiKeySource, saveIntegritasApiKey } from "../settings/secrets.service.js";
 import { env } from "../../config/env.js";
-import { createProofRecord, deleteProofRecords, getProofRecord, listProofRecords, updateVerifyResponse } from "./integritas.repository.js";
+import { createProofRecord, deleteProofRecords, getProofRecord, listProofRecords, countProofRecords, countPollablePendingProofRecords, PROOF_LIST_STATUSES, updateVerifyResponse } from "./integritas.repository.js";
 import { pollPendingProofRecords } from "./integritas-poll.service.js";
 import { getIntegritasConfig, hashCanonicalBytes, parseProofPayload, pollProofStatus, refreshProofRecord, requestProofUid, sha3HashFile, verifyProof, writeProofExport } from "./integritas.service.js";
 import type { IntegritasApiFailure } from "./integritas.types.js";
+import { parseListQuery, toPaginatedResult } from "../../shared/list-query.js";
 import { upload } from "./upload.middleware.js";
 
 export const integritasRouter = Router();
+
+const MAX_SELECTED_IDS = 500;
+
+function parseSelectedIds(req: { body?: unknown }): { ok: true; ids: string[] } | { ok: false; error: string } {
+  const raw = (req.body as { ids?: unknown } | undefined)?.ids;
+  const ids = Array.isArray(raw) ? raw.filter((id: unknown) => typeof id === "string" && id) : [];
+  if (ids.length === 0) return { ok: false, error: "ids must contain at least one id" };
+  if (ids.length > MAX_SELECTED_IDS) return { ok: false, error: `ids must contain ${MAX_SELECTED_IDS} or fewer entries` };
+  return { ok: true, ids };
+}
+
+function proofHistoryPage(query: { page: number; pageSize: number; status?: string; q?: string }) {
+  const total = countProofRecords(query);
+  const items = listProofRecords(query);
+  return {
+    ...toPaginatedResult(items, total, query),
+    pendingTotal: countPollablePendingProofRecords(),
+  };
+}
 
 function sendIntegritasError(res: Response, result: IntegritasApiFailure) {
   // Reserve HTTP 401 for browser session auth; upstream key rejection is an app error.
@@ -115,32 +135,50 @@ integritasRouter.post("/stamp-file", upload.single("file"), async (req, res) => 
   }
 });
 
-integritasRouter.get("/history", (_req, res) => {
-  res.json({ items: listProofRecords() });
+integritasRouter.get("/history", (req, res) => {
+  const parsed = parseListQuery(req.query, { allowedStatuses: PROOF_LIST_STATUSES });
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+
+  return res.json(proofHistoryPage(parsed.value));
+});
+
+integritasRouter.get("/history/:id", (req, res) => {
+  const record = getProofRecord(req.params.id);
+  if (!record) return res.status(404).json({ error: "Proof record not found" });
+  return res.json({ record });
 });
 
 integritasRouter.post("/history/delete-selected", (req, res) => {
-  const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter((id: unknown) => typeof id === "string" && id) : [];
-  if (ids.length === 0) return res.status(400).json({ error: "ids must contain at least one id" });
-  deleteProofRecords(ids);
-  return res.json({ deleted: ids.length });
+  const parsed = parseSelectedIds(req);
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+  deleteProofRecords(parsed.ids);
+  return res.json({ deleted: parsed.ids.length });
 });
 
 integritasRouter.post("/history/export-selected", async (req, res) => {
-  const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter((id: unknown) => typeof id === "string" && id) : [];
-  if (ids.length === 0) return res.status(400).json({ error: "ids must contain at least one id" });
-  const merged = ids.flatMap((id: string) => parseProofPayload(getProofRecord(id)?.proof_payload ?? null) ?? []);
-  if (merged.length === 0) return res.status(400).json({ error: "Selected rows do not contain proof payloads" });
-  const filePath = await writeProofExport(merged);
-  res.download(filePath);
+  const parsed = parseSelectedIds(req);
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+  const ids = parsed.ids;
+
+  try {
+    const merged = ids.flatMap((id: string) => parseProofPayload(getProofRecord(id)?.proof_payload ?? null) ?? []);
+    if (merged.length === 0) return res.status(400).json({ error: "Selected rows do not contain proof payloads" });
+    const filePath = await writeProofExport(merged);
+    return res.download(filePath);
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : "Proof export failed" });
+  }
 });
 
-integritasRouter.post("/history/poll-pending", async (_req, res) => {
+integritasRouter.post("/history/poll-pending", async (req, res) => {
   const apiKey = requireIntegritasApiKey(res);
   if (!apiKey) return;
 
   await pollPendingProofRecords();
-  return res.json({ items: listProofRecords() });
+  const parsed = parseListQuery(req.query, { allowedStatuses: PROOF_LIST_STATUSES });
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+
+  return res.json(proofHistoryPage(parsed.value));
 });
 
 integritasRouter.post("/history/:id/poll", async (req, res) => {

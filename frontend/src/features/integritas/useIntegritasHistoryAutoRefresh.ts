@@ -1,21 +1,42 @@
-import { useEffect } from "react";
-import { getHistory } from "./integritasApi";
-import type { IntegritasProofRecord } from "./integritasTypes";
+import { useEffect, useRef } from 'react';
+import { getHistory } from './integritasApi';
+import type { ListQueryParams } from '../../lib/paginated';
+import type {
+  IntegritasHistoryPage,
+  IntegritasProofRecord,
+} from './integritasTypes';
 
 const DEFAULT_INTERVAL_MS = 15_000;
 
 export function hasPendingProofs(records: IntegritasProofRecord[]) {
-  return records.some((record) => record.proof_status === "pending" && record.proof_uid);
+  return records.some(
+    (record) => record.proof_status === 'pending' && record.proof_uid,
+  );
 }
 
 export function useIntegritasHistoryAutoRefresh(
   records: IntegritasProofRecord[],
-  onRecords: (records: IntegritasProofRecord[]) => void,
-  options?: { intervalMs?: number; enabled?: boolean }
+  onRecords: ((records: IntegritasProofRecord[]) => void) | undefined,
+  options?: {
+    intervalMs?: number;
+    enabled?: boolean;
+    query?: ListQueryParams;
+    pendingTotal?: number;
+    onPage?: (response: IntegritasHistoryPage) => void;
+  },
 ) {
   const intervalMs = options?.intervalMs ?? DEFAULT_INTERVAL_MS;
   const enabled = options?.enabled ?? true;
-  const shouldRefresh = enabled && hasPendingProofs(records);
+  const query = options?.query;
+  const pendingTotal = options?.pendingTotal ?? 0;
+  const onPage = options?.onPage;
+  const shouldRefresh =
+    enabled && (pendingTotal > 0 || hasPendingProofs(records));
+
+  const callbacksRef = useRef({ onPage, onRecords });
+  useEffect(() => {
+    callbacksRef.current = { onPage, onRecords };
+  });
 
   useEffect(() => {
     if (!shouldRefresh) return;
@@ -24,8 +45,11 @@ export function useIntegritasHistoryAutoRefresh(
 
     async function refresh() {
       try {
-        const response = await getHistory();
-        if (!cancelled) onRecords(response.items);
+        const response = await getHistory(query);
+        if (cancelled) return;
+        const { onPage, onRecords } = callbacksRef.current;
+        if (onPage) onPage(response);
+        else onRecords?.(response.items);
       } catch {
         // Background refresh only.
       }
@@ -38,5 +62,12 @@ export function useIntegritasHistoryAutoRefresh(
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [shouldRefresh, intervalMs, onRecords]);
+  }, [
+    shouldRefresh,
+    intervalMs,
+    query?.page,
+    query?.pageSize,
+    query?.status,
+    query?.q,
+  ]);
 }
