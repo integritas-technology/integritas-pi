@@ -85,6 +85,46 @@ export function runMigrations() {
   `);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS automation_runs (
+      id TEXT PRIMARY KEY,
+      workflow_id TEXT NOT NULL,
+      workflow_name TEXT NOT NULL,
+      started_at TEXT NOT NULL,
+      finished_at TEXT,
+      status TEXT NOT NULL,
+      trigger_type TEXT NOT NULL,
+      trigger_source_id TEXT,
+      trigger_payload_json TEXT,
+      duration_ms INTEGER,
+      block_count INTEGER NOT NULL DEFAULT 0,
+      error TEXT,
+      FOREIGN KEY (workflow_id) REFERENCES automation_workflows(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS automation_block_runs (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL,
+      workflow_id TEXT NOT NULL,
+      block_id TEXT,
+      order_index INTEGER NOT NULL,
+      block_type TEXT NOT NULL,
+      block_label TEXT NOT NULL,
+      started_at TEXT NOT NULL,
+      finished_at TEXT,
+      status TEXT NOT NULL,
+      duration_ms INTEGER,
+      input_json TEXT,
+      output_json TEXT,
+      error TEXT,
+      FOREIGN KEY (run_id) REFERENCES automation_runs(id) ON DELETE CASCADE,
+      FOREIGN KEY (workflow_id) REFERENCES automation_workflows(id) ON DELETE CASCADE,
+      FOREIGN KEY (block_id) REFERENCES automation_blocks(id) ON DELETE SET NULL
+    )
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS data_source_reads (
       id TEXT PRIMARY KEY,
       created_at TEXT NOT NULL,

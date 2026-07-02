@@ -45,6 +45,39 @@ export type AutomationBlock = {
   lastError: string | null;
 };
 
+export type AutomationRun = {
+  id: string;
+  workflowId: string;
+  workflowName: string;
+  startedAt: string;
+  finishedAt: string | null;
+  status: "running" | "success" | "failed";
+  triggerType: string;
+  triggerSourceId: string | null;
+  triggerPayload: unknown;
+  durationMs: number | null;
+  blockCount: number;
+  error: string | null;
+  blocks: AutomationBlockRun[];
+};
+
+export type AutomationBlockRun = {
+  id: string;
+  runId: string;
+  workflowId: string;
+  blockId: string | null;
+  order: number;
+  blockType: string;
+  blockLabel: string;
+  startedAt: string;
+  finishedAt: string | null;
+  status: "running" | "success" | "failed" | "skipped";
+  durationMs: number | null;
+  input: unknown;
+  output: unknown;
+  error: string | null;
+};
+
 export type AutomationRule = {
   id: string;
   workflowId: string;

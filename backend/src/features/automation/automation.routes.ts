@@ -4,12 +4,30 @@ import { getDataSource } from "../data-sources/dataSources.repository.js";
 import { syncGpioDataSources } from "../data-sources/gpioIngestion.service.js";
 import { syncMqttDataSources } from "../data-sources/mqttIngestion.service.js";
 import { createAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, getAutomationWorkflow, listAutomationBlocks, listAutomationWorkflows, reorderAutomationBlocks, replaceAutomationBlocks, updateAutomationBlock, updateAutomationWorkflow, type AutomationBlockType } from "./automation.repository.js";
-import { runAutomationWorkflow, serializeAutomationBlock, serializeAutomationWorkflow } from "./automation.service.js";
+import { getSerializedAutomationRun, listSerializedAutomationRuns, listSerializedAutomationRunsForWorkflow, runAutomationWorkflow, serializeAutomationBlock, serializeAutomationWorkflow } from "./automation.service.js";
 
 export const automationRouter = Router();
 
 automationRouter.get("/workflows", (_req, res) => {
   res.json({ items: listAutomationWorkflows().map(serializeAutomationWorkflow) });
+});
+
+automationRouter.get("/runs", (req, res) => {
+  const limit = limitFromQuery(req.query.limit, 100);
+  res.json({ items: listSerializedAutomationRuns(limit) });
+});
+
+automationRouter.get("/runs/:id", (req, res) => {
+  const run = getSerializedAutomationRun(req.params.id);
+  if (!run) return res.status(404).json({ error: "Automation run not found" });
+  res.json({ item: run });
+});
+
+automationRouter.get("/workflows/:id/runs", (req, res) => {
+  const workflow = getAutomationWorkflow(req.params.id);
+  if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
+  const limit = limitFromQuery(req.query.limit, 20);
+  res.json({ items: listSerializedAutomationRunsForWorkflow(workflow.id, limit) });
 });
 
 automationRouter.post("/workflows", requireRole("admin"), (req, res) => {
@@ -248,4 +266,11 @@ function isAutomationBlockType(type: string): type is AutomationBlockType {
     || type === "fetch_data_source"
     || type === "wait"
     || type === "stamp_integritas";
+}
+
+function limitFromQuery(value: unknown, fallback: number) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(1, Math.min(500, Math.trunc(parsed)));
 }

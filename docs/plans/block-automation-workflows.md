@@ -577,10 +577,10 @@ Button -> fetch API -> blink LED.
 
 ### Milestone 6: Wait And Run History
 
-- [ ] Implement `wait` block.
-- [ ] Add automation run history tables.
-- [ ] Add block-level run history.
-- [ ] Add UI run/debug view.
+- [x] Implement `wait` block.
+- [x] Add automation run history tables.
+- [x] Add block-level run history.
+- [x] Add UI run/debug view.
 
 ### Milestone 7: Safe GPIO Outputs
 
@@ -601,3 +601,4 @@ Button -> fetch API -> blink LED.
 - Added the first frontend block-list workspace: workflows now show actual blocks, support appending fetch/wait/stamp blocks, and avoid showing internal start blocks as duplicate collect rules.
 - Added block editing and ordering controls: fetch blocks can change target source, wait blocks can change duration, action blocks can be enabled/disabled, and blocks can move up/down while preserving the required start block at the top.
 - Replaced the data-source-first create workflow modal with a block-first creator: operators choose a manual, schedule, GPIO, webhook, or MQTT start block and optionally add an initial record/fetch action before opening the workspace.
+- Added workflow run history: each execution records a run row and per-block rows with status, timing, errors, and context summaries. Recent runs are visible in the workflow workspace and globally under Diagnostics -> Workflow logs.

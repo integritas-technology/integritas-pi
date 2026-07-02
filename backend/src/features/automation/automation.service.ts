@@ -16,6 +16,7 @@ import {
   type AutomationBlockRecord,
   type AutomationWorkflowRecord
 } from "./automation.repository.js";
+import { createAutomationBlockRun, createAutomationRun, finishAutomationBlockRun, finishAutomationRun, getAutomationRun, listAutomationBlockRuns, listAutomationRuns, listAutomationRunsForWorkflow, type AutomationBlockRunRecord, type AutomationRunRecord } from "./automationRuns.repository.js";
 
 type WorkflowTriggerType = "manual" | "schedule" | "webhook" | "mqtt" | "gpio";
 
@@ -94,6 +95,56 @@ export function serializeAutomationBlock(record: AutomationBlockRecord) {
   };
 }
 
+export function serializeAutomationRun(record: AutomationRunRecord) {
+  return {
+    id: record.id,
+    workflowId: record.workflow_id,
+    workflowName: record.workflow_name,
+    startedAt: record.started_at,
+    finishedAt: record.finished_at,
+    status: record.status,
+    triggerType: record.trigger_type,
+    triggerSourceId: record.trigger_source_id,
+    triggerPayload: record.trigger_payload_json ? JSON.parse(record.trigger_payload_json) as unknown : null,
+    durationMs: record.duration_ms,
+    blockCount: record.block_count,
+    error: record.error,
+    blocks: listAutomationBlockRuns(record.id).map(serializeAutomationBlockRun)
+  };
+}
+
+export function serializeAutomationBlockRun(record: AutomationBlockRunRecord) {
+  return {
+    id: record.id,
+    runId: record.run_id,
+    workflowId: record.workflow_id,
+    blockId: record.block_id,
+    order: record.order_index,
+    blockType: record.block_type,
+    blockLabel: record.block_label,
+    startedAt: record.started_at,
+    finishedAt: record.finished_at,
+    status: record.status,
+    durationMs: record.duration_ms,
+    input: record.input_json ? JSON.parse(record.input_json) as unknown : null,
+    output: record.output_json ? JSON.parse(record.output_json) as unknown : null,
+    error: record.error
+  };
+}
+
+export function listSerializedAutomationRuns(limit?: number) {
+  return listAutomationRuns(limit).map(serializeAutomationRun);
+}
+
+export function listSerializedAutomationRunsForWorkflow(workflowId: string, limit?: number) {
+  return listAutomationRunsForWorkflow(workflowId, limit).map(serializeAutomationRun);
+}
+
+export function getSerializedAutomationRun(id: string) {
+  const run = getAutomationRun(id);
+  return run ? serializeAutomationRun(run) : null;
+}
+
 export async function runAutomationWorkflow(id: string, trigger: WorkflowContext["trigger"] = { type: "manual" }) {
   const workflow = getAutomationWorkflow(id);
   if (!workflow) throw new Error("Automation workflow not found");
@@ -107,24 +158,27 @@ export async function executeWorkflow(workflow: AutomationWorkflowRecord, trigge
   runningWorkflowIds.add(workflow.id);
   const context: WorkflowContext = { trigger };
   let nextRunAt: string | null = workflow.next_run_at;
+  let run = null as ReturnType<typeof createAutomationRun> | null;
 
   try {
     const blocks = listAutomationBlocks(workflow.id).filter((block) => block.enabled);
     if (blocks.length === 0) throw new Error("Automation workflow has no blocks");
 
     validateStartBlock(blocks[0], trigger);
+    run = createAutomationRun({ workflowId: workflow.id, workflowName: workflow.name, triggerType: trigger.type, triggerSourceId: trigger.sourceId ?? null, triggerPayload: trigger.payload, blockCount: blocks.length });
 
     for (const block of blocks) {
-      await executeBlock(workflow, block, context);
-      updateAutomationBlockRun(block.id);
+      await executeBlock(workflow, block, context, run.id);
       if (block.type === "schedule_start") nextRunAt = nextScheduleRunAt(block);
     }
 
     const updatedWorkflow = updateAutomationRunSuccess(workflow.id, { hash: context.hash ?? null, proofId: context.proofId ?? null, nextRunAt });
+    finishAutomationRun(run.id, { status: "success" });
     return { workflow: serializeAutomationWorkflow(updatedWorkflow), dataSource: context.data?.sourceId ? serializeDataSource(getDataSource(context.data.sourceId)!) : null, proofId: context.proofId ?? null };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Automation workflow failed";
     const updatedWorkflow = updateAutomationRunError(workflow.id, message, { hash: context.hash ?? null, proofId: context.proofId ?? null, nextRunAt });
+    if (run) finishAutomationRun(run.id, { status: "failed", error: message });
     throw Object.assign(error instanceof Error ? error : new Error(message), { workflow: serializeAutomationWorkflow(updatedWorkflow) });
   } finally {
     runningWorkflowIds.delete(workflow.id);
@@ -160,18 +214,27 @@ function validateStartBlock(block: AutomationBlockRecord, trigger: WorkflowConte
   if (trigger.sourceId && config.sourceId !== trigger.sourceId) throw new Error("Workflow trigger source did not match the incoming event");
 }
 
-async function executeBlock(workflow: AutomationWorkflowRecord, block: AutomationBlockRecord, context: WorkflowContext) {
+async function executeBlock(workflow: AutomationWorkflowRecord, block: AutomationBlockRecord, context: WorkflowContext, runId: string) {
   const config = JSON.parse(block.config_json) as { sourceId?: string; durationMs?: number };
+  const blockRun = createAutomationBlockRun({ runId, workflowId: workflow.id, blockId: block.id, orderIndex: block.order_index, blockType: block.type, blockLabel: blockLabel(block.type), input: contextSummary(context) });
 
   try {
-    if (block.type.endsWith("_start")) return;
-    if (block.type === "record_trigger_event") return recordTriggerEvent(workflow, block, context);
-    if (block.type === "fetch_data_source") return fetchDataSource(workflow, block, context, String(config.sourceId ?? ""));
-    if (block.type === "wait") return wait(Number(config.durationMs ?? 0));
-    if (block.type === "stamp_integritas") return stampLatestHash(workflow, context);
-    throw new Error(`Unsupported automation block: ${block.type}`);
+    if (block.type.endsWith("_start")) {
+      updateAutomationBlockRun(block.id);
+      finishAutomationBlockRun(blockRun.id, { status: "success", output: contextSummary(context) });
+      return;
+    }
+    if (block.type === "record_trigger_event") await recordTriggerEvent(workflow, block, context);
+    else if (block.type === "fetch_data_source") await fetchDataSource(workflow, block, context, String(config.sourceId ?? ""));
+    else if (block.type === "wait") await wait(Number(config.durationMs ?? 0));
+    else if (block.type === "stamp_integritas") await stampLatestHash(workflow, context);
+    else throw new Error(`Unsupported automation block: ${block.type}`);
+    updateAutomationBlockRun(block.id);
+    finishAutomationBlockRun(blockRun.id, { status: "success", output: contextSummary(context) });
+    return;
   } catch (error) {
     updateAutomationBlockRun(block.id, { error: error instanceof Error ? error.message : "Block failed" });
+    finishAutomationBlockRun(blockRun.id, { status: "failed", output: contextSummary(context), error: error instanceof Error ? error.message : "Block failed" });
     throw error;
   }
 }
@@ -268,6 +331,15 @@ function blockLabel(type: string) {
   if (type === "record_trigger_event") return "Record trigger event";
   if (type === "wait") return "Wait";
   return "Start workflow";
+}
+
+function contextSummary(context: WorkflowContext) {
+  return {
+    trigger: context.trigger,
+    data: context.data ? { sourceId: context.data.sourceId, sourceName: context.data.sourceName, sourceUrl: context.data.sourceUrl, hash: context.data.result.bytesHash, readId: context.data.readId } : null,
+    hash: context.hash ?? null,
+    proofId: context.proofId ?? null
+  };
 }
 
 function formatIntegritasStampError(stamp: IntegritasApiFailure) {

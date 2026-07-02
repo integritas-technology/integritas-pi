@@ -3,6 +3,9 @@ import { JsonPreview } from "../components/JsonPreview";
 import { Page } from "../components/Page";
 import { useToast } from "../components/ToastProvider";
 import { integritasErrorToast } from "../features/integritas/integritasErrors";
+import { listAutomationRuns } from "../features/automation/automationApi";
+import { AutomationRunsTable } from "../features/automation/AutomationRunsTable";
+import type { AutomationRun } from "../features/automation/automationTypes";
 import { listDataReads } from "../features/data-reads/dataReadsApi";
 import { DataReadsHistoryTable } from "../features/data-reads/DataReadsHistoryTable";
 import type { DataSourceRead } from "../features/data-reads/dataReadTypes";
@@ -11,13 +14,14 @@ import { IntegritasHistoryTable } from "../features/integritas/IntegritasHistory
 import type { IntegritasProofRecord } from "../features/integritas/integritasTypes";
 import { useIntegritasHistoryAutoRefresh } from "../features/integritas/useIntegritasHistoryAutoRefresh";
 
-type DiagnosticsTab = "proofs" | "reads";
+type DiagnosticsTab = "proofs" | "reads" | "workflow-runs";
 
 export function DiagnosticsPage() {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<DiagnosticsTab>("proofs");
   const [records, setRecords] = useState<IntegritasProofRecord[]>([]);
   const [reads, setReads] = useState<DataSourceRead[]>([]);
+  const [workflowRuns, setWorkflowRuns] = useState<AutomationRun[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [result, setResult] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +30,7 @@ export function DiagnosticsPage() {
   useEffect(() => {
     refreshProofs().catch((err: Error) => setError(err.message));
     refreshReads().catch((err: Error) => setError(err.message));
+    refreshWorkflowRuns().catch((err: Error) => setError(err.message));
   }, []);
 
   useIntegritasHistoryAutoRefresh(records, setRecords, { enabled: activeTab === "proofs" });
@@ -38,6 +43,11 @@ export function DiagnosticsPage() {
   async function refreshReads() {
     const response = await listDataReads();
     setReads(response.items);
+  }
+
+  async function refreshWorkflowRuns() {
+    const response = await listAutomationRuns(100);
+    setWorkflowRuns(response.items);
   }
 
   async function run(action: () => Promise<unknown>) {
@@ -67,6 +77,7 @@ export function DiagnosticsPage() {
       <div className="subtabs" role="tablist" aria-label="Diagnostics history">
         <button type="button" role="tab" aria-selected={activeTab === "proofs"} className={activeTab === "proofs" ? "active" : ""} onClick={() => setActiveTab("proofs")}>Proof history</button>
         <button type="button" role="tab" aria-selected={activeTab === "reads"} className={activeTab === "reads" ? "active" : ""} onClick={() => setActiveTab("reads")}>Read history</button>
+        <button type="button" role="tab" aria-selected={activeTab === "workflow-runs"} className={activeTab === "workflow-runs" ? "active" : ""} onClick={() => setActiveTab("workflow-runs")}>Workflow logs</button>
       </div>
 
       {activeTab === "proofs" ? (
@@ -84,8 +95,16 @@ export function DiagnosticsPage() {
           onDeleteSelected={() => run(async () => { const response = await deleteSelected(selectedIds); setSelectedIds([]); return response; })}
           onDownloadSelected={() => run(() => downloadSelected(selectedIds))}
         />
-      ) : (
+      ) : activeTab === "reads" ? (
         <DataReadsHistoryTable items={reads} />
+      ) : (
+        <section className="card">
+          <div className="status-row">
+            <div><strong>Workflow logs</strong><p className="muted">Recent automated and manual workflow runs across all workflows.</p></div>
+            <button type="button" disabled={busy} onClick={() => refreshWorkflowRuns().catch((err: Error) => setError(err.message))}>Refresh</button>
+          </div>
+          <AutomationRunsTable runs={workflowRuns} />
+        </section>
       )}
 
       {error && <p className="error-text">{error}</p>}

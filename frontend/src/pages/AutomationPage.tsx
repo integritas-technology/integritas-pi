@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
-import { addAutomationBlock, addAutomationRule, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationRule, deleteAutomationWorkflow, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow } from "../features/automation/automationApi";
-import type { AutomationBlock, AutomationBlockType, AutomationWorkflow } from "../features/automation/automationTypes";
+import { addAutomationBlock, addAutomationRule, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationRule, deleteAutomationWorkflow, listAutomationWorkflowRuns, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow } from "../features/automation/automationApi";
+import { AutomationRunsTable } from "../features/automation/AutomationRunsTable";
+import type { AutomationBlock, AutomationBlockType, AutomationRun, AutomationWorkflow } from "../features/automation/automationTypes";
 import { listDataSources } from "../features/data-sources/dataSourcesApi";
 import type { DataSource } from "../features/data-sources/dataSourceTypes";
 import { formatLocalTime } from "../lib/time";
@@ -21,6 +22,7 @@ export function AutomationPage() {
   const [enabled, setEnabled] = useState(true);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [workspaceWorkflowId, setWorkspaceWorkflowId] = useState<string | null>(null);
+  const [workspaceRuns, setWorkspaceRuns] = useState<AutomationRun[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,12 +30,24 @@ export function AutomationPage() {
     refresh().catch((err: Error) => setError(err.message));
   }, []);
 
+  useEffect(() => {
+    if (!workspaceWorkflowId) {
+      setWorkspaceRuns([]);
+      return;
+    }
+    listAutomationWorkflowRuns(workspaceWorkflowId, 10).then((response) => setWorkspaceRuns(response.items)).catch((err: Error) => setError(err.message));
+  }, [workspaceWorkflowId]);
+
   async function refresh() {
     const [sourceResponse, workflowResponse] = await Promise.all([listDataSources(), listAutomationWorkflows()]);
     setSources(sourceResponse.items);
     setWorkflows(workflowResponse.items);
     if (!startSourceId) setStartSourceId(defaultSourceForStart(startType, sourceResponse.items)?.id ?? "");
     if (!initialFetchSourceId) setInitialFetchSourceId(firstHttpSource(sourceResponse.items)?.id ?? "");
+    if (workspaceWorkflowId) {
+      const runs = await listAutomationWorkflowRuns(workspaceWorkflowId, 10);
+      setWorkspaceRuns(runs.items);
+    }
   }
 
   async function run(action: () => Promise<unknown>) {
@@ -122,6 +136,7 @@ export function AutomationPage() {
         <Modal title="Workflow workspace" onClose={() => setWorkspaceWorkflowId(null)}>
           <WorkflowWorkspace
             workflow={workspaceWorkflow}
+            runs={workspaceRuns}
             source={sourceById(workspaceWorkflow.dataSourceId)}
             sources={sources}
             busy={busy}
@@ -181,7 +196,7 @@ export function AutomationPage() {
   );
 }
 
-function WorkflowWorkspace({ workflow, source, sources, busy, onAddBlock, onAddStampRule, onDeleteBlock, onDeleteRule, onUpdateBlock, onReorderBlocks, onRunNow, onToggleEnabled, onDelete }: { workflow: AutomationWorkflow; source: DataSource | undefined; sources: DataSource[]; busy: boolean; onAddBlock: (input: Parameters<typeof addAutomationBlock>[1]) => void; onAddStampRule: () => void; onDeleteBlock: (blockId: string) => void; onDeleteRule: (ruleId: string) => void; onUpdateBlock: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onReorderBlocks: (blockIds: string[]) => void; onRunNow: () => void; onToggleEnabled: () => void; onDelete: () => void }) {
+function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, onAddStampRule, onDeleteBlock, onDeleteRule, onUpdateBlock, onReorderBlocks, onRunNow, onToggleEnabled, onDelete }: { workflow: AutomationWorkflow; runs: AutomationRun[]; source: DataSource | undefined; sources: DataSource[]; busy: boolean; onAddBlock: (input: Parameters<typeof addAutomationBlock>[1]) => void; onAddStampRule: () => void; onDeleteBlock: (blockId: string) => void; onDeleteRule: (ruleId: string) => void; onUpdateBlock: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onReorderBlocks: (blockIds: string[]) => void; onRunNow: () => void; onToggleEnabled: () => void; onDelete: () => void }) {
   const [fetchSourceId, setFetchSourceId] = useState(() => sources.find((item) => item.type === "json-api" || item.type === "internal-json-api")?.id ?? "");
   const [waitMs, setWaitMs] = useState("1000");
   const hasStampBlock = workflow.blocks.some((block) => block.type === "stamp_integritas");
@@ -254,6 +269,11 @@ function WorkflowWorkspace({ workflow, source, sources, busy, onAddBlock, onAddS
           <button type="button" disabled={busy} onClick={onDelete}>Delete workflow</button>
         </div>
       </div>
+
+      <section className="card soft-card">
+        <div><strong>Recent runs</strong><p className="muted">Latest executions for this workflow, including per-block status.</p></div>
+        <AutomationRunsTable runs={runs} compact />
+      </section>
     </section>
   );
 }

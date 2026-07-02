@@ -1,5 +1,5 @@
 import { deleteJson, getJson, patchJson, postJson } from "../../lib/api";
-import type { AutomationBlock, AutomationBlockType, AutomationWorkflow } from "./automationTypes";
+import type { AutomationBlock, AutomationBlockType, AutomationRun, AutomationWorkflow } from "./automationTypes";
 
 export async function listAutomationWorkflows() {
   return getJson<{ items: AutomationWorkflow[] }>("/api/automation/workflows");
@@ -43,4 +43,12 @@ export async function deleteAutomationWorkflow(id: string) {
 
 export async function runAutomationWorkflow(id: string) {
   return postJson<{ workflow: AutomationWorkflow; proofId: string | null }>(`/api/automation/workflows/${id}/run`);
+}
+
+export async function listAutomationRuns(limit = 100) {
+  return getJson<{ items: AutomationRun[] }>(`/api/automation/runs?limit=${limit}`);
+}
+
+export async function listAutomationWorkflowRuns(workflowId: string, limit = 20) {
+  return getJson<{ items: AutomationRun[] }>(`/api/automation/workflows/${workflowId}/runs?limit=${limit}`);
 }
