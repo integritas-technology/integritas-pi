@@ -254,13 +254,10 @@ stop
 stamp_integritas
 ```
 
-### Future GPIO Output Blocks
+### Output Control Blocks
 
 ```txt
-gpio_set_output
-gpio_pulse_output
-gpio_blink_output
-buzzer_beep
+control_output
 ```
 
 ## Workflow Execution
@@ -465,22 +462,35 @@ Record trigger event requires an event trigger.
 GPIO output blocks require explicit output config and hardware safety validation.
 ```
 
-## GPIO Output Future
+## GPIO Output Targets
 
-GPIO outputs should be action blocks with narrow behavior and strict validation.
+GPIO outputs should be configured as reusable output targets. Workflows control them through a generic, narrow `control_output` action block with profile-specific validation.
 
-First supported output block:
+First supported output target profile:
 
 ```txt
-gpio_pulse_output
+LED
 ```
 
-Example config:
+Example output target config:
 
 ```json
 {
+  "type": "gpio-output",
+  "profile": "led",
   "pin": 18,
   "activeState": "high",
+  "initialState": "inactive"
+}
+```
+
+Example control block config:
+
+```json
+{
+  "type": "control_output",
+  "targetId": "green-led-output-id",
+  "action": "pulse",
   "durationMs": 500
 }
 ```
@@ -584,10 +594,10 @@ Button -> fetch API -> blink LED.
 
 ### Milestone 7: Safe GPIO Outputs
 
-- [ ] Define GPIO output target/source shape.
+- [x] Define GPIO output target/source shape.
 - [ ] Implement safe output validation.
-- [ ] Implement `gpio_pulse_output`.
-- [ ] Document output hardware safety in `SECURITY.md` and `README.md`.
+- [x] Implement `control_output` pulse action for LED GPIO output targets.
+- [x] Document output hardware safety in `SECURITY.md` and `README.md`.
 - [ ] Verify button-triggered LED pulse on Pi hardware.
 
 ## Progress Log
@@ -602,3 +612,4 @@ Button -> fetch API -> blink LED.
 - Added block editing and ordering controls: fetch blocks can change target source, wait blocks can change duration, action blocks can be enabled/disabled, and blocks can move up/down while preserving the required start block at the top.
 - Replaced the data-source-first create workflow modal with a block-first creator: operators choose a manual, schedule, GPIO, webhook, or MQTT start block and optionally add an initial record/fetch action before opening the workspace.
 - Added workflow run history: each execution records a run row and per-block rows with status, timing, errors, and context summaries. Recent runs are visible in the workflow workspace and globally under Diagnostics -> Workflow logs.
+- Added the first safe GPIO output path: GPIO Output targets with LED profile, reusable `control_output` pulse blocks, backend pin conflict checks, and hardware safety documentation.

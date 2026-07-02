@@ -1,4 +1,5 @@
 import { getDataSource, updateDataSourceReadResult } from "../data-sources/dataSources.repository.js";
+import { pulseGpioOutput } from "../data-sources/gpioOutput.service.js";
 import { parseJsonApiConfig, readJsonApiSource, serializeDataSource } from "../data-sources/dataSources.service.js";
 import { createDataSourceRead, linkDataSourceReadProof } from "../data-reads/dataReads.repository.js";
 import { createProofRecord } from "../integritas/integritas.repository.js";
@@ -41,6 +42,7 @@ type WorkflowContext = {
   };
   hash?: string;
   proofId?: string | null;
+  output?: unknown;
 };
 
 const runningWorkflowIds = new Set<string>();
@@ -215,7 +217,7 @@ function validateStartBlock(block: AutomationBlockRecord, trigger: WorkflowConte
 }
 
 async function executeBlock(workflow: AutomationWorkflowRecord, block: AutomationBlockRecord, context: WorkflowContext, runId: string) {
-  const config = JSON.parse(block.config_json) as { sourceId?: string; durationMs?: number };
+  const config = JSON.parse(block.config_json) as { sourceId?: string; targetId?: string; action?: string; durationMs?: number };
   const blockRun = createAutomationBlockRun({ runId, workflowId: workflow.id, blockId: block.id, orderIndex: block.order_index, blockType: block.type, blockLabel: blockLabel(block.type), input: contextSummary(context) });
 
   try {
@@ -228,6 +230,7 @@ async function executeBlock(workflow: AutomationWorkflowRecord, block: Automatio
     else if (block.type === "fetch_data_source") await fetchDataSource(workflow, block, context, String(config.sourceId ?? ""));
     else if (block.type === "wait") await wait(Number(config.durationMs ?? 0));
     else if (block.type === "stamp_integritas") await stampLatestHash(workflow, context);
+    else if (block.type === "control_output") await controlOutput(config, context);
     else throw new Error(`Unsupported automation block: ${block.type}`);
     updateAutomationBlockRun(block.id);
     finishAutomationBlockRun(blockRun.id, { status: "success", output: contextSummary(context) });
@@ -254,7 +257,7 @@ function recordTriggerEvent(workflow: AutomationWorkflowRecord, block: Automatio
 async function fetchDataSource(workflow: AutomationWorkflowRecord, block: AutomationBlockRecord, context: WorkflowContext, sourceId: string) {
   const source = getDataSource(sourceId);
   if (!source) throw new Error("Data source not found");
-  if (source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input") throw new Error("Fetch data source block requires an HTTP JSON data source");
+  if (source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output") throw new Error("Fetch data source block requires an HTTP JSON data source");
   const config = parseJsonApiConfig(JSON.parse(source.config) as unknown);
   try {
     const result = await readJsonApiSource(config);
@@ -327,16 +330,27 @@ function blockToLegacyRule(block: ReturnType<typeof serializeAutomationBlock>) {
 
 function blockLabel(type: string) {
   if (type === "stamp_integritas") return "Stamp with Integritas";
+  if (type === "control_output") return "Control output";
   if (type === "fetch_data_source") return "Fetch data source";
   if (type === "record_trigger_event") return "Record trigger event";
   if (type === "wait") return "Wait";
   return "Start workflow";
 }
 
+async function controlOutput(config: { targetId?: string; action?: string; durationMs?: number }, context: WorkflowContext) {
+  if (config.action !== "pulse") throw new Error("Only pulse output actions are supported");
+  if (!config.targetId) throw new Error("Control output block requires a targetId");
+  const result = await pulseGpioOutput({ targetId: config.targetId, durationMs: Number(config.durationMs ?? 0) });
+  context.data = undefined;
+  context.output = result;
+  return result;
+}
+
 function contextSummary(context: WorkflowContext) {
   return {
     trigger: context.trigger,
     data: context.data ? { sourceId: context.data.sourceId, sourceName: context.data.sourceName, sourceUrl: context.data.sourceUrl, hash: context.data.result.bytesHash, readId: context.data.readId } : null,
+    output: context.output ?? null,
     hash: context.hash ?? null,
     proofId: context.proofId ?? null
   };

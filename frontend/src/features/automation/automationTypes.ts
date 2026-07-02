@@ -25,7 +25,8 @@ export type AutomationBlockType =
   | "record_trigger_event"
   | "fetch_data_source"
   | "wait"
-  | "stamp_integritas";
+  | "stamp_integritas"
+  | "control_output";
 
 export type AutomationBlock = {
   id: string;
@@ -37,6 +38,8 @@ export type AutomationBlock = {
   order: number;
   config: {
     sourceId?: string;
+    targetId?: string;
+    action?: "pulse";
     intervalSeconds?: number;
     durationMs?: number;
     activeOnly?: boolean;

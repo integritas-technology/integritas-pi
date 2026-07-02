@@ -6,7 +6,7 @@ import { recordPushAutomationPayload } from "../automation/automation.service.js
 import { createDataSource, deleteDataSource, findWebhookDataSource, getDataSource, listDataSources, updateDataSource, updateDataSourceReadResult } from "./dataSources.repository.js";
 import { syncMqttDataSources } from "./mqttIngestion.service.js";
 import { getGpioInputCapability, syncGpioDataSources } from "./gpioIngestion.service.js";
-import { checkDataSourceHealth, parseDataSourceConfig, parseJsonApiConfig, processWebhookPayload, readJsonApiSource, serializeDataSource } from "./dataSources.service.js";
+import { checkDataSourceHealth, parseDataSourceConfig, parseGpioInputConfig, parseGpioOutputConfig, parseJsonApiConfig, processWebhookPayload, readJsonApiSource, serializeDataSource } from "./dataSources.service.js";
 
 export const dataSourcesRouter = Router();
 export const dataSourcesWebhookRouter = Router();
@@ -41,11 +41,12 @@ dataSourcesRouter.post("/", requireRole("admin"), (req, res) => {
   const description = typeof req.body?.description === "string" ? req.body.description : "";
 
   if (!name) return res.status(400).json({ error: "name is required" });
-  if (type !== "json-api" && type !== "internal-json-api" && type !== "webhook" && type !== "mqtt" && type !== "gpio-input") return res.status(400).json({ error: "Only HTTP JSON API, webhook, MQTT, and GPIO input sources are supported" });
-  if (type === "gpio-input" && !getGpioInputCapability().available) return res.status(400).json({ error: getGpioInputCapability().reason });
+  if (!isSupportedDeviceType(type)) return res.status(400).json({ error: "Only HTTP JSON API, webhook, MQTT, GPIO input, and GPIO output devices are supported" });
+  if ((type === "gpio-input" || type === "gpio-output") && !getGpioInputCapability().available) return res.status(400).json({ error: getGpioInputCapability().reason });
 
   try {
     const config = parseDataSourceConfig(type, req.body?.config);
+    validateGpioPinAvailable(type, config, null);
     const record = createDataSource({ name, type, description, config });
     syncMqttDataSources();
     syncGpioDataSources();
@@ -71,11 +72,12 @@ dataSourcesRouter.patch("/:id", requireRole("admin"), (req, res) => {
   const description = typeof req.body?.description === "string" ? req.body.description : "";
 
   if (!name) return res.status(400).json({ error: "name is required" });
-  if (type !== "json-api" && type !== "internal-json-api" && type !== "webhook" && type !== "mqtt" && type !== "gpio-input") return res.status(400).json({ error: "Only HTTP JSON API, webhook, MQTT, and GPIO input sources are supported" });
-  if (type === "gpio-input" && !getGpioInputCapability().available) return res.status(400).json({ error: getGpioInputCapability().reason });
+  if (!isSupportedDeviceType(type)) return res.status(400).json({ error: "Only HTTP JSON API, webhook, MQTT, GPIO input, and GPIO output devices are supported" });
+  if ((type === "gpio-input" || type === "gpio-output") && !getGpioInputCapability().available) return res.status(400).json({ error: getGpioInputCapability().reason });
 
   try {
     const config = parseDataSourceConfig(type, req.body?.config, JSON.parse(existing.config) as unknown);
+    validateGpioPinAvailable(type, config, existing.id);
     const record = updateDataSource(req.params.id, { name, type, description, config });
     syncMqttDataSources();
     syncGpioDataSources();
@@ -88,7 +90,7 @@ dataSourcesRouter.patch("/:id", requireRole("admin"), (req, res) => {
 dataSourcesRouter.get("/:id/health", async (req, res) => {
   const record = getDataSource(req.params.id);
   if (!record) return res.status(404).json({ error: "Data source not found" });
-  if (record.type === "webhook" || record.type === "mqtt" || record.type === "gpio-input") return res.status(400).json({ error: "Push sources do not have a health URL" });
+  if (record.type === "webhook" || record.type === "mqtt" || record.type === "gpio-input" || record.type === "gpio-output") return res.status(400).json({ error: "This device does not have a health URL" });
 
   try {
     const config = parseJsonApiConfig(JSON.parse(record.config) as unknown);
@@ -102,7 +104,7 @@ dataSourcesRouter.get("/:id/health", async (req, res) => {
 dataSourcesRouter.post("/:id/read", requireRole("admin"), async (req, res) => {
   const record = getDataSource(req.params.id);
   if (!record) return res.status(404).json({ error: "Data source not found" });
-  if (record.type === "webhook" || record.type === "mqtt" || record.type === "gpio-input") return res.status(400).json({ error: "Push sources receive data and cannot be triggered manually" });
+  if (record.type === "webhook" || record.type === "mqtt" || record.type === "gpio-input" || record.type === "gpio-output") return res.status(400).json({ error: "This device cannot be read manually" });
 
   try {
     const config = parseJsonApiConfig(JSON.parse(record.config) as unknown);
@@ -118,3 +120,18 @@ dataSourcesRouter.post("/:id/read", requireRole("admin"), async (req, res) => {
     return res.status(502).json({ error: updated.last_error, item: serializeDataSource(updated) });
   }
 });
+
+function isSupportedDeviceType(type: string) {
+  return type === "json-api" || type === "internal-json-api" || type === "webhook" || type === "mqtt" || type === "gpio-input" || type === "gpio-output";
+}
+
+function validateGpioPinAvailable(type: string, config: unknown, currentId: string | null) {
+  if (type !== "gpio-input" && type !== "gpio-output") return;
+  const target = type === "gpio-input" ? parseGpioInputConfig(config) : parseGpioOutputConfig(config);
+
+  for (const source of listDataSources()) {
+    if (source.id === currentId || (source.type !== "gpio-input" && source.type !== "gpio-output")) continue;
+    const sourceConfig = source.type === "gpio-input" ? parseGpioInputConfig(JSON.parse(source.config) as unknown) : parseGpioOutputConfig(JSON.parse(source.config) as unknown);
+    if (sourceConfig.chip === target.chip && sourceConfig.pin === target.pin) throw new Error(`${target.chip} GPIO${target.pin} is already used by ${source.name}`);
+  }
+}

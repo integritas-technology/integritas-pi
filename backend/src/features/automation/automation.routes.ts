@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireRole } from "../auth/auth.middleware.js";
 import { getDataSource } from "../data-sources/dataSources.repository.js";
+import { parseGpioOutputConfig } from "../data-sources/dataSources.service.js";
 import { syncGpioDataSources } from "../data-sources/gpioIngestion.service.js";
 import { syncMqttDataSources } from "../data-sources/mqttIngestion.service.js";
 import { createAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, getAutomationWorkflow, listAutomationBlocks, listAutomationWorkflows, reorderAutomationBlocks, replaceAutomationBlocks, updateAutomationBlock, updateAutomationWorkflow, type AutomationBlockType } from "./automation.repository.js";
@@ -108,7 +109,9 @@ automationRouter.post("/workflows/:id/blocks", requireRole("admin"), (req, res) 
   const type = typeof req.body?.type === "string" ? req.body.type as AutomationBlockType : "" as AutomationBlockType;
   if (!isAutomationBlockType(type)) return res.status(400).json({ error: "Invalid block type" });
   try {
-    const block = createAutomationBlock(workflow.id, { type, config: req.body?.config ?? {}, enabled: req.body?.enabled !== false });
+    const config = req.body?.config && typeof req.body.config === "object" && !Array.isArray(req.body.config) ? req.body.config as Record<string, unknown> : {};
+    validateBlockConfig(type, config);
+    const block = createAutomationBlock(workflow.id, { type, config, enabled: req.body?.enabled !== false });
     syncMqttDataSources();
     syncGpioDataSources();
     return res.json({ item: serializeAutomationBlock(block), workflow: serializeAutomationWorkflow(getAutomationWorkflow(workflow.id)!) });
@@ -120,8 +123,18 @@ automationRouter.post("/workflows/:id/blocks", requireRole("admin"), (req, res) 
 automationRouter.patch("/workflows/:workflowId/blocks/:blockId", requireRole("admin"), (req, res) => {
   const workflow = getAutomationWorkflow(req.params.workflowId);
   if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
+  const currentBlock = listAutomationBlocks(workflow.id).find((block) => block.id === req.params.blockId);
+  if (!currentBlock) return res.status(404).json({ error: "Block not found" });
+  const config = req.body?.config && typeof req.body.config === "object" && !Array.isArray(req.body.config) ? req.body.config as Record<string, unknown> : undefined;
+  if (config) {
+    try {
+      validateBlockConfig(currentBlock.type, config);
+    } catch (error) {
+      return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid block config" });
+    }
+  }
   const block = updateAutomationBlock(req.params.workflowId, req.params.blockId, {
-    config: req.body?.config,
+    config,
     enabled: typeof req.body?.enabled === "boolean" ? req.body.enabled : undefined
   });
   if (!block) return res.status(404).json({ error: "Block not found" });
@@ -229,13 +242,25 @@ function validateBlockConfig(type: AutomationBlockType, config: Record<string, u
     if (type === "gpio_event_start" && source.type !== "gpio-input") throw new Error("GPIO start requires a GPIO input source");
     if (type === "webhook_event_start" && source.type !== "webhook") throw new Error("Webhook start requires a webhook source");
     if (type === "mqtt_event_start" && source.type !== "mqtt") throw new Error("MQTT start requires an MQTT source");
-    if (type === "fetch_data_source" && (source.type === "gpio-input" || source.type === "webhook" || source.type === "mqtt")) throw new Error("Fetch block requires an HTTP JSON source");
+    if (type === "fetch_data_source" && (source.type === "gpio-input" || source.type === "gpio-output" || source.type === "webhook" || source.type === "mqtt")) throw new Error("Fetch block requires an HTTP JSON source");
     return;
   }
 
   if (type === "wait") {
     const durationMs = Number(config.durationMs);
     if (!Number.isFinite(durationMs) || durationMs < 0 || durationMs > 60000) throw new Error("Wait block requires durationMs between 0 and 60000");
+    config.durationMs = durationMs;
+  }
+
+  if (type === "control_output") {
+    const targetId = typeof config.targetId === "string" ? config.targetId : "";
+    const target = getDataSource(targetId);
+    if (!target || target.type !== "gpio-output") throw new Error("Control output requires a GPIO output target");
+    const targetConfig = parseGpioOutputConfig(JSON.parse(target.config) as unknown);
+    if (targetConfig.profile !== "led") throw new Error("Only LED output targets are supported");
+    if (config.action !== "pulse") throw new Error("Only pulse output actions are supported");
+    const durationMs = Number(config.durationMs);
+    if (!Number.isFinite(durationMs) || durationMs < 1 || durationMs > 60000) throw new Error("Pulse duration must be between 1 and 60000 ms");
     config.durationMs = durationMs;
   }
 }
@@ -265,7 +290,8 @@ function isAutomationBlockType(type: string): type is AutomationBlockType {
     || type === "record_trigger_event"
     || type === "fetch_data_source"
     || type === "wait"
-    || type === "stamp_integritas";
+    || type === "stamp_integritas"
+    || type === "control_output";
 }
 
 function limitFromQuery(value: unknown, fallback: number) {

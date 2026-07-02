@@ -198,10 +198,13 @@ export function AutomationPage() {
 
 function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, onAddStampRule, onDeleteBlock, onDeleteRule, onUpdateBlock, onReorderBlocks, onRunNow, onToggleEnabled, onDelete }: { workflow: AutomationWorkflow; runs: AutomationRun[]; source: DataSource | undefined; sources: DataSource[]; busy: boolean; onAddBlock: (input: Parameters<typeof addAutomationBlock>[1]) => void; onAddStampRule: () => void; onDeleteBlock: (blockId: string) => void; onDeleteRule: (ruleId: string) => void; onUpdateBlock: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onReorderBlocks: (blockIds: string[]) => void; onRunNow: () => void; onToggleEnabled: () => void; onDelete: () => void }) {
   const [fetchSourceId, setFetchSourceId] = useState(() => sources.find((item) => item.type === "json-api" || item.type === "internal-json-api")?.id ?? "");
+  const [outputTargetId, setOutputTargetId] = useState(() => sources.find((item) => item.type === "gpio-output")?.id ?? "");
+  const [outputPulseMs, setOutputPulseMs] = useState("500");
   const [waitMs, setWaitMs] = useState("1000");
   const hasStampBlock = workflow.blocks.some((block) => block.type === "stamp_integritas");
   const canAppendAction = !hasStampBlock;
   const fetchSources = sources.filter((item) => item.type === "json-api" || item.type === "internal-json-api");
+  const outputTargets = sources.filter((item) => item.type === "gpio-output");
 
   return (
     <section className="automation-list">
@@ -253,6 +256,11 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
           <div className="row-actions">
             <button type="button" disabled={busy || !canAppendAction || !Number.isFinite(Number(waitMs))} onClick={() => onAddBlock({ type: "wait", config: { durationMs: Number(waitMs) } })}>Add wait block</button>
           </div>
+          <label>Output target<select value={outputTargetId} onChange={(event) => setOutputTargetId(event.target.value)}>{outputTargets.map((item) => <option key={item.id} value={item.id}>{item.name} - {sourceLabel(item)}</option>)}</select></label>
+          <label>Pulse duration ms<input value={outputPulseMs} onChange={(event) => setOutputPulseMs(event.target.value)} inputMode="numeric" placeholder="500" /></label>
+          <div className="row-actions">
+            <button type="button" disabled={busy || !canAppendAction || !outputTargetId || !Number.isFinite(Number(outputPulseMs))} onClick={() => onAddBlock({ type: "control_output", config: { targetId: outputTargetId, action: "pulse", durationMs: Number(outputPulseMs) } })}>Add output pulse block</button>
+          </div>
           {!canAppendAction && <p className="muted">Remove the stamp block before adding more action blocks, then add stamping again at the end.</p>}
         </div>
       </section>
@@ -280,9 +288,12 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
 
 function BlockCard({ block, sources, busy, canMoveUp, canMoveDown, onMoveUp, onMoveDown, onUpdate, onDelete }: { block: AutomationBlock; sources: DataSource[]; busy: boolean; canMoveUp: boolean; canMoveDown: boolean; onMoveUp: () => void; onMoveDown: () => void; onUpdate: (input: Parameters<typeof updateAutomationBlock>[2]) => void; onDelete: () => void }) {
   const [fetchSourceId, setFetchSourceId] = useState(block.config.sourceId ?? "");
+  const [outputTargetId, setOutputTargetId] = useState(block.config.targetId ?? "");
+  const [outputDurationMs, setOutputDurationMs] = useState(String(block.config.durationMs ?? 500));
   const [durationMs, setDurationMs] = useState(String(block.config.durationMs ?? 1000));
   const removable = !block.type.endsWith("_start");
   const fetchSources = sources.filter((item) => item.type === "json-api" || item.type === "internal-json-api");
+  const outputTargets = sources.filter((item) => item.type === "gpio-output");
   return (
     <div className="card">
       <div className="status-row">
@@ -305,6 +316,13 @@ function BlockCard({ block, sources, busy, canMoveUp, canMoveDown, onMoveUp, onM
         <div className="automation-form">
           <label>Wait duration ms<input value={durationMs} onChange={(event) => setDurationMs(event.target.value)} inputMode="numeric" /></label>
           <button type="button" disabled={busy || !Number.isFinite(Number(durationMs)) || Number(durationMs) === block.config.durationMs} onClick={() => onUpdate({ config: { durationMs: Number(durationMs) } })}>Save wait duration</button>
+        </div>
+      )}
+      {block.type === "control_output" && (
+        <div className="automation-form">
+          <label>Output target<select value={outputTargetId} onChange={(event) => setOutputTargetId(event.target.value)}>{outputTargets.map((item) => <option key={item.id} value={item.id}>{item.name} - {sourceLabel(item)}</option>)}</select></label>
+          <label>Pulse duration ms<input value={outputDurationMs} onChange={(event) => setOutputDurationMs(event.target.value)} inputMode="numeric" /></label>
+          <button type="button" disabled={busy || !outputTargetId || !Number.isFinite(Number(outputDurationMs))} onClick={() => onUpdate({ config: { targetId: outputTargetId, action: "pulse", durationMs: Number(outputDurationMs) } })}>Save output pulse</button>
         </div>
       )}
       {removable && <div className="row-actions">
@@ -343,6 +361,7 @@ function blockLabel(block: AutomationBlock) {
   if (block.type === "fetch_data_source") return "Fetch data source";
   if (block.type === "wait") return "Wait";
   if (block.type === "stamp_integritas") return "Stamp with Integritas";
+  if (block.type === "control_output") return "Control output";
   return block.type;
 }
 
@@ -351,12 +370,13 @@ function blockShortLabel(block: AutomationBlock) {
   if (block.type === "record_trigger_event") return "Record event";
   if (block.type === "fetch_data_source") return "Fetch source";
   if (block.type === "stamp_integritas") return "Stamp";
+  if (block.type === "control_output") return "Control output";
   if (block.type === "wait") return "Wait";
   return block.type;
 }
 
 function blockDescription(block: AutomationBlock, sources: DataSource[]) {
-  const source = block.config.sourceId ? sources.find((item) => item.id === block.config.sourceId) : undefined;
+  const source = block.config.sourceId || block.config.targetId ? sources.find((item) => item.id === (block.config.sourceId ?? block.config.targetId)) : undefined;
   if (block.type === "schedule_start") return `Every ${formatInterval(Number(block.config.intervalSeconds ?? 0)).replace("Every ", "")}`;
   if (block.type === "gpio_event_start") return source ? `${source.name} - GPIO${source.config.pin ?? "?"}` : "GPIO input event";
   if (block.type === "webhook_event_start") return source ? `${source.name} webhook payload` : "Webhook payload";
@@ -365,6 +385,7 @@ function blockDescription(block: AutomationBlock, sources: DataSource[]) {
   if (block.type === "fetch_data_source") return source ? `Fetch ${source.name}` : "Fetch configured HTTP JSON source";
   if (block.type === "wait") return `Pause for ${block.config.durationMs ?? 0} ms`;
   if (block.type === "stamp_integritas") return "Stamp the latest collected hash";
+  if (block.type === "control_output") return source ? `Pulse ${source.name} for ${block.config.durationMs ?? 0} ms` : "Pulse configured output target";
   return "Workflow block";
 }
 
@@ -374,6 +395,7 @@ function blockOutput(block: AutomationBlock) {
   if (block.type === "fetch_data_source") return "Fetched JSON + hash";
   if (block.type === "wait") return "Same context";
   if (block.type === "stamp_integritas") return "Proof UID";
+  if (block.type === "control_output") return "Output action result";
   return "Context";
 }
 
@@ -418,6 +440,7 @@ function sourceLabel(source: DataSource) {
   if (source.type === "webhook") return "Webhook receive URL";
   if (source.type === "mqtt") return `${source.config.brokerUrl ?? "MQTT broker"} ${source.config.topic ?? ""}`;
   if (source.type === "gpio-input") return `${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"}`;
+  if (source.type === "gpio-output") return `${source.config.profile ?? "led"} ${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"}`;
   return source.config.url ?? "HTTP JSON API";
 }
 

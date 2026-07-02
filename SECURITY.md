@@ -357,6 +357,25 @@ Plan:
 
 Status: Accepted prototype risk. Pi GPIO pins are 3.3V only; use proper level shifting, resistors, and isolation for external or industrial signals.
 
+### GPIO Output Targets
+
+Risk: GPIO output targets let automation workflows drive Raspberry Pi GPIO pins through `gpioset` when `/dev/gpiochip0` is mounted into the backend container.
+
+Impact: Unsafe wiring or incorrect profiles can damage the Pi or connected components. GPIO pins are 3.3V logic and cannot safely drive motors, relays, high-current loads, or 5V signals directly.
+
+Current Controls:
+
+- GPIO output targets require admin role to create/edit/delete.
+- V1 exposes only the LED output profile and pulse action.
+- Output actions are allowlisted workflow blocks, not arbitrary shell commands.
+- GPIO output config uses BCM pin numbering and validates chip/pin shape.
+- The backend rejects GPIO output targets that reuse a configured GPIO input/output pin.
+- GPIO device access remains opt-in through `ENABLE_GPIO=true` and `/dev/gpiochip0` mounting.
+
+Required wiring baseline: use an LED with a 220-330 ohm resistor in series. Do not connect GPIO pins directly to 5V, motors, relays, mains voltage, or unknown modules.
+
+Status: Accepted prototype risk for local learning hardware only.
+
 ### Integritas Request Proxy
 
 Risk: Backend proxies stamp/status/verify calls to Integritas using a stored API key.

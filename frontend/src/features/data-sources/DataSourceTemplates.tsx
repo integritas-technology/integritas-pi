@@ -40,9 +40,9 @@ export function DataSourceTemplates({ capabilities, onSelect }: { capabilities: 
         <Card className="data-source-template">
           <Lightbulb size={24} />
           <h3>GPIO Output</h3>
-          <p>Control a Raspberry Pi GPIO pin for LEDs, buzzers, or driver circuits from workflow blocks.</p>
-          <p className="muted">Coming next: output targets will be configured here and selected by GPIO output blocks.</p>
-          <button type="button" disabled>Add output</button>
+          <p>Define an LED output target that workflow blocks can pulse safely.</p>
+          <p className="muted">LED profile only. Use a 220-330 ohm resistor in series with the LED.</p>
+          <button type="button" disabled={capabilities?.gpioInput.available === false} onClick={() => onSelect({ title: "GPIO Output", description: "LED output target controlled by automation workflows", type: "gpio-output", config: { chip: "gpiochip0", pin: 18, profile: "led", activeState: "high", initialState: "inactive" } })}>Add output</button>
         </Card>
       </div>
     </section>

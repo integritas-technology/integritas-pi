@@ -47,7 +47,7 @@ export function DataSourcesList({
                 <td>{source.type === "json-api" || source.type === "internal-json-api" || source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" ? "Input" : "Output"}</td>
                 <td>{source.type}</td>
                 <td>
-                  <code>{source.type === "webhook" ? webhookUrl(source) : source.type === "mqtt" ? mqttEndpoint(source) : source.type === "gpio-input" ? gpioEndpoint(source) : source.config.url}</code>
+                  <code>{source.type === "webhook" ? webhookUrl(source) : source.type === "mqtt" ? mqttEndpoint(source) : source.type === "gpio-input" ? gpioEndpoint(source) : source.type === "gpio-output" ? gpioOutputEndpoint(source) : source.config.url}</code>
                 </td>
                 <td>
                   <HealthCell source={source} status={healthStatuses[source.id]} />
@@ -73,7 +73,7 @@ export function DataSourcesList({
                     <button
                       className="icon-action-button"
                       type="button"
-                      disabled={busy || source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input"}
+                      disabled={busy || source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output"}
                       title="Trigger manually"
                       aria-label={`Trigger ${source.name} manually`}
                       onClick={() => onRead(source)}
@@ -126,8 +126,12 @@ function gpioEndpoint(source: DataSource) {
   return `${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"} ${source.config.edge ?? "both"}`;
 }
 
+function gpioOutputEndpoint(source: DataSource) {
+  return `${source.config.profile ?? "led"} ${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"} active:${source.config.activeState ?? "high"}`;
+}
+
 function HealthCell({ source, status }: { source: DataSource; status?: DataSourceHealthStatus }) {
-  if (source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input") return <span className="muted">Automation controlled</span>;
+  if (source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output") return <span className="muted">Automation controlled</span>;
   if (!source.config.healthStatusUrl) return <span className="muted">Not configured</span>;
   if (!status) return <span className="health-status"><span className="health-dot pending" />Checking</span>;
 

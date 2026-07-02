@@ -10,7 +10,8 @@ export type AutomationBlockType =
   | "record_trigger_event"
   | "fetch_data_source"
   | "wait"
-  | "stamp_integritas";
+  | "stamp_integritas"
+  | "control_output";
 
 export type AutomationWorkflowRecord = {
   id: string;
