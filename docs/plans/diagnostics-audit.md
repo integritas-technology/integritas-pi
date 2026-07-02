@@ -23,7 +23,7 @@
 | 2 | Over-engineering / simplify | ✅ done | See Part 2 notes below |
 | 3 | Coding style consistency | ✅ done | See Part 3 notes below |
 | 4 | Broken flows | ✅ done | See Part 4 notes below |
-| 5 | Security | ⬜ pending | |
+| 5 | Security | ✅ done | `ids` array length now capped; see Part 5 notes below |
 | 6 | Dead code cleanup | ⬜ pending | |
 
 ---
@@ -192,13 +192,34 @@
 
 **Check**
 
-- [ ] List endpoints still behind `requireAuth` (no new public routes)
-- [ ] `page` / `pageSize` clamped server-side (no unbounded `LIMIT`)
-- [ ] `q` length-capped; SQL uses bound params (no injection via `LIKE`)
-- [ ] `status` allowlisted per endpoint
-- [ ] `delete-selected` / `export-selected` — arbitrary id list: confirm no cross-tenant/id-guessing issue (single-user prototype; still validate id shape if cheap)
-- [ ] Export path / file write still respects `dataDir` and auth
-- [ ] No secrets in paginated responses or URL params
+- [x] List endpoints still behind `requireAuth` (no new public routes)
+- [x] `page` / `pageSize` clamped server-side (no unbounded `LIMIT`)
+- [x] `q` length-capped; SQL uses bound params (no injection via `LIKE`)
+- [x] `status` allowlisted per endpoint
+- [x] `delete-selected` / `export-selected` — arbitrary id list: confirm no cross-tenant/id-guessing issue (single-user prototype; still validate id shape if cheap)
+- [x] Export path / file write still respects `dataDir` and auth
+- [x] No secrets in paginated responses or URL params
+
+### Part 5 results
+
+**Pass**
+
+- `requireAuth` applied globally in `app.ts` before both `integritasRouter` and `dataReadsRouter` are mounted — no new public routes.
+- `pageSize` clamped server-side to 10–100 in `list-query.ts` regardless of client input; `LIMIT`/`OFFSET` in both repositories always use the clamped value.
+- `q` capped at 200 chars server-side; both repositories use `LIKE ?` with the value passed as a bound parameter, not string-interpolated into SQL — no injection vector.
+- `status` allowlisted per endpoint (`PROOF_LIST_STATUSES`, `DATA_READ_LIST_STATUSES`), enforced server-side independent of frontend behavior.
+- `writeProofExport` builds the export path from `env.dataDir` + a server-generated timestamp filename — no user input reaches the filesystem path. Route sits behind the same global `requireAuth`.
+- Pagination didn't add any new response fields beyond the pre-existing row shape — no new secret/field exposure.
+- `UserRole` is `"admin"` only (single role in the whole system, confirmed in `auth.types.ts`) — the missing `requireRole` on delete/export/verify routes isn't a real privilege gap right now; matches the "single-user prototype" framing already in this doc.
+
+**Fixed**
+
+- `delete-selected` / `export-selected` validated `ids` as an array of non-empty strings but never capped its *length*. `express.json({ limit: "2mb" })` bounds the request body, but that's still tens of thousands of UUID-length strings — enough synchronous work (a `better-sqlite3` transaction loop, or a per-id `getProofRecord` loop for export) to stall the single-threaded backend for a noticeable stretch. Low severity (admin-only, self-inflicted), but cheap to close. Added a shared `parseSelectedIds` helper in `integritas.routes.ts` capping at 500 ids (well above the UI's max — selection can never exceed one page's `pageSize`, capped at 100 — since selection always clears on page change).
+
+**Accepted (unchanged)**
+
+- `q` containing `%` / `_` acts as a raw SQL `LIKE` wildcard — not an injection (still a bound parameter value), just occasionally confusing search matches (e.g. `q=%` matches everything). Low value to fix; left as-is.
+- No app-wide rate limiting (checked `app.ts` — no `express-rate-limit`/`helmet`). Pre-existing across the whole app, not introduced by this feature; out of scope here.
 
 **Initial suspects**
 

@@ -16,6 +16,16 @@ import { upload } from "./upload.middleware.js";
 
 export const integritasRouter = Router();
 
+const MAX_SELECTED_IDS = 500;
+
+function parseSelectedIds(req: { body?: unknown }): { ok: true; ids: string[] } | { ok: false; error: string } {
+  const raw = (req.body as { ids?: unknown } | undefined)?.ids;
+  const ids = Array.isArray(raw) ? raw.filter((id: unknown) => typeof id === "string" && id) : [];
+  if (ids.length === 0) return { ok: false, error: "ids must contain at least one id" };
+  if (ids.length > MAX_SELECTED_IDS) return { ok: false, error: `ids must contain ${MAX_SELECTED_IDS} or fewer entries` };
+  return { ok: true, ids };
+}
+
 function proofHistoryPage(query: { page: number; pageSize: number; status?: string; q?: string }) {
   const total = countProofRecords(query);
   const items = listProofRecords(query);
@@ -139,15 +149,16 @@ integritasRouter.get("/history/:id", (req, res) => {
 });
 
 integritasRouter.post("/history/delete-selected", (req, res) => {
-  const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter((id: unknown) => typeof id === "string" && id) : [];
-  if (ids.length === 0) return res.status(400).json({ error: "ids must contain at least one id" });
-  deleteProofRecords(ids);
-  return res.json({ deleted: ids.length });
+  const parsed = parseSelectedIds(req);
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+  deleteProofRecords(parsed.ids);
+  return res.json({ deleted: parsed.ids.length });
 });
 
 integritasRouter.post("/history/export-selected", async (req, res) => {
-  const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter((id: unknown) => typeof id === "string" && id) : [];
-  if (ids.length === 0) return res.status(400).json({ error: "ids must contain at least one id" });
+  const parsed = parseSelectedIds(req);
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+  const ids = parsed.ids;
 
   try {
     const merged = ids.flatMap((id: string) => parseProofPayload(getProofRecord(id)?.proof_payload ?? null) ?? []);
