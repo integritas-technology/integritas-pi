@@ -59,6 +59,10 @@ function stopInactiveHolder(key: string) {
   inactiveHolders.delete(key);
 }
 
+export function stopGpioOutputHolders() {
+  for (const key of inactiveHolders.keys()) stopInactiveHolder(key);
+}
+
 function outputKey(chip: string, pin: number) {
   return `${chip}:${pin}`;
 }

@@ -26,6 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - GPIO Output LED pulses now explicitly return the line to the inactive state after pulsing so LEDs do not remain stuck on after a workflow run.
 - Automation Run now is available for all workflow start types and records a synthetic manual test trigger for event workflows instead of being limited to scheduled workflows.
+- Backend shutdown now stops GPIO Output holder processes so LED output lines are released cleanly when the container stops.
 
 ## [0.12.0] - 2026-07-02
 
