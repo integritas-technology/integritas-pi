@@ -182,7 +182,7 @@ export function AutomationPage() {
                   </div>
                   <div className="row-actions">
                     <button type="button" disabled={busy} onClick={() => setWorkspaceWorkflowId(workflow.id)}>Open</button>
-                    <button type="button" disabled={busy || workflow.pollingIntervalSeconds === 0} onClick={() => run(() => runAutomationWorkflow(workflow.id))}>Run now</button>
+                    <button type="button" disabled={busy} onClick={() => run(() => runAutomationWorkflow(workflow.id))}>Run now</button>
                     <button type="button" disabled={busy} onClick={() => run(() => updateAutomationWorkflow(workflow.id, { enabled: !workflow.enabled }))}>{workflow.enabled ? "Pause" : "Enable"}</button>
                   </div>
                 </div>
@@ -272,7 +272,7 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
         </div>
         <div className="row-actions">
           <button type="button" disabled={busy || hasStampBlock} onClick={onAddStampRule}>Add Integritas block</button>
-          <button type="button" disabled={busy || workflow.pollingIntervalSeconds === 0} onClick={onRunNow}>Run now</button>
+          <button type="button" disabled={busy} onClick={onRunNow}>Run now</button>
           <button type="button" disabled={busy} onClick={onToggleEnabled}>{workflow.enabled ? "Pause" : "Enable"}</button>
           <button type="button" disabled={busy} onClick={onDelete}>Delete workflow</button>
         </div>

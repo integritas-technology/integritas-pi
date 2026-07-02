@@ -192,12 +192,27 @@ automationRouter.delete("/workflows/:id", requireRole("admin"), (req, res) => {
 });
 
 automationRouter.post("/workflows/:id/run", requireRole("admin"), async (req, res) => {
+  const workflow = getAutomationWorkflow(req.params.id);
+  if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
+  const startBlock = listAutomationBlocks(workflow.id)[0];
+  const startConfig = startBlock ? JSON.parse(startBlock.config_json) as { sourceId?: string } : {};
+
   try {
-    const result = await runAutomationWorkflow(req.params.id);
+    const result = await runAutomationWorkflow(req.params.id, {
+      type: "manual",
+      sourceId: startConfig.sourceId,
+      payload: {
+        source: "run-now",
+        workflowId: workflow.id,
+        workflowName: workflow.name,
+        triggeredAt: new Date().toISOString(),
+        note: "Manual workflow test run from the Automation page"
+      }
+    });
     return res.json(result);
   } catch (error) {
-    const workflow = error && typeof error === "object" && "workflow" in error ? (error as { workflow: unknown }).workflow : null;
-    return res.status(502).json({ error: error instanceof Error ? error.message : "Automation workflow failed", workflow });
+    const errorWorkflow = error && typeof error === "object" && "workflow" in error ? (error as { workflow: unknown }).workflow : null;
+    return res.status(502).json({ error: error instanceof Error ? error.message : "Automation workflow failed", workflow: errorWorkflow });
   }
 });
 
