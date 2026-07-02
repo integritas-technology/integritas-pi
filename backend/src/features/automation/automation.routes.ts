@@ -14,12 +14,30 @@ automationRouter.get("/workflows", (_req, res) => {
 
 automationRouter.post("/workflows", requireRole("admin"), (req, res) => {
   const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
-  const dataSourceId = typeof req.body?.dataSourceId === "string" ? req.body.dataSourceId : "";
-  const pollingIntervalSeconds = Number(req.body?.pollingIntervalSeconds);
   const enabled = Boolean(req.body?.enabled);
-  const stampWithIntegritas = req.body?.stampWithIntegritas === true;
 
   if (!name) return res.status(400).json({ error: "name is required" });
+
+  if (Array.isArray(req.body?.blocks)) {
+    try {
+      const blocks = parseWorkflowBlocks(req.body.blocks);
+      const workflow = createAutomationWorkflow({
+        name,
+        enabled,
+        nextRunAt: enabled ? nextRunAtForBlocks(blocks) : null,
+        blocks
+      });
+      syncMqttDataSources();
+      syncGpioDataSources();
+      return res.json({ item: serializeAutomationWorkflow(workflow) });
+    } catch (error) {
+      return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid workflow blocks" });
+    }
+  }
+
+  const dataSourceId = typeof req.body?.dataSourceId === "string" ? req.body.dataSourceId : "";
+  const pollingIntervalSeconds = Number(req.body?.pollingIntervalSeconds);
+  const stampWithIntegritas = req.body?.stampWithIntegritas === true;
   const dataSource = getDataSource(dataSourceId);
   if (!dataSource) return res.status(400).json({ error: "dataSourceId must reference an existing data source" });
   const isPushSource = dataSource.type === "webhook" || dataSource.type === "mqtt" || dataSource.type === "gpio-input";
@@ -160,6 +178,55 @@ function legacyBlocksForWorkflow(sourceId: string, sourceType: string, pollingIn
   else blocks.push({ type: "schedule_start", config: { intervalSeconds: pollingIntervalSeconds } }, { type: "fetch_data_source", config: { sourceId } });
   if (stampWithIntegritas) blocks.push({ type: "stamp_integritas", config: {} });
   return blocks;
+}
+
+function parseWorkflowBlocks(value: unknown[]) {
+  if (value.length === 0) throw new Error("At least one block is required");
+  const blocks = value.map((item) => {
+    const block = item as { type?: unknown; config?: unknown; enabled?: unknown };
+    const type = typeof block.type === "string" ? block.type : "";
+    if (!isAutomationBlockType(type)) throw new Error(`Invalid block type: ${type || "missing"}`);
+    const config = block.config && typeof block.config === "object" && !Array.isArray(block.config) ? block.config as Record<string, unknown> : {};
+    validateBlockConfig(type, config);
+    return { type, config, enabled: block.enabled === false ? false : true };
+  });
+
+  if (!blocks[0].type.endsWith("_start")) throw new Error("The first workflow block must be a start block");
+  if (blocks.slice(1).some((block) => block.type.endsWith("_start"))) throw new Error("Only the first workflow block can be a start block");
+  return blocks;
+}
+
+function validateBlockConfig(type: AutomationBlockType, config: Record<string, unknown>) {
+  if (type === "schedule_start") {
+    const intervalSeconds = Number(config.intervalSeconds);
+    if (!Number.isFinite(intervalSeconds) || intervalSeconds < 10) throw new Error("Schedule start requires intervalSeconds of at least 10");
+    config.intervalSeconds = intervalSeconds;
+    return;
+  }
+
+  if (type === "gpio_event_start" || type === "webhook_event_start" || type === "mqtt_event_start" || type === "fetch_data_source") {
+    const sourceId = typeof config.sourceId === "string" ? config.sourceId : "";
+    const source = getDataSource(sourceId);
+    if (!source) throw new Error(`${type} requires a valid sourceId`);
+    if (type === "gpio_event_start" && source.type !== "gpio-input") throw new Error("GPIO start requires a GPIO input source");
+    if (type === "webhook_event_start" && source.type !== "webhook") throw new Error("Webhook start requires a webhook source");
+    if (type === "mqtt_event_start" && source.type !== "mqtt") throw new Error("MQTT start requires an MQTT source");
+    if (type === "fetch_data_source" && (source.type === "gpio-input" || source.type === "webhook" || source.type === "mqtt")) throw new Error("Fetch block requires an HTTP JSON source");
+    return;
+  }
+
+  if (type === "wait") {
+    const durationMs = Number(config.durationMs);
+    if (!Number.isFinite(durationMs) || durationMs < 0 || durationMs > 60000) throw new Error("Wait block requires durationMs between 0 and 60000");
+    config.durationMs = durationMs;
+  }
+}
+
+function nextRunAtForBlocks(blocks: { type: AutomationBlockType; config: unknown }[]) {
+  const start = blocks[0];
+  if (start.type !== "schedule_start") return null;
+  const intervalSeconds = Number((start.config as { intervalSeconds?: unknown }).intervalSeconds);
+  return Number.isFinite(intervalSeconds) && intervalSeconds > 0 ? new Date(Date.now() + intervalSeconds * 1000).toISOString() : null;
 }
 
 function setStampBlock(workflowId: string, enabled: boolean) {

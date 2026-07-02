@@ -600,3 +600,4 @@ Button -> fetch API -> blink LED.
 - Implemented the first backend block foundation: destructive legacy automation reset, `automation_blocks`, trigger metadata on reads, block executor, schedule/manual fetch, event recording, Integritas stamping, and compatibility endpoints for the existing UI.
 - Added the first frontend block-list workspace: workflows now show actual blocks, support appending fetch/wait/stamp blocks, and avoid showing internal start blocks as duplicate collect rules.
 - Added block editing and ordering controls: fetch blocks can change target source, wait blocks can change duration, action blocks can be enabled/disabled, and blocks can move up/down while preserving the required start block at the top.
+- Replaced the data-source-first create workflow modal with a block-first creator: operators choose a manual, schedule, GPIO, webhook, or MQTT start block and optionally add an initial record/fetch action before opening the workspace.

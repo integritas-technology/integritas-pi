@@ -5,7 +5,7 @@ export async function listAutomationWorkflows() {
   return getJson<{ items: AutomationWorkflow[] }>("/api/automation/workflows");
 }
 
-export async function createAutomationWorkflow(input: { name: string; dataSourceId: string; enabled: boolean; pollingIntervalSeconds: number; stampWithIntegritas: boolean }) {
+export async function createAutomationWorkflow(input: { name: string; enabled: boolean; blocks: { type: AutomationBlockType; config?: AutomationBlock["config"]; enabled?: boolean }[] } | { name: string; dataSourceId: string; enabled: boolean; pollingIntervalSeconds: number; stampWithIntegritas: boolean }) {
   return postJson<{ item: AutomationWorkflow }>("/api/automation/workflows", input);
 }
 

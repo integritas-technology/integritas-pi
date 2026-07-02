@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - GPIO and MQTT event workflows no longer create failed read-history rows for ignored overlapping events while the same workflow is still running, and the compatibility UI no longer shows start blocks as duplicate collect rules.
 - Automation workspace now displays real workflow blocks and can append fetch, wait, and Integritas stamp blocks from the UI.
 - Automation blocks can now be updated and reordered from the workspace, including changing fetch targets, wait durations, and action-block enabled state.
+- Workflow creation is now block-first: operators choose a start block (manual, schedule, GPIO, webhook, or MQTT) and an optional initial record/fetch action instead of creating workflows from a single data source.
 
 ## [0.11.0] - 2026-06-30
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
 import { addAutomationBlock, addAutomationRule, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationRule, deleteAutomationWorkflow, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow } from "../features/automation/automationApi";
-import type { AutomationBlock, AutomationWorkflow } from "../features/automation/automationTypes";
+import type { AutomationBlock, AutomationBlockType, AutomationWorkflow } from "../features/automation/automationTypes";
 import { listDataSources } from "../features/data-sources/dataSourcesApi";
 import type { DataSource } from "../features/data-sources/dataSourceTypes";
 import { formatLocalTime } from "../lib/time";
@@ -13,7 +13,10 @@ export function AutomationPage() {
   const [sources, setSources] = useState<DataSource[]>([]);
   const [workflows, setWorkflows] = useState<AutomationWorkflow[]>([]);
   const [name, setName] = useState("");
-  const [dataSourceId, setDataSourceId] = useState("");
+  const [startType, setStartType] = useState<AutomationBlockType>("gpio_event_start");
+  const [startSourceId, setStartSourceId] = useState("");
+  const [initialAction, setInitialAction] = useState<"none" | "record_trigger_event" | "fetch_data_source">("record_trigger_event");
+  const [initialFetchSourceId, setInitialFetchSourceId] = useState("");
   const [pollingIntervalSeconds, setPollingIntervalSeconds] = useState(60);
   const [enabled, setEnabled] = useState(true);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -29,7 +32,8 @@ export function AutomationPage() {
     const [sourceResponse, workflowResponse] = await Promise.all([listDataSources(), listAutomationWorkflows()]);
     setSources(sourceResponse.items);
     setWorkflows(workflowResponse.items);
-    if (!dataSourceId && sourceResponse.items[0]) setDataSourceId(sourceResponse.items[0].id);
+    if (!startSourceId) setStartSourceId(defaultSourceForStart(startType, sourceResponse.items)?.id ?? "");
+    if (!initialFetchSourceId) setInitialFetchSourceId(firstHttpSource(sourceResponse.items)?.id ?? "");
   }
 
   async function run(action: () => Promise<unknown>) {
@@ -49,8 +53,10 @@ export function AutomationPage() {
     setBusy(true);
     setError(null);
     try {
-      const response = await createAutomationWorkflow({ name, dataSourceId, enabled, pollingIntervalSeconds: selectedSourceIsPush ? 0 : pollingIntervalSeconds, stampWithIntegritas: false });
+      const blocks = buildInitialBlocks({ startType, startSourceId, initialAction, initialFetchSourceId, pollingIntervalSeconds });
+      const response = await createAutomationWorkflow({ name, enabled, blocks });
       setName("");
+      setInitialAction(defaultInitialAction(startType));
       setCreateModalOpen(false);
       setWorkspaceWorkflowId(response.item.id);
       await refresh();
@@ -61,17 +67,18 @@ export function AutomationPage() {
     }
   }
 
-  const selectedSource = sources.find((source) => source.id === dataSourceId);
-  const selectedSourceIsPush = selectedSource?.type === "webhook" || selectedSource?.type === "mqtt" || selectedSource?.type === "gpio-input";
+  const selectedStartSource = sources.find((source) => source.id === startSourceId);
+  const startSources = sourcesForStart(startType, sources);
+  const httpSources = sources.filter((source) => source.type === "json-api" || source.type === "internal-json-api");
   const sourceById = (id: string) => sources.find((source) => source.id === id);
   const sourceName = (id: string) => sourceById(id)?.name ?? "Unknown source";
   const workspaceWorkflow = workflows.find((workflow) => workflow.id === workspaceWorkflowId) ?? null;
 
   return (
-    <Page eyebrow="Automation" title="Automation rule workspace" desc="Build workflows from connected rules. V1 starts with data collection rules and optional Integritas stamping rules.">
+    <Page eyebrow="Automation" title="Block automation workspace" desc="Build workflows from small start, data, logic, and Integritas blocks.">
       <section className="card">
         <div className="status-row">
-          <div><strong>Workflow builder</strong><p className="muted">Create a workflow, then add rules to expand what happens after data is collected.</p></div>
+          <div><strong>Workflow builder</strong><p className="muted">Create a workflow from a start block, then connect action blocks in the workspace.</p></div>
           <button type="button" onClick={() => setCreateModalOpen(true)}>Create new workflow</button>
         </div>
       </section>
@@ -80,15 +87,33 @@ export function AutomationPage() {
         <Modal title="Create workflow" onClose={() => setCreateModalOpen(false)}>
           <section className="automation-form">
             <div className="status-row">
-              <div><strong>Create workflow</strong><p className="muted">Creating a workflow adds a Collect data rule. Add an Integritas rule afterward to stamp collected hashes.</p></div>
-              <span className="pill pill-neutral">When / Condition / Then</span>
+              <div><strong>Create workflow</strong><p className="muted">Choose how the workflow starts, then optionally add the first action block.</p></div>
+              <span className="pill pill-neutral">Block builder</span>
             </div>
 
-            <label>Name<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Stamp mock device measurements" /></label>
-            <label>Data source<select value={dataSourceId} onChange={(event) => setDataSourceId(event.target.value)}>{sources.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>
-            {selectedSourceIsPush ? <p className="muted">This push source records incoming data only while this workflow is enabled. It does not use a polling interval.</p> : <label>Polling interval<select value={pollingIntervalSeconds} onChange={(event) => setPollingIntervalSeconds(Number(event.target.value))}>{intervals.map((interval) => <option key={interval} value={interval}>{formatInterval(interval)}</option>)}</select></label>}
+            <label>Name<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Button fetches weather API" /></label>
+            <label>Start block<select value={startType} onChange={(event) => {
+              const nextType = event.target.value as AutomationBlockType;
+              setStartType(nextType);
+              setStartSourceId(defaultSourceForStart(nextType, sources)?.id ?? "");
+              setInitialAction(defaultInitialAction(nextType));
+            }}>
+              <option value="manual_start">Manual run</option>
+              <option value="schedule_start">Schedule</option>
+              <option value="gpio_event_start">GPIO input event</option>
+              <option value="webhook_event_start">Webhook received</option>
+              <option value="mqtt_event_start">MQTT message received</option>
+            </select></label>
+            {startType === "schedule_start" ? <label>Interval<select value={pollingIntervalSeconds} onChange={(event) => setPollingIntervalSeconds(Number(event.target.value))}>{intervals.map((interval) => <option key={interval} value={interval}>{formatInterval(interval)}</option>)}</select></label> : !startType.endsWith("manual_start") ? <label>Start source<select value={startSourceId} onChange={(event) => setStartSourceId(event.target.value)}>{startSources.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label> : <p className="muted">Manual workflows run only when you click Run now.</p>}
+            {startType !== "schedule_start" && selectedStartSource && <p className="muted">Starts from {selectedStartSource.name}: {sourceLabel(selectedStartSource)}</p>}
+            <label>First action<select value={initialAction} onChange={(event) => setInitialAction(event.target.value as "none" | "record_trigger_event" | "fetch_data_source")}>
+              <option value="none">No action yet</option>
+              {startType !== "schedule_start" && startType !== "manual_start" && <option value="record_trigger_event">Record trigger event</option>}
+              <option value="fetch_data_source">Fetch HTTP JSON source</option>
+            </select></label>
+            {initialAction === "fetch_data_source" && <label>HTTP source<select value={initialFetchSourceId} onChange={(event) => setInitialFetchSourceId(event.target.value)}>{httpSources.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>}
             <label className="check-row"><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} /> Enabled</label>
-            <button type="button" disabled={busy || !name || !dataSourceId} onClick={submitWorkflow}>Create workflow</button>
+            <button type="button" disabled={busy || !name || !canCreateWorkflow(startType, startSourceId, initialAction, initialFetchSourceId)} onClick={submitWorkflow}>Create workflow</button>
           </section>
         </Modal>
       )}
@@ -330,6 +355,43 @@ function blockOutput(block: AutomationBlock) {
   if (block.type === "wait") return "Same context";
   if (block.type === "stamp_integritas") return "Proof UID";
   return "Context";
+}
+
+function sourcesForStart(type: AutomationBlockType, sources: DataSource[]) {
+  if (type === "gpio_event_start") return sources.filter((source) => source.type === "gpio-input");
+  if (type === "webhook_event_start") return sources.filter((source) => source.type === "webhook");
+  if (type === "mqtt_event_start") return sources.filter((source) => source.type === "mqtt");
+  return [];
+}
+
+function defaultSourceForStart(type: AutomationBlockType, sources: DataSource[]) {
+  return sourcesForStart(type, sources)[0] ?? null;
+}
+
+function firstHttpSource(sources: DataSource[]) {
+  return sources.find((source) => source.type === "json-api" || source.type === "internal-json-api") ?? null;
+}
+
+function defaultInitialAction(type: AutomationBlockType): "none" | "record_trigger_event" | "fetch_data_source" {
+  if (type === "schedule_start" || type === "manual_start") return "fetch_data_source";
+  return "record_trigger_event";
+}
+
+function canCreateWorkflow(startType: AutomationBlockType, startSourceId: string, initialAction: "none" | "record_trigger_event" | "fetch_data_source", initialFetchSourceId: string) {
+  if (startType !== "manual_start" && startType !== "schedule_start" && !startSourceId) return false;
+  if (initialAction === "fetch_data_source" && !initialFetchSourceId) return false;
+  return true;
+}
+
+function buildInitialBlocks(input: { startType: AutomationBlockType; startSourceId: string; initialAction: "none" | "record_trigger_event" | "fetch_data_source"; initialFetchSourceId: string; pollingIntervalSeconds: number }) {
+  const blocks: { type: AutomationBlockType; config: AutomationBlock["config"] }[] = [];
+  if (input.startType === "schedule_start") blocks.push({ type: "schedule_start", config: { intervalSeconds: input.pollingIntervalSeconds } });
+  else if (input.startType === "manual_start") blocks.push({ type: "manual_start", config: {} });
+  else blocks.push({ type: input.startType, config: { sourceId: input.startSourceId } });
+
+  if (input.initialAction === "record_trigger_event") blocks.push({ type: "record_trigger_event", config: {} });
+  if (input.initialAction === "fetch_data_source") blocks.push({ type: "fetch_data_source", config: { sourceId: input.initialFetchSourceId } });
+  return blocks;
 }
 
 function sourceLabel(source: DataSource) {
