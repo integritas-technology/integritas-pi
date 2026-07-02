@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DEFAULT_PAGE_SIZE_OPTIONS, listRangeLabel } from '../lib/paginated';
 
-export type ListPagerFilterStatusOption = {
+type ListPagerFilterStatusOption = {
   value: string;
   label: string;
 };

@@ -24,7 +24,7 @@
 | 3 | Coding style consistency | ✅ done | See Part 3 notes below |
 | 4 | Broken flows | ✅ done | See Part 4 notes below |
 | 5 | Security | ✅ done | `ids` array length now capped; see Part 5 notes below |
-| 6 | Dead code cleanup | ⬜ pending | |
+| 6 | Dead code cleanup | ✅ done | Unused `ListPagerFilterStatusOption` export removed; see Part 6 notes below |
 
 ---
 
@@ -235,14 +235,28 @@
 **Check**
 
 - [x] Remove unused exports/constants (e.g. `PAGE_SIZE_OPTIONS` in `diagnosticsQuery.ts` if unused)
-- [ ] Plan doc still references removed `diagnosticsTabToSearchParams` — update when auditing
-- [ ] No orphaned imports or commented-out Part 3 loading code
-- [ ] No duplicate helpers superseded by shared modules
+- [x] Plan doc still references removed `diagnosticsTabToSearchParams` — update when auditing
+- [x] No orphaned imports or commented-out Part 3 loading code
+- [x] No duplicate helpers superseded by shared modules
 
-**Known candidates**
+### Part 6 results
 
-- ~~`frontend/src/pages/diagnosticsQuery.ts` — `PAGE_SIZE_OPTIONS`~~ removed in Part 2
-- `docs/plans/diagnostics-url-pagination-loading.md` — stale helper name in Part 1
+**Fixed**
+
+- `ListPagerFilterStatusOption` was `export type`-ed from `ListPagerFilterBar.tsx` but never imported anywhere else (checked every `.ts`/`.tsx` file in the repo) — `PROOF_STATUS_OPTIONS`/`READ_STATUS_OPTIONS` satisfy it structurally via `as const` without ever naming the type. Changed to a local (non-exported) `type`.
+
+**Verified clean (no action needed)**
+
+- No commented-out Part 3 loading/`FetchPhase` code anywhere in the diagnostics files (`FetchPhase` doesn't appear in the frontend at all — Part 3 of the feature plan was never started, not partially started and abandoned).
+- No orphaned imports in any in-scope file — walked every export from `diagnosticsQuery.ts`, `paginated.ts`, `list-query.ts`, `integritasApi.ts`, `dataReadsApi.ts` and confirmed each is used at least once outside its own defining file.
+- No duplicate helpers remain — the one real duplicate (`applyPaginatedPage` / `applyProofsPage`) was caught and merged back in Part 2.
+- No leftover pre-pagination code in either repository (`dataReads.repository.ts` has no vestigial unpaginated `listDataSourceReads`; `integritas.repository.ts`'s `listPendingProofRecords` is a distinct function used by the background poll service, not a leftover from this feature).
+
+**Known candidates (resolved)**
+
+- ~~`frontend/src/pages/diagnosticsQuery.ts` — `PAGE_SIZE_OPTIONS`~~ removed in Part 2.
+- ~~`frontend/src/components/ListPagerFilterBar.tsx` — `ListPagerFilterStatusOption` unused export~~ un-exported in Part 6.
+- `docs/plans/diagnostics-url-pagination-loading.md` — stale helper name (`diagnosticsTabToSearchParams` vs. actual `diagnosticsSearchParams`) and stale "omit defaults" URL description. Left alone per user decision — that doc is being deprioritized in favor of this audit doc and the explicit-URL-params behavior it now describes accurately in Parts 1–2 above.
 
 ---
 
