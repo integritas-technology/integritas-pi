@@ -258,6 +258,7 @@ stamp_integritas
 
 ```txt
 control_output
+send_transaction
 ```
 
 ## Workflow Execution
@@ -462,6 +463,142 @@ Record trigger event requires an event trigger.
 GPIO output blocks require explicit output config and hardware safety validation.
 ```
 
+## Remaining Major Improvements
+
+The block workspace is usable for the current prototype: workflows can be created from start/data/logic/output blocks, manually tested, conditionally stamped, and inspected through run logs. The remaining work is mostly about making the builder easier to use safely as workflows grow.
+
+Recommended development order:
+
+1. Workflow templates.
+2. Pre-run validation.
+3. Run log filtering and deep links.
+4. Better workflow organization.
+5. Configure-block modal refinement.
+6. Full draft workspace save model.
+7. Branching / else flow.
+
+### 1. Workflow Templates
+
+Add beginner-friendly templates that create known-good starter workflows.
+
+Good first templates:
+
+```txt
+GPIO button -> Record trigger event
+GPIO button -> Fetch HTTP JSON -> Conditional Integritas stamp
+GPIO button -> Pulse LED
+Webhook -> Record trigger event -> Conditional Integritas stamp
+Schedule -> Fetch HTTP JSON -> Integritas stamp
+```
+
+Why this should come next:
+
+- Helps operators build correct workflows without understanding every block immediately.
+- Gives consistent demo paths for GPIO input, HTTP data, LED output, and Integritas stamping.
+- Exercises the existing block executor without requiring a large state-management refactor.
+
+Implementation notes:
+
+- Templates should still create normal blocks through the existing backend API.
+- Avoid hidden production mock data. Use operator-selected devices/sources where possible.
+- Validate required devices before enabling a template, for example HTTP source required for fetch templates and GPIO Output target required for LED templates.
+
+### 2. Pre-Run Validation
+
+Before `Run now` or `Run with payload`, surface likely failures without requiring the operator to inspect a failed run log.
+
+Validation examples:
+
+```txt
+Fetch block references a missing or incompatible source.
+Record trigger event is used without an event start source.
+Control output references a missing/non-output device.
+Integritas stamp is enabled but no API key is configured.
+Condition source is data but no prior block records or fetches data.
+Workflow has no enabled action blocks after the start block.
+```
+
+Pre-run validation should be advisory at first: show warnings near the run buttons, but keep admin override possible for prototype testing unless a backend safety rule must block execution.
+
+### 3. Run Log Filtering And Deep Links
+
+Workflow run details now separate trigger payloads from fetched/recorded data previews. The next log improvement is navigation and filtering.
+
+Useful additions:
+
+```txt
+Filter workflow logs by workflow, status, trigger type, proof id, read id.
+Link from a block run to the matching Diagnostics read row.
+Link from a stamp block run to the matching proof history row.
+Support direct URLs to a specific workflow run.
+```
+
+This makes debugging conditional stamping much easier on the Pi after hardware tests.
+
+### 4. Better Workflow Organization
+
+As test workflows accumulate, the workspace will need organization beyond enabled/paused.
+
+Possible additions:
+
+```txt
+Archive workflow.
+Show Active / Paused / Archived filters.
+Duplicate workflow.
+Rename workflow from the workspace.
+Require confirmation for destructive deletes.
+```
+
+Do this after templates and validation, because template-driven creation will increase workflow count.
+
+### 5. Configure-Block Modal Refinement
+
+The current inline block editors are acceptable for the prototype, especially after per-block save feedback was added. A focused configure modal can still improve beginner usability.
+
+Desired behavior:
+
+```txt
+Click Configure on a block.
+Open one modal with that block's settings.
+Show validation and examples in the modal.
+Save only that block.
+Return to the workflow list with a clear saved/unsaved result.
+```
+
+This is smaller than the full draft workspace model and can reuse the current per-block save semantics.
+
+### 6. Full Draft Workspace Save Model
+
+The current model is per-block save plus immediate add/remove/move/enable actions. A full draft model would make the workspace feel more like a document editor.
+
+Target behavior:
+
+```txt
+Open workflow workspace.
+Make multiple block edits locally.
+Add/remove/reorder blocks locally.
+Click one top-level Save changes.
+Warn before closing if unsaved changes exist.
+Discard changes without touching the backend.
+```
+
+This is the largest remaining UX refactor because it requires temporary client-side block IDs, local reorder/delete state, and a batch-save API or careful ordered mutation sequence. It is valuable, but not required before more hardware and template testing.
+
+### 7. Branching / Else Flow
+
+Current condition blocks either continue or stop the remaining workflow. That is enough for simple proofs and hardware demos, but not enough for richer automation.
+
+Future options:
+
+```txt
+If condition matches -> run nested branch.
+Else -> run alternate branch.
+Switch/match block for multiple values.
+Stop block with custom reason.
+```
+
+Defer this until templates, validation, and logs are solid. Branching changes the execution model and UI substantially.
+
 ## GPIO Output Targets
 
 GPIO outputs should be configured as reusable output targets. Workflows control them through a generic, narrow `control_output` action block with profile-specific validation.
@@ -581,9 +718,13 @@ Button -> fetch API -> blink LED.
 - [x] Replace rule API with block API.
 - [x] Build simple block-list workflow UI.
 - [x] Add block picker categories.
-- [x] Add configure-block modal.
+- [ ] Add configure-block modal/refinement.
 - [x] Add move up/down ordering.
 - [x] Add frontend validation hints.
+- [x] Add per-block saved/unsaved feedback.
+- [ ] Add workflow templates.
+- [ ] Add pre-run workflow validation warnings.
+- [ ] Add full draft workspace save model.
 
 ### Milestone 6: Wait And Run History
 
@@ -600,6 +741,14 @@ Button -> fetch API -> blink LED.
 - [x] Document output hardware safety in `SECURITY.md` and `README.md`.
 - [ ] Verify button-triggered LED pulse on Pi hardware.
 
+### Milestone 8: Workflow Usability And Debugging
+
+- [ ] Add template-driven workflow creation for common GPIO, HTTP, webhook, schedule, output, and Integritas flows.
+- [ ] Add validation warnings before manual runs.
+- [ ] Add run-log filters and direct links to related read/proof details.
+- [ ] Add workflow archive/filter/duplicate organization tools.
+- [ ] Evaluate branching/else blocks after the simpler linear workflow UX is stable.
+
 ## Progress Log
 
 ### 2026-06-30
@@ -613,3 +762,4 @@ Button -> fetch API -> blink LED.
 - Replaced the data-source-first create workflow modal with a block-first creator: operators choose a manual, schedule, GPIO, webhook, or MQTT start block and optionally add an initial record/fetch action before opening the workspace.
 - Added workflow run history: each execution records a run row and per-block rows with status, timing, errors, and context summaries. Recent runs are visible in the workflow workspace and globally under Diagnostics -> Workflow logs.
 - Added the first safe GPIO output path: GPIO Output targets with LED profile, reusable `control_output` pulse blocks, backend pin conflict checks, and hardware safety documentation.
+- Added near-term planning for the remaining block workspace improvements: workflow templates first, then pre-run validation, run-log navigation, workflow organization, configure-block modal refinement, full draft saves, and later branching/else flow.

@@ -4,14 +4,20 @@ import { Page } from "../components/Page";
 import { addAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, listAutomationWorkflowRuns, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow } from "../features/automation/automationApi";
 import { AutomationRunsTable } from "../features/automation/AutomationRunsTable";
 import type { AutomationBlock, AutomationBlockType, AutomationRun, AutomationWorkflow, ConditionOperator } from "../features/automation/automationTypes";
+import { listAddressBookEntries } from "../features/address-book/addressBookApi";
+import type { AddressBookEntry } from "../features/address-book/addressBookTypes";
 import { listDataSources } from "../features/data-sources/dataSourcesApi";
 import type { DataSource } from "../features/data-sources/dataSourceTypes";
+import { getWalletStatus } from "../features/wallet/walletApi";
+import type { TokenBalance, WalletStatus } from "../features/wallet/walletTypes";
 import { formatLocalTime } from "../lib/time";
 
 const intervals = [10, 30, 60, 300, 900, 3600];
 
 export function AutomationPage() {
   const [sources, setSources] = useState<DataSource[]>([]);
+  const [addressBook, setAddressBook] = useState<AddressBookEntry[]>([]);
+  const [walletStatus, setWalletStatus] = useState<WalletStatus | null>(null);
   const [workflows, setWorkflows] = useState<AutomationWorkflow[]>([]);
   const [name, setName] = useState("");
   const [startType, setStartType] = useState<AutomationBlockType>("gpio_event_start");
@@ -39,9 +45,16 @@ export function AutomationPage() {
   }, [workspaceWorkflowId]);
 
   async function refresh() {
-    const [sourceResponse, workflowResponse] = await Promise.all([listDataSources(), listAutomationWorkflows()]);
+    const [sourceResponse, workflowResponse, addressBookResponse, walletResponse] = await Promise.all([
+      listDataSources(),
+      listAutomationWorkflows(),
+      listAddressBookEntries().catch(() => [] as AddressBookEntry[]),
+      getWalletStatus().catch(() => null as WalletStatus | null)
+    ]);
     setSources(sourceResponse.items);
     setWorkflows(workflowResponse.items);
+    setAddressBook(addressBookResponse);
+    setWalletStatus(walletResponse);
     if (!startSourceId) setStartSourceId(defaultSourceForStart(startType, sourceResponse.items)?.id ?? "");
     if (!initialFetchSourceId) setInitialFetchSourceId(firstHttpSource(sourceResponse.items)?.id ?? "");
     if (workspaceWorkflowId) {
@@ -139,6 +152,8 @@ export function AutomationPage() {
             runs={workspaceRuns}
             source={sourceById(workspaceWorkflow.dataSourceId)}
             sources={sources}
+            addressBook={addressBook}
+            walletStatus={walletStatus}
             busy={busy}
             onAddBlock={(input) => run(() => addAutomationBlock(workspaceWorkflow.id, input))}
             onDeleteBlock={(blockId) => run(() => deleteAutomationBlock(workspaceWorkflow.id, blockId))}
@@ -195,17 +210,20 @@ export function AutomationPage() {
   );
 }
 
-function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, onDeleteBlock, onUpdateBlock, onReorderBlocks, onRunNow, onRunWithPayload, onToggleEnabled, onDelete }: { workflow: AutomationWorkflow; runs: AutomationRun[]; source: DataSource | undefined; sources: DataSource[]; busy: boolean; onAddBlock: (input: Parameters<typeof addAutomationBlock>[1]) => void; onDeleteBlock: (blockId: string) => void; onUpdateBlock: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onReorderBlocks: (blockIds: string[]) => void; onRunNow: () => void; onRunWithPayload: (payload: unknown) => void; onToggleEnabled: () => void; onDelete: () => void }) {
+function WorkflowWorkspace({ workflow, runs, source, sources, addressBook, walletStatus, busy, onAddBlock, onDeleteBlock, onUpdateBlock, onReorderBlocks, onRunNow, onRunWithPayload, onToggleEnabled, onDelete }: { workflow: AutomationWorkflow; runs: AutomationRun[]; source: DataSource | undefined; sources: DataSource[]; addressBook: AddressBookEntry[]; walletStatus: WalletStatus | null; busy: boolean; onAddBlock: (input: Parameters<typeof addAutomationBlock>[1]) => void; onDeleteBlock: (blockId: string) => void; onUpdateBlock: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onReorderBlocks: (blockIds: string[]) => void; onRunNow: () => void; onRunWithPayload: (payload: unknown) => void; onToggleEnabled: () => void; onDelete: () => void }) {
   const [fetchSourceId, setFetchSourceId] = useState(() => sources.find((item) => item.type === "json-api" || item.type === "internal-json-api")?.id ?? "");
   const [outputTargetId, setOutputTargetId] = useState(() => sources.find((item) => item.type === "gpio-output")?.id ?? "");
   const [outputPulseMs, setOutputPulseMs] = useState("500");
+  const [transactionRecipientId, setTransactionRecipientId] = useState(() => addressBook[0]?.id ?? "");
+  const [transactionTokenId, setTransactionTokenId] = useState<string>("0x00");
+  const [transactionAmount, setTransactionAmount] = useState("");
   const [waitMs, setWaitMs] = useState("1000");
   const [conditionSource, setConditionSource] = useState<"trigger" | "data">("trigger");
   const [conditionFieldPath, setConditionFieldPath] = useState("active");
   const [conditionOperator, setConditionOperator] = useState<ConditionOperator>("equals");
   const [conditionValue, setConditionValue] = useState("true");
   const [conditionError, setConditionError] = useState<string | null>(null);
-  const [expandedAddBlock, setExpandedAddBlock] = useState<"record" | "fetch" | "condition" | "wait" | "output" | null>(null);
+  const [expandedAddBlock, setExpandedAddBlock] = useState<"record" | "fetch" | "condition" | "wait" | "output" | "transaction" | null>(null);
   const [payloadModalOpen, setPayloadModalOpen] = useState(false);
   const [payloadText, setPayloadText] = useState(() => JSON.stringify(examplePayload(workflow), null, 2));
   const [payloadError, setPayloadError] = useState<string | null>(null);
@@ -214,6 +232,7 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
   const canAddRecordTriggerEvent = Boolean(startBlock && (startBlock.type === "gpio_event_start" || startBlock.type === "webhook_event_start" || startBlock.type === "mqtt_event_start") && !mainBlocks.some((block) => block.type === "record_trigger_event"));
   const fetchSources = sources.filter((item) => item.type === "json-api" || item.type === "internal-json-api");
   const outputTargets = sources.filter((item) => item.type === "gpio-output");
+  const nativeTokens = nativeMinimaTokens(walletStatus);
 
   return (
     <section className="automation-list">
@@ -268,6 +287,8 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
           block={block}
           attachedBlocks={workflow.blocks.filter((item) => item.parentBlockId === block.id)}
           sources={sources}
+          addressBook={addressBook}
+          nativeTokens={nativeTokens}
           busy={busy}
           canMoveUp={index > 1}
           canMoveDown={index > 0 && index < mainBlocks.length - 1}
@@ -342,6 +363,17 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
               </div>
             </div>
           </AddBlockCard>
+          <AddBlockCard id="transaction" title="Send transaction" description="Send native MINIMA to a saved address book recipient from this workflow." expanded={expandedAddBlock === "transaction"} onToggle={() => setExpandedAddBlock(expandedAddBlock === "transaction" ? null : "transaction")}>
+            <div className="automation-form">
+              <label>Recipient<select value={transactionRecipientId} onChange={(event) => setTransactionRecipientId(event.target.value)}><option value="">Select address book recipient...</option>{addressBook.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select></label>
+              <label>Token<select value={transactionTokenId} onChange={(event) => setTransactionTokenId(event.target.value)}>{nativeTokens.length > 0 ? nativeTokens.map((token) => <option key={token.tokenId} value="0x00">Minima (native) - {token.sendable} sendable</option>) : <option value="0x00">Minima (native)</option>}</select></label>
+              <label>Amount<input value={transactionAmount} onChange={(event) => setTransactionAmount(event.target.value)} inputMode="decimal" placeholder="0.00" /></label>
+              <p className="muted">Transactions spend wallet funds automatically when this workflow runs. V1 supports only native MINIMA tokenid <code>0x00</code>.</p>
+              <div className="row-actions">
+                <button type="button" disabled={busy || !transactionRecipientId || transactionTokenId !== "0x00" || !isPositiveDecimal(transactionAmount)} onClick={() => onAddBlock({ type: "send_transaction", config: { recipientAddressBookId: transactionRecipientId, tokenId: "0x00", amount: transactionAmount.trim() } })}>Add send transaction block</button>
+              </div>
+            </div>
+          </AddBlockCard>
         </div>
       </section>
 
@@ -384,10 +416,13 @@ function AddBlockCard({ title, description, expanded, onToggle, children }: { id
   );
 }
 
-function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDown, onMoveUp, onMoveDown, onAttachStamp, onUpdate, onUpdateAttached, onDelete, onDeleteAttached }: { block: AutomationBlock; attachedBlocks: AutomationBlock[]; sources: DataSource[]; busy: boolean; canMoveUp: boolean; canMoveDown: boolean; onMoveUp: () => void; onMoveDown: () => void; onAttachStamp: () => void; onUpdate: (input: Parameters<typeof updateAutomationBlock>[2]) => void; onUpdateAttached: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onDelete: () => void; onDeleteAttached: (blockId: string) => void }) {
+function BlockCard({ block, attachedBlocks, sources, addressBook, nativeTokens, busy, canMoveUp, canMoveDown, onMoveUp, onMoveDown, onAttachStamp, onUpdate, onUpdateAttached, onDelete, onDeleteAttached }: { block: AutomationBlock; attachedBlocks: AutomationBlock[]; sources: DataSource[]; addressBook: AddressBookEntry[]; nativeTokens: TokenBalance[]; busy: boolean; canMoveUp: boolean; canMoveDown: boolean; onMoveUp: () => void; onMoveDown: () => void; onAttachStamp: () => void; onUpdate: (input: Parameters<typeof updateAutomationBlock>[2]) => void; onUpdateAttached: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onDelete: () => void; onDeleteAttached: (blockId: string) => void }) {
   const [fetchSourceId, setFetchSourceId] = useState(block.config.sourceId ?? "");
   const [outputTargetId, setOutputTargetId] = useState(block.config.targetId ?? "");
   const [outputDurationMs, setOutputDurationMs] = useState(String(block.config.durationMs ?? 500));
+  const [transactionRecipientId, setTransactionRecipientId] = useState(block.config.recipientAddressBookId ?? "");
+  const [transactionTokenId, setTransactionTokenId] = useState<string>(block.config.tokenId ?? "0x00");
+  const [transactionAmount, setTransactionAmount] = useState(block.config.amount ?? "");
   const [durationMs, setDurationMs] = useState(String(block.config.durationMs ?? 1000));
   const [conditionSource, setConditionSource] = useState<"trigger" | "data">(block.config.source ?? "trigger");
   const [conditionFieldPath, setConditionFieldPath] = useState(block.config.fieldPath ?? "active");
@@ -409,6 +444,7 @@ function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDow
   const waitDirty = Number(durationMs) !== block.config.durationMs;
   const conditionDirty = conditionSource !== (block.config.source ?? "trigger") || conditionFieldPath !== (block.config.fieldPath ?? "active") || conditionOperator !== (block.config.operator ?? "equals") || (!operatorHasNoValue(conditionOperator) && conditionValue !== JSON.stringify(block.config.value ?? true));
   const outputDirty = outputTargetId !== (block.config.targetId ?? "") || Number(outputDurationMs) !== block.config.durationMs;
+  const transactionDirty = transactionRecipientId !== (block.config.recipientAddressBookId ?? "") || transactionTokenId !== (block.config.tokenId ?? "0x00") || transactionAmount !== (block.config.amount ?? "");
   const stampConditionDirty = Boolean(stampBlock) && (stampConditionSource !== (stampBlock?.config.condition?.source ?? "data") || stampConditionFieldPath !== (stampBlock?.config.condition?.fieldPath ?? "sensor.temperature") || stampConditionOperator !== (stampBlock?.config.condition?.operator ?? "equals") || (!operatorHasNoValue(stampConditionOperator) && stampConditionValue !== JSON.stringify(stampBlock?.config.condition?.value ?? 15)));
 
   function saveBlock(input: Parameters<typeof updateAutomationBlock>[2], message: string) {
@@ -424,7 +460,7 @@ function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDow
   return (
     <div className="card">
       <div className="status-row">
-        <div><strong>{block.order}. {blockLabel(block)}</strong><p className="muted">{blockDescription(block, sources)}</p></div>
+        <div><strong>{block.order}. {blockLabel(block)}</strong><p className="muted">{blockDescription(block, sources, addressBook)}</p></div>
         <span className="pill pill-neutral">Block</span>
       </div>
       <div className="metric-grid">
@@ -473,6 +509,15 @@ function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDow
           <label>Pulse duration ms<input value={outputDurationMs} onChange={(event) => setOutputDurationMs(event.target.value)} inputMode="numeric" /></label>
           <SaveState dirty={outputDirty} saved={saveNotice === "Output pulse saved"} />
           <button type="button" disabled={busy || !outputTargetId || !Number.isFinite(Number(outputDurationMs)) || !outputDirty} onClick={() => saveBlock({ config: { targetId: outputTargetId, action: "pulse", durationMs: Number(outputDurationMs) } }, "Output pulse saved")}>Save output pulse</button>
+        </div>
+      )}
+      {block.type === "send_transaction" && (
+        <div className="automation-form">
+          <label>Recipient<select value={transactionRecipientId} onChange={(event) => setTransactionRecipientId(event.target.value)}><option value="">Select address book recipient...</option>{addressBook.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select></label>
+          <label>Token<select value={transactionTokenId} onChange={(event) => setTransactionTokenId(event.target.value)}>{nativeTokens.length > 0 ? nativeTokens.map((token) => <option key={token.tokenId} value="0x00">Minima (native) - {token.sendable} sendable</option>) : <option value="0x00">Minima (native)</option>}</select></label>
+          <label>Amount<input value={transactionAmount} onChange={(event) => setTransactionAmount(event.target.value)} inputMode="decimal" /></label>
+          <SaveState dirty={transactionDirty} saved={saveNotice === "Transaction saved"} />
+          <button type="button" disabled={busy || !transactionRecipientId || transactionTokenId !== "0x00" || !isPositiveDecimal(transactionAmount) || !transactionDirty} onClick={() => saveBlock({ config: { recipientAddressBookId: transactionRecipientId, tokenId: "0x00", amount: transactionAmount.trim() } }, "Transaction saved")}>Save transaction</button>
         </div>
       )}
       {stampBlock && (
@@ -576,6 +621,7 @@ function blockLabel(block: AutomationBlock) {
   if (block.type === "wait") return "Wait";
   if (block.type === "stamp_integritas") return "Stamp with Integritas";
   if (block.type === "control_output") return "Control output";
+  if (block.type === "send_transaction") return "Send transaction";
   return block.type;
 }
 
@@ -586,12 +632,14 @@ function blockShortLabel(block: AutomationBlock) {
   if (block.type === "if_payload_field_equals") return "If payload matches";
   if (block.type === "stamp_integritas") return "Stamp";
   if (block.type === "control_output") return "Control output";
+  if (block.type === "send_transaction") return "Send transaction";
   if (block.type === "wait") return "Wait";
   return block.type;
 }
 
-function blockDescription(block: AutomationBlock, sources: DataSource[]) {
+function blockDescription(block: AutomationBlock, sources: DataSource[], addressBook: AddressBookEntry[]) {
   const source = block.config.sourceId || block.config.targetId ? sources.find((item) => item.id === (block.config.sourceId ?? block.config.targetId)) : undefined;
+  const recipient = block.config.recipientAddressBookId ? addressBook.find((entry) => entry.id === block.config.recipientAddressBookId) : undefined;
   if (block.type === "schedule_start") return `Every ${formatInterval(Number(block.config.intervalSeconds ?? 0)).replace("Every ", "")}`;
   if (block.type === "gpio_event_start") return source ? `${source.name} - GPIO${source.config.pin ?? "?"}` : "GPIO input event";
   if (block.type === "webhook_event_start") return source ? `${source.name} webhook payload` : "Webhook payload";
@@ -602,6 +650,7 @@ function blockDescription(block: AutomationBlock, sources: DataSource[]) {
   if (block.type === "wait") return `Pause for ${block.config.durationMs ?? 0} ms`;
   if (block.type === "stamp_integritas") return "Stamp the latest collected hash";
   if (block.type === "control_output") return source ? `Pulse ${source.name} for ${block.config.durationMs ?? 0} ms` : "Pulse configured output target";
+  if (block.type === "send_transaction") return recipient ? `Send ${block.config.amount ?? "?"} MINIMA to ${recipient.label}` : "Send native MINIMA to an address book recipient";
   return "Workflow block";
 }
 
@@ -613,6 +662,7 @@ function blockOutput(block: AutomationBlock) {
   if (block.type === "wait") return "Same context";
   if (block.type === "stamp_integritas") return "Proof UID";
   if (block.type === "control_output") return "Output action result";
+  if (block.type === "send_transaction") return "Transaction result";
   return "Context";
 }
 
@@ -662,6 +712,15 @@ function defaultSourceForStart(type: AutomationBlockType, sources: DataSource[])
 
 function firstHttpSource(sources: DataSource[]) {
   return sources.find((source) => source.type === "json-api" || source.type === "internal-json-api") ?? null;
+}
+
+function nativeMinimaTokens(walletStatus: WalletStatus | null) {
+  return (walletStatus?.tokens ?? []).filter((token) => token.isNative || token.tokenId.toLowerCase() === "0x00");
+}
+
+function isPositiveDecimal(value: string) {
+  const trimmed = value.trim();
+  return /^\d+(\.\d+)?$/.test(trimmed) && Number(trimmed) > 0;
 }
 
 function defaultInitialAction(type: AutomationBlockType): "none" | "record_trigger_event" | "fetch_data_source" {

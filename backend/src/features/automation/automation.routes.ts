@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireRole } from "../auth/auth.middleware.js";
+import { getAddressBookEntryById } from "../address-book/address-book.repository.js";
 import { getDataSource } from "../data-sources/dataSources.repository.js";
 import { parseGpioOutputConfig } from "../data-sources/dataSources.service.js";
 import { syncGpioDataSources } from "../data-sources/gpioIngestion.service.js";
@@ -316,6 +317,19 @@ function validateBlockConfig(type: AutomationBlockType, config: Record<string, u
     const durationMs = Number(config.durationMs);
     if (!Number.isFinite(durationMs) || durationMs < 1 || durationMs > 60000) throw new Error("Pulse duration must be between 1 and 60000 ms");
     config.durationMs = durationMs;
+    return;
+  }
+
+  if (type === "send_transaction") {
+    const recipientAddressBookId = typeof config.recipientAddressBookId === "string" ? config.recipientAddressBookId : "";
+    if (!recipientAddressBookId || !getAddressBookEntryById(recipientAddressBookId)) throw new Error("Send transaction requires an address book recipient");
+    const tokenId = typeof config.tokenId === "string" ? config.tokenId.trim() : "0x00";
+    if (tokenId.toLowerCase() !== "0x00") throw new Error("Send transaction currently supports only native MINIMA tokenid 0x00");
+    const amount = typeof config.amount === "string" ? config.amount.trim() : "";
+    if (!isPositiveDecimal(amount)) throw new Error("Send transaction requires a positive amount");
+    config.recipientAddressBookId = recipientAddressBookId;
+    config.tokenId = "0x00";
+    config.amount = amount;
   }
 }
 
@@ -362,7 +376,13 @@ function isAutomationBlockType(type: string): type is AutomationBlockType {
     || type === "if_payload_field_equals"
     || type === "wait"
     || type === "stamp_integritas"
-    || type === "control_output";
+    || type === "control_output"
+    || type === "send_transaction";
+}
+
+function isPositiveDecimal(value: string) {
+  if (!/^\d+(\.\d+)?$/.test(value)) return false;
+  return Number(value) > 0;
 }
 
 function isSafeFieldPath(path: string) {

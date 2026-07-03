@@ -12,7 +12,8 @@ export type AutomationBlockType =
   | "if_payload_field_equals"
   | "wait"
   | "stamp_integritas"
-  | "control_output";
+  | "control_output"
+  | "send_transaction";
 
 export type AutomationWorkflowRecord = {
   id: string;

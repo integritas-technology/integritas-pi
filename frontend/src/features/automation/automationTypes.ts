@@ -27,7 +27,8 @@ export type AutomationBlockType =
   | "if_payload_field_equals"
   | "wait"
   | "stamp_integritas"
-  | "control_output";
+  | "control_output"
+  | "send_transaction";
 
 export type ConditionOperator = "equals" | "not_equals" | "greater_than" | "greater_than_or_equals" | "less_than" | "less_than_or_equals" | "exists" | "does_not_exist";
 
@@ -44,6 +45,9 @@ export type AutomationBlock = {
     sourceId?: string;
     targetId?: string;
     action?: "pulse";
+    recipientAddressBookId?: string;
+    tokenId?: "0x00";
+    amount?: string;
     intervalSeconds?: number;
     durationMs?: number;
     activeOnly?: boolean;

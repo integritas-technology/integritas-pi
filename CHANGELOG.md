@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - Block automation workflow implementation plan for replacing coarse automation rules with small composable start/action/logic blocks.
+- Block automation development plan now documents the remaining major workspace improvements and recommended implementation order.
 - Automation backend now stores workflows as ordered blocks, resets the disposable legacy automation schema, records trigger metadata on data reads, and executes schedule/manual/GPIO/webhook/MQTT workflows through the new block executor while preserving the existing UI/API compatibility surface.
 - GPIO and MQTT event workflows no longer create failed read-history rows for ignored overlapping events while the same workflow is still running, and the compatibility UI no longer shows start blocks as duplicate collect rules.
 - Automation workspace now displays real workflow blocks and can append fetch, wait, and Integritas stamp blocks from the UI.
@@ -18,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Devices now support GPIO Output targets with an LED profile, and Automation supports a generic Control output block that can pulse those LED targets from workflows.
 - GPIO Output devices can now be test-pulsed directly from the Devices page before wiring them into an automation workflow.
 - Workflow run details now load the stored data-read preview for fetch/record blocks, making it clear which JSON a data condition evaluated.
+- Automation workflows can now include a Send transaction block that sends native MINIMA (`0x00`) to an address book recipient with a fixed operator-defined amount.
 
 ### Changed
 
@@ -34,6 +36,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Workflow workspace now clarifies that edits are saved per block, and Fetch data source edits use an explicit Save fetch source button.
 - Workflow block editing now shows per-block unsaved/saved feedback, disables unchanged save buttons, and labels immediate actions such as move/remove/enable as applying now.
 - Workflow run details now separate the trigger payload from the fetched/recorded data preview so manual test runs are easier to interpret.
+- Automation create/save buttons now use the same styled primary action treatment as the rest of the workspace.
 
 ### Fixed
 
@@ -41,6 +44,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Automation Run now is available for all workflow start types and records a synthetic manual test trigger for event workflows instead of being limited to scheduled workflows.
 - Backend shutdown now stops GPIO Output holder processes so LED output lines are released cleanly when the container stops.
 - Conditional Integritas stamp blocks now log as skipped when their condition is not met instead of appearing as successful stamps, and skipped blocks are not counted as successful blocks in run summaries.
+
+### Security
+
+- Automated wallet transaction blocks are restricted to address book recipients and native MINIMA (`0x00`) only, validate sendable balance server-side, and record wallet history plus audit events.
 
 ## [0.12.0] - 2026-07-02
 

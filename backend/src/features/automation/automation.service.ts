@@ -1,4 +1,6 @@
 import { getDataSource, updateDataSourceReadResult } from "../data-sources/dataSources.repository.js";
+import { getAddressBookEntryById } from "../address-book/address-book.repository.js";
+import { recordAuditEvent } from "../auth/audit.service.js";
 import { pulseGpioOutput } from "../data-sources/gpioOutput.service.js";
 import { parseJsonApiConfig, readJsonApiSource, serializeDataSource } from "../data-sources/dataSources.service.js";
 import { createDataSourceRead, linkDataSourceReadProof } from "../data-reads/dataReads.repository.js";
@@ -6,6 +8,7 @@ import { createProofRecord } from "../integritas/integritas.repository.js";
 import { isIntegritasUnauthorizedErrorCode, isTransientIntegritasErrorCode, requestProofUid } from "../integritas/integritas.service.js";
 import type { IntegritasApiFailure } from "../integritas/integritas.types.js";
 import { getIntegritasApiKey } from "../settings/secrets.service.js";
+import { getWalletStatus, recordWalletSendHistory, sendPayment } from "../wallet/wallet.service.js";
 import { sha3HashHex } from "../../shared/crypto.js";
 import {
   getAutomationWorkflow,
@@ -232,7 +235,7 @@ function validateStartBlock(block: AutomationBlockRecord, trigger: WorkflowConte
 }
 
 async function executeBlock(workflow: AutomationWorkflowRecord, block: AutomationBlockRecord, context: WorkflowContext, runId: string) {
-  const config = JSON.parse(block.config_json) as { sourceId?: string; targetId?: string; action?: string; durationMs?: number; source?: "trigger" | "data"; fieldPath?: string; operator?: FieldCondition["operator"]; value?: unknown; condition?: FieldCondition | null };
+  const config = JSON.parse(block.config_json) as { sourceId?: string; targetId?: string; action?: string; durationMs?: number; source?: "trigger" | "data"; fieldPath?: string; operator?: FieldCondition["operator"]; value?: unknown; condition?: FieldCondition | null; recipientAddressBookId?: string; tokenId?: string; amount?: string };
   const blockRun = createAutomationBlockRun({ runId, workflowId: workflow.id, blockId: block.id, orderIndex: block.order_index, blockType: block.type, blockLabel: blockLabel(block.type), input: contextSummary(context) });
 
   try {
@@ -248,6 +251,7 @@ async function executeBlock(workflow: AutomationWorkflowRecord, block: Automatio
     else if (block.type === "wait") await wait(Number(config.durationMs ?? 0));
     else if (block.type === "stamp_integritas") status = await stampLatestHash(workflow, context, config.condition ?? null);
     else if (block.type === "control_output") await controlOutput(config, context);
+    else if (block.type === "send_transaction") await sendTransaction(config, context, workflow);
     else throw new Error(`Unsupported automation block: ${block.type}`);
     updateAutomationBlockRun(block.id);
     finishAutomationBlockRun(blockRun.id, { status, output: contextSummary(context) });
@@ -356,6 +360,7 @@ function blockToLegacyRule(block: ReturnType<typeof serializeAutomationBlock>) {
 function blockLabel(type: string) {
   if (type === "stamp_integritas") return "Stamp with Integritas";
   if (type === "control_output") return "Control output";
+  if (type === "send_transaction") return "Send transaction";
   if (type === "if_payload_field_equals") return "If field matches";
   if (type === "fetch_data_source") return "Fetch data source";
   if (type === "record_trigger_event") return "Record trigger event";
@@ -410,6 +415,62 @@ async function controlOutput(config: { targetId?: string; action?: string; durat
   context.data = undefined;
   context.output = result;
   return result;
+}
+
+async function sendTransaction(config: { recipientAddressBookId?: string; tokenId?: string; amount?: string }, context: WorkflowContext, workflow: AutomationWorkflowRecord) {
+  const recipient = config.recipientAddressBookId ? getAddressBookEntryById(config.recipientAddressBookId) : null;
+  if (!recipient) throw new Error("Send transaction recipient was not found in the address book");
+
+  const tokenId = String(config.tokenId ?? "0x00").trim();
+  if (tokenId.toLowerCase() !== "0x00") throw new Error("Send transaction currently supports only native MINIMA tokenid 0x00");
+  const amount = String(config.amount ?? "").trim();
+  if (!isPositiveDecimal(amount)) throw new Error("Send transaction amount must be a positive decimal");
+
+  const wallet = await getWalletStatus();
+  const nativeToken = wallet.tokens.find((token) => token.tokenId.toLowerCase() === "0x00" || token.isNative);
+  if (!nativeToken) throw new Error("Wallet does not report a native MINIMA balance");
+  if (compareDecimalStrings(amount, nativeToken.sendable) > 0) throw new Error(`Amount exceeds available balance (${nativeToken.sendable} MINIMA)`);
+
+  const result = await sendPayment({ address: recipient.address, amount, tokenId: "0x00" });
+  recordWalletSendHistory({
+    toAddress: recipient.address,
+    tokenId: "0x00",
+    tokenName: "Minima",
+    amount,
+    txpowId: result.txpowId,
+    status: result.ok ? "submitted" : "failed"
+  });
+  recordAuditEvent("automation.wallet.send", {
+    detail: JSON.stringify({ workflowId: workflow.id, workflowName: workflow.name, recipientId: recipient.id, recipientLabel: recipient.label, amount, tokenId: "0x00", txpowId: result.txpowId })
+  });
+
+  if (!result.ok || result.status === "failed") throw new Error(result.message ?? "Send transaction failed");
+  context.output = { action: "sent_transaction", recipientId: recipient.id, recipientLabel: recipient.label, address: recipient.address, tokenId: "0x00", tokenName: "Minima", amount, txpowId: result.txpowId, status: result.status };
+  context.data = undefined;
+  return result;
+}
+
+function isPositiveDecimal(value: string) {
+  if (!/^\d+(\.\d+)?$/.test(value)) return false;
+  return compareDecimalStrings(value, "0") > 0;
+}
+
+function compareDecimalStrings(a: string, b: string) {
+  const normalize = (value: string) => {
+    const trimmed = value.trim();
+    const [intPart = "0", fracPart = ""] = trimmed.split(".");
+    return {
+      int: intPart.replace(/^0+(?=\d)/, "") || "0",
+      frac: fracPart
+    };
+  };
+  const aNorm = normalize(a);
+  const bNorm = normalize(b);
+  const fracLen = Math.max(aNorm.frac.length, bNorm.frac.length);
+  const aCombined = `${aNorm.int}${aNorm.frac.padEnd(fracLen, "0")}`;
+  const bCombined = `${bNorm.int}${bNorm.frac.padEnd(fracLen, "0")}`;
+  if (aCombined === bCombined) return 0;
+  return BigInt(aCombined) > BigInt(bCombined) ? 1 : -1;
 }
 
 function contextSummary(context: WorkflowContext) {

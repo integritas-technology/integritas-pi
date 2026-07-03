@@ -91,6 +91,23 @@ Status: HTTPS enabled by default on Docker deploy; self-signed trust limitations
 
 > **Megammr resync interaction:** The Minima `restore` command used by `/api/wallet/import` triggers a node restart, which may overlap with active or auto-triggered Megammr resyncs. If a malicious or misconfigured Megammr host is set at the time of a resync, the resulting chain state could force the node to re-derive keys in an unexpected state. Operators should verify the Megammr host URL before importing a wallet and before enabling `MINIMA_AUTO_RESYNC`. This is a known prototype risk — investigate before production use.
 
+### Automated Wallet Transactions
+
+Risk: Automation workflows can send wallet transactions without a human clicking the Wallet page send button at execution time.
+
+Impact: A misconfigured or malicious workflow could spend native MINIMA when its trigger fires. Event-driven triggers such as GPIO, webhooks, or MQTT can be caused by external input.
+
+Current Controls:
+
+- Creating/editing transaction blocks requires admin role through the protected automation API.
+- V1 transaction blocks can only send native MINIMA (`tokenid:0x00`); custom token IDs are rejected.
+- Recipients must be selected from the saved address book and are resolved by address book entry id at execution time.
+- The backend validates the amount and checks current sendable native MINIMA balance before calling Minima `send`.
+- The block uses the existing narrow wallet send service, not a generic Minima command proxy.
+- Sends are recorded in wallet send history and audit events with workflow/recipient/amount metadata.
+
+Status: Accepted prototype risk. Use only on trusted local workflows and treat enabled event-triggered transaction workflows as funds-moving automation.
+
 ### Wallet debug clears (admin, non-production)
 
 Risk: `POST /api/wallet/debug/clear-wallet-accounts` and `POST /api/wallet/debug/clear-wallet-history` delete labeled account mappings and SQLite send history. Misuse on a shared dev stack could remove operator labels or local audit context (not on-chain funds).
