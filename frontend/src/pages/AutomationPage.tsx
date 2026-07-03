@@ -208,6 +208,8 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
   const [payloadText, setPayloadText] = useState(() => JSON.stringify(examplePayload(workflow), null, 2));
   const [payloadError, setPayloadError] = useState<string | null>(null);
   const mainBlocks = workflow.blocks.filter((block) => !block.parentBlockId);
+  const startBlock = mainBlocks[0];
+  const canAddRecordTriggerEvent = Boolean(startBlock && (startBlock.type === "gpio_event_start" || startBlock.type === "webhook_event_start" || startBlock.type === "mqtt_event_start") && !mainBlocks.some((block) => block.type === "record_trigger_event"));
   const fetchSources = sources.filter((item) => item.type === "json-api" || item.type === "internal-json-api");
   const outputTargets = sources.filter((item) => item.type === "gpio-output");
 
@@ -284,6 +286,11 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
           </div>
         </div>
         <div className="automation-form">
+          {canAddRecordTriggerEvent && (
+            <div className="row-actions">
+              <button type="button" disabled={busy} onClick={() => onAddBlock({ type: "record_trigger_event", config: {} })}>Add record trigger block</button>
+            </div>
+          )}
           <label>Fetch data source<select value={fetchSourceId} onChange={(event) => setFetchSourceId(event.target.value)}>{fetchSources.map((item) => <option key={item.id} value={item.id}>{item.name} - {sourceLabel(item)}</option>)}</select></label>
           <div className="row-actions">
             <button type="button" disabled={busy || !fetchSourceId} onClick={() => onAddBlock({ type: "fetch_data_source", config: { sourceId: fetchSourceId } })}>Add fetch block</button>
