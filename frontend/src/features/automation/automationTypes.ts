@@ -47,6 +47,10 @@ export type AutomationBlock = {
     activeOnly?: boolean;
     fieldPath?: string;
     equals?: unknown;
+    condition?: {
+      fieldPath: string;
+      equals: unknown;
+    } | null;
   };
   lastRunAt: string | null;
   lastError: string | null;

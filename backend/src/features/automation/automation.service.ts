@@ -46,6 +46,11 @@ type WorkflowContext = {
   stopped?: boolean;
 };
 
+type FieldEqualsCondition = {
+  fieldPath: string;
+  equals: unknown;
+};
+
 const runningWorkflowIds = new Set<string>();
 let scheduler: NodeJS.Timeout | null = null;
 
@@ -225,7 +230,7 @@ function validateStartBlock(block: AutomationBlockRecord, trigger: WorkflowConte
 }
 
 async function executeBlock(workflow: AutomationWorkflowRecord, block: AutomationBlockRecord, context: WorkflowContext, runId: string) {
-  const config = JSON.parse(block.config_json) as { sourceId?: string; targetId?: string; action?: string; durationMs?: number; fieldPath?: string; equals?: unknown };
+  const config = JSON.parse(block.config_json) as { sourceId?: string; targetId?: string; action?: string; durationMs?: number; fieldPath?: string; equals?: unknown; condition?: FieldEqualsCondition | null };
   const blockRun = createAutomationBlockRun({ runId, workflowId: workflow.id, blockId: block.id, orderIndex: block.order_index, blockType: block.type, blockLabel: blockLabel(block.type), input: contextSummary(context) });
 
   try {
@@ -238,7 +243,7 @@ async function executeBlock(workflow: AutomationWorkflowRecord, block: Automatio
     else if (block.type === "fetch_data_source") await fetchDataSource(workflow, block, context, String(config.sourceId ?? ""));
     else if (block.type === "if_payload_field_equals") checkPayloadFieldEquals(config, context);
     else if (block.type === "wait") await wait(Number(config.durationMs ?? 0));
-    else if (block.type === "stamp_integritas") await stampLatestHash(workflow, context);
+    else if (block.type === "stamp_integritas") await stampLatestHash(workflow, context, config.condition ?? null);
     else if (block.type === "control_output") await controlOutput(config, context);
     else throw new Error(`Unsupported automation block: ${block.type}`);
     updateAutomationBlockRun(block.id);
@@ -282,8 +287,14 @@ async function fetchDataSource(workflow: AutomationWorkflowRecord, block: Automa
   }
 }
 
-async function stampLatestHash(workflow: AutomationWorkflowRecord, context: WorkflowContext) {
+async function stampLatestHash(workflow: AutomationWorkflowRecord, context: WorkflowContext, condition: FieldEqualsCondition | null) {
   if (!context.hash || !context.data) throw new Error("No collected hash is available to stamp");
+  if (condition) {
+    const result = evaluateFieldEquals(context.data.result.preview, condition);
+    context.output = { condition: result, action: result.matched ? "stamped" : "skipped" };
+    if (!result.matched) return;
+  }
+
   const apiKey = getIntegritasApiKey();
   if (!apiKey) throw new Error("Integritas API key is not configured");
 
@@ -293,6 +304,7 @@ async function stampLatestHash(workflow: AutomationWorkflowRecord, context: Work
   const proof = createProofRecord({ fileName: `Automation: ${context.data.sourceName}`, fileSize: Buffer.byteLength(context.data.result.canonicalBytes, "utf8"), hash: context.hash, proofUid: stamp.proofUid, proofStatus: "pending" });
   context.proofId = proof.id;
   if (context.data.readId) linkDataSourceReadProof(context.data.readId, proof.id);
+  context.output = { condition: condition ? evaluateFieldEquals(context.data.result.preview, condition) : null, action: "stamped", proofId: proof.id, proofUid: stamp.proofUid };
 }
 
 function hashPayload(payload: unknown): ReadResult {
@@ -348,11 +360,14 @@ function blockLabel(type: string) {
 }
 
 function checkPayloadFieldEquals(config: { fieldPath?: string; equals?: unknown }, context: WorkflowContext) {
-  const fieldPath = String(config.fieldPath ?? "");
-  const actual = getPathValue(context.trigger.payload, fieldPath);
-  const matched = deepEqualJson(actual, config.equals);
-  context.output = { fieldPath, expected: config.equals, actual, matched, action: matched ? "continued" : "stopped" };
-  if (!matched) context.stopped = true;
+  const result = evaluateFieldEquals(context.trigger.payload, { fieldPath: String(config.fieldPath ?? ""), equals: config.equals });
+  context.output = { ...result, action: result.matched ? "continued" : "stopped" };
+  if (!result.matched) context.stopped = true;
+}
+
+function evaluateFieldEquals(source: unknown, condition: FieldEqualsCondition) {
+  const actual = getPathValue(source, condition.fieldPath);
+  return { fieldPath: condition.fieldPath, expected: condition.equals, actual, matched: deepEqualJson(actual, condition.equals) };
 }
 
 function getPathValue(value: unknown, path: string) {

@@ -350,6 +350,9 @@ function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDow
   const removable = !block.type.endsWith("_start");
   const canAttachStamp = block.type === "record_trigger_event" || block.type === "fetch_data_source";
   const stampBlock = attachedBlocks.find((item) => item.type === "stamp_integritas");
+  const [stampConditionFieldPath, setStampConditionFieldPath] = useState(stampBlock?.config.condition?.fieldPath ?? "sensor.temperature");
+  const [stampConditionEquals, setStampConditionEquals] = useState(JSON.stringify(stampBlock?.config.condition?.equals ?? 15));
+  const [stampConditionError, setStampConditionError] = useState<string | null>(null);
   const fetchSources = sources.filter((item) => item.type === "json-api" || item.type === "internal-json-api");
   const outputTargets = sources.filter((item) => item.type === "gpio-output");
   return (
@@ -409,9 +412,27 @@ function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDow
           <div className="metric-grid">
             <RulePart title="Status" value={stampBlock.lastError ? "Error" : stampBlock.enabled ? "Enabled" : "Disabled"} />
             <RulePart title="Last stamped" value={stampBlock.lastRunAt ? formatLocalTime(stampBlock.lastRunAt) : "Not run yet"} />
-            <RulePart title="Output" value="Proof UID" />
+            <RulePart title="Condition" value={stampConditionSummary(stampBlock)} />
           </div>
           {stampBlock.lastError && <p className="error-text">{stampBlock.lastError}</p>}
+          <div className="automation-form">
+            <label>Stamp only if data field path<input value={stampConditionFieldPath} onChange={(event) => setStampConditionFieldPath(event.target.value)} placeholder="sensor.temperature" /></label>
+            <label>Equals JSON<input value={stampConditionEquals} onChange={(event) => {
+              setStampConditionEquals(event.target.value);
+              setStampConditionError(null);
+            }} placeholder="15" /></label>
+            {stampConditionError && <p className="error-text">{stampConditionError}</p>}
+            <div className="row-actions">
+              <button type="button" disabled={busy || !stampConditionFieldPath.trim()} onClick={() => {
+                try {
+                  onUpdateAttached(stampBlock.id, { config: { condition: { fieldPath: stampConditionFieldPath.trim(), equals: JSON.parse(stampConditionEquals) as unknown } } });
+                } catch (error) {
+                  setStampConditionError(error instanceof Error ? error.message : "Equals must be valid JSON");
+                }
+              }}>Save stamp condition</button>
+              <button type="button" disabled={busy || !stampBlock.config.condition} onClick={() => onUpdateAttached(stampBlock.id, { config: { condition: null } })}>Clear stamp condition</button>
+            </div>
+          </div>
           <div className="row-actions">
             <button type="button" disabled={busy} onClick={() => onUpdateAttached(stampBlock.id, { enabled: !stampBlock.enabled })}>{stampBlock.enabled ? "Disable stamp" : "Enable stamp"}</button>
             <button type="button" disabled={busy} onClick={() => onDeleteAttached(stampBlock.id)}>Remove stamp</button>
@@ -427,6 +448,12 @@ function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDow
       </div>}
     </div>
   );
+}
+
+function stampConditionSummary(block: AutomationBlock) {
+  const condition = block.config.condition;
+  if (!condition) return "Always stamp";
+  return `${condition.fieldPath} equals ${JSON.stringify(condition.equals)}`;
 }
 
 function stampStatus(block: AutomationBlock) {
