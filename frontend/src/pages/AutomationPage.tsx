@@ -234,6 +234,7 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
           onMoveDown={() => onReorderBlocks(moveBlock(mainBlocks, index, index + 1))}
           onAttachStamp={() => onAddBlock({ type: "stamp_integritas", config: {}, parentBlockId: block.id })}
           onUpdate={(input) => onUpdateBlock(block.id, input)}
+          onUpdateAttached={(blockId, input) => onUpdateBlock(blockId, input)}
           onDelete={() => block.type.endsWith("_start") ? undefined : onDeleteBlock(block.id)}
           onDeleteAttached={onDeleteBlock}
         />)}
@@ -283,7 +284,7 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
   );
 }
 
-function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDown, onMoveUp, onMoveDown, onAttachStamp, onUpdate, onDelete, onDeleteAttached }: { block: AutomationBlock; attachedBlocks: AutomationBlock[]; sources: DataSource[]; busy: boolean; canMoveUp: boolean; canMoveDown: boolean; onMoveUp: () => void; onMoveDown: () => void; onAttachStamp: () => void; onUpdate: (input: Parameters<typeof updateAutomationBlock>[2]) => void; onDelete: () => void; onDeleteAttached: (blockId: string) => void }) {
+function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDown, onMoveUp, onMoveDown, onAttachStamp, onUpdate, onUpdateAttached, onDelete, onDeleteAttached }: { block: AutomationBlock; attachedBlocks: AutomationBlock[]; sources: DataSource[]; busy: boolean; canMoveUp: boolean; canMoveDown: boolean; onMoveUp: () => void; onMoveDown: () => void; onAttachStamp: () => void; onUpdate: (input: Parameters<typeof updateAutomationBlock>[2]) => void; onUpdateAttached: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onDelete: () => void; onDeleteAttached: (blockId: string) => void }) {
   const [fetchSourceId, setFetchSourceId] = useState(block.config.sourceId ?? "");
   const [outputTargetId, setOutputTargetId] = useState(block.config.targetId ?? "");
   const [outputDurationMs, setOutputDurationMs] = useState(String(block.config.durationMs ?? 500));
@@ -328,10 +329,16 @@ function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDow
         <div className="card soft-card">
           <div className="status-row">
             <div><strong>+ Stamp with Integritas</strong><p className="muted">Side block attached to this data block. It stamps this block's hash immediately after data is recorded.</p></div>
-            <span className="pill pill-neutral">Attached</span>
+            <span className={`pill ${stampBlock.lastError ? "pill-warn" : stampBlock.enabled ? "pill-good" : "pill-neutral"}`}>{stampStatus(stampBlock)}</span>
+          </div>
+          <div className="metric-grid">
+            <RulePart title="Status" value={stampBlock.lastError ? "Error" : stampBlock.enabled ? "Enabled" : "Disabled"} />
+            <RulePart title="Last stamped" value={stampBlock.lastRunAt ? formatLocalTime(stampBlock.lastRunAt) : "Not run yet"} />
+            <RulePart title="Output" value="Proof UID" />
           </div>
           {stampBlock.lastError && <p className="error-text">{stampBlock.lastError}</p>}
           <div className="row-actions">
+            <button type="button" disabled={busy} onClick={() => onUpdateAttached(stampBlock.id, { enabled: !stampBlock.enabled })}>{stampBlock.enabled ? "Disable stamp" : "Enable stamp"}</button>
             <button type="button" disabled={busy} onClick={() => onDeleteAttached(stampBlock.id)}>Remove stamp</button>
           </div>
         </div>
@@ -345,6 +352,13 @@ function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDow
       </div>}
     </div>
   );
+}
+
+function stampStatus(block: AutomationBlock) {
+  if (!block.enabled) return "Disabled";
+  if (block.lastError) return "Error";
+  if (block.lastRunAt) return "Last stamped";
+  return "Not run yet";
 }
 
 function moveBlock(blocks: AutomationBlock[], from: number, to: number) {

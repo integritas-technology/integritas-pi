@@ -56,7 +56,7 @@ function RunDetails({ run, compact }: { run: AutomationRun; compact: boolean }) 
         {run.blocks.map((block) => (
           <div key={block.id} className="card">
             <div className="status-row">
-              <div><strong>{block.order}. {block.blockLabel}</strong><p className="muted">{block.blockType} · {formatDuration(block.durationMs)}</p></div>
+              <div><strong>{block.blockType === "stamp_integritas" ? "+ " : `${block.order}. `}{block.blockLabel}</strong><p className="muted">{blockTypeLabel(block.blockType)} · {formatDuration(block.durationMs)}</p></div>
               <span className={`pill ${block.status === "success" ? "pill-good" : block.status === "failed" ? "pill-warn" : "pill-neutral"}`}>{block.status}</span>
             </div>
             {block.error && <p className="error-text">{block.error}</p>}
@@ -66,6 +66,11 @@ function RunDetails({ run, compact }: { run: AutomationRun; compact: boolean }) 
       </div>
     </section>
   );
+}
+
+function blockTypeLabel(type: string) {
+  if (type === "stamp_integritas") return "Attached side block";
+  return type;
 }
 
 function formatDuration(ms: number | null) {
