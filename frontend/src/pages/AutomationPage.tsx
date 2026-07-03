@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
 import { addAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, listAutomationWorkflowRuns, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow } from "../features/automation/automationApi";
@@ -204,6 +204,7 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
   const [conditionFieldPath, setConditionFieldPath] = useState("active");
   const [conditionEquals, setConditionEquals] = useState("true");
   const [conditionError, setConditionError] = useState<string | null>(null);
+  const [expandedAddBlock, setExpandedAddBlock] = useState<"record" | "fetch" | "condition" | "wait" | "output" | null>(null);
   const [payloadModalOpen, setPayloadModalOpen] = useState(false);
   const [payloadText, setPayloadText] = useState(() => JSON.stringify(examplePayload(workflow), null, 2));
   const [payloadError, setPayloadError] = useState<string | null>(null);
@@ -285,41 +286,59 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
             <p className="muted">Append small logic pieces to this workflow. Attach Integritas stamps directly to record or fetch blocks.</p>
           </div>
         </div>
-        <div className="automation-form">
+        <div className="grid-list">
           {canAddRecordTriggerEvent && (
-            <div className="row-actions">
-              <button type="button" disabled={busy} onClick={() => onAddBlock({ type: "record_trigger_event", config: {} })}>Add record trigger block</button>
-            </div>
+            <AddBlockCard id="record" title="Record trigger event" description="Store the event that started this workflow as data, making it hashable and stampable." expanded={expandedAddBlock === "record"} onToggle={() => setExpandedAddBlock(expandedAddBlock === "record" ? null : "record")}>
+              <div className="row-actions">
+                <button type="button" disabled={busy} onClick={() => onAddBlock({ type: "record_trigger_event", config: {} })}>Add record trigger block</button>
+              </div>
+            </AddBlockCard>
           )}
-          <label>Fetch data source<select value={fetchSourceId} onChange={(event) => setFetchSourceId(event.target.value)}>{fetchSources.map((item) => <option key={item.id} value={item.id}>{item.name} - {sourceLabel(item)}</option>)}</select></label>
-          <div className="row-actions">
-            <button type="button" disabled={busy || !fetchSourceId} onClick={() => onAddBlock({ type: "fetch_data_source", config: { sourceId: fetchSourceId } })}>Add fetch block</button>
-          </div>
-          <label>Wait duration ms<input value={waitMs} onChange={(event) => setWaitMs(event.target.value)} inputMode="numeric" placeholder="1000" /></label>
-          <div className="row-actions">
-            <button type="button" disabled={busy || !Number.isFinite(Number(waitMs))} onClick={() => onAddBlock({ type: "wait", config: { durationMs: Number(waitMs) } })}>Add wait block</button>
-          </div>
-          <label>Condition source<select value={conditionSource} onChange={(event) => setConditionSource(event.target.value as "trigger" | "data")}><option value="trigger">Trigger event</option><option value="data">Latest data</option></select></label>
-          <label>{conditionSource === "trigger" ? "Trigger field path" : "Data field path"}<input value={conditionFieldPath} onChange={(event) => setConditionFieldPath(event.target.value)} placeholder="active" /></label>
-          <label>Equals JSON<input value={conditionEquals} onChange={(event) => {
-            setConditionEquals(event.target.value);
-            setConditionError(null);
-          }} placeholder="true" /></label>
-          {conditionError && <p className="error-text">{conditionError}</p>}
-          <div className="row-actions">
-            <button type="button" disabled={busy || !conditionFieldPath.trim()} onClick={() => {
-              try {
-                onAddBlock({ type: "if_payload_field_equals", config: { source: conditionSource, fieldPath: conditionFieldPath.trim(), equals: JSON.parse(conditionEquals) as unknown } });
-              } catch (error) {
-                setConditionError(error instanceof Error ? error.message : "Equals must be valid JSON");
-              }
-            }}>Add condition block</button>
-          </div>
-          <label>Output target<select value={outputTargetId} onChange={(event) => setOutputTargetId(event.target.value)}>{outputTargets.map((item) => <option key={item.id} value={item.id}>{item.name} - {sourceLabel(item)}</option>)}</select></label>
-          <label>Pulse duration ms<input value={outputPulseMs} onChange={(event) => setOutputPulseMs(event.target.value)} inputMode="numeric" placeholder="500" /></label>
-          <div className="row-actions">
-            <button type="button" disabled={busy || !outputTargetId || !Number.isFinite(Number(outputPulseMs))} onClick={() => onAddBlock({ type: "control_output", config: { targetId: outputTargetId, action: "pulse", durationMs: Number(outputPulseMs) } })}>Add output pulse block</button>
-          </div>
+          <AddBlockCard id="fetch" title="Fetch data source" description="Fetch JSON from an HTTP device/source and make it the latest workflow data." expanded={expandedAddBlock === "fetch"} onToggle={() => setExpandedAddBlock(expandedAddBlock === "fetch" ? null : "fetch")}>
+            <div className="automation-form">
+              <label>Fetch data source<select value={fetchSourceId} onChange={(event) => setFetchSourceId(event.target.value)}>{fetchSources.map((item) => <option key={item.id} value={item.id}>{item.name} - {sourceLabel(item)}</option>)}</select></label>
+              <div className="row-actions">
+                <button type="button" disabled={busy || !fetchSourceId} onClick={() => onAddBlock({ type: "fetch_data_source", config: { sourceId: fetchSourceId } })}>Add fetch block</button>
+              </div>
+            </div>
+          </AddBlockCard>
+          <AddBlockCard id="condition" title="If field equals" description="Continue only when a trigger or data field equals the JSON value you specify." expanded={expandedAddBlock === "condition"} onToggle={() => setExpandedAddBlock(expandedAddBlock === "condition" ? null : "condition")}>
+            <div className="automation-form">
+              <label>Condition source<select value={conditionSource} onChange={(event) => setConditionSource(event.target.value as "trigger" | "data")}><option value="trigger">Trigger event</option><option value="data">Latest data</option></select></label>
+              <label>{conditionSource === "trigger" ? "Trigger field path" : "Data field path"}<input value={conditionFieldPath} onChange={(event) => setConditionFieldPath(event.target.value)} placeholder="active" /></label>
+              <label>Equals JSON<input value={conditionEquals} onChange={(event) => {
+                setConditionEquals(event.target.value);
+                setConditionError(null);
+              }} placeholder="true" /></label>
+              {conditionError && <p className="error-text">{conditionError}</p>}
+              <div className="row-actions">
+                <button type="button" disabled={busy || !conditionFieldPath.trim()} onClick={() => {
+                  try {
+                    onAddBlock({ type: "if_payload_field_equals", config: { source: conditionSource, fieldPath: conditionFieldPath.trim(), equals: JSON.parse(conditionEquals) as unknown } });
+                  } catch (error) {
+                    setConditionError(error instanceof Error ? error.message : "Equals must be valid JSON");
+                  }
+                }}>Add condition block</button>
+              </div>
+            </div>
+          </AddBlockCard>
+          <AddBlockCard id="wait" title="Wait" description="Pause the workflow for a short time before running the next block." expanded={expandedAddBlock === "wait"} onToggle={() => setExpandedAddBlock(expandedAddBlock === "wait" ? null : "wait")}>
+            <div className="automation-form">
+              <label>Wait duration ms<input value={waitMs} onChange={(event) => setWaitMs(event.target.value)} inputMode="numeric" placeholder="1000" /></label>
+              <div className="row-actions">
+                <button type="button" disabled={busy || !Number.isFinite(Number(waitMs))} onClick={() => onAddBlock({ type: "wait", config: { durationMs: Number(waitMs) } })}>Add wait block</button>
+              </div>
+            </div>
+          </AddBlockCard>
+          <AddBlockCard id="output" title="Control output" description="Pulse a configured LED output target from this workflow." expanded={expandedAddBlock === "output"} onToggle={() => setExpandedAddBlock(expandedAddBlock === "output" ? null : "output")}>
+            <div className="automation-form">
+              <label>Output target<select value={outputTargetId} onChange={(event) => setOutputTargetId(event.target.value)}>{outputTargets.map((item) => <option key={item.id} value={item.id}>{item.name} - {sourceLabel(item)}</option>)}</select></label>
+              <label>Pulse duration ms<input value={outputPulseMs} onChange={(event) => setOutputPulseMs(event.target.value)} inputMode="numeric" placeholder="500" /></label>
+              <div className="row-actions">
+                <button type="button" disabled={busy || !outputTargetId || !Number.isFinite(Number(outputPulseMs))} onClick={() => onAddBlock({ type: "control_output", config: { targetId: outputTargetId, action: "pulse", durationMs: Number(outputPulseMs) } })}>Add output pulse block</button>
+              </div>
+            </div>
+          </AddBlockCard>
         </div>
       </section>
 
@@ -344,6 +363,20 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
         <div><strong>Recent runs</strong><p className="muted">Latest executions for this workflow, including per-block status.</p></div>
         <AutomationRunsTable runs={runs} compact />
       </section>
+    </section>
+  );
+}
+
+function AddBlockCard({ title, description, expanded, onToggle, children }: { id: string; title: string; description: string; expanded: boolean; onToggle: () => void; children: ReactNode }) {
+  return (
+    <section className="card soft-card">
+      <button type="button" className="ghost-button" onClick={onToggle} aria-expanded={expanded}>
+        <div className="status-row">
+          <div><strong>{title}</strong><p className="muted">{description}</p></div>
+          <span className="pill pill-neutral">{expanded ? "Open" : "Add"}</span>
+        </div>
+      </button>
+      {expanded && <div>{children}</div>}
     </section>
   );
 }
