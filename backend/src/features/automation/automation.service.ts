@@ -234,6 +234,7 @@ async function executeBlock(workflow: AutomationWorkflowRecord, block: Automatio
   const blockRun = createAutomationBlockRun({ runId, workflowId: workflow.id, blockId: block.id, orderIndex: block.order_index, blockType: block.type, blockLabel: blockLabel(block.type), input: contextSummary(context) });
 
   try {
+    let status: "success" | "skipped" = "success";
     if (block.type.endsWith("_start")) {
       updateAutomationBlockRun(block.id);
       finishAutomationBlockRun(blockRun.id, { status: "success", output: contextSummary(context) });
@@ -243,11 +244,11 @@ async function executeBlock(workflow: AutomationWorkflowRecord, block: Automatio
     else if (block.type === "fetch_data_source") await fetchDataSource(workflow, block, context, String(config.sourceId ?? ""));
     else if (block.type === "if_payload_field_equals") checkPayloadFieldEquals(config, context);
     else if (block.type === "wait") await wait(Number(config.durationMs ?? 0));
-    else if (block.type === "stamp_integritas") await stampLatestHash(workflow, context, config.condition ?? null);
+    else if (block.type === "stamp_integritas") status = await stampLatestHash(workflow, context, config.condition ?? null);
     else if (block.type === "control_output") await controlOutput(config, context);
     else throw new Error(`Unsupported automation block: ${block.type}`);
     updateAutomationBlockRun(block.id);
-    finishAutomationBlockRun(blockRun.id, { status: "success", output: contextSummary(context) });
+    finishAutomationBlockRun(blockRun.id, { status, output: contextSummary(context) });
     return;
   } catch (error) {
     updateAutomationBlockRun(block.id, { error: error instanceof Error ? error.message : "Block failed" });
@@ -287,12 +288,12 @@ async function fetchDataSource(workflow: AutomationWorkflowRecord, block: Automa
   }
 }
 
-async function stampLatestHash(workflow: AutomationWorkflowRecord, context: WorkflowContext, condition: FieldEqualsCondition | null) {
+async function stampLatestHash(workflow: AutomationWorkflowRecord, context: WorkflowContext, condition: FieldEqualsCondition | null): Promise<"success" | "skipped"> {
   if (!context.hash || !context.data) throw new Error("No collected hash is available to stamp");
   if (condition) {
     const result = evaluateFieldEquals(context.data.result.preview, condition);
     context.output = { condition: result, action: result.matched ? "stamped" : "skipped" };
-    if (!result.matched) return;
+    if (!result.matched) return "skipped";
   }
 
   const apiKey = getIntegritasApiKey();
@@ -305,6 +306,7 @@ async function stampLatestHash(workflow: AutomationWorkflowRecord, context: Work
   context.proofId = proof.id;
   if (context.data.readId) linkDataSourceReadProof(context.data.readId, proof.id);
   context.output = { condition: condition ? evaluateFieldEquals(context.data.result.preview, condition) : null, action: "stamped", proofId: proof.id, proofUid: stamp.proofUid };
+  return "success";
 }
 
 function hashPayload(payload: unknown): ReadResult {

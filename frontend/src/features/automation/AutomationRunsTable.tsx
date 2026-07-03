@@ -30,7 +30,7 @@ export function AutomationRunsTable({ runs, compact = false }: { runs: Automatio
               <td>{run.triggerType}</td>
               <td><span className={`pill ${run.status === "success" ? "pill-good" : run.status === "failed" ? "pill-warn" : "pill-neutral"}`}>{run.status}</span></td>
               <td>{formatDuration(run.durationMs)}</td>
-              <td>{run.blocks.filter((block) => block.status === "success").length}/{run.blockCount}</td>
+              <td>{run.blocks.filter((block) => block.status === "success" || block.status === "skipped").length}/{run.blockCount}</td>
               <td><button type="button" onClick={() => setOpenRunId(openRunId === run.id ? null : run.id)}>{openRunId === run.id ? "Hide" : "View"}</button></td>
             </tr>
           ))}
