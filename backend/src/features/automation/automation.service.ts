@@ -46,10 +46,11 @@ type WorkflowContext = {
   stopped?: boolean;
 };
 
-type FieldEqualsCondition = {
+type FieldCondition = {
   source?: "trigger" | "data";
   fieldPath: string;
-  equals: unknown;
+  operator: "equals" | "not_equals" | "greater_than" | "greater_than_or_equals" | "less_than" | "less_than_or_equals" | "exists" | "does_not_exist";
+  value?: unknown;
 };
 
 const runningWorkflowIds = new Set<string>();
@@ -231,7 +232,7 @@ function validateStartBlock(block: AutomationBlockRecord, trigger: WorkflowConte
 }
 
 async function executeBlock(workflow: AutomationWorkflowRecord, block: AutomationBlockRecord, context: WorkflowContext, runId: string) {
-  const config = JSON.parse(block.config_json) as { sourceId?: string; targetId?: string; action?: string; durationMs?: number; fieldPath?: string; equals?: unknown; condition?: FieldEqualsCondition | null };
+  const config = JSON.parse(block.config_json) as { sourceId?: string; targetId?: string; action?: string; durationMs?: number; source?: "trigger" | "data"; fieldPath?: string; operator?: FieldCondition["operator"]; value?: unknown; condition?: FieldCondition | null };
   const blockRun = createAutomationBlockRun({ runId, workflowId: workflow.id, blockId: block.id, orderIndex: block.order_index, blockType: block.type, blockLabel: blockLabel(block.type), input: contextSummary(context) });
 
   try {
@@ -289,7 +290,7 @@ async function fetchDataSource(workflow: AutomationWorkflowRecord, block: Automa
   }
 }
 
-async function stampLatestHash(workflow: AutomationWorkflowRecord, context: WorkflowContext, condition: FieldEqualsCondition | null): Promise<"success" | "skipped"> {
+async function stampLatestHash(workflow: AutomationWorkflowRecord, context: WorkflowContext, condition: FieldCondition | null): Promise<"success" | "skipped"> {
   if (!context.hash || !context.data) throw new Error("No collected hash is available to stamp");
   if (condition) {
     const result = evaluateCondition(context, { ...condition, source: condition.source ?? "data" });
@@ -355,23 +356,38 @@ function blockToLegacyRule(block: ReturnType<typeof serializeAutomationBlock>) {
 function blockLabel(type: string) {
   if (type === "stamp_integritas") return "Stamp with Integritas";
   if (type === "control_output") return "Control output";
-  if (type === "if_payload_field_equals") return "If payload field equals";
+  if (type === "if_payload_field_equals") return "If field matches";
   if (type === "fetch_data_source") return "Fetch data source";
   if (type === "record_trigger_event") return "Record trigger event";
   if (type === "wait") return "Wait";
   return "Start workflow";
 }
 
-function checkPayloadFieldEquals(config: { source?: "trigger" | "data"; fieldPath?: string; equals?: unknown }, context: WorkflowContext) {
-  const result = evaluateCondition(context, { source: config.source ?? "trigger", fieldPath: String(config.fieldPath ?? ""), equals: config.equals });
+function checkPayloadFieldEquals(config: { source?: "trigger" | "data"; fieldPath?: string; operator?: FieldCondition["operator"]; value?: unknown }, context: WorkflowContext) {
+  const result = evaluateCondition(context, { source: config.source ?? "trigger", fieldPath: String(config.fieldPath ?? ""), operator: config.operator!, value: config.value });
   context.output = { ...result, action: result.matched ? "continued" : "stopped" };
   if (!result.matched) context.stopped = true;
 }
 
-function evaluateCondition(context: WorkflowContext, condition: FieldEqualsCondition & { source: "trigger" | "data" }) {
+function evaluateCondition(context: WorkflowContext, condition: FieldCondition & { source: "trigger" | "data" }) {
   const source = condition.source === "data" ? context.data?.result.preview : context.trigger.payload;
   const actual = getPathValue(source, condition.fieldPath);
-  return { source: condition.source, fieldPath: condition.fieldPath, expected: condition.equals, actual, matched: deepEqualJson(actual, condition.equals) };
+  const matched = evaluateOperator(actual, condition.operator, condition.value);
+  return { source: condition.source, fieldPath: condition.fieldPath, operator: condition.operator, expected: condition.value, actual, matched };
+}
+
+function evaluateOperator(actual: unknown, operator: FieldCondition["operator"], expected: unknown) {
+  if (operator === "exists") return actual !== undefined;
+  if (operator === "does_not_exist") return actual === undefined;
+  if (operator === "equals") return deepEqualJson(actual, expected);
+  if (operator === "not_equals") return !deepEqualJson(actual, expected);
+
+  if (typeof actual !== "number" || typeof expected !== "number") return false;
+  if (operator === "greater_than") return actual > expected;
+  if (operator === "greater_than_or_equals") return actual >= expected;
+  if (operator === "less_than") return actual < expected;
+  if (operator === "less_than_or_equals") return actual <= expected;
+  return false;
 }
 
 function getPathValue(value: unknown, path: string) {

@@ -3,7 +3,7 @@ import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
 import { addAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, listAutomationWorkflowRuns, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow } from "../features/automation/automationApi";
 import { AutomationRunsTable } from "../features/automation/AutomationRunsTable";
-import type { AutomationBlock, AutomationBlockType, AutomationRun, AutomationWorkflow } from "../features/automation/automationTypes";
+import type { AutomationBlock, AutomationBlockType, AutomationRun, AutomationWorkflow, ConditionOperator } from "../features/automation/automationTypes";
 import { listDataSources } from "../features/data-sources/dataSourcesApi";
 import type { DataSource } from "../features/data-sources/dataSourceTypes";
 import { formatLocalTime } from "../lib/time";
@@ -202,7 +202,8 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
   const [waitMs, setWaitMs] = useState("1000");
   const [conditionSource, setConditionSource] = useState<"trigger" | "data">("trigger");
   const [conditionFieldPath, setConditionFieldPath] = useState("active");
-  const [conditionEquals, setConditionEquals] = useState("true");
+  const [conditionOperator, setConditionOperator] = useState<ConditionOperator>("equals");
+  const [conditionValue, setConditionValue] = useState("true");
   const [conditionError, setConditionError] = useState<string | null>(null);
   const [expandedAddBlock, setExpandedAddBlock] = useState<"record" | "fetch" | "condition" | "wait" | "output" | null>(null);
   const [payloadModalOpen, setPayloadModalOpen] = useState(false);
@@ -296,27 +297,28 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
           )}
           <AddBlockCard id="fetch" title="Fetch data source" description="Fetch JSON from an HTTP device/source and make it the latest workflow data." expanded={expandedAddBlock === "fetch"} onToggle={() => setExpandedAddBlock(expandedAddBlock === "fetch" ? null : "fetch")}>
             <div className="automation-form">
-              <label>Fetch data source<select value={fetchSourceId} onChange={(event) => setFetchSourceId(event.target.value)}>{fetchSources.map((item) => <option key={item.id} value={item.id}>{item.name} - {sourceLabel(item)}</option>)}</select></label>
+              <label>Source<select value={fetchSourceId} onChange={(event) => setFetchSourceId(event.target.value)}>{fetchSources.map((item) => <option key={item.id} value={item.id}>{item.name} - {sourceLabel(item)}</option>)}</select></label>
               <div className="row-actions">
                 <button type="button" disabled={busy || !fetchSourceId} onClick={() => onAddBlock({ type: "fetch_data_source", config: { sourceId: fetchSourceId } })}>Add fetch block</button>
               </div>
             </div>
           </AddBlockCard>
-          <AddBlockCard id="condition" title="If field equals" description="Continue only when a trigger or data field equals the JSON value you specify." expanded={expandedAddBlock === "condition"} onToggle={() => setExpandedAddBlock(expandedAddBlock === "condition" ? null : "condition")}>
+          <AddBlockCard id="condition" title="If field matches" description="Continue only when a trigger or data field matches the operator you choose." expanded={expandedAddBlock === "condition"} onToggle={() => setExpandedAddBlock(expandedAddBlock === "condition" ? null : "condition")}>
             <div className="automation-form">
               <label>Condition source<select value={conditionSource} onChange={(event) => setConditionSource(event.target.value as "trigger" | "data")}><option value="trigger">Trigger event</option><option value="data">Latest data</option></select></label>
               <label>{conditionSource === "trigger" ? "Trigger field path" : "Data field path"}<input value={conditionFieldPath} onChange={(event) => setConditionFieldPath(event.target.value)} placeholder="active" /></label>
-              <label>Equals JSON<input value={conditionEquals} onChange={(event) => {
-                setConditionEquals(event.target.value);
+              <label>Operator<select value={conditionOperator} onChange={(event) => setConditionOperator(event.target.value as ConditionOperator)}>{conditionOperatorOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+              {!operatorHasNoValue(conditionOperator) && <label>Compare value JSON<input value={conditionValue} onChange={(event) => {
+                setConditionValue(event.target.value);
                 setConditionError(null);
-              }} placeholder="true" /></label>
+              }} placeholder="true" /></label>}
               {conditionError && <p className="error-text">{conditionError}</p>}
               <div className="row-actions">
                 <button type="button" disabled={busy || !conditionFieldPath.trim()} onClick={() => {
                   try {
-                    onAddBlock({ type: "if_payload_field_equals", config: { source: conditionSource, fieldPath: conditionFieldPath.trim(), equals: JSON.parse(conditionEquals) as unknown } });
+                    onAddBlock({ type: "if_payload_field_equals", config: conditionConfig(conditionSource, conditionFieldPath, conditionOperator, conditionValue) });
                   } catch (error) {
-                    setConditionError(error instanceof Error ? error.message : "Equals must be valid JSON");
+                    setConditionError(error instanceof Error ? error.message : "Compare value must be valid JSON");
                   }
                 }}>Add condition block</button>
               </div>
@@ -373,7 +375,7 @@ function AddBlockCard({ title, description, expanded, onToggle, children }: { id
       <button type="button" className="ghost-button" onClick={onToggle} aria-expanded={expanded}>
         <div className="status-row">
           <div><strong>{title}</strong><p className="muted">{description}</p></div>
-          <span className="pill pill-neutral">{expanded ? "Open" : "Add"}</span>
+          <span aria-hidden="true">{expanded ? "Collapse" : "Expand"}</span>
         </div>
       </button>
       {expanded && <div>{children}</div>}
@@ -388,14 +390,16 @@ function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDow
   const [durationMs, setDurationMs] = useState(String(block.config.durationMs ?? 1000));
   const [conditionSource, setConditionSource] = useState<"trigger" | "data">(block.config.source ?? "trigger");
   const [conditionFieldPath, setConditionFieldPath] = useState(block.config.fieldPath ?? "active");
-  const [conditionEquals, setConditionEquals] = useState(JSON.stringify(block.config.equals ?? true));
+  const [conditionOperator, setConditionOperator] = useState<ConditionOperator>(block.config.operator ?? "equals");
+  const [conditionValue, setConditionValue] = useState(JSON.stringify(block.config.value ?? true));
   const [conditionError, setConditionError] = useState<string | null>(null);
   const removable = !block.type.endsWith("_start");
   const canAttachStamp = block.type === "record_trigger_event" || block.type === "fetch_data_source";
   const stampBlock = attachedBlocks.find((item) => item.type === "stamp_integritas");
   const [stampConditionSource, setStampConditionSource] = useState<"trigger" | "data">(stampBlock?.config.condition?.source ?? "data");
   const [stampConditionFieldPath, setStampConditionFieldPath] = useState(stampBlock?.config.condition?.fieldPath ?? "sensor.temperature");
-  const [stampConditionEquals, setStampConditionEquals] = useState(JSON.stringify(stampBlock?.config.condition?.equals ?? 15));
+  const [stampConditionOperator, setStampConditionOperator] = useState<ConditionOperator>(stampBlock?.config.condition?.operator ?? "equals");
+  const [stampConditionValue, setStampConditionValue] = useState(JSON.stringify(stampBlock?.config.condition?.value ?? 15));
   const [stampConditionError, setStampConditionError] = useState<string | null>(null);
   const fetchSources = sources.filter((item) => item.type === "json-api" || item.type === "internal-json-api");
   const outputTargets = sources.filter((item) => item.type === "gpio-output");
@@ -427,16 +431,17 @@ function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDow
         <div className="automation-form">
           <label>Condition source<select value={conditionSource} onChange={(event) => setConditionSource(event.target.value as "trigger" | "data")}><option value="trigger">Trigger event</option><option value="data">Latest data</option></select></label>
           <label>{conditionSource === "trigger" ? "Trigger field path" : "Data field path"}<input value={conditionFieldPath} onChange={(event) => setConditionFieldPath(event.target.value)} placeholder="active" /></label>
-          <label>Equals JSON<input value={conditionEquals} onChange={(event) => {
-            setConditionEquals(event.target.value);
+          <label>Operator<select value={conditionOperator} onChange={(event) => setConditionOperator(event.target.value as ConditionOperator)}>{conditionOperatorOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+          {!operatorHasNoValue(conditionOperator) && <label>Compare value JSON<input value={conditionValue} onChange={(event) => {
+            setConditionValue(event.target.value);
             setConditionError(null);
-          }} placeholder="true" /></label>
+          }} placeholder="true" /></label>}
           {conditionError && <p className="error-text">{conditionError}</p>}
           <button type="button" disabled={busy || !conditionFieldPath.trim()} onClick={() => {
             try {
-              onUpdate({ config: { source: conditionSource, fieldPath: conditionFieldPath.trim(), equals: JSON.parse(conditionEquals) as unknown } });
+              onUpdate({ config: conditionConfig(conditionSource, conditionFieldPath, conditionOperator, conditionValue) });
             } catch (error) {
-              setConditionError(error instanceof Error ? error.message : "Equals must be valid JSON");
+              setConditionError(error instanceof Error ? error.message : "Compare value must be valid JSON");
             }
           }}>Save condition</button>
         </div>
@@ -463,17 +468,18 @@ function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDow
           <div className="automation-form">
             <label>Stamp condition source<select value={stampConditionSource} onChange={(event) => setStampConditionSource(event.target.value as "trigger" | "data")}><option value="data">Latest data</option><option value="trigger">Trigger event</option></select></label>
             <label>{stampConditionSource === "trigger" ? "Stamp only if trigger field path" : "Stamp only if data field path"}<input value={stampConditionFieldPath} onChange={(event) => setStampConditionFieldPath(event.target.value)} placeholder="sensor.temperature" /></label>
-            <label>Equals JSON<input value={stampConditionEquals} onChange={(event) => {
-              setStampConditionEquals(event.target.value);
+            <label>Operator<select value={stampConditionOperator} onChange={(event) => setStampConditionOperator(event.target.value as ConditionOperator)}>{conditionOperatorOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+            {!operatorHasNoValue(stampConditionOperator) && <label>Compare value JSON<input value={stampConditionValue} onChange={(event) => {
+              setStampConditionValue(event.target.value);
               setStampConditionError(null);
-            }} placeholder="15" /></label>
+            }} placeholder="15" /></label>}
             {stampConditionError && <p className="error-text">{stampConditionError}</p>}
             <div className="row-actions">
               <button type="button" disabled={busy || !stampConditionFieldPath.trim()} onClick={() => {
                 try {
-                  onUpdateAttached(stampBlock.id, { config: { condition: { source: stampConditionSource, fieldPath: stampConditionFieldPath.trim(), equals: JSON.parse(stampConditionEquals) as unknown } } });
+                  onUpdateAttached(stampBlock.id, { config: { condition: conditionConfig(stampConditionSource, stampConditionFieldPath, stampConditionOperator, stampConditionValue) } });
                 } catch (error) {
-                  setStampConditionError(error instanceof Error ? error.message : "Equals must be valid JSON");
+                  setStampConditionError(error instanceof Error ? error.message : "Compare value must be valid JSON");
                 }
               }}>Save stamp condition</button>
               <button type="button" disabled={busy || !stampBlock.config.condition} onClick={() => onUpdateAttached(stampBlock.id, { config: { condition: null } })}>Clear stamp condition</button>
@@ -499,7 +505,7 @@ function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDow
 function stampConditionSummary(block: AutomationBlock) {
   const condition = block.config.condition;
   if (!condition) return "Always stamp";
-  return `${conditionSourceLabel(condition.source ?? "data")} ${condition.fieldPath} equals ${JSON.stringify(condition.equals)}`;
+  return conditionSummary(condition.source ?? "data", condition.fieldPath, condition.operator, condition.value);
 }
 
 function stampStatus(block: AutomationBlock) {
@@ -537,7 +543,7 @@ function blockLabel(block: AutomationBlock) {
   if (block.type === "manual_start") return "Start manually";
   if (block.type === "record_trigger_event") return "Record trigger event";
   if (block.type === "fetch_data_source") return "Fetch data source";
-  if (block.type === "if_payload_field_equals") return `If ${conditionSourceLabel(block.config.source ?? "trigger")} field equals`;
+  if (block.type === "if_payload_field_equals") return `If ${conditionSourceLabel(block.config.source ?? "trigger")} field matches`;
   if (block.type === "wait") return "Wait";
   if (block.type === "stamp_integritas") return "Stamp with Integritas";
   if (block.type === "control_output") return "Control output";
@@ -563,7 +569,7 @@ function blockDescription(block: AutomationBlock, sources: DataSource[]) {
   if (block.type === "mqtt_event_start") return source ? `${source.name} MQTT message` : "MQTT message";
   if (block.type === "record_trigger_event") return "Store the incoming trigger payload as a data read";
   if (block.type === "fetch_data_source") return source ? `Fetch ${source.name}` : "Fetch configured HTTP JSON source";
-  if (block.type === "if_payload_field_equals") return `Continue only if ${conditionSourceLabel(block.config.source ?? "trigger")} ${block.config.fieldPath ?? "field"} equals ${JSON.stringify(block.config.equals)}`;
+  if (block.type === "if_payload_field_equals") return `Continue only if ${conditionSummary(block.config.source ?? "trigger", block.config.fieldPath ?? "field", block.config.operator, block.config.value)}`;
   if (block.type === "wait") return `Pause for ${block.config.durationMs ?? 0} ms`;
   if (block.type === "stamp_integritas") return "Stamp the latest collected hash";
   if (block.type === "control_output") return source ? `Pulse ${source.name} for ${block.config.durationMs ?? 0} ms` : "Pulse configured output target";
@@ -583,6 +589,35 @@ function blockOutput(block: AutomationBlock) {
 
 function conditionSourceLabel(source: "trigger" | "data") {
   return source === "data" ? "data" : "trigger";
+}
+
+const conditionOperatorOptions: { value: ConditionOperator; label: string }[] = [
+  { value: "equals", label: "equals" },
+  { value: "not_equals", label: "does not equal" },
+  { value: "greater_than", label: "is greater than" },
+  { value: "greater_than_or_equals", label: "is greater than or equal to" },
+  { value: "less_than", label: "is less than" },
+  { value: "less_than_or_equals", label: "is less than or equal to" },
+  { value: "exists", label: "exists" },
+  { value: "does_not_exist", label: "does not exist" }
+];
+
+function operatorHasNoValue(operator: ConditionOperator) {
+  return operator === "exists" || operator === "does_not_exist";
+}
+
+function conditionConfig(source: "trigger" | "data", fieldPath: string, operator: ConditionOperator, valueText: string) {
+  return {
+    source,
+    fieldPath: fieldPath.trim(),
+    operator,
+    ...(operatorHasNoValue(operator) ? {} : { value: JSON.parse(valueText) as unknown })
+  };
+}
+
+function conditionSummary(source: "trigger" | "data", fieldPath: string, operator?: ConditionOperator, value?: unknown) {
+  const label = conditionOperatorOptions.find((option) => option.value === operator)?.label ?? "matches";
+  return operatorHasNoValue(operator ?? "exists") ? `${conditionSourceLabel(source)} ${fieldPath} ${label}` : `${conditionSourceLabel(source)} ${fieldPath} ${label} ${JSON.stringify(value)}`;
 }
 
 function sourcesForStart(type: AutomationBlockType, sources: DataSource[]) {

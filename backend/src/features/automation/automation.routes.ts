@@ -295,14 +295,14 @@ function validateBlockConfig(type: AutomationBlockType, config: Record<string, u
   }
 
   if (type === "if_payload_field_equals") {
-    validateFieldEqualsCondition(config, "Condition block");
+    validateFieldCondition(config, "Condition block");
     return;
   }
 
   if (type === "stamp_integritas") {
     if (config.condition === undefined || config.condition === null) return;
     if (typeof config.condition !== "object" || Array.isArray(config.condition)) throw new Error("Stamp condition must be an object");
-    validateFieldEqualsCondition(config.condition as Record<string, unknown>, "Stamp condition");
+    validateFieldCondition(config.condition as Record<string, unknown>, "Stamp condition");
     return;
   }
 
@@ -369,13 +369,25 @@ function isSafeFieldPath(path: string) {
   return /^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$/.test(path);
 }
 
-function validateFieldEqualsCondition(config: Record<string, unknown>, label: string) {
+function validateFieldCondition(config: Record<string, unknown>, label: string) {
   if (config.source !== undefined && config.source !== "trigger" && config.source !== "data") throw new Error(`${label} source must be trigger or data`);
   const fieldPath = typeof config.fieldPath === "string" ? config.fieldPath.trim() : "";
   if (!fieldPath) throw new Error(`${label} requires a field path`);
   if (!isSafeFieldPath(fieldPath)) throw new Error("Field path can only contain letters, numbers, underscores, dashes, and dots");
-  if (!Object.prototype.hasOwnProperty.call(config, "equals")) throw new Error(`${label} requires an equals value`);
+  if (!isConditionOperator(config.operator)) throw new Error(`${label} requires a valid operator`);
+  if (config.operator !== "exists" && config.operator !== "does_not_exist" && !Object.prototype.hasOwnProperty.call(config, "value")) throw new Error(`${label} requires a compare value`);
   config.fieldPath = fieldPath;
+}
+
+function isConditionOperator(value: unknown) {
+  return value === "equals"
+    || value === "not_equals"
+    || value === "greater_than"
+    || value === "greater_than_or_equals"
+    || value === "less_than"
+    || value === "less_than_or_equals"
+    || value === "exists"
+    || value === "does_not_exist";
 }
 
 function limitFromQuery(value: unknown, fallback: number) {

@@ -29,6 +29,8 @@ export type AutomationBlockType =
   | "stamp_integritas"
   | "control_output";
 
+export type ConditionOperator = "equals" | "not_equals" | "greater_than" | "greater_than_or_equals" | "less_than" | "less_than_or_equals" | "exists" | "does_not_exist";
+
 export type AutomationBlock = {
   id: string;
   workflowId: string;
@@ -47,11 +49,13 @@ export type AutomationBlock = {
     activeOnly?: boolean;
     source?: "trigger" | "data";
     fieldPath?: string;
-    equals?: unknown;
+    operator?: ConditionOperator;
+    value?: unknown;
     condition?: {
       source?: "trigger" | "data";
       fieldPath: string;
-      equals: unknown;
+      operator: ConditionOperator;
+      value?: unknown;
     } | null;
   };
   lastRunAt: string | null;

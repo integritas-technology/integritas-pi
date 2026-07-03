@@ -29,6 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Field-equals conditions now explicitly choose whether they read from the workflow trigger event or the latest recorded/fetched data.
 - Event-start workflows can now add a Record trigger event block later from the workflow workspace when the workflow was created without one.
 - Workflow workspace Add block controls are now grouped into collapsible cards with titles and descriptions for each block type.
+- Field conditions now support operators: equals, not equals, greater/less than, greater/less than or equal to, exists, and does not exist. Existing workflows using the old equals-only condition config should be recreated.
 
 ### Fixed
 
