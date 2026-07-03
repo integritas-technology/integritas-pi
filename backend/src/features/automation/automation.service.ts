@@ -47,6 +47,7 @@ type WorkflowContext = {
 };
 
 type FieldEqualsCondition = {
+  source?: "trigger" | "data";
   fieldPath: string;
   equals: unknown;
 };
@@ -291,7 +292,7 @@ async function fetchDataSource(workflow: AutomationWorkflowRecord, block: Automa
 async function stampLatestHash(workflow: AutomationWorkflowRecord, context: WorkflowContext, condition: FieldEqualsCondition | null): Promise<"success" | "skipped"> {
   if (!context.hash || !context.data) throw new Error("No collected hash is available to stamp");
   if (condition) {
-    const result = evaluateFieldEquals(context.data.result.preview, condition);
+    const result = evaluateCondition(context, { ...condition, source: condition.source ?? "data" });
     context.output = { condition: result, action: result.matched ? "stamped" : "skipped" };
     if (!result.matched) return "skipped";
   }
@@ -305,7 +306,7 @@ async function stampLatestHash(workflow: AutomationWorkflowRecord, context: Work
   const proof = createProofRecord({ fileName: `Automation: ${context.data.sourceName}`, fileSize: Buffer.byteLength(context.data.result.canonicalBytes, "utf8"), hash: context.hash, proofUid: stamp.proofUid, proofStatus: "pending" });
   context.proofId = proof.id;
   if (context.data.readId) linkDataSourceReadProof(context.data.readId, proof.id);
-  context.output = { condition: condition ? evaluateFieldEquals(context.data.result.preview, condition) : null, action: "stamped", proofId: proof.id, proofUid: stamp.proofUid };
+  context.output = { condition: condition ? evaluateCondition(context, { ...condition, source: condition.source ?? "data" }) : null, action: "stamped", proofId: proof.id, proofUid: stamp.proofUid };
   return "success";
 }
 
@@ -361,15 +362,16 @@ function blockLabel(type: string) {
   return "Start workflow";
 }
 
-function checkPayloadFieldEquals(config: { fieldPath?: string; equals?: unknown }, context: WorkflowContext) {
-  const result = evaluateFieldEquals(context.trigger.payload, { fieldPath: String(config.fieldPath ?? ""), equals: config.equals });
+function checkPayloadFieldEquals(config: { source?: "trigger" | "data"; fieldPath?: string; equals?: unknown }, context: WorkflowContext) {
+  const result = evaluateCondition(context, { source: config.source ?? "trigger", fieldPath: String(config.fieldPath ?? ""), equals: config.equals });
   context.output = { ...result, action: result.matched ? "continued" : "stopped" };
   if (!result.matched) context.stopped = true;
 }
 
-function evaluateFieldEquals(source: unknown, condition: FieldEqualsCondition) {
+function evaluateCondition(context: WorkflowContext, condition: FieldEqualsCondition & { source: "trigger" | "data" }) {
+  const source = condition.source === "data" ? context.data?.result.preview : context.trigger.payload;
   const actual = getPathValue(source, condition.fieldPath);
-  return { fieldPath: condition.fieldPath, expected: condition.equals, actual, matched: deepEqualJson(actual, condition.equals) };
+  return { source: condition.source, fieldPath: condition.fieldPath, expected: condition.equals, actual, matched: deepEqualJson(actual, condition.equals) };
 }
 
 function getPathValue(value: unknown, path: string) {

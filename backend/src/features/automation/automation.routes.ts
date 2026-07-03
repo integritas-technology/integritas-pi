@@ -370,6 +370,7 @@ function isSafeFieldPath(path: string) {
 }
 
 function validateFieldEqualsCondition(config: Record<string, unknown>, label: string) {
+  if (config.source !== undefined && config.source !== "trigger" && config.source !== "data") throw new Error(`${label} source must be trigger or data`);
   const fieldPath = typeof config.fieldPath === "string" ? config.fieldPath.trim() : "";
   if (!fieldPath) throw new Error(`${label} requires a field path`);
   if (!isSafeFieldPath(fieldPath)) throw new Error("Field path can only contain letters, numbers, underscores, dashes, and dots");

@@ -26,13 +26,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Automation workflows can now be manually tested with an editable JSON trigger payload from the workflow workspace.
 - Automation workflows now support an If payload field equals block that continues when a trigger payload field matches a JSON value and stops the remaining workflow when it does not.
 - Attached Integritas stamp blocks can now have an optional field-equals condition against the recorded/fetched data, allowing workflows to skip stamping unless data matches.
+- Field-equals conditions now explicitly choose whether they read from the workflow trigger event or the latest recorded/fetched data.
 
 ### Fixed
 
 - GPIO Output LED pulses now explicitly return the line to the inactive state after pulsing so LEDs do not remain stuck on after a workflow run.
 - Automation Run now is available for all workflow start types and records a synthetic manual test trigger for event workflows instead of being limited to scheduled workflows.
 - Backend shutdown now stops GPIO Output holder processes so LED output lines are released cleanly when the container stops.
-- Conditional Integritas stamp blocks now log as skipped when their condition is not met instead of appearing as successful stamps.
+- Conditional Integritas stamp blocks now log as skipped when their condition is not met instead of appearing as successful stamps, and skipped blocks are not counted as successful blocks in run summaries.
 
 ## [0.12.0] - 2026-07-02
 

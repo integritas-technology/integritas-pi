@@ -45,9 +45,11 @@ export type AutomationBlock = {
     intervalSeconds?: number;
     durationMs?: number;
     activeOnly?: boolean;
+    source?: "trigger" | "data";
     fieldPath?: string;
     equals?: unknown;
     condition?: {
+      source?: "trigger" | "data";
       fieldPath: string;
       equals: unknown;
     } | null;
