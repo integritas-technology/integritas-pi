@@ -249,6 +249,7 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
         <div>
           <strong>{workflow.name}</strong>
           <p className="muted">{source?.name ?? "Unknown source"} · {workflow.pollingIntervalSeconds > 0 ? formatInterval(workflow.pollingIntervalSeconds) : "Event driven"}</p>
+          <p className="muted">Changes are saved per block using each block's save button. Add, remove, move, and enable actions apply immediately.</p>
         </div>
         <span className={`pill ${workflow.lastError ? "pill-warn" : workflow.enabled ? "pill-good" : "pill-neutral"}`}>{workflow.lastError ? "Error" : workflow.enabled ? "Enabled" : "Paused"}</span>
       </div>
