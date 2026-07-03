@@ -200,6 +200,9 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
   const [outputTargetId, setOutputTargetId] = useState(() => sources.find((item) => item.type === "gpio-output")?.id ?? "");
   const [outputPulseMs, setOutputPulseMs] = useState("500");
   const [waitMs, setWaitMs] = useState("1000");
+  const [conditionFieldPath, setConditionFieldPath] = useState("active");
+  const [conditionEquals, setConditionEquals] = useState("true");
+  const [conditionError, setConditionError] = useState<string | null>(null);
   const [payloadModalOpen, setPayloadModalOpen] = useState(false);
   const [payloadText, setPayloadText] = useState(() => JSON.stringify(examplePayload(workflow), null, 2));
   const [payloadError, setPayloadError] = useState<string | null>(null);
@@ -288,6 +291,21 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
           <div className="row-actions">
             <button type="button" disabled={busy || !Number.isFinite(Number(waitMs))} onClick={() => onAddBlock({ type: "wait", config: { durationMs: Number(waitMs) } })}>Add wait block</button>
           </div>
+          <label>Payload field path<input value={conditionFieldPath} onChange={(event) => setConditionFieldPath(event.target.value)} placeholder="active" /></label>
+          <label>Equals JSON<input value={conditionEquals} onChange={(event) => {
+            setConditionEquals(event.target.value);
+            setConditionError(null);
+          }} placeholder="true" /></label>
+          {conditionError && <p className="error-text">{conditionError}</p>}
+          <div className="row-actions">
+            <button type="button" disabled={busy || !conditionFieldPath.trim()} onClick={() => {
+              try {
+                onAddBlock({ type: "if_payload_field_equals", config: { fieldPath: conditionFieldPath.trim(), equals: JSON.parse(conditionEquals) as unknown } });
+              } catch (error) {
+                setConditionError(error instanceof Error ? error.message : "Equals must be valid JSON");
+              }
+            }}>Add condition block</button>
+          </div>
           <label>Output target<select value={outputTargetId} onChange={(event) => setOutputTargetId(event.target.value)}>{outputTargets.map((item) => <option key={item.id} value={item.id}>{item.name} - {sourceLabel(item)}</option>)}</select></label>
           <label>Pulse duration ms<input value={outputPulseMs} onChange={(event) => setOutputPulseMs(event.target.value)} inputMode="numeric" placeholder="500" /></label>
           <div className="row-actions">
@@ -326,6 +344,9 @@ function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDow
   const [outputTargetId, setOutputTargetId] = useState(block.config.targetId ?? "");
   const [outputDurationMs, setOutputDurationMs] = useState(String(block.config.durationMs ?? 500));
   const [durationMs, setDurationMs] = useState(String(block.config.durationMs ?? 1000));
+  const [conditionFieldPath, setConditionFieldPath] = useState(block.config.fieldPath ?? "active");
+  const [conditionEquals, setConditionEquals] = useState(JSON.stringify(block.config.equals ?? true));
+  const [conditionError, setConditionError] = useState<string | null>(null);
   const removable = !block.type.endsWith("_start");
   const canAttachStamp = block.type === "record_trigger_event" || block.type === "fetch_data_source";
   const stampBlock = attachedBlocks.find((item) => item.type === "stamp_integritas");
@@ -353,6 +374,23 @@ function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDow
         <div className="automation-form">
           <label>Wait duration ms<input value={durationMs} onChange={(event) => setDurationMs(event.target.value)} inputMode="numeric" /></label>
           <button type="button" disabled={busy || !Number.isFinite(Number(durationMs)) || Number(durationMs) === block.config.durationMs} onClick={() => onUpdate({ config: { durationMs: Number(durationMs) } })}>Save wait duration</button>
+        </div>
+      )}
+      {block.type === "if_payload_field_equals" && (
+        <div className="automation-form">
+          <label>Payload field path<input value={conditionFieldPath} onChange={(event) => setConditionFieldPath(event.target.value)} placeholder="active" /></label>
+          <label>Equals JSON<input value={conditionEquals} onChange={(event) => {
+            setConditionEquals(event.target.value);
+            setConditionError(null);
+          }} placeholder="true" /></label>
+          {conditionError && <p className="error-text">{conditionError}</p>}
+          <button type="button" disabled={busy || !conditionFieldPath.trim()} onClick={() => {
+            try {
+              onUpdate({ config: { fieldPath: conditionFieldPath.trim(), equals: JSON.parse(conditionEquals) as unknown } });
+            } catch (error) {
+              setConditionError(error instanceof Error ? error.message : "Equals must be valid JSON");
+            }
+          }}>Save condition</button>
         </div>
       )}
       {block.type === "control_output" && (
@@ -426,6 +464,7 @@ function blockLabel(block: AutomationBlock) {
   if (block.type === "manual_start") return "Start manually";
   if (block.type === "record_trigger_event") return "Record trigger event";
   if (block.type === "fetch_data_source") return "Fetch data source";
+  if (block.type === "if_payload_field_equals") return "If payload field equals";
   if (block.type === "wait") return "Wait";
   if (block.type === "stamp_integritas") return "Stamp with Integritas";
   if (block.type === "control_output") return "Control output";
@@ -436,6 +475,7 @@ function blockShortLabel(block: AutomationBlock) {
   if (block.type.endsWith("_start")) return "Start";
   if (block.type === "record_trigger_event") return "Record event";
   if (block.type === "fetch_data_source") return "Fetch source";
+  if (block.type === "if_payload_field_equals") return "If payload matches";
   if (block.type === "stamp_integritas") return "Stamp";
   if (block.type === "control_output") return "Control output";
   if (block.type === "wait") return "Wait";
@@ -450,6 +490,7 @@ function blockDescription(block: AutomationBlock, sources: DataSource[]) {
   if (block.type === "mqtt_event_start") return source ? `${source.name} MQTT message` : "MQTT message";
   if (block.type === "record_trigger_event") return "Store the incoming trigger payload as a data read";
   if (block.type === "fetch_data_source") return source ? `Fetch ${source.name}` : "Fetch configured HTTP JSON source";
+  if (block.type === "if_payload_field_equals") return `Continue only if ${block.config.fieldPath ?? "field"} equals ${JSON.stringify(block.config.equals)}`;
   if (block.type === "wait") return `Pause for ${block.config.durationMs ?? 0} ms`;
   if (block.type === "stamp_integritas") return "Stamp the latest collected hash";
   if (block.type === "control_output") return source ? `Pulse ${source.name} for ${block.config.durationMs ?? 0} ms` : "Pulse configured output target";
@@ -460,6 +501,7 @@ function blockOutput(block: AutomationBlock) {
   if (block.type.endsWith("_start")) return "Trigger context";
   if (block.type === "record_trigger_event") return "Hash + read";
   if (block.type === "fetch_data_source") return "Fetched JSON + hash";
+  if (block.type === "if_payload_field_equals") return "Continue or stop";
   if (block.type === "wait") return "Same context";
   if (block.type === "stamp_integritas") return "Proof UID";
   if (block.type === "control_output") return "Output action result";

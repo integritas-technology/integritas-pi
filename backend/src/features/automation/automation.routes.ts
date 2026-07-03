@@ -294,6 +294,15 @@ function validateBlockConfig(type: AutomationBlockType, config: Record<string, u
     config.durationMs = durationMs;
   }
 
+  if (type === "if_payload_field_equals") {
+    const fieldPath = typeof config.fieldPath === "string" ? config.fieldPath.trim() : "";
+    if (!fieldPath) throw new Error("Condition block requires a field path");
+    if (!isSafeFieldPath(fieldPath)) throw new Error("Field path can only contain letters, numbers, underscores, dashes, and dots");
+    if (!Object.prototype.hasOwnProperty.call(config, "equals")) throw new Error("Condition block requires an equals value");
+    config.fieldPath = fieldPath;
+    return;
+  }
+
   if (type === "control_output") {
     const targetId = typeof config.targetId === "string" ? config.targetId : "";
     const target = getDataSource(targetId);
@@ -347,9 +356,14 @@ function isAutomationBlockType(type: string): type is AutomationBlockType {
     || type === "mqtt_event_start"
     || type === "record_trigger_event"
     || type === "fetch_data_source"
+    || type === "if_payload_field_equals"
     || type === "wait"
     || type === "stamp_integritas"
     || type === "control_output";
+}
+
+function isSafeFieldPath(path: string) {
+  return /^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$/.test(path);
 }
 
 function limitFromQuery(value: unknown, fallback: number) {

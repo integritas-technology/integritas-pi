@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Integritas automation stamping is now attached as a side block on record/fetch data blocks, so stamping no longer has to be the final linear workflow block or block later actions.
 - Attached Integritas stamp blocks now show clearer status, last-stamped timing, enable/disable controls, and side-block labeling in workflow run details.
 - Automation workflows can now be manually tested with an editable JSON trigger payload from the workflow workspace.
+- Automation workflows now support an If payload field equals block that continues when a trigger payload field matches a JSON value and stops the remaining workflow when it does not.
 
 ### Fixed
 

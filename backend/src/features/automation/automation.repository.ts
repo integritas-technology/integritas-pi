@@ -9,6 +9,7 @@ export type AutomationBlockType =
   | "mqtt_event_start"
   | "record_trigger_event"
   | "fetch_data_source"
+  | "if_payload_field_equals"
   | "wait"
   | "stamp_integritas"
   | "control_output";

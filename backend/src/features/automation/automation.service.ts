@@ -43,6 +43,7 @@ type WorkflowContext = {
   hash?: string;
   proofId?: string | null;
   output?: unknown;
+  stopped?: boolean;
 };
 
 const runningWorkflowIds = new Set<string>();
@@ -178,6 +179,7 @@ export async function executeWorkflow(workflow: AutomationWorkflowRecord, trigge
         await executeBlock(workflow, attachedBlock, context, run.id);
       }
       if (block.type === "schedule_start") nextRunAt = nextScheduleRunAt(block);
+      if (context.stopped) break;
     }
 
     const updatedWorkflow = updateAutomationRunSuccess(workflow.id, { hash: context.hash ?? null, proofId: context.proofId ?? null, nextRunAt });
@@ -223,7 +225,7 @@ function validateStartBlock(block: AutomationBlockRecord, trigger: WorkflowConte
 }
 
 async function executeBlock(workflow: AutomationWorkflowRecord, block: AutomationBlockRecord, context: WorkflowContext, runId: string) {
-  const config = JSON.parse(block.config_json) as { sourceId?: string; targetId?: string; action?: string; durationMs?: number };
+  const config = JSON.parse(block.config_json) as { sourceId?: string; targetId?: string; action?: string; durationMs?: number; fieldPath?: string; equals?: unknown };
   const blockRun = createAutomationBlockRun({ runId, workflowId: workflow.id, blockId: block.id, orderIndex: block.order_index, blockType: block.type, blockLabel: blockLabel(block.type), input: contextSummary(context) });
 
   try {
@@ -234,6 +236,7 @@ async function executeBlock(workflow: AutomationWorkflowRecord, block: Automatio
     }
     if (block.type === "record_trigger_event") await recordTriggerEvent(workflow, block, context);
     else if (block.type === "fetch_data_source") await fetchDataSource(workflow, block, context, String(config.sourceId ?? ""));
+    else if (block.type === "if_payload_field_equals") checkPayloadFieldEquals(config, context);
     else if (block.type === "wait") await wait(Number(config.durationMs ?? 0));
     else if (block.type === "stamp_integritas") await stampLatestHash(workflow, context);
     else if (block.type === "control_output") await controlOutput(config, context);
@@ -337,10 +340,32 @@ function blockToLegacyRule(block: ReturnType<typeof serializeAutomationBlock>) {
 function blockLabel(type: string) {
   if (type === "stamp_integritas") return "Stamp with Integritas";
   if (type === "control_output") return "Control output";
+  if (type === "if_payload_field_equals") return "If payload field equals";
   if (type === "fetch_data_source") return "Fetch data source";
   if (type === "record_trigger_event") return "Record trigger event";
   if (type === "wait") return "Wait";
   return "Start workflow";
+}
+
+function checkPayloadFieldEquals(config: { fieldPath?: string; equals?: unknown }, context: WorkflowContext) {
+  const fieldPath = String(config.fieldPath ?? "");
+  const actual = getPathValue(context.trigger.payload, fieldPath);
+  const matched = deepEqualJson(actual, config.equals);
+  context.output = { fieldPath, expected: config.equals, actual, matched, action: matched ? "continued" : "stopped" };
+  if (!matched) context.stopped = true;
+}
+
+function getPathValue(value: unknown, path: string) {
+  let current = value;
+  for (const part of path.split(".")) {
+    if (current === null || typeof current !== "object" || !Object.prototype.hasOwnProperty.call(current, part)) return undefined;
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
+}
+
+function deepEqualJson(left: unknown, right: unknown) {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 async function controlOutput(config: { targetId?: string; action?: string; durationMs?: number }, context: WorkflowContext) {
@@ -358,7 +383,8 @@ function contextSummary(context: WorkflowContext) {
     data: context.data ? { sourceId: context.data.sourceId, sourceName: context.data.sourceName, sourceUrl: context.data.sourceUrl, hash: context.data.result.bytesHash, readId: context.data.readId } : null,
     output: context.output ?? null,
     hash: context.hash ?? null,
-    proofId: context.proofId ?? null
+    proofId: context.proofId ?? null,
+    stopped: context.stopped ?? false
   };
 }
 
