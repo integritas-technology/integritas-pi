@@ -145,6 +145,7 @@ export function AutomationPage() {
             onUpdateBlock={(blockId, input) => run(() => updateAutomationBlock(workspaceWorkflow.id, blockId, input))}
             onReorderBlocks={(blockIds) => run(() => reorderAutomationBlocks(workspaceWorkflow.id, blockIds))}
             onRunNow={() => run(() => runAutomationWorkflow(workspaceWorkflow.id))}
+            onRunWithPayload={(payload) => run(() => runAutomationWorkflow(workspaceWorkflow.id, payload))}
             onToggleEnabled={() => run(() => updateAutomationWorkflow(workspaceWorkflow.id, { enabled: !workspaceWorkflow.enabled }))}
             onDelete={() => run(async () => {
               await deleteAutomationWorkflow(workspaceWorkflow.id);
@@ -194,17 +195,48 @@ export function AutomationPage() {
   );
 }
 
-function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, onDeleteBlock, onUpdateBlock, onReorderBlocks, onRunNow, onToggleEnabled, onDelete }: { workflow: AutomationWorkflow; runs: AutomationRun[]; source: DataSource | undefined; sources: DataSource[]; busy: boolean; onAddBlock: (input: Parameters<typeof addAutomationBlock>[1]) => void; onDeleteBlock: (blockId: string) => void; onUpdateBlock: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onReorderBlocks: (blockIds: string[]) => void; onRunNow: () => void; onToggleEnabled: () => void; onDelete: () => void }) {
+function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, onDeleteBlock, onUpdateBlock, onReorderBlocks, onRunNow, onRunWithPayload, onToggleEnabled, onDelete }: { workflow: AutomationWorkflow; runs: AutomationRun[]; source: DataSource | undefined; sources: DataSource[]; busy: boolean; onAddBlock: (input: Parameters<typeof addAutomationBlock>[1]) => void; onDeleteBlock: (blockId: string) => void; onUpdateBlock: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onReorderBlocks: (blockIds: string[]) => void; onRunNow: () => void; onRunWithPayload: (payload: unknown) => void; onToggleEnabled: () => void; onDelete: () => void }) {
   const [fetchSourceId, setFetchSourceId] = useState(() => sources.find((item) => item.type === "json-api" || item.type === "internal-json-api")?.id ?? "");
   const [outputTargetId, setOutputTargetId] = useState(() => sources.find((item) => item.type === "gpio-output")?.id ?? "");
   const [outputPulseMs, setOutputPulseMs] = useState("500");
   const [waitMs, setWaitMs] = useState("1000");
+  const [payloadModalOpen, setPayloadModalOpen] = useState(false);
+  const [payloadText, setPayloadText] = useState(() => JSON.stringify(examplePayload(workflow), null, 2));
+  const [payloadError, setPayloadError] = useState<string | null>(null);
   const mainBlocks = workflow.blocks.filter((block) => !block.parentBlockId);
   const fetchSources = sources.filter((item) => item.type === "json-api" || item.type === "internal-json-api");
   const outputTargets = sources.filter((item) => item.type === "gpio-output");
 
   return (
     <section className="automation-list">
+      {payloadModalOpen && (
+        <Modal title="Run with payload" onClose={() => setPayloadModalOpen(false)}>
+          <section className="automation-form">
+            <div className="status-row">
+              <div><strong>Manual test payload</strong><p className="muted">This runs the workflow now using the JSON below as the trigger payload. It does not wait for the real trigger.</p></div>
+              <span className="pill pill-neutral">Test run</span>
+            </div>
+            <label>Trigger payload<textarea rows={12} value={payloadText} onChange={(event) => {
+              setPayloadText(event.target.value);
+              setPayloadError(null);
+            }} /></label>
+            {payloadError && <p className="error-text">{payloadError}</p>}
+            <div className="row-actions">
+              <button type="button" disabled={busy} onClick={() => setPayloadText(JSON.stringify(examplePayload(workflow), null, 2))}>Reset example</button>
+              <button type="button" disabled={busy} onClick={() => setPayloadModalOpen(false)}>Cancel</button>
+              <button type="button" disabled={busy} onClick={() => {
+                try {
+                  const parsed = JSON.parse(payloadText) as unknown;
+                  setPayloadModalOpen(false);
+                  onRunWithPayload(parsed);
+                } catch (error) {
+                  setPayloadError(error instanceof Error ? error.message : "Payload must be valid JSON");
+                }
+              }}>Run test</button>
+            </div>
+          </section>
+        </Modal>
+      )}
       <div className="status-row">
         <div>
           <strong>{workflow.name}</strong>
@@ -271,6 +303,11 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
         </div>
         <div className="row-actions">
           <button type="button" disabled={busy} onClick={onRunNow}>Run now</button>
+          <button type="button" disabled={busy} onClick={() => {
+            setPayloadText(JSON.stringify(examplePayload(workflow), null, 2));
+            setPayloadError(null);
+            setPayloadModalOpen(true);
+          }}>Run with payload</button>
           <button type="button" disabled={busy} onClick={onToggleEnabled}>{workflow.enabled ? "Pause" : "Enable"}</button>
           <button type="button" disabled={busy} onClick={onDelete}>Delete workflow</button>
         </div>
@@ -464,6 +501,56 @@ function buildInitialBlocks(input: { startType: AutomationBlockType; startSource
   if (input.initialAction === "record_trigger_event") blocks.push({ type: "record_trigger_event", config: {} });
   if (input.initialAction === "fetch_data_source") blocks.push({ type: "fetch_data_source", config: { sourceId: input.initialFetchSourceId } });
   return blocks;
+}
+
+function examplePayload(workflow: AutomationWorkflow) {
+  const startBlock = workflow.blocks.find((block) => !block.parentBlockId && block.type.endsWith("_start"));
+  const now = new Date().toISOString();
+
+  if (startBlock?.type === "gpio_event_start") {
+    return {
+      source: "run-with-payload",
+      workflowId: workflow.id,
+      workflowName: workflow.name,
+      triggeredAt: now,
+      chip: "gpiochip0",
+      pin: 17,
+      edge: "falling",
+      active: true
+    };
+  }
+
+  if (startBlock?.type === "webhook_event_start") {
+    return {
+      source: "run-with-payload",
+      workflowId: workflow.id,
+      workflowName: workflow.name,
+      triggeredAt: now,
+      event: "test-webhook",
+      temperature: 21.5,
+      unit: "celsius"
+    };
+  }
+
+  if (startBlock?.type === "mqtt_event_start") {
+    return {
+      source: "run-with-payload",
+      workflowId: workflow.id,
+      workflowName: workflow.name,
+      triggeredAt: now,
+      topic: "test/topic",
+      temperature: 21.5,
+      unit: "celsius"
+    };
+  }
+
+  return {
+    source: "run-with-payload",
+    workflowId: workflow.id,
+    workflowName: workflow.name,
+    triggeredAt: now,
+    note: "Manual workflow test run with custom payload"
+  };
 }
 
 function sourceLabel(source: DataSource) {

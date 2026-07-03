@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Data Sources UI is now presented as Devices, with template cards split into Input sources and Output targets ahead of GPIO output support.
 - Integritas automation stamping is now attached as a side block on record/fetch data blocks, so stamping no longer has to be the final linear workflow block or block later actions.
 - Attached Integritas stamp blocks now show clearer status, last-stamped timing, enable/disable controls, and side-block labeling in workflow run details.
+- Automation workflows can now be manually tested with an editable JSON trigger payload from the workflow workspace.
 
 ### Fixed
 

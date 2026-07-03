@@ -41,8 +41,8 @@ export async function deleteAutomationWorkflow(id: string) {
   return deleteJson<{ deleted: boolean }>(`/api/automation/workflows/${id}`);
 }
 
-export async function runAutomationWorkflow(id: string) {
-  return postJson<{ workflow: AutomationWorkflow; proofId: string | null }>(`/api/automation/workflows/${id}/run`);
+export async function runAutomationWorkflow(id: string, triggerPayload?: unknown) {
+  return postJson<{ workflow: AutomationWorkflow; proofId: string | null }>(`/api/automation/workflows/${id}/run`, triggerPayload === undefined ? undefined : { triggerPayload });
 }
 
 export async function listAutomationRuns(limit = 100) {

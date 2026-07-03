@@ -207,18 +207,16 @@ automationRouter.post("/workflows/:id/run", requireRole("admin"), async (req, re
   if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
   const startBlock = listAutomationBlocks(workflow.id)[0];
   const startConfig = startBlock ? JSON.parse(startBlock.config_json) as { sourceId?: string } : {};
+  const hasCustomPayload = Object.prototype.hasOwnProperty.call(req.body ?? {}, "triggerPayload");
+  const triggerPayload = hasCustomPayload ? req.body.triggerPayload as unknown : defaultManualTriggerPayload(workflow.id, workflow.name);
+
+  if (hasCustomPayload && !isJsonCompatible(triggerPayload)) return res.status(400).json({ error: "triggerPayload must be JSON-compatible" });
 
   try {
     const result = await runAutomationWorkflow(req.params.id, {
       type: "manual",
       sourceId: startConfig.sourceId,
-      payload: {
-        source: "run-now",
-        workflowId: workflow.id,
-        workflowName: workflow.name,
-        triggeredAt: new Date().toISOString(),
-        note: "Manual workflow test run from the Automation page"
-      }
+      payload: triggerPayload
     });
     return res.json(result);
   } catch (error) {
@@ -226,6 +224,25 @@ automationRouter.post("/workflows/:id/run", requireRole("admin"), async (req, re
     return res.status(502).json({ error: error instanceof Error ? error.message : "Automation workflow failed", workflow: errorWorkflow });
   }
 });
+
+function defaultManualTriggerPayload(workflowId: string, workflowName: string) {
+  return {
+    source: "run-now",
+    workflowId,
+    workflowName,
+    triggeredAt: new Date().toISOString(),
+    note: "Manual workflow test run from the Automation page"
+  };
+}
+
+function isJsonCompatible(value: unknown) {
+  try {
+    JSON.stringify(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function legacyBlocksForWorkflow(sourceId: string, sourceType: string, pollingIntervalSeconds: number) {
   const blocks: { type: AutomationBlockType; config: unknown }[] = [];
