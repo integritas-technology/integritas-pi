@@ -182,7 +182,7 @@ export function AutomationPage() {
                   <div className="row-actions">
                     <button type="button" disabled={busy} onClick={() => setWorkspaceWorkflowId(workflow.id)}>Open</button>
                     <button type="button" disabled={busy} onClick={() => run(() => runAutomationWorkflow(workflow.id))}>Run now</button>
-                    <button type="button" disabled={busy} onClick={() => run(() => updateAutomationWorkflow(workflow.id, { enabled: !workflow.enabled }))}>{workflow.enabled ? "Pause" : "Enable"}</button>
+                    <button type="button" disabled={busy} onClick={() => run(() => updateAutomationWorkflow(workflow.id, { enabled: !workflow.enabled }))}>{workflow.enabled ? "Pause now" : "Enable now"}</button>
                   </div>
                 </div>
               </article>
@@ -249,7 +249,7 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
         <div>
           <strong>{workflow.name}</strong>
           <p className="muted">{source?.name ?? "Unknown source"} · {workflow.pollingIntervalSeconds > 0 ? formatInterval(workflow.pollingIntervalSeconds) : "Event driven"}</p>
-          <p className="muted">Changes are saved per block using each block's save button. Add, remove, move, and enable actions apply immediately.</p>
+          <p className="muted">Changes are saved per block. Edit fields, then click that block's save button; add/remove/move/pause/enable actions apply immediately.</p>
         </div>
         <span className={`pill ${workflow.lastError ? "pill-warn" : workflow.enabled ? "pill-good" : "pill-neutral"}`}>{workflow.lastError ? "Error" : workflow.enabled ? "Enabled" : "Paused"}</span>
       </div>
@@ -357,8 +357,8 @@ function WorkflowWorkspace({ workflow, runs, source, sources, busy, onAddBlock, 
             setPayloadError(null);
             setPayloadModalOpen(true);
           }}>Run with payload</button>
-          <button type="button" disabled={busy} onClick={onToggleEnabled}>{workflow.enabled ? "Pause" : "Enable"}</button>
-          <button type="button" disabled={busy} onClick={onDelete}>Delete workflow</button>
+          <button type="button" disabled={busy} onClick={onToggleEnabled}>{workflow.enabled ? "Pause now" : "Enable now"}</button>
+          <button type="button" disabled={busy} onClick={onDelete}>Delete workflow now</button>
         </div>
       </div>
 
@@ -402,8 +402,25 @@ function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDow
   const [stampConditionOperator, setStampConditionOperator] = useState<ConditionOperator>(stampBlock?.config.condition?.operator ?? "equals");
   const [stampConditionValue, setStampConditionValue] = useState(JSON.stringify(stampBlock?.config.condition?.value ?? 15));
   const [stampConditionError, setStampConditionError] = useState<string | null>(null);
+  const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const fetchSources = sources.filter((item) => item.type === "json-api" || item.type === "internal-json-api");
   const outputTargets = sources.filter((item) => item.type === "gpio-output");
+  const fetchDirty = fetchSourceId !== (block.config.sourceId ?? "");
+  const waitDirty = Number(durationMs) !== block.config.durationMs;
+  const conditionDirty = conditionSource !== (block.config.source ?? "trigger") || conditionFieldPath !== (block.config.fieldPath ?? "active") || conditionOperator !== (block.config.operator ?? "equals") || (!operatorHasNoValue(conditionOperator) && conditionValue !== JSON.stringify(block.config.value ?? true));
+  const outputDirty = outputTargetId !== (block.config.targetId ?? "") || Number(outputDurationMs) !== block.config.durationMs;
+  const stampConditionDirty = Boolean(stampBlock) && (stampConditionSource !== (stampBlock?.config.condition?.source ?? "data") || stampConditionFieldPath !== (stampBlock?.config.condition?.fieldPath ?? "sensor.temperature") || stampConditionOperator !== (stampBlock?.config.condition?.operator ?? "equals") || (!operatorHasNoValue(stampConditionOperator) && stampConditionValue !== JSON.stringify(stampBlock?.config.condition?.value ?? 15)));
+
+  function saveBlock(input: Parameters<typeof updateAutomationBlock>[2], message: string) {
+    setSaveNotice(message);
+    onUpdate(input);
+  }
+
+  function saveAttachedBlock(blockId: string, input: Parameters<typeof updateAutomationBlock>[2], message: string) {
+    setSaveNotice(message);
+    onUpdateAttached(blockId, input);
+  }
+
   return (
     <div className="card">
       <div className="status-row">
@@ -419,13 +436,15 @@ function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDow
       {block.type === "fetch_data_source" && (
         <div className="automation-form">
           <label>Fetch source<select value={fetchSourceId} onChange={(event) => setFetchSourceId(event.target.value)}>{fetchSources.map((item) => <option key={item.id} value={item.id}>{item.name} - {sourceLabel(item)}</option>)}</select></label>
-          <button type="button" disabled={busy || !fetchSourceId || fetchSourceId === block.config.sourceId} onClick={() => onUpdate({ config: { sourceId: fetchSourceId } })}>Save fetch source</button>
+          <SaveState dirty={fetchDirty} saved={saveNotice === "Fetch source saved"} />
+          <button type="button" disabled={busy || !fetchSourceId || !fetchDirty} onClick={() => saveBlock({ config: { sourceId: fetchSourceId } }, "Fetch source saved")}>Save fetch source</button>
         </div>
       )}
       {block.type === "wait" && (
         <div className="automation-form">
           <label>Wait duration ms<input value={durationMs} onChange={(event) => setDurationMs(event.target.value)} inputMode="numeric" /></label>
-          <button type="button" disabled={busy || !Number.isFinite(Number(durationMs)) || Number(durationMs) === block.config.durationMs} onClick={() => onUpdate({ config: { durationMs: Number(durationMs) } })}>Save wait duration</button>
+          <SaveState dirty={waitDirty} saved={saveNotice === "Wait duration saved"} />
+          <button type="button" disabled={busy || !Number.isFinite(Number(durationMs)) || !waitDirty} onClick={() => saveBlock({ config: { durationMs: Number(durationMs) } }, "Wait duration saved")}>Save wait duration</button>
         </div>
       )}
       {block.type === "if_payload_field_equals" && (
@@ -438,9 +457,10 @@ function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDow
             setConditionError(null);
           }} placeholder="true" /></label>}
           {conditionError && <p className="error-text">{conditionError}</p>}
-          <button type="button" disabled={busy || !conditionFieldPath.trim()} onClick={() => {
+          <SaveState dirty={conditionDirty} saved={saveNotice === "Condition saved"} />
+          <button type="button" disabled={busy || !conditionFieldPath.trim() || !conditionDirty} onClick={() => {
             try {
-              onUpdate({ config: conditionConfig(conditionSource, conditionFieldPath, conditionOperator, conditionValue) });
+              saveBlock({ config: conditionConfig(conditionSource, conditionFieldPath, conditionOperator, conditionValue) }, "Condition saved");
             } catch (error) {
               setConditionError(error instanceof Error ? error.message : "Compare value must be valid JSON");
             }
@@ -451,7 +471,8 @@ function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDow
         <div className="automation-form">
           <label>Output target<select value={outputTargetId} onChange={(event) => setOutputTargetId(event.target.value)}>{outputTargets.map((item) => <option key={item.id} value={item.id}>{item.name} - {sourceLabel(item)}</option>)}</select></label>
           <label>Pulse duration ms<input value={outputDurationMs} onChange={(event) => setOutputDurationMs(event.target.value)} inputMode="numeric" /></label>
-          <button type="button" disabled={busy || !outputTargetId || !Number.isFinite(Number(outputDurationMs))} onClick={() => onUpdate({ config: { targetId: outputTargetId, action: "pulse", durationMs: Number(outputDurationMs) } })}>Save output pulse</button>
+          <SaveState dirty={outputDirty} saved={saveNotice === "Output pulse saved"} />
+          <button type="button" disabled={busy || !outputTargetId || !Number.isFinite(Number(outputDurationMs)) || !outputDirty} onClick={() => saveBlock({ config: { targetId: outputTargetId, action: "pulse", durationMs: Number(outputDurationMs) } }, "Output pulse saved")}>Save output pulse</button>
         </div>
       )}
       {stampBlock && (
@@ -475,32 +496,39 @@ function BlockCard({ block, attachedBlocks, sources, busy, canMoveUp, canMoveDow
               setStampConditionError(null);
             }} placeholder="15" /></label>}
             {stampConditionError && <p className="error-text">{stampConditionError}</p>}
+            <SaveState dirty={stampConditionDirty} saved={saveNotice === "Stamp condition saved"} />
             <div className="row-actions">
-              <button type="button" disabled={busy || !stampConditionFieldPath.trim()} onClick={() => {
+              <button type="button" disabled={busy || !stampConditionFieldPath.trim() || !stampConditionDirty} onClick={() => {
                 try {
-                  onUpdateAttached(stampBlock.id, { config: { condition: conditionConfig(stampConditionSource, stampConditionFieldPath, stampConditionOperator, stampConditionValue) } });
+                  saveAttachedBlock(stampBlock.id, { config: { condition: conditionConfig(stampConditionSource, stampConditionFieldPath, stampConditionOperator, stampConditionValue) } }, "Stamp condition saved");
                 } catch (error) {
                   setStampConditionError(error instanceof Error ? error.message : "Compare value must be valid JSON");
                 }
               }}>Save stamp condition</button>
-              <button type="button" disabled={busy || !stampBlock.config.condition} onClick={() => onUpdateAttached(stampBlock.id, { config: { condition: null } })}>Clear stamp condition</button>
+              <button type="button" disabled={busy || !stampBlock.config.condition} onClick={() => saveAttachedBlock(stampBlock.id, { config: { condition: null } }, "Stamp condition cleared")}>Clear stamp condition now</button>
             </div>
           </div>
           <div className="row-actions">
-            <button type="button" disabled={busy} onClick={() => onUpdateAttached(stampBlock.id, { enabled: !stampBlock.enabled })}>{stampBlock.enabled ? "Disable stamp" : "Enable stamp"}</button>
-            <button type="button" disabled={busy} onClick={() => onDeleteAttached(stampBlock.id)}>Remove stamp</button>
+            <button type="button" disabled={busy} onClick={() => onUpdateAttached(stampBlock.id, { enabled: !stampBlock.enabled })}>{stampBlock.enabled ? "Disable stamp now" : "Enable stamp now"}</button>
+            <button type="button" disabled={busy} onClick={() => onDeleteAttached(stampBlock.id)}>Remove stamp now</button>
           </div>
         </div>
       )}
       {removable && <div className="row-actions">
-        <button type="button" disabled={busy || !canMoveUp} onClick={onMoveUp}>Move up</button>
-        <button type="button" disabled={busy || !canMoveDown} onClick={onMoveDown}>Move down</button>
-        {canAttachStamp && !stampBlock && <button type="button" disabled={busy} onClick={onAttachStamp}>Attach Integritas</button>}
-        <button type="button" disabled={busy} onClick={() => onUpdate({ enabled: !block.enabled })}>{block.enabled ? "Disable" : "Enable"}</button>
-        <button type="button" disabled={busy} onClick={onDelete}>Remove block</button>
+        <button type="button" disabled={busy || !canMoveUp} onClick={onMoveUp}>Move up now</button>
+        <button type="button" disabled={busy || !canMoveDown} onClick={onMoveDown}>Move down now</button>
+        {canAttachStamp && !stampBlock && <button type="button" disabled={busy} onClick={onAttachStamp}>Attach Integritas now</button>}
+        <button type="button" disabled={busy} onClick={() => onUpdate({ enabled: !block.enabled })}>{block.enabled ? "Disable now" : "Enable now"}</button>
+        <button type="button" disabled={busy} onClick={onDelete}>Remove block now</button>
       </div>}
     </div>
   );
+}
+
+function SaveState({ dirty, saved }: { dirty: boolean; saved: boolean }) {
+  if (dirty) return <p className="muted"><span className="pill pill-warn">Unsaved changes</span> Use this block's save button to apply edits.</p>;
+  if (saved) return <p className="muted"><span className="pill pill-good">Saved</span></p>;
+  return <p className="muted"><span className="pill pill-neutral">No unsaved changes</span></p>;
 }
 
 function stampConditionSummary(block: AutomationBlock) {

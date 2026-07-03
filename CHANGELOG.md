@@ -32,6 +32,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Workflow workspace Add block controls are now grouped into collapsible cards with titles and descriptions for each block type.
 - Field conditions now support operators: equals, not equals, greater/less than, greater/less than or equal to, exists, and does not exist. Existing workflows using the old equals-only condition config should be recreated.
 - Workflow workspace now clarifies that edits are saved per block, and Fetch data source edits use an explicit Save fetch source button.
+- Workflow block editing now shows per-block unsaved/saved feedback, disables unchanged save buttons, and labels immediate actions such as move/remove/enable as applying now.
+- Workflow run details now separate the trigger payload from the fetched/recorded data preview so manual test runs are easier to interpret.
 
 ### Fixed
 

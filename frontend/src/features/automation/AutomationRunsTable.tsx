@@ -55,6 +55,13 @@ function RunDetails({ run, compact }: { run: AutomationRun; compact: boolean }) 
       </div>
       {run.error && <p className="error-text">{run.error}</p>}
       <div className="grid-list">
+        <div className="card">
+          <strong>Trigger payload started the run</strong>
+          <p className="muted">This is why the workflow ran. For Run now tests, this is the synthetic manual test payload.</p>
+          {run.triggerPayload !== null && run.triggerPayload !== undefined ? <JsonPreview value={run.triggerPayload} /> : <p className="muted">No trigger payload recorded.</p>}
+        </div>
+      </div>
+      <div className="grid-list">
         {run.blocks.map((block) => <BlockRunDetails key={block.id} block={block} />)}
       </div>
     </section>
@@ -72,12 +79,12 @@ function BlockRunDetails({ block }: { block: AutomationRun["blocks"][number] }) 
       </div>
       {block.error && <p className="error-text">{block.error}</p>}
       {block.output !== null && <JsonPreview value={block.output} />}
-      {readId && <ReadPreview readId={readId} />}
+      {readId && <ReadPreview readId={readId} blockType={block.blockType} />}
     </div>
   );
 }
 
-function ReadPreview({ readId }: { readId: string }) {
+function ReadPreview({ readId, blockType }: { readId: string; blockType: string }) {
   const [read, setRead] = useState<DataSourceRead | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -104,6 +111,7 @@ function ReadPreview({ readId }: { readId: string }) {
       <div className="status-row">
         <div>
           <strong>Fetched data preview</strong>
+          <p className="muted">This is the stored JSON {blockType === "record_trigger_event" ? "recorded from the trigger" : "fetched from the device/source"}. Data conditions evaluate this preview when their source is Data.</p>
           <p className="muted">Read <code>{readId}</code>{read ? ` · ${read.sourceName}` : ""}</p>
         </div>
         {read && <span className={`pill ${read.status === "success" ? "pill-good" : "pill-warn"}`}>{read.status}</span>}
