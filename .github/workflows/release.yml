@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find previous release tag
+        id: prev-tag
+        run: |
+          prev=$(git tag --sort=-v:refname | grep -v "^${GITHUB_REF_NAME}$" | head -n1)
+          echo "tag=${prev}" >> "$GITHUB_OUTPUT"
+
+      - name: Detect changed service folders since previous release
+        id: filter
+        run: |
+          prev="${{ steps.prev-tag.outputs.tag }}"
+          if [ -z "$prev" ]; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only "$prev" "${GITHUB_REF_NAME}")
+          echo "frontend=$(echo "$changed" | grep -q '^frontend/' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "backend=$(echo "$changed" | grep -q '^backend/' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # TODO (part 2): build + push frontend/backend images by digest to ghcr.io,
+      # gated on needs.changes.outputs.frontend / .backend.
+
+  manifest:
+    needs: [changes, build]
+    if: always() && !cancelled() && !failure()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # TODO (part 2): read manifest.source.json, overwrite frontend/backend
+      # digests with freshly pushed digests, leave minima-node untouched.
+
+      # TODO (part 2): sign manifest with private key from
+      # secrets.MANIFEST_SIGNING_KEY (never written to a file that survives the job).
+
+      # TODO (part 2): deploy signed manifest + signature to the VPS Next.js app
+      # via the dedicated low-privilege deploy user.

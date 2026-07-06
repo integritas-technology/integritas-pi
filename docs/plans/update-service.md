@@ -45,12 +45,12 @@ Mitigation is shrinking `update-agent`'s own attack surface, not network placeme
 
 ### 1) GitHub Actions flow (workflow structure)
 
-- [ ] `dev` branch workflow: run `npm run check` on PR into `dev`. No build/push.
-- [ ] `main` branch workflow: same checks on PR into `dev` → `main`. No build/push.
-- [ ] Tag-triggered release workflow (`v*` tag push only): builds + pushes images, updates + signs manifest.
-- [ ] Path filters so a tag release only rebuilds `frontend`/`backend` images whose folder changed since the last release tag.
-- [ ] Branch protection on `main`: required reviews, required status checks, no direct pushes (manual one-time repo setting).
-- [ ] Decide/document the version bump command (`npm version <major|minor|patch>` at repo root) that creates the release tag.
+- [x] `dev` branch workflow: run `npm run check` on PR into `dev`. No build/push. (`.github/workflows/check-dev.yml`)
+- [x] `main` branch workflow: same checks on PR into `dev` → `main`. No build/push. (`.github/workflows/check-main.yml`)
+- [x] Tag-triggered release workflow (`v*` tag push only): job structure in place (`.github/workflows/release.yml`); build/sign/deploy step contents are part 2.
+- [x] Path filters so a tag release only rebuilds `frontend`/`backend` images whose folder changed since the last release tag. (`changes` job in `release.yml`, diffs against previous `v*` tag)
+- [ ] Branch protection on `main`: required reviews, required status checks, no direct pushes (manual one-time repo setting). Deferred — no `dev` branch yet, still in active development.
+- [x] Version bump command: standard `major.minor.patch` via `npm version <major|minor|patch>` at repo root — already the existing convention (`v0.12.0` etc.), nothing new needed.
 
 ### 2) GitHub Actions scripts (the release job itself)
 
