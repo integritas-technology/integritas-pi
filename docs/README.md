@@ -14,6 +14,7 @@ docs/
 | Plan | Status |
 |---|---|
 | [plans/security-checklist.md](./plans/security-checklist.md) | In progress |
+| [plans/update-service.md](./plans/update-service.md) | Not started |
 
 ---
 
