@@ -76,10 +76,10 @@ Mitigation is shrinking `update-agent`'s own attack surface, not network placeme
 
 ### 4) update-agent's single-page UI
 
-- [ ] Plain static HTML + small vanilla JS — no React/build step.
-- [ ] Served by `update-agent` itself over plain HTTP (TLS is terminated once, upstream, by `frontend`'s nginx): banner "Update available → Update Now", status page "Updating... please wait", success auto-redirect, failure shows rollback message then redirect.
-- [ ] Talks only to `update-agent`'s own `/status` and `/apply` — never calls product `backend`.
-- [ ] Reached by the browser at `https://pi-ip:8080/update` — same origin/cert as the main app, no extra approval.
+- [x] Plain static HTML + small vanilla JS — no React/build step. (`update-agent/public/index.html`, `app.js`)
+- [x] Served by `update-agent` itself over plain HTTP (TLS is terminated once, upstream, by `frontend`'s nginx): banner "Update available → Update Now", status page "Updating... please wait", success auto-redirect, failure shows rollback message then redirect.
+- [x] Talks only to `update-agent`'s own `/status` and `/apply` — never calls product `backend`.
+- [ ] Reached by the browser at `https://pi-ip:8080/update` — same origin/cert as the main app, no extra approval. Wiring is part 5 (nginx `location /update` block, not yet added).
 
 ### 5) Docker Compose wiring
 
