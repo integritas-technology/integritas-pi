@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
-import { addAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, listAutomationWorkflowRuns, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow } from "../features/automation/automationApi";
+import { addAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, getAutomationWorkflowValidation, listAutomationWorkflowRuns, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow } from "../features/automation/automationApi";
 import { AutomationRunsTable } from "../features/automation/AutomationRunsTable";
-import type { AutomationBlock, AutomationBlockType, AutomationRun, AutomationWorkflow, ConditionOperator } from "../features/automation/automationTypes";
+import type { AutomationBlock, AutomationBlockType, AutomationRun, AutomationValidationResult, AutomationWorkflow, ConditionOperator } from "../features/automation/automationTypes";
 import { listAddressBookEntries } from "../features/address-book/addressBookApi";
 import type { AddressBookEntry } from "../features/address-book/addressBookTypes";
 import { listDataSources } from "../features/data-sources/dataSourcesApi";
@@ -29,6 +29,7 @@ export function AutomationPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [workspaceWorkflowId, setWorkspaceWorkflowId] = useState<string | null>(null);
   const [workspaceRuns, setWorkspaceRuns] = useState<AutomationRun[]>([]);
+  const [workspaceValidation, setWorkspaceValidation] = useState<AutomationValidationResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,9 +40,15 @@ export function AutomationPage() {
   useEffect(() => {
     if (!workspaceWorkflowId) {
       setWorkspaceRuns([]);
+      setWorkspaceValidation(null);
       return;
     }
-    listAutomationWorkflowRuns(workspaceWorkflowId, 10).then((response) => setWorkspaceRuns(response.items)).catch((err: Error) => setError(err.message));
+    Promise.all([listAutomationWorkflowRuns(workspaceWorkflowId, 10), getAutomationWorkflowValidation(workspaceWorkflowId)])
+      .then(([runs, validation]) => {
+        setWorkspaceRuns(runs.items);
+        setWorkspaceValidation(validation.item);
+      })
+      .catch((err: Error) => setError(err.message));
   }, [workspaceWorkflowId]);
 
   async function refresh() {
@@ -58,8 +65,9 @@ export function AutomationPage() {
     if (!startSourceId) setStartSourceId(defaultSourceForStart(startType, sourceResponse.items)?.id ?? "");
     if (!initialFetchSourceId) setInitialFetchSourceId(firstHttpSource(sourceResponse.items)?.id ?? "");
     if (workspaceWorkflowId) {
-      const runs = await listAutomationWorkflowRuns(workspaceWorkflowId, 10);
+      const [runs, validation] = await Promise.all([listAutomationWorkflowRuns(workspaceWorkflowId, 10), getAutomationWorkflowValidation(workspaceWorkflowId)]);
       setWorkspaceRuns(runs.items);
+      setWorkspaceValidation(validation.item);
     }
   }
 
@@ -150,6 +158,7 @@ export function AutomationPage() {
           <WorkflowWorkspace
             workflow={workspaceWorkflow}
             runs={workspaceRuns}
+            validation={workspaceValidation}
             source={sourceById(workspaceWorkflow.dataSourceId)}
             sources={sources}
             addressBook={addressBook}
@@ -210,7 +219,7 @@ export function AutomationPage() {
   );
 }
 
-function WorkflowWorkspace({ workflow, runs, source, sources, addressBook, walletStatus, busy, onAddBlock, onDeleteBlock, onUpdateBlock, onReorderBlocks, onRunNow, onRunWithPayload, onToggleEnabled, onDelete }: { workflow: AutomationWorkflow; runs: AutomationRun[]; source: DataSource | undefined; sources: DataSource[]; addressBook: AddressBookEntry[]; walletStatus: WalletStatus | null; busy: boolean; onAddBlock: (input: Parameters<typeof addAutomationBlock>[1]) => void; onDeleteBlock: (blockId: string) => void; onUpdateBlock: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onReorderBlocks: (blockIds: string[]) => void; onRunNow: () => void; onRunWithPayload: (payload: unknown) => void; onToggleEnabled: () => void; onDelete: () => void }) {
+function WorkflowWorkspace({ workflow, runs, validation, source, sources, addressBook, walletStatus, busy, onAddBlock, onDeleteBlock, onUpdateBlock, onReorderBlocks, onRunNow, onRunWithPayload, onToggleEnabled, onDelete }: { workflow: AutomationWorkflow; runs: AutomationRun[]; validation: AutomationValidationResult | null; source: DataSource | undefined; sources: DataSource[]; addressBook: AddressBookEntry[]; walletStatus: WalletStatus | null; busy: boolean; onAddBlock: (input: Parameters<typeof addAutomationBlock>[1]) => void; onDeleteBlock: (blockId: string) => void; onUpdateBlock: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onReorderBlocks: (blockIds: string[]) => void; onRunNow: () => void; onRunWithPayload: (payload: unknown) => void; onToggleEnabled: () => void; onDelete: () => void }) {
   const [fetchSourceId, setFetchSourceId] = useState(() => sources.find((item) => item.type === "json-api" || item.type === "internal-json-api")?.id ?? "");
   const [outputTargetId, setOutputTargetId] = useState(() => sources.find((item) => item.type === "gpio-output")?.id ?? "");
   const [outputPulseMs, setOutputPulseMs] = useState("500");
@@ -233,6 +242,7 @@ function WorkflowWorkspace({ workflow, runs, source, sources, addressBook, walle
   const fetchSources = sources.filter((item) => item.type === "json-api" || item.type === "internal-json-api");
   const outputTargets = sources.filter((item) => item.type === "gpio-output");
   const nativeTokens = nativeMinimaTokens(walletStatus);
+  const hasValidationErrors = Boolean(validation && validation.errors.length > 0);
 
   return (
     <section className="automation-list">
@@ -251,7 +261,7 @@ function WorkflowWorkspace({ workflow, runs, source, sources, addressBook, walle
             <div className="row-actions">
               <button type="button" disabled={busy} onClick={() => setPayloadText(JSON.stringify(examplePayload(workflow), null, 2))}>Reset example</button>
               <button type="button" disabled={busy} onClick={() => setPayloadModalOpen(false)}>Cancel</button>
-              <button type="button" disabled={busy} onClick={() => {
+              <button type="button" disabled={busy || hasValidationErrors} onClick={() => {
                 try {
                   const parsed = JSON.parse(payloadText) as unknown;
                   setPayloadModalOpen(false);
@@ -274,6 +284,8 @@ function WorkflowWorkspace({ workflow, runs, source, sources, addressBook, walle
       </div>
 
       {workflow.lastError && <p className="error-text">{workflow.lastError}</p>}
+
+      <WorkflowValidationPanel validation={validation} />
 
       <div className="metric-grid">
         <div><span className="muted">Blocks</span><strong>{workflow.blocks.length}</strong></div>
@@ -383,8 +395,8 @@ function WorkflowWorkspace({ workflow, runs, source, sources, addressBook, walle
           <p className="muted">Run the workflow manually, pause it, or delete it. Add Integritas stamps from record/fetch blocks.</p>
         </div>
         <div className="row-actions">
-          <button type="button" disabled={busy} onClick={onRunNow}>Run now</button>
-          <button type="button" disabled={busy} onClick={() => {
+          <button type="button" disabled={busy || hasValidationErrors} onClick={onRunNow}>Run now</button>
+          <button type="button" disabled={busy || hasValidationErrors} onClick={() => {
             setPayloadText(JSON.stringify(examplePayload(workflow), null, 2));
             setPayloadError(null);
             setPayloadModalOpen(true);
@@ -413,6 +425,35 @@ function AddBlockCard({ title, description, expanded, onToggle, children }: { id
       </button>
       {expanded && <div>{children}</div>}
     </section>
+  );
+}
+
+function WorkflowValidationPanel({ validation }: { validation: AutomationValidationResult | null }) {
+  if (!validation) return <section className="card soft-card"><p className="muted">Checking workflow validation...</p></section>;
+  if (validation.errors.length === 0 && validation.warnings.length === 0) {
+    return <section className="card soft-card"><span className="pill pill-good">Workflow validation passed</span></section>;
+  }
+
+  return (
+    <section className="card soft-card">
+      <div className="status-row">
+        <div>
+          <strong>Workflow validation</strong>
+          <p className="muted">Fix errors before running. Warnings are allowed, but should be reviewed before enabling hardware or wallet actions.</p>
+        </div>
+        <span className={`pill ${validation.errors.length > 0 ? "pill-warn" : "pill-neutral"}`}>{validation.errors.length} error(s), {validation.warnings.length} warning(s)</span>
+      </div>
+      {validation.errors.map((issue) => <ValidationIssueRow key={`${issue.code}-${issue.blockId ?? "workflow"}`} issue={issue} />)}
+      {validation.warnings.map((issue) => <ValidationIssueRow key={`${issue.code}-${issue.blockId ?? "workflow"}`} issue={issue} />)}
+    </section>
+  );
+}
+
+function ValidationIssueRow({ issue }: { issue: AutomationValidationResult["errors"][number] }) {
+  return (
+    <p className={issue.level === "error" ? "error-text" : "muted"}>
+      <span className={`pill ${issue.level === "error" ? "pill-warn" : "pill-neutral"}`}>{issue.level}</span> {issue.message}{issue.blockType ? ` (${issue.blockType})` : ""}
+    </p>
   );
 }
 

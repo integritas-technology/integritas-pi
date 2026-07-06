@@ -7,6 +7,7 @@ import { syncGpioDataSources } from "../data-sources/gpioIngestion.service.js";
 import { syncMqttDataSources } from "../data-sources/mqttIngestion.service.js";
 import { createAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, getAutomationWorkflow, listAutomationBlocks, listAutomationWorkflows, reorderAutomationBlocks, updateAutomationBlock, updateAutomationWorkflow, type AutomationBlockType } from "./automation.repository.js";
 import { getSerializedAutomationRun, listSerializedAutomationRuns, listSerializedAutomationRunsForWorkflow, runAutomationWorkflow, serializeAutomationBlock, serializeAutomationWorkflow } from "./automation.service.js";
+import { validateAutomationWorkflow } from "./automation.validation.js";
 
 export const automationRouter = Router();
 
@@ -30,6 +31,12 @@ automationRouter.get("/workflows/:id/runs", (req, res) => {
   if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
   const limit = limitFromQuery(req.query.limit, 20);
   res.json({ items: listSerializedAutomationRunsForWorkflow(workflow.id, limit) });
+});
+
+automationRouter.get("/workflows/:id/validation", async (req, res) => {
+  const workflow = getAutomationWorkflow(req.params.id);
+  if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
+  res.json({ item: await validateAutomationWorkflow(workflow.id) });
 });
 
 automationRouter.post("/workflows", requireRole("admin"), (req, res) => {
@@ -214,6 +221,8 @@ automationRouter.post("/workflows/:id/run", requireRole("admin"), async (req, re
   if (hasCustomPayload && !isJsonCompatible(triggerPayload)) return res.status(400).json({ error: "triggerPayload must be JSON-compatible" });
 
   try {
+    const validation = await validateAutomationWorkflow(workflow.id);
+    if (!validation.ok) return res.status(400).json({ error: "Workflow validation failed", validation });
     const result = await runAutomationWorkflow(req.params.id, {
       type: "manual",
       sourceId: startConfig.sourceId,

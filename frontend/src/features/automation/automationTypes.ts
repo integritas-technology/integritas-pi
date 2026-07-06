@@ -99,6 +99,20 @@ export type AutomationBlockRun = {
   error: string | null;
 };
 
+export type AutomationValidationIssue = {
+  level: "error" | "warning";
+  code: string;
+  message: string;
+  blockId?: string;
+  blockType?: string;
+};
+
+export type AutomationValidationResult = {
+  ok: boolean;
+  errors: AutomationValidationIssue[];
+  warnings: AutomationValidationIssue[];
+};
+
 export type AutomationRule = {
   id: string;
   workflowId: string;

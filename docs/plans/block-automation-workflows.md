@@ -470,12 +470,11 @@ The block workspace is usable for the current prototype: workflows can be create
 Recommended development order:
 
 1. Workflow templates.
-2. Pre-run validation.
-3. Run log filtering and deep links.
-4. Better workflow organization.
-5. Configure-block modal refinement.
-6. Full draft workspace save model.
-7. Branching / else flow.
+2. Run log filtering and deep links.
+3. Better workflow organization.
+4. Configure-block modal refinement.
+5. Full draft workspace save model.
+6. Branching / else flow.
 
 ### 1. Workflow Templates
 
@@ -518,7 +517,17 @@ Condition source is data but no prior block records or fetches data.
 Workflow has no enabled action blocks after the start block.
 ```
 
-Pre-run validation should be advisory at first: show warnings near the run buttons, but keep admin override possible for prototype testing unless a backend safety rule must block execution.
+Current implementation:
+
+- `GET /api/automation/workflows/:id/validation` returns structured errors and warnings.
+- The Automation workspace shows validation status near the run buttons.
+- `Run now` and `Run with payload` are disabled in the UI and rejected by the backend when validation errors exist.
+- Warnings remain visible for operator review and do not block runs.
+
+Follow-up validation improvements:
+
+- Add template-aware validation hints when workflow templates are introduced.
+- Add deeper scheduled/event trigger risk checks if output and transaction blocks become more configurable.
 
 ### 3. Run Log Filtering And Deep Links
 
