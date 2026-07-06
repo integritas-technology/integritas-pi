@@ -63,16 +63,16 @@ Mitigation is shrinking `update-agent`'s own attack surface, not network placeme
 
 ### 3) update-agent service
 
-- [ ] New top-level service folder `update-agent/` (sibling to `backend`/`frontend`), own `package.json`/`Dockerfile`.
-- [ ] Small HTTP service: `GET /status`, `POST /apply`, plus the static page from part 4. No other endpoints.
-- [ ] Fetch manifest from VPS, verify signature against the embedded public key.
-- [ ] Compare manifest digests vs. running container image digests (own `docker.sock`, same raw HTTP-over-socket pattern as `backend/src/features/status/docker.control.ts`).
-- [ ] Per-service update flow: pull by digest → start new container → health check → success: stop+remove old, keep only 2 images; failure: stop new, leave old running.
-- [ ] Minima-node path: back up data dir → stop old → start new → health check → on failure restore backup + restart old. Manually-approved digest only.
-- [ ] Auth: reuse existing session auth so only logged-in admins can trigger/view updates — decide whether `update-agent` validates the same session cookie/`APP_SECRET` as `backend` or needs its own check (open question).
-- [ ] Release channel (`stable`/`beta`) read from local config/env — no gradual rollout logic in V1.
-- [ ] Self-update: decide ordering so `update-agent` isn't stopping itself mid-update.
-- [ ] Keep this service's code surface minimal (see docker.sock exposure above).
+- [x] New top-level service folder `update-agent/` (sibling to `backend`/`frontend`), own `package.json`/`Dockerfile`. (Dockerfile itself is part 5, wiring.)
+- [x] Small HTTP service: `GET /status`, `POST /apply`, plus the static page from part 4. No other endpoints. (`src/app.ts` — static shell public, `/status` and `/apply` gated by `requireAdmin`.)
+- [x] Fetch manifest from VPS, verify signature against the embedded public key. (`src/manifest/manifest.service.ts`)
+- [x] Compare manifest digests vs. running container image digests (own `docker.sock`, same raw HTTP-over-socket pattern as `backend/src/features/status/docker.control.ts`). (`src/status/status.service.ts`, `src/docker/docker.client.ts`)
+- [x] Per-service update flow: pull by digest → start new container → health check → success: stop+remove old, keep only 2 images; failure: stop new, leave old running. (`src/update/service-update.ts`)
+- [x] Minima-node path: back up data dir → stop old → start new → health check → on failure restore backup + restart old. Manually-approved digest only. (`src/update/minima-update.ts`)
+- [x] Auth: `update-agent` forwards the caller's session cookie to `backend`'s existing `GET /api/auth/me` and gates on 200 + `role === "admin"` — no shared DB, no duplicated session logic. (`src/auth/auth.middleware.ts`)
+- [x] Release channel (`stable`/`beta`) read from local config/env — no gradual rollout logic in V1. (`RELEASE_CHANNEL` env var present, unused beyond config for now.)
+- [x] Self-update: resolved by scope — `update-agent` is deliberately not in the manifest (`{ frontend, backend, minima-node }` only), so there is no self-update path in V1. Its own version changes only via a separate manual redeploy.
+- [x] Keep this service's code surface minimal (see docker.sock exposure above). (No dependencies beyond `express`; no endpoints beyond `/status`, `/apply`, static shell.)
 
 ### 4) update-agent's single-page UI
 
@@ -105,9 +105,8 @@ Mitigation is shrinking `update-agent`'s own attack surface, not network placeme
 
 ---
 
-## Open questions (revisit at part 3)
+## Open questions
 
-- Exact auth story for `update-agent`'s endpoints (shared session vs. separate minimal check).
 - Where `manifest.source.json` (or equivalent) lives and its exact shape.
 
 ## Explicitly out of scope for V1

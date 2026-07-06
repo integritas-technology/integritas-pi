@@ -31,6 +31,37 @@ export async function createContainer(
   return dockerRequest<{ Id: string }>("POST", `/containers/create?name=${encodeURIComponent(name)}`, config);
 }
 
+/**
+ * Builds a /containers/create body from a running container's inspect output,
+ * substituted with a new image ref. Only forwards the fields this stack's
+ * compose services actually use — not a general-purpose inspect passthrough.
+ */
+export function createBodyFromInspect(inspected: DockerContainerInspect, newImageRef: string) {
+  const networkNames = Object.keys(inspected.NetworkSettings.Networks);
+
+  return {
+    Image: newImageRef,
+    Env: inspected.Config.Env,
+    Labels: inspected.Config.Labels,
+    ExposedPorts: inspected.Config.ExposedPorts,
+    HostConfig: {
+      Binds: inspected.HostConfig.Binds,
+      GroupAdd: inspected.HostConfig.GroupAdd,
+      RestartPolicy: inspected.HostConfig.RestartPolicy,
+      ExtraHosts: inspected.HostConfig.ExtraHosts,
+      PortBindings: inspected.HostConfig.PortBindings
+    },
+    NetworkingConfig: {
+      EndpointsConfig: Object.fromEntries(
+        networkNames.map((networkName) => [
+          networkName,
+          { Aliases: inspected.NetworkSettings.Networks[networkName]?.Aliases ?? [] }
+        ])
+      )
+    }
+  };
+}
+
 export function startContainer(containerId: string): Promise<void> {
   return dockerRequest<void>("POST", `/containers/${containerId}/start`);
 }

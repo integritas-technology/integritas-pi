@@ -12,8 +12,18 @@ export type DockerContainerInspect = {
   Name: string;
   Image: string;
   State: { Running: boolean; Health?: { Status: string } };
-  Config: Record<string, unknown>;
-  HostConfig: Record<string, unknown>;
+  Config: {
+    Env?: string[];
+    Labels?: Record<string, string>;
+    ExposedPorts?: Record<string, object>;
+  };
+  HostConfig: {
+    Binds?: string[];
+    GroupAdd?: string[];
+    RestartPolicy?: { Name: string; MaximumRetryCount?: number };
+    ExtraHosts?: string[];
+    PortBindings?: Record<string, { HostIp?: string; HostPort?: string }[]>;
+  };
   NetworkSettings: {
     Networks: Record<string, { Aliases?: string[] | null }>;
   };
