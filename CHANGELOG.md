@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Automation workflows can now include a Send transaction block that sends native MINIMA (`0x00`) to an address book recipient with a fixed operator-defined amount.
 - GPIO device settings guide documenting tested GPIO17 button input and GPIO18 LED output setups plus suggested untested device profiles.
 - Automation workflows now have a validation endpoint and workspace validation panel that flags missing devices, invalid block order/data dependencies, hardware-output warnings, Integritas key warnings, and wallet transaction balance/configuration issues before manual runs.
+- Workflow block-run details now link directly to matching Diagnostics read/proof history filters when a block output contains a read id or Integritas proof id.
 
 ### Changed
 

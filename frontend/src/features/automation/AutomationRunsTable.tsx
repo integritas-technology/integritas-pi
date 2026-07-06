@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { JsonPreview } from "../../components/JsonPreview";
 import { getDataSourceRead } from "../data-reads/dataReadsApi";
 import type { DataSourceRead } from "../data-reads/dataReadTypes";
@@ -70,6 +71,7 @@ function RunDetails({ run, compact }: { run: AutomationRun; compact: boolean }) 
 
 function BlockRunDetails({ block }: { block: AutomationRun["blocks"][number] }) {
   const readId = readIdFromOutput(block.output);
+  const proofId = proofIdFromOutput(block.output);
 
   return (
     <div className="card">
@@ -79,6 +81,7 @@ function BlockRunDetails({ block }: { block: AutomationRun["blocks"][number] }) 
       </div>
       {block.error && <p className="error-text">{block.error}</p>}
       {block.output !== null && <JsonPreview value={block.output} />}
+      {proofId && <p className="muted"><Link to={diagnosticsLink("proofs", proofId)}>Open proof in Diagnostics</Link></p>}
       {readId && <ReadPreview readId={readId} blockType={block.blockType} />}
     </div>
   );
@@ -113,6 +116,7 @@ function ReadPreview({ readId, blockType }: { readId: string; blockType: string 
           <strong>Fetched data preview</strong>
           <p className="muted">This is the stored JSON {blockType === "record_trigger_event" ? "recorded from the trigger" : "fetched from the device/source"}. Data conditions evaluate this preview when their source is Data.</p>
           <p className="muted">Read <code>{readId}</code>{read ? ` · ${read.sourceName}` : ""}</p>
+          <p className="muted"><Link to={diagnosticsLink("reads", readId)}>Open read in Diagnostics</Link></p>
         </div>
         {read && <span className={`pill ${read.status === "success" ? "pill-good" : "pill-warn"}`}>{read.status}</span>}
       </div>
@@ -121,12 +125,23 @@ function ReadPreview({ readId, blockType }: { readId: string; blockType: string 
   );
 }
 
+function diagnosticsLink(tab: "proofs" | "reads", id: string) {
+  const params = new URLSearchParams({ tab, page: "1", pageSize: "25", q: id });
+  return `/diagnostics?${params.toString()}`;
+}
+
 function readIdFromOutput(output: unknown) {
   if (!output || typeof output !== "object") return null;
   const record = output as { readId?: unknown; data?: { readId?: unknown } };
   if (typeof record.readId === "string") return record.readId;
   if (record.data && typeof record.data.readId === "string") return record.data.readId;
   return null;
+}
+
+function proofIdFromOutput(output: unknown) {
+  if (!output || typeof output !== "object") return null;
+  const record = output as { proofId?: unknown };
+  return typeof record.proofId === "string" ? record.proofId : null;
 }
 
 function blockTypeLabel(type: string) {

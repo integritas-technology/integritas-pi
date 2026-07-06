@@ -470,7 +470,7 @@ The block workspace is usable for the current prototype: workflows can be create
 Recommended development order:
 
 1. Workflow templates.
-2. Run log filtering and deep links.
+2. Run log filtering and deeper run links.
 3. Better workflow organization.
 4. Configure-block modal refinement.
 5. Full draft workspace save model.
@@ -533,12 +533,16 @@ Follow-up validation improvements:
 
 Workflow run details now separate trigger payloads from fetched/recorded data previews. The next log improvement is navigation and filtering.
 
+Current implementation:
+
+- Block runs with a data read id link to Diagnostics read history filtered to that read.
+- Block runs with an Integritas proof id link to Diagnostics proof history filtered to that proof.
+- Diagnostics read/proof search includes internal row ids so deep links can resolve the exact row.
+
 Useful additions:
 
 ```txt
 Filter workflow logs by workflow, status, trigger type, proof id, read id.
-Link from a block run to the matching Diagnostics read row.
-Link from a stamp block run to the matching proof history row.
 Support direct URLs to a specific workflow run.
 ```
 

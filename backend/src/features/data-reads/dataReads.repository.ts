@@ -35,8 +35,8 @@ function buildDataReadListWhere(query: Pick<DataReadListQuery, "status" | "q">) 
 
   if (query.q) {
     const like = `%${query.q}%`;
-    clauses.push("(hash LIKE ? OR source_name LIKE ? OR source_url LIKE ?)");
-    params.push(like, like, like);
+    clauses.push("(id LIKE ? OR hash LIKE ? OR integritas_proof_id LIKE ? OR source_name LIKE ? OR source_url LIKE ?)");
+    params.push(like, like, like, like, like);
   }
 
   return {
