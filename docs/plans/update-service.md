@@ -97,13 +97,32 @@ Mitigation is shrinking `update-agent`'s own attack surface, not network placeme
 
 ### 7) Cleanup / hardening pass
 
-- [ ] `SECURITY.md`: signing key handling; `update-agent`'s `docker.sock` access as host-root-equivalent regardless of network exposure (accepted risk, mitigated by minimal code surface, not by network placement).
-- [ ] `AGENTS.md`: new "Update Agent" section once the shape settles.
-- [ ] `CHANGELOG.md` entries under `[Unreleased]` as each part lands.
-- [ ] `docs/README.md` — add this plan to the "Active plans" table.
-- [ ] End-to-end manual test on a real Pi: trigger update, confirm rollback on an intentionally-broken health check.
+- [x] `SECURITY.md`: signing key handling; `update-agent`'s `docker.sock` access as host-root-equivalent regardless of network exposure (accepted risk, mitigated by minimal code surface, not by network placement). Added "Update Agent Docker Socket Mount" and "Update Manifest Signing Key" sections.
+- [x] `AGENTS.md`: new "Update Agent" section once the shape settles.
+- [x] `CHANGELOG.md` entries under `[Unreleased]` as each part lands.
+- [x] `docs/README.md` — add this plan to the "Active plans" table. (Already added earlier in this plan's work.)
+- [ ] End-to-end manual test on a real Pi: trigger update, confirm rollback on an intentionally-broken health check. See "How to test" below — do this only after part 6 (VPS + secrets) is wired up.
 
 ---
+
+## How to test
+
+Don't validate this by merging to `main` and pushing a real `v*` tag first — the signing key doesn't exist yet, and a real tag is the most expensive, least reversible way to find a bug. Test bottom-up instead:
+
+1. **CI workflow logic, no real release.** Push a throwaway branch with a `vtest*`-style tag (or temporarily edit the tag filter) to a fork or a disposable test repo, or simply run the two build scripts locally:
+   ```bash
+   FRONTEND_DIGEST=sha256:... BACKEND_DIGEST=sha256:... node scripts/release/build-manifest.mjs manifest.source.json /tmp/manifest.json
+   MANIFEST_SIGNING_KEY="$(cat /tmp/test-private-key.pem)" node scripts/release/sign-manifest.mjs /tmp/manifest.json /tmp/manifest.json.sig
+   ```
+   This exercises the exact logic `release.yml` runs, without touching GitHub Actions or `main` at all. (This was already done once during part 2 to confirm the sign/verify round-trip.)
+
+2. **`update-agent` against your real local `docker-compose.yml` stack.** Run `docker compose up -d`, then hand-build a signed manifest (same scripts as above) pointing at the digests of your currently-running `frontend`/`backend` images plus a different tag to force an update, host it with a throwaway static file server (or `python3 -m http.server`) reachable from the compose network, and point `update-agent`'s `MANIFEST_URL`/`MANIFEST_PUBLIC_KEY` at it. Log in as admin, open `https://localhost:8080/update`, and:
+   - Confirm "Update available" lists the right service(s).
+   - Click "Update Now"; confirm the old container keeps serving until the new one is healthy, then confirm the swap.
+   - Force a failure (point the manifest at a digest for an image that will fail its health check, e.g. a broken `CMD`) and confirm the old container is left running / minima's data directory is restored.
+   This validates parts 3+4+5 without needing the VPS or GitHub Actions at all.
+
+3. **Real end-to-end**, only after part 6's VPS deploy step and GitHub secrets exist: cut a real `v*` tag, confirm CI builds/signs/deploys the manifest, confirm `update-agent` on a real (or test) Pi picks it up and applies it. Do this last, and ideally on a spare/test Pi or VM first, not the first real device you'd be upset to lose.
 
 ## Open questions
 

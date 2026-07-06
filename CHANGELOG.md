@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Update service (V1)**: new `update-agent` container provides a manual "Update Now" flow for `frontend`, `backend`, and `minima`. Updates are driven by a signed manifest (Ed25519) built and published by a tag-triggered GitHub Actions release workflow, and applied only after the new container passes a health check; a failed update leaves the previous container running (or, for `minima`, restores its data directory and restarts the previous version).
+- The update UI is served at `https://<pi-ip>:8080/update`, proxied through the existing frontend nginx on the same origin/certificate — no extra browser certificate approval.
+- New `MANIFEST_URL`, `MANIFEST_PUBLIC_KEY`, `RELEASE_CHANNEL`, `UPDATE_HEALTH_CHECK_TIMEOUT_MS`, `UPDATE_HEALTH_CHECK_INTERVAL_MS` environment variables (see README Configuration section).
+
+### Security
+
+- `update-agent` mounts `/var/run/docker.sock` to apply updates; documented as an accepted, host-root-equivalent risk mitigated by minimal code surface, admin-only access, and signature/digest verification — not by network placement. See `SECURITY.md`.
+
 ## [0.12.0] - 2026-07-02
 
 ### Changed

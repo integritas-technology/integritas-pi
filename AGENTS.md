@@ -123,6 +123,27 @@ CLI rules:
 - Keep dependencies minimal: POSIX shell, `curl`, optional `python3` for JSON formatting.
 - Installer should keep installing the CLI to `/usr/local/bin/integritas-pi`.
 
+## Update Agent Work
+
+Read these first:
+
+- `docs/plans/update-service.md` for the full design and rationale.
+- `update-agent/src/app.ts` for route registration.
+- `update-agent/src/config/env.ts` for environment configuration.
+- `update-agent/src/docker/docker.service.ts` for the Docker Engine API primitives (same raw `node:http`-over-socket pattern as `backend/src/features/status/docker.control.ts`, not `dockerode`).
+
+Update Agent is a separate service/container from the product `backend`/`frontend`, with its own `package.json`, `Dockerfile`, and `docker.sock` mount. It applies signed, digest-pinned updates to `frontend`, `backend`, and `minima` — it does not implement any product feature.
+
+Update Agent rules:
+
+- Keep the code surface minimal: no endpoints beyond `GET /status`, `POST /apply`, and its one static page. No dependencies beyond `express`.
+- Never add a generic Docker command proxy — only the specific pull/create/start/stop/remove/inspect calls the update flow needs.
+- Auth: forward the caller's session cookie to `backend`'s `GET /api/auth/me` and require `role === "admin"`. Do not share `backend`'s SQLite session store directly.
+- Manifests must be signature-verified (Ed25519, embedded public key) before any digest is trusted. Never fetch-and-apply an unverified manifest.
+- `update-agent` is deliberately excluded from the manifest it applies — it has no self-update path in V1.
+- The update UI is served by `update-agent` itself (not `frontend`) so it stays usable even if `frontend`'s own deploy is broken; `frontend`'s nginx only proxies `/update` to it, on the same origin/cert.
+- Stateless services (`frontend`, `backend`) update by starting a new container alongside the old one, health-checking, then swapping. `minima` cannot run two instances against one data directory, so it backs up the data directory, stops the old container first, then swaps — with restore-on-failure.
+
 ## Minima Rules
 
 - Minima RPC commands should be sent as a single URL path command, not as query parameters. Build the command string first, for example `megammrsync action:resync host:megammr.minima.global:9001`, then percent-encode it into the path: `http://minima:9005/megammrsync%20action%3Aresync%20host%3Amegammr.minima.global%3A9001`.
