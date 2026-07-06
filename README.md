@@ -94,6 +94,11 @@ INTEGRITAS_PORTAL_URL=
 COOKIE_SECURE=true
 SESSION_MAX_AGE_DAYS=7
 SESSION_IDLE_HOURS=24
+MANIFEST_URL=
+MANIFEST_PUBLIC_KEY=
+RELEASE_CHANNEL=stable
+UPDATE_HEALTH_CHECK_TIMEOUT_MS=30000
+UPDATE_HEALTH_CHECK_INTERVAL_MS=2000
 ```
 
 The installer sets `COOKIE_SECURE=true` for the default HTTPS Docker deploy. Use `COOKIE_SECURE=false` only for native `npm run dev` (HTTP on port 5173).
@@ -160,6 +165,8 @@ docker compose up -d --build frontend
 Future versions may support custom certificates or an external reverse proxy.
 
 `SESSION_MAX_AGE_DAYS` and `SESSION_IDLE_HOURS` control session lifetime (default 7 days max, 24 hours idle).
+
+`MANIFEST_URL` and `MANIFEST_PUBLIC_KEY` configure the `update-agent` service: the signed update manifest URL hosted on the VPS, and the Ed25519 public key (PEM) used to verify its signature. Leave `MANIFEST_URL` empty to disable update checks. The update UI is served at `https://<pi-ip>:8080/update` (same TLS cert/origin as the main app, proxied through `frontend`'s nginx — no extra browser approval). See [docs/plans/update-service.md](docs/plans/update-service.md) for the full design.
 
 To install with another file root or port:
 

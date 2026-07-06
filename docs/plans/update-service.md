@@ -83,10 +83,10 @@ Mitigation is shrinking `update-agent`'s own attack surface, not network placeme
 
 ### 5) Docker Compose wiring
 
-- [ ] Add `update-agent` service: own build context, own `docker.sock` mount + `group_add: DOCKER_GID`, `expose` only (no host port), same `integritas` network.
-- [ ] `frontend/nginx.conf`: add `location /update` proxying to `update-agent` (mirrors existing `location /api` → `backend`).
-- [ ] Env vars: manifest URL, release channel, public key path/embedded, health check timeouts — follow existing `.env.example` conventions.
-- [ ] `.env.example` + README updates for any new required vars.
+- [x] Add `update-agent` service: own build context, own `docker.sock` mount + `group_add: DOCKER_GID`, `expose` only (no host port), same `integritas` network. Also mounts `${MINIMA_DATA_DIR:-./minima}:/minima-data` for the minima-node backup/restore path (added in part 3). (`docker-compose.yml`, `update-agent/Dockerfile`)
+- [x] `frontend/nginx.conf`: add `location /update` proxying to `update-agent` (mirrors existing `location /api` → `backend`). `/update` 301s to `/update/` so the static page's relative `fetch("status")`/`fetch("apply")` resolve correctly through the proxy — verified end-to-end (redirect, static asset proxying, and 401-gated `/update/status`+`/update/apply`) against a live nginx container.
+- [x] Env vars: manifest URL, release channel, public key path/embedded, health check timeouts — follow existing `.env.example` conventions.
+- [x] `.env.example` + README updates for any new required vars.
 
 ### 6) VPS deploy setup
 

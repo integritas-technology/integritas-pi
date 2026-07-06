@@ -26,7 +26,7 @@ function renderServiceList(listEl, services) {
 async function loadStatus() {
   showView("loading");
   try {
-    const response = await fetch("/status", { credentials: "include" });
+    const response = await fetch("status", { credentials: "include" });
     if (!response.ok) {
       throw new Error(`Status check failed (HTTP ${response.status})`);
     }
@@ -50,7 +50,7 @@ async function loadStatus() {
 async function applyUpdate() {
   showView("updating");
   try {
-    const response = await fetch("/apply", { method: "POST", credentials: "include" });
+    const response = await fetch("apply", { method: "POST", credentials: "include" });
     const data = await response.json();
 
     if (!response.ok) {

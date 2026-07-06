@@ -69,6 +69,34 @@ services:
     networks:
       - integritas
 
+  update-agent:
+    build:
+      context: ./update-agent
+    environment:
+      PORT: 8081
+      DOCKER_SOCKET_PATH: /var/run/docker.sock
+      MANIFEST_URL: ${MANIFEST_URL:-}
+      MANIFEST_PUBLIC_KEY: ${MANIFEST_PUBLIC_KEY:-}
+      RELEASE_CHANNEL: ${RELEASE_CHANNEL:-stable}
+      BACKEND_INTERNAL_URL: http://backend:3000
+      MINIMA_STATUS_URL: http://minima:9005/status
+      MINIMA_DATA_DIR_IN_CONTAINER: /minima-data
+      HEALTH_CHECK_TIMEOUT_MS: ${UPDATE_HEALTH_CHECK_TIMEOUT_MS:-30000}
+      HEALTH_CHECK_INTERVAL_MS: ${UPDATE_HEALTH_CHECK_INTERVAL_MS:-2000}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${MINIMA_DATA_DIR:-./minima}:/minima-data
+    group_add:
+      - "${DOCKER_GID:-0}"
+    expose:
+      - "8081"
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - minima
+    networks:
+      - integritas
+
 networks:
   integritas:
     name: integritas-pi
