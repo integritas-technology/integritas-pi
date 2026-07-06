@@ -54,12 +54,12 @@ Mitigation is shrinking `update-agent`'s own attack surface, not network placeme
 
 ### 2) GitHub Actions scripts (the release job itself)
 
-- [ ] Build step: `docker build` for changed services, push to `ghcr.io/<org>/...` by digest.
-- [ ] Manifest build step: read `manifest.source.json`, overwrite `frontend`/`backend` digests with freshly pushed digests, leave `minima-node` as-is.
-- [ ] Sign step: sign the resulting manifest with the private key from GitHub Actions Secrets; key never written to a file that survives the job.
-- [ ] Deploy step: push signed manifest (+ signature) to the VPS Next.js app via the dedicated low-privilege deploy user.
-- [ ] One-time setup: generate the signing keypair, register the private key as a GH secret, commit the public key into the repo/`update-agent`.
-- [ ] Decide the signature format/tool up front (e.g. minisign vs. plain Ed25519 + node `crypto`) so CI and `update-agent`'s verifier agree.
+- [x] Build step: `docker build` for changed services, push to `ghcr.io/<org>/...` by digest. (`build` job in `release.yml`, resolves full `repo@sha256:digest` refs)
+- [x] Manifest build step: read `manifest.source.json`, overwrite `frontend`/`backend` digests with freshly pushed digests, leave `minima-node` as-is. (`scripts/release/build-manifest.mjs`)
+- [x] Sign step: sign the resulting manifest with the private key from GitHub Actions Secrets; key never written to a file that survives the job. (`scripts/release/sign-manifest.mjs`, Node `crypto` Ed25519, key only lives in env for the step)
+- [ ] Deploy step: push signed manifest (+ signature) to the VPS Next.js app via the dedicated low-privilege deploy user. Placeholder in `release.yml` — real wiring is part 6.
+- [ ] One-time setup: generate the signing keypair, register the private key as a GH secret (`MANIFEST_SIGNING_KEY`), commit the public key into the repo/`update-agent`. Not done yet — needs to happen before any real release tag.
+- [x] Signature format/tool: Node `crypto` Ed25519 (PEM keys, base64 signature) — no external binary, both CI and `update-agent` are already Node/TypeScript.
 
 ### 3) update-agent service
 
@@ -88,7 +88,14 @@ Mitigation is shrinking `update-agent`'s own attack surface, not network placeme
 - [ ] Env vars: manifest URL, release channel, public key path/embedded, health check timeouts — follow existing `.env.example` conventions.
 - [ ] `.env.example` + README updates for any new required vars.
 
-### 6) Cleanup / hardening pass
+### 6) VPS deploy setup
+
+- [ ] Confirm/create the dedicated low-privilege VPS deploy user, scoped to one folder.
+- [ ] Confirm how the existing Next.js VPS app serves static/manifest files (route, folder convention).
+- [ ] Wire the real deploy step (replace part 2's placeholder) with actual host/path/credentials, stored as GH secrets.
+- [ ] Confirm the manifest URL `update-agent` will fetch from in production.
+
+### 7) Cleanup / hardening pass
 
 - [ ] `SECURITY.md`: signing key handling; `update-agent`'s `docker.sock` access as host-root-equivalent regardless of network exposure (accepted risk, mitigated by minimal code surface, not by network placement).
 - [ ] `AGENTS.md`: new "Update Agent" section once the shape settles.
@@ -101,7 +108,6 @@ Mitigation is shrinking `update-agent`'s own attack surface, not network placeme
 ## Open questions (revisit at part 3)
 
 - Exact auth story for `update-agent`'s endpoints (shared session vs. separate minimal check).
-- Exact signature scheme/tool (minisign vs. raw Ed25519).
 - Where `manifest.source.json` (or equivalent) lives and its exact shape.
 
 ## Explicitly out of scope for V1

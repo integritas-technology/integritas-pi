@@ -42,6 +42,9 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      frontend-digest: ${{ steps.frontend-ref.outputs.ref }}
+      backend-digest: ${{ steps.backend-ref.outputs.ref }}
     steps:
       - uses: actions/checkout@v4
 
@@ -52,8 +55,35 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # TODO (part 2): build + push frontend/backend images by digest to ghcr.io,
-      # gated on needs.changes.outputs.frontend / .backend.
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push frontend
+        if: needs.changes.outputs.frontend == 'true'
+        id: frontend-build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/integritas-pi-frontend:${{ github.ref_name }}
+
+      - name: Resolve frontend digest ref
+        if: needs.changes.outputs.frontend == 'true'
+        id: frontend-ref
+        run: echo "ref=ghcr.io/${{ github.repository_owner }}/integritas-pi-frontend@${{ steps.frontend-build.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push backend
+        if: needs.changes.outputs.backend == 'true'
+        id: backend-build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/integritas-pi-backend:${{ github.ref_name }}
+
+      - name: Resolve backend digest ref
+        if: needs.changes.outputs.backend == 'true'
+        id: backend-ref
+        run: echo "ref=ghcr.io/${{ github.repository_owner }}/integritas-pi-backend@${{ steps.backend-build.outputs.digest }}" >> "$GITHUB_OUTPUT"
 
   manifest:
     needs: [changes, build]
@@ -62,11 +92,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # TODO (part 2): read manifest.source.json, overwrite frontend/backend
-      # digests with freshly pushed digests, leave minima-node untouched.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
-      # TODO (part 2): sign manifest with private key from
-      # secrets.MANIFEST_SIGNING_KEY (never written to a file that survives the job).
+      - name: Build manifest
+        env:
+          FRONTEND_DIGEST: ${{ needs.build.outputs.frontend-digest }}
+          BACKEND_DIGEST: ${{ needs.build.outputs.backend-digest }}
+        run: node scripts/release/build-manifest.mjs manifest.source.json manifest.json
 
-      # TODO (part 2): deploy signed manifest + signature to the VPS Next.js app
-      # via the dedicated low-privilege deploy user.
+      - name: Sign manifest
+        env:
+          MANIFEST_SIGNING_KEY: ${{ secrets.MANIFEST_SIGNING_KEY }}
+        run: node scripts/release/sign-manifest.mjs manifest.json manifest.json.sig
+
+      # TODO (part 6): deploy manifest.json + manifest.json.sig to the VPS
+      # Next.js app via the dedicated low-privilege deploy user. Placeholder
+      # secrets referenced below don't exist yet.
+      - name: Deploy manifest (placeholder)
+        env:
+          VPS_DEPLOY_HOST: ${{ secrets.VPS_DEPLOY_HOST }}
+          VPS_DEPLOY_USER: ${{ secrets.VPS_DEPLOY_USER }}
+          VPS_DEPLOY_KEY: ${{ secrets.VPS_DEPLOY_KEY }}
+        run: |
+          echo "TODO (part 6): scp/rsync manifest.json + manifest.json.sig to $VPS_DEPLOY_HOST"
+
+      - name: Upload manifest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: manifest
+          path: |
+            manifest.json
+            manifest.json.sig
