@@ -1448,6 +1448,22 @@ code {
   opacity: 0.45;
 }
 
+.workflow-attached-draft-block {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  color: #312e81;
+  border: 1px solid rgba(199, 210, 254, 0.9);
+  border-radius: 14px;
+  background: rgba(238, 242, 255, 0.94);
+}
+
+.workflow-attached-draft-block p {
+  margin: 0;
+  color: #475569;
+}
+
 .workflow-draft-start {
   background: linear-gradient(135deg, #f59e0b, #f97316);
 }

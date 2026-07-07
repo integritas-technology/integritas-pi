@@ -26,6 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Automation workflows can now be searched, filtered by status, duplicated, archived, and restored from the Automation workspace.
 - Create workflow now uses a Scratch-inspired full-page draft workspace with a clean Start/Data/Logic block library, a visual block-chain canvas, setup inspector, and inline validation before creating the workflow.
 - The create workflow draft now starts empty, requires choosing one start block first, hides start blocks after selection, and includes Reset canvas to choose a different start block.
+- The create workflow draft block library now includes Pulse output and Send transaction action blocks plus attached Integritas stamps on Record/Fetch data blocks.
 - The create workflow draft canvas now has its own editable block model: operators can add, remove, move, select, and configure draft blocks before the workflow is created.
 
 ### Changed

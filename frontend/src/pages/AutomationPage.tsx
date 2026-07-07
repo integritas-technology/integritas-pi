@@ -131,6 +131,8 @@ export function AutomationPage() {
           name={name}
           enabled={enabled}
           sources={sources}
+          addressBook={addressBook}
+          walletStatus={walletStatus}
           busy={busy}
           onNameChange={setName}
           onEnabledChange={setEnabled}
@@ -231,9 +233,10 @@ type DraftWorkflowBlock = {
   id: string;
   type: AutomationBlockType;
   config: AutomationBlock["config"];
+  attachedBlocks?: DraftWorkflowBlock[];
 };
 
-function CreateWorkflowWorkspace({ name, enabled, sources, busy, onNameChange, onEnabledChange, onCancel, onCreate }: { name: string; enabled: boolean; sources: DataSource[]; busy: boolean; onNameChange: (value: string) => void; onEnabledChange: (value: boolean) => void; onCancel: () => void; onCreate: (blocks: { type: AutomationBlockType; config: AutomationBlock["config"]; enabled?: boolean; parentBlockId?: string | null }[]) => void }) {
+function CreateWorkflowWorkspace({ name, enabled, sources, addressBook, walletStatus, busy, onNameChange, onEnabledChange, onCancel, onCreate }: { name: string; enabled: boolean; sources: DataSource[]; addressBook: AddressBookEntry[]; walletStatus: WalletStatus | null; busy: boolean; onNameChange: (value: string) => void; onEnabledChange: (value: boolean) => void; onCancel: () => void; onCreate: (blocks: { type: AutomationBlockType; config: AutomationBlock["config"]; enabled?: boolean; parentBlockId?: string | null; clientId?: string | null }[]) => void }) {
   const [draftBlocks, setDraftBlocks] = useState<DraftWorkflowBlock[]>([]);
   const [selectedBlockId, setSelectedBlockId] = useState("");
   const selectedBlock = draftBlocks.find((block) => block.id === selectedBlockId) ?? draftBlocks[0];
@@ -243,6 +246,18 @@ function CreateWorkflowWorkspace({ name, enabled, sources, busy, onNameChange, o
 
   function updateBlock(id: string, patch: Partial<DraftWorkflowBlock>) {
     setDraftBlocks((blocks) => blocks.map((block) => block.id === id ? { ...block, ...patch, config: patch.config ?? block.config } : block));
+  }
+
+  function attachStampBlock(parentId: string) {
+    setDraftBlocks((blocks) => blocks.map((block) => block.id === parentId ? { ...block, attachedBlocks: [...(block.attachedBlocks ?? []), createDraftBlock("stamp_integritas", sources)] } : block));
+  }
+
+  function updateAttachedBlock(parentId: string, attachedId: string, config: AutomationBlock["config"]) {
+    setDraftBlocks((blocks) => blocks.map((block) => block.id === parentId ? { ...block, attachedBlocks: (block.attachedBlocks ?? []).map((attached) => attached.id === attachedId ? { ...attached, config } : attached) } : block));
+  }
+
+  function removeAttachedBlock(parentId: string, attachedId: string) {
+    setDraftBlocks((blocks) => blocks.map((block) => block.id === parentId ? { ...block, attachedBlocks: (block.attachedBlocks ?? []).filter((attached) => attached.id !== attachedId) } : block));
   }
 
   function addDraftBlock(type: AutomationBlockType) {
@@ -300,7 +315,7 @@ function CreateWorkflowWorkspace({ name, enabled, sources, busy, onNameChange, o
         <div className="row-actions">
           <button type="button" disabled={busy} onClick={onCancel}>Cancel</button>
           <button type="button" disabled={busy || draftBlocks.length === 0} onClick={resetCanvas}>Reset canvas</button>
-          <button type="button" disabled={busy || !canCreate} onClick={() => onCreate(draftBlocks.map(({ type, config }) => ({ type, config })))}>Create workflow</button>
+          <button type="button" disabled={busy || !canCreate} onClick={() => onCreate(flattenDraftBlocks(draftBlocks))}>Create workflow</button>
         </div>
       </div>
 
@@ -321,6 +336,11 @@ function CreateWorkflowWorkspace({ name, enabled, sources, busy, onNameChange, o
           <strong>Logic blocks</strong>
           <button type="button" className="workflow-library-card" disabled={!hasStartBlock} onClick={() => addDraftBlock("if_payload_field_equals")}><span>If field matches</span><small>Stop unless a trigger/data field matches.</small></button>
           <button type="button" className="workflow-library-card" disabled={!hasStartBlock} onClick={() => addDraftBlock("wait")}><span>Wait</span><small>Pause before the next block.</small></button>
+          <strong>Action blocks</strong>
+          <button type="button" className="workflow-library-card" disabled={!hasStartBlock} onClick={() => addDraftBlock("control_output")}><span>Pulse output</span><small>Pulse a configured GPIO LED output.</small></button>
+          <button type="button" className="workflow-library-card" disabled={!hasStartBlock} onClick={() => addDraftBlock("send_transaction")}><span>Send transaction</span><small>Send native MINIMA to an address book recipient.</small></button>
+          <strong>Attached actions</strong>
+          <button type="button" className="workflow-library-card" disabled={!selectedBlock || !isDataBlock(selectedBlock.type) || Boolean(selectedBlock.attachedBlocks?.some((block) => block.type === "stamp_integritas"))} onClick={() => selectedBlock && attachStampBlock(selectedBlock.id)}><span>Stamp with Integritas</span><small>Select a Record or Fetch block to attach a stamp.</small></button>
         </aside>
 
         <section className="workflow-draft-canvas">
@@ -342,7 +362,7 @@ function CreateWorkflowWorkspace({ name, enabled, sources, busy, onNameChange, o
         <aside className="workflow-create-inspector automation-form">
           <strong>Setup</strong>
           <label>Workflow name<input value={name} onChange={(event) => onNameChange(event.target.value)} placeholder="Button fetches weather API" /></label>
-          {selectedBlock && <DraftBlockInspector block={selectedBlock} sources={sources} onChange={(config) => updateBlock(selectedBlock.id, { config })} onTypeChange={(type) => updateBlock(selectedBlock.id, { type, config: defaultDraftConfig(type, sources) })} />}
+          {selectedBlock && <DraftBlockInspector block={selectedBlock} sources={sources} addressBook={addressBook} walletStatus={walletStatus} onChange={(config) => updateBlock(selectedBlock.id, { config })} onAttachedChange={(attachedId, config) => updateAttachedBlock(selectedBlock.id, attachedId, config)} onAttachedRemove={(attachedId) => removeAttachedBlock(selectedBlock.id, attachedId)} />}
           <label className="check-row"><input type="checkbox" checked={enabled} onChange={(event) => onEnabledChange(event.target.checked)} /> Enabled after create</label>
           <div className="card soft-card">
             <strong>Validation</strong>
@@ -350,7 +370,7 @@ function CreateWorkflowWorkspace({ name, enabled, sources, busy, onNameChange, o
             {draftIssues.warnings.map((issue) => <p key={issue} className="muted">{issue}</p>)}
             {canCreate && <p className="muted">Starter chain is ready to create.</p>}
           </div>
-          <button type="button" disabled={busy || !canCreate} onClick={() => onCreate(draftBlocks.map(({ type, config }) => ({ type, config })))}>Create workflow</button>
+          <button type="button" disabled={busy || !canCreate} onClick={() => onCreate(flattenDraftBlocks(draftBlocks))}>Create workflow</button>
         </aside>
       </div>
     </section>
@@ -363,6 +383,7 @@ function DraftBlockCard({ block, index, sources, selected, canMoveUp, canMoveDow
       <span className="workflow-draft-kicker">{index === 0 ? "When" : "Then"}</span>
       <strong>{draftBlockTitle(block)}</strong>
       <p>{draftBlockDescription(block, sources)}</p>
+      {block.attachedBlocks?.map((attached) => <div key={attached.id} className="workflow-attached-draft-block"><strong>+ {draftBlockTitle(attached)}</strong><p>{draftBlockDescription(attached, sources)}</p></div>)}
       <div className="workflow-draft-actions">
         <button type="button" disabled={!canMoveUp} onClick={(event) => { event.stopPropagation(); onMoveUp(); }}>Up</button>
         <button type="button" disabled={!canMoveDown} onClick={(event) => { event.stopPropagation(); onMoveDown(); }}>Down</button>
@@ -372,9 +393,11 @@ function DraftBlockCard({ block, index, sources, selected, canMoveUp, canMoveDow
   );
 }
 
-function DraftBlockInspector({ block, sources, onChange, onTypeChange }: { block: DraftWorkflowBlock; sources: DataSource[]; onChange: (config: AutomationBlock["config"]) => void; onTypeChange: (type: AutomationBlockType) => void }) {
+function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChange, onAttachedChange, onAttachedRemove }: { block: DraftWorkflowBlock; sources: DataSource[]; addressBook: AddressBookEntry[]; walletStatus: WalletStatus | null; onChange: (config: AutomationBlock["config"]) => void; onAttachedChange: (attachedId: string, config: AutomationBlock["config"]) => void; onAttachedRemove: (attachedId: string) => void }) {
   const startSources = sourcesForStart(block.type, sources);
   const httpSources = sources.filter((source) => source.type === "json-api" || source.type === "internal-json-api");
+  const outputTargets = sources.filter((source) => source.type === "gpio-output");
+  const nativeTokens = nativeMinimaTokens(walletStatus);
 
   if (block.type.endsWith("_start")) {
     return (
@@ -392,6 +415,7 @@ function DraftBlockInspector({ block, sources, onChange, onTypeChange }: { block
         <strong>Selected block</strong>
         <p className="muted">Fetch JSON from an HTTP device/source.</p>
         <label>HTTP source<select value={block.config.sourceId ?? ""} onChange={(event) => onChange({ sourceId: event.target.value })}><option value="">Select HTTP source...</option>{httpSources.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>
+        <AttachedStampSettings block={block} onAttachedChange={onAttachedChange} onAttachedRemove={onAttachedRemove} />
       </section>
     );
   }
@@ -423,7 +447,67 @@ function DraftBlockInspector({ block, sources, onChange, onTypeChange }: { block
     );
   }
 
+  if (block.type === "control_output") {
+    return (
+      <section className="card soft-card automation-form">
+        <strong>Selected block</strong>
+        <label>Output target<select value={block.config.targetId ?? ""} onChange={(event) => onChange({ targetId: event.target.value, action: "pulse", durationMs: block.config.durationMs ?? 500 })}><option value="">Select GPIO output...</option>{outputTargets.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>
+        <label>Pulse duration ms<input value={String(block.config.durationMs ?? 500)} inputMode="numeric" onChange={(event) => onChange({ ...block.config, action: "pulse", durationMs: Number(event.target.value) })} /></label>
+        <p className="muted">LED output only. Verify resistor wiring and test pulse before enabling.</p>
+      </section>
+    );
+  }
+
+  if (block.type === "send_transaction") {
+    return (
+      <section className="card soft-card automation-form">
+        <strong>Selected block</strong>
+        <label>Recipient<select value={block.config.recipientAddressBookId ?? ""} onChange={(event) => onChange({ ...block.config, recipientAddressBookId: event.target.value, tokenId: "0x00" })}><option value="">Select address book recipient...</option>{addressBook.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select></label>
+        <label>Token<select value={block.config.tokenId ?? "0x00"} onChange={() => onChange({ ...block.config, tokenId: "0x00" })}>{nativeTokens.length > 0 ? nativeTokens.map((token) => <option key={token.tokenId} value="0x00">Minima (native) - {token.sendable} sendable</option>) : <option value="0x00">Minima (native)</option>}</select></label>
+        <label>Amount<input value={block.config.amount ?? ""} inputMode="decimal" onChange={(event) => onChange({ ...block.config, tokenId: "0x00", amount: event.target.value })} /></label>
+        <p className="muted">This spends wallet funds automatically when the workflow runs. Consider creating paused until you are ready to test.</p>
+      </section>
+    );
+  }
+
+  if (isDataBlock(block.type) && block.attachedBlocks?.some((attached) => attached.type === "stamp_integritas")) {
+    return (
+      <section className="card soft-card automation-form">
+        <strong>Selected data block</strong>
+        <p className="muted">{draftBlockDescription(block, sources)}</p>
+        <AttachedStampSettings block={block} onAttachedChange={onAttachedChange} onAttachedRemove={onAttachedRemove} />
+      </section>
+    );
+  }
+
   return <section className="card soft-card"><strong>Selected block</strong><p className="muted">{draftBlockDescription(block, sources)}</p></section>;
+}
+
+function AttachedStampSettings({ block, onAttachedChange, onAttachedRemove }: { block: DraftWorkflowBlock; onAttachedChange: (attachedId: string, config: AutomationBlock["config"]) => void; onAttachedRemove: (attachedId: string) => void }) {
+  const stamp = block.attachedBlocks?.find((attached) => attached.type === "stamp_integritas");
+  if (!stamp) return null;
+  const condition = stamp.config.condition;
+  const conditionObject = condition && typeof condition === "object" && !Array.isArray(condition) ? condition as NonNullable<AutomationBlock["config"]["condition"]> : null;
+
+  return (
+    <div className="card soft-card automation-form">
+      <strong>+ Stamp with Integritas attached</strong>
+      <label className="check-row"><input type="checkbox" checked={Boolean(conditionObject)} onChange={(event) => onAttachedChange(stamp.id, { condition: event.target.checked ? { source: "data", fieldPath: "active", operator: "equals", value: true } : null })} /> Add stamp condition</label>
+      {conditionObject && <>
+        <label>Condition source<select value={conditionObject.source ?? "data"} onChange={(event) => onAttachedChange(stamp.id, { condition: { ...conditionObject, source: event.target.value as "trigger" | "data" } })}><option value="data">Latest data</option><option value="trigger">Trigger event</option></select></label>
+        <label>Field path<input value={conditionObject.fieldPath ?? "active"} onChange={(event) => onAttachedChange(stamp.id, { condition: { ...conditionObject, fieldPath: event.target.value } })} /></label>
+        <label>Operator<select value={conditionObject.operator ?? "equals"} onChange={(event) => onAttachedChange(stamp.id, { condition: { ...conditionObject, operator: event.target.value as ConditionOperator } })}>{conditionOperatorOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+      </>}
+      <button type="button" onClick={() => onAttachedRemove(stamp.id)}>Remove attached stamp</button>
+    </div>
+  );
+}
+
+function flattenDraftBlocks(blocks: DraftWorkflowBlock[]) {
+  return blocks.flatMap((block) => [
+    { type: block.type, config: block.config, clientId: block.id },
+    ...(block.attachedBlocks ?? []).map((attached) => ({ type: attached.type, config: attached.config, clientId: attached.id, parentBlockId: block.id }))
+  ]);
 }
 
 function createDraftBlock(type: AutomationBlockType, sources: DataSource[], pollingIntervalSeconds = 60): DraftWorkflowBlock {
@@ -437,6 +521,9 @@ function defaultDraftConfig(type: AutomationBlockType, sources: DataSource[], po
   if (type === "gpio_event_start" || type === "webhook_event_start" || type === "mqtt_event_start") return { sourceId: defaultSourceForStart(type, sources)?.id ?? "" };
   if (type === "if_payload_field_equals") return { source: "trigger", fieldPath: "active", operator: "equals", value: true };
   if (type === "wait") return { durationMs: 1000 };
+  if (type === "control_output") return { targetId: sources.find((source) => source.type === "gpio-output")?.id ?? "", action: "pulse", durationMs: 500 };
+  if (type === "send_transaction") return { recipientAddressBookId: "", tokenId: "0x00", amount: "" };
+  if (type === "stamp_integritas") return { condition: null };
   return {};
 }
 
@@ -452,9 +539,22 @@ function validateDraftWorkflow(name: string, blocks: DraftWorkflowBlock[]) {
     if ((block.type === "gpio_event_start" || block.type === "webhook_event_start" || block.type === "mqtt_event_start" || block.type === "fetch_data_source") && !block.config.sourceId) errors.push(`${draftBlockTitle(block)} needs a source.`);
     if (block.type === "if_payload_field_equals" && !block.config.fieldPath?.trim()) errors.push("Condition block needs a field path.");
     if (block.type === "wait" && (!Number.isFinite(Number(block.config.durationMs)) || Number(block.config.durationMs) < 0)) errors.push("Wait block needs a valid duration.");
+    if (block.type === "control_output" && !block.config.targetId) errors.push("Pulse output needs a GPIO output target.");
+    if (block.type === "control_output" && (!Number.isFinite(Number(block.config.durationMs)) || Number(block.config.durationMs) < 1)) errors.push("Pulse output needs a positive duration.");
+    if (block.type === "send_transaction" && !block.config.recipientAddressBookId) errors.push("Send transaction needs an address book recipient.");
+    if (block.type === "send_transaction" && !isPositiveDecimal(block.config.amount ?? "")) errors.push("Send transaction needs a positive amount.");
+    if (block.type === "send_transaction") warnings.push("Send transaction spends wallet funds automatically. Keep the workflow paused until you are ready to test.");
+    if (block.type === "control_output") warnings.push("Pulse output drives GPIO hardware. Verify LED wiring and resistor before running.");
+    for (const attached of block.attachedBlocks ?? []) {
+      if (attached.type === "stamp_integritas" && !isDataBlock(block.type)) errors.push("Integritas stamps can only attach to Record or Fetch data blocks.");
+    }
   }
   if (blocks.length === 1) warnings.push("This draft only has a start block. You can create it and add actions later, or add blocks now.");
   return { errors, warnings };
+}
+
+function isDataBlock(type: AutomationBlockType) {
+  return type === "record_trigger_event" || type === "fetch_data_source";
 }
 
 function draftBlockTitle(block: { type: AutomationBlockType }) {
@@ -465,17 +565,23 @@ function draftBlockTitle(block: { type: AutomationBlockType }) {
   if (block.type === "mqtt_event_start") return "MQTT message received";
   if (block.type === "record_trigger_event") return "Record trigger event";
   if (block.type === "fetch_data_source") return "Fetch HTTP JSON";
+  if (block.type === "stamp_integritas") return "Stamp with Integritas";
+  if (block.type === "control_output") return "Pulse output";
+  if (block.type === "send_transaction") return "Send transaction";
   return block.type;
 }
 
 function draftBlockDescription(block: { type: AutomationBlockType; config: AutomationBlock["config"] }, sources: DataSource[]) {
   if (block.type === "schedule_start") return `Every ${formatInterval(Number(block.config.intervalSeconds ?? 60)).replace("Every ", "")}`;
-  const sourceId = block.config.sourceId;
+  const sourceId = block.config.sourceId ?? block.config.targetId;
   const source = sourceId ? sources.find((item) => item.id === sourceId) : undefined;
   if (source) return `${source.name} - ${sourceLabel(source)}`;
   if (block.type === "manual_start") return "Runs only from a manual test/action.";
   if (block.type === "record_trigger_event") return "Stores the trigger payload as a data read.";
   if (block.type === "fetch_data_source") return "Fetches JSON and creates a hash.";
+  if (block.type === "stamp_integritas") return "Stamp this data block's hash.";
+  if (block.type === "control_output") return `Pulse configured LED output for ${block.config.durationMs ?? 0} ms.`;
+  if (block.type === "send_transaction") return `Send ${block.config.amount || "?"} native MINIMA.`;
   return "Select a source in Setup.";
 }
 

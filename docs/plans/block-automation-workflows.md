@@ -484,20 +484,19 @@ The create workflow workspace should prioritize clear building blocks before tem
 Current implementation:
 
 - Create workflow is now a full-page Scratch-inspired draft workspace instead of a modal.
-- The block library is split into Start, Data, and Logic sections.
+- The block library is split into Start, Data, Logic, Action, and Attached actions sections.
 - The draft canvas starts empty and prompts the operator to choose one start block first.
 - Start blocks hide after selection; Reset canvas clears the draft and shows start blocks again.
 - The selected start block inspector configures source/interval only and does not change start type.
 - Data and Logic blocks append after the start block.
+- Action blocks currently include Pulse output and Send transaction.
+- Integritas stamping attaches as a side block on Record/Fetch data blocks and is created with `parentBlockId` mapping from draft IDs.
 - The center canvas previews the generated block chain before creation.
 - The right inspector configures workflow name and selected-block settings.
 - The draft canvas owns an editable draft block list and supports add/remove/move controls for supported draft blocks.
 
 Remaining basic block-library work:
 
-- Add draft support for Integritas stamp side blocks.
-- Add draft support for GPIO output pulse blocks.
-- Add draft support for Send transaction blocks with safety warnings.
 - Add clearer draft validation on affected blocks.
 
 ### 2. Workflow Templates
