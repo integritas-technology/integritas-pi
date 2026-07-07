@@ -8,6 +8,6 @@ export const env = {
   minimaStatusUrl: process.env.MINIMA_STATUS_URL ?? "http://minima:9005/status",
   minimaDataDirInContainer: process.env.MINIMA_DATA_DIR_IN_CONTAINER ?? "/minima-data",
   minimaBackupDirInContainer: process.env.MINIMA_BACKUP_DIR_IN_CONTAINER ?? "/minima-backup",
-  healthCheckTimeoutMs: Number(process.env.HEALTH_CHECK_TIMEOUT_MS ?? 30000),
+  healthCheckTimeoutMs: Number(process.env.HEALTH_CHECK_TIMEOUT_MS ?? 60000),
   healthCheckIntervalMs: Number(process.env.HEALTH_CHECK_INTERVAL_MS ?? 2000)
 };

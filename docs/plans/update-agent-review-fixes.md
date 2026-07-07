@@ -1,6 +1,6 @@
 # Update Agent Review Fixes
 
-**Status:** In progress — both critical items fixed; high/medium/minor items remain
+**Status:** In progress — both critical items and #3 (real HEALTHCHECKs) fixed; #4 (async /apply) and medium/minor items remain
 **Created:** 2026-07-07
 **Goal:** Address the findings from the update-agent code review so the update flow actually works on real hardware and the safety guarantees (health checks, rollback) are real, not just documented.
 
@@ -21,7 +21,14 @@
 
 ## High — the safety story is weaker than documented
 
-- [ ] **3. No `HEALTHCHECK` exists for frontend/backend.** `isContainerHealthy` falls back to "is running", so promotion happens even if the new container can't serve. Add real `HEALTHCHECK`s (Dockerfile or compose) for `frontend` and `backend` so rollback-on-failed-health-check actually means something. (`frontend/Dockerfile`, `backend/Dockerfile` or `docker-compose.yml`)
+- [x] **3. No `HEALTHCHECK` exists for frontend/backend.** Added real `HEALTHCHECK`s:
+  - `backend/Dockerfile`: `node -e "fetch('http://127.0.0.1:3000/api/health')..."` (no `curl`/`wget` in the `node:20-bookworm-slim` base image, so a plain Node script hits the existing public `/api/health` route).
+  - `frontend/Dockerfile`: `curl -kfs https://127.0.0.1/` (nginx:alpine has `curl`; `-k` because it's the self-signed cert).
+  - Both `--interval=15s --timeout=5s --start-period=10s --retries=3`. `isContainerHealthy`/`waitForHealthy` in `docker.service.ts` already preferred `State.Health.Status` over the "is running" fallback — no code change needed there, just the Dockerfile directives to make a real `Health` block exist.
+  - Bumped `UPDATE_HEALTH_CHECK_TIMEOUT_MS` default 30000 → 60000 (`env.ts`, `docker-compose.yml`, `.env.example`, `README.md`): the old 30s default assumed "is it running" (near-instant); against a real `start-period=10s, interval=15s` schedule the first real health result can land ~25s in, which was too tight a margin.
+  - Verified locally: built both images, ran the full compose stack, confirmed `docker inspect --format '{{.State.Health.Status}}'` reports `healthy` for both after `start-period`, with each check completing in well under a second — negligible overhead for a Pi.
+
+  (`backend/Dockerfile`, `frontend/Dockerfile`, `update-agent/src/config/env.ts`, `docker-compose.yml`, `.env.example`, `README.md`)
 - [ ] **4. Synchronous `/apply` can't survive its own update.** nginx's default 60s proxy timeout will 504 on slow Pi image pulls, and a successful frontend swap kills the in-flight `/apply` response — success reads as failure in the UI. Rework to async: `POST /apply` returns `202` immediately, UI polls a progress endpoint; update the static page's states accordingly. (`update-agent/src/update/apply.routes.ts`, `public/app.js`)
 
 ## Medium — hardening
