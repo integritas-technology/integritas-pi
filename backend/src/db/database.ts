@@ -67,6 +67,7 @@ export function runMigrations() {
       updated_at TEXT NOT NULL,
       name TEXT NOT NULL,
       enabled INTEGER NOT NULL,
+      archived INTEGER NOT NULL DEFAULT 0,
       last_run_at TEXT,
       next_run_at TEXT,
       last_hash TEXT,
@@ -74,6 +75,8 @@ export function runMigrations() {
       last_error TEXT
     )
   `);
+
+  ensureColumn("automation_workflows", "archived", "INTEGER NOT NULL DEFAULT 0");
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS automation_blocks (

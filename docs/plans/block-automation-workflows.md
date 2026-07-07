@@ -550,19 +550,26 @@ This makes debugging conditional stamping much easier on the Pi after hardware t
 
 ### 4. Better Workflow Organization
 
-As test workflows accumulate, the workspace will need organization beyond enabled/paused.
+As test workflows accumulate, the workspace needs organization beyond enabled/paused.
 
-Possible additions:
+Current implementation:
 
 ```txt
 Archive workflow.
-Show Active / Paused / Archived filters.
+Restore workflow.
+Search workflows.
+Show Active / All / Enabled / Paused / Error / Archived filters.
 Duplicate workflow.
-Rename workflow from the workspace.
-Require confirmation for destructive deletes.
+Archived workflows do not run automatically or manually until restored.
 ```
 
-Do this after templates and validation, because template-driven creation will increase workflow count.
+Possible follow-ups:
+
+```txt
+Rename workflow from the workspace.
+Require confirmation for destructive deletes.
+Add tag/group folders if workflow counts grow beyond simple filters.
+```
 
 ### 5. Configure-Block Modal Refinement
 
@@ -699,7 +706,7 @@ Button -> fetch API -> blink LED.
 - [x] Replace automation schema with `automation_workflows` and `automation_blocks`.
 - [x] Drop legacy automation/data-read tables in dev/prototype migrations where needed.
 - [x] Add block config TypeScript types.
-- [ ] Add backend block config validation.
+- [x] Add backend block config validation.
 - [x] Extend data reads with trigger metadata.
 
 ### Milestone 2: Core Executor
@@ -707,7 +714,7 @@ Button -> fetch API -> blink LED.
 - [x] Implement `executeWorkflow(workflowId, triggerContext)`.
 - [x] Implement block executor registry.
 - [x] Implement workflow/block status updates.
-- [ ] Implement clear errors for invalid block chains.
+- [x] Implement clear errors for invalid block chains.
 
 ### Milestone 3: Preserve Existing Use Cases
 
@@ -736,7 +743,7 @@ Button -> fetch API -> blink LED.
 - [x] Add frontend validation hints.
 - [x] Add per-block saved/unsaved feedback.
 - [ ] Add workflow templates.
-- [ ] Add pre-run workflow validation warnings.
+- [x] Add pre-run workflow validation warnings.
 - [ ] Add full draft workspace save model.
 
 ### Milestone 6: Wait And Run History
@@ -749,7 +756,7 @@ Button -> fetch API -> blink LED.
 ### Milestone 7: Safe GPIO Outputs
 
 - [x] Define GPIO output target/source shape.
-- [ ] Implement safe output validation.
+- [x] Implement safe output validation.
 - [x] Implement `control_output` pulse action for LED GPIO output targets.
 - [x] Document output hardware safety in `SECURITY.md` and `README.md`.
 - [ ] Verify button-triggered LED pulse on Pi hardware.
@@ -757,9 +764,10 @@ Button -> fetch API -> blink LED.
 ### Milestone 8: Workflow Usability And Debugging
 
 - [ ] Add template-driven workflow creation for common GPIO, HTTP, webhook, schedule, output, and Integritas flows.
-- [ ] Add validation warnings before manual runs.
-- [ ] Add run-log filters and direct links to related read/proof details.
-- [ ] Add workflow archive/filter/duplicate organization tools.
+- [x] Add validation warnings before manual runs.
+- [x] Add direct links to related read/proof details.
+- [ ] Add run-log filters.
+- [x] Add workflow archive/filter/duplicate organization tools.
 - [ ] Evaluate branching/else blocks after the simpler linear workflow UX is stable.
 
 ## Progress Log

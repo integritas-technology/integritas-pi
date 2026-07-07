@@ -21,6 +21,7 @@ export type AutomationWorkflowRecord = {
   updated_at: string;
   name: string;
   enabled: number;
+  archived: number;
   last_run_at: string | null;
   next_run_at: string | null;
   last_hash: string | null;
@@ -63,6 +64,7 @@ export function listDueScheduleWorkflows(nowIso: string) {
     SELECT DISTINCT workflow.* FROM automation_workflows workflow
     JOIN automation_blocks block ON block.workflow_id = workflow.id
     WHERE workflow.enabled = 1
+      AND workflow.archived = 0
       AND block.enabled = 1
       AND block.order_index = 1
       AND block.parent_block_id IS NULL
@@ -77,6 +79,7 @@ export function listEnabledEventWorkflows(type: "gpio_event_start" | "webhook_ev
     SELECT workflow.* FROM automation_workflows workflow
     JOIN automation_blocks block ON block.workflow_id = workflow.id
     WHERE workflow.enabled = 1
+      AND workflow.archived = 0
       AND block.enabled = 1
       AND block.order_index = 1
       AND block.parent_block_id IS NULL
@@ -107,22 +110,50 @@ export function createAutomationWorkflow(input: { name: string; enabled: boolean
   return getAutomationWorkflow(id)!;
 }
 
-export function updateAutomationWorkflow(id: string, input: { name?: string; enabled?: boolean; nextRunAt?: string | null; lastError?: string | null }) {
+export function updateAutomationWorkflow(id: string, input: { name?: string; enabled?: boolean; archived?: boolean; nextRunAt?: string | null; lastError?: string | null }) {
   const current = getAutomationWorkflow(id);
   if (!current) return undefined;
   db.prepare(`
     UPDATE automation_workflows
-    SET updated_at = ?, name = ?, enabled = ?, next_run_at = ?, last_error = ?
+    SET updated_at = ?, name = ?, enabled = ?, archived = ?, next_run_at = ?, last_error = ?
     WHERE id = ?
   `).run(
     new Date().toISOString(),
     input.name ?? current.name,
     input.enabled === undefined ? current.enabled : input.enabled ? 1 : 0,
+    input.archived === undefined ? current.archived : input.archived ? 1 : 0,
     input.nextRunAt === undefined ? current.next_run_at : input.nextRunAt,
     input.lastError === undefined ? current.last_error : input.lastError,
     id
   );
   return getAutomationWorkflow(id)!;
+}
+
+export function duplicateAutomationWorkflow(id: string) {
+  const current = getAutomationWorkflow(id);
+  if (!current) return undefined;
+  const blocks = listAutomationBlocks(id).map((block) => ({
+    type: block.type,
+    config: JSON.parse(block.config_json) as unknown,
+    enabled: Boolean(block.enabled),
+    parentBlockId: block.parent_block_id,
+    originalId: block.id,
+  }));
+  const idMap = new Map<string, string>();
+  const copy = createAutomationWorkflow({ name: `${current.name} copy`, enabled: false, nextRunAt: null });
+
+  for (const block of blocks.filter((item) => !item.parentBlockId)) {
+    const created = createAutomationBlock(copy.id, { type: block.type, config: block.config, enabled: block.enabled });
+    idMap.set(block.originalId, created.id);
+  }
+
+  for (const block of blocks.filter((item) => item.parentBlockId)) {
+    const parentBlockId = block.parentBlockId ? idMap.get(block.parentBlockId) : undefined;
+    const created = createAutomationBlock(copy.id, { type: block.type, config: block.config, enabled: block.enabled, parentBlockId });
+    idMap.set(block.originalId, created.id);
+  }
+
+  return getAutomationWorkflow(copy.id)!;
 }
 
 export function updateAutomationRunSuccess(id: string, input: { hash?: string | null; proofId?: string | null; nextRunAt?: string | null; lastError?: string | null }) {

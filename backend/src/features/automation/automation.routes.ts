@@ -5,7 +5,7 @@ import { getDataSource } from "../data-sources/dataSources.repository.js";
 import { parseGpioOutputConfig } from "../data-sources/dataSources.service.js";
 import { syncGpioDataSources } from "../data-sources/gpioIngestion.service.js";
 import { syncMqttDataSources } from "../data-sources/mqttIngestion.service.js";
-import { createAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, getAutomationWorkflow, listAutomationBlocks, listAutomationWorkflows, reorderAutomationBlocks, updateAutomationBlock, updateAutomationWorkflow, type AutomationBlockType } from "./automation.repository.js";
+import { createAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, duplicateAutomationWorkflow, getAutomationWorkflow, listAutomationBlocks, listAutomationWorkflows, reorderAutomationBlocks, updateAutomationBlock, updateAutomationWorkflow, type AutomationBlockType } from "./automation.repository.js";
 import { getSerializedAutomationRun, listSerializedAutomationRuns, listSerializedAutomationRunsForWorkflow, runAutomationWorkflow, serializeAutomationBlock, serializeAutomationWorkflow } from "./automation.service.js";
 import { validateAutomationWorkflow } from "./automation.validation.js";
 
@@ -91,6 +91,7 @@ automationRouter.patch("/workflows/:id", requireRole("admin"), (req, res) => {
   if (!current) return res.status(404).json({ error: "Automation workflow not found" });
   const serialized = serializeAutomationWorkflow(current);
   const enabled = typeof req.body?.enabled === "boolean" ? req.body.enabled : undefined;
+  const archived = typeof req.body?.archived === "boolean" ? req.body.archived : undefined;
   const nextPollingIntervalSeconds = Number.isFinite(Number(req.body?.pollingIntervalSeconds)) ? Number(req.body.pollingIntervalSeconds) : undefined;
 
   if (nextPollingIntervalSeconds !== undefined && serialized.pollingIntervalSeconds > 0 && nextPollingIntervalSeconds < 10) return res.status(400).json({ error: "pollingIntervalSeconds must be at least 10" });
@@ -98,7 +99,8 @@ automationRouter.patch("/workflows/:id", requireRole("admin"), (req, res) => {
   const workflow = updateAutomationWorkflow(req.params.id, {
     name: typeof req.body?.name === "string" ? req.body.name.trim() : undefined,
     enabled,
-    nextRunAt: enabled === false ? null : undefined
+    archived,
+    nextRunAt: archived === true || enabled === false ? null : undefined
   });
 
   if (nextPollingIntervalSeconds !== undefined && serialized.pollingIntervalSeconds > 0) {
@@ -118,6 +120,14 @@ automationRouter.patch("/workflows/:id", requireRole("admin"), (req, res) => {
   syncMqttDataSources();
   syncGpioDataSources();
   return res.json({ item: serializeAutomationWorkflow(getAutomationWorkflow(workflow!.id)!) });
+});
+
+automationRouter.post("/workflows/:id/duplicate", requireRole("admin"), (req, res) => {
+  const workflow = duplicateAutomationWorkflow(req.params.id);
+  if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
+  syncMqttDataSources();
+  syncGpioDataSources();
+  return res.json({ item: serializeAutomationWorkflow(workflow) });
 });
 
 automationRouter.post("/workflows/:id/blocks", requireRole("admin"), (req, res) => {

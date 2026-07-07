@@ -9,8 +9,12 @@ export async function createAutomationWorkflow(input: { name: string; enabled: b
   return postJson<{ item: AutomationWorkflow }>("/api/automation/workflows", input);
 }
 
-export async function updateAutomationWorkflow(id: string, input: Partial<Pick<AutomationWorkflow, "name" | "enabled" | "pollingIntervalSeconds" | "stampWithIntegritas">>) {
+export async function updateAutomationWorkflow(id: string, input: Partial<Pick<AutomationWorkflow, "name" | "enabled" | "archived" | "pollingIntervalSeconds" | "stampWithIntegritas">>) {
   return patchJson<{ item: AutomationWorkflow }>(`/api/automation/workflows/${id}`, input);
+}
+
+export async function duplicateAutomationWorkflow(id: string) {
+  return postJson<{ item: AutomationWorkflow }>(`/api/automation/workflows/${id}/duplicate`);
 }
 
 export async function addAutomationRule(workflowId: string, input: { type: "stamp_integritas" }) {

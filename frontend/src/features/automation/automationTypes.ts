@@ -5,6 +5,7 @@ export type AutomationWorkflow = {
   name: string;
   dataSourceId: string;
   enabled: boolean;
+  archived: boolean;
   pollingIntervalSeconds: number;
   stampWithIntegritas: boolean;
   lastRunAt: string | null;

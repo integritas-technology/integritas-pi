@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - GPIO device settings guide documenting tested GPIO17 button input and GPIO18 LED output setups plus suggested untested device profiles.
 - Automation workflows now have a validation endpoint and workspace validation panel that flags missing devices, invalid block order/data dependencies, hardware-output warnings, Integritas key warnings, and wallet transaction balance/configuration issues before manual runs.
 - Workflow block-run details now link directly to matching Diagnostics read/proof history filters when a block output contains a read id or Integritas proof id.
+- Automation workflows can now be searched, filtered by status, duplicated, archived, and restored from the Automation workspace.
 
 ### Changed
 
@@ -41,6 +42,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Workflow run details now separate the trigger payload from the fetched/recorded data preview so manual test runs are easier to interpret.
 - Automation create/save buttons now use the same styled primary action treatment as the rest of the workspace.
 - Manual workflow runs are now blocked when workflow validation reports errors; warnings remain visible for operator review.
+- Archived automation workflows are excluded from automatic/event execution and cannot be manually run until restored.
 
 ### Fixed
 

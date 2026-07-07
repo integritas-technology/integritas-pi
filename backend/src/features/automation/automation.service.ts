@@ -80,6 +80,7 @@ export function serializeAutomationWorkflow(record: AutomationWorkflowRecord) {
     updatedAt: record.updated_at,
     name: record.name,
     enabled: Boolean(record.enabled),
+    archived: Boolean(record.archived),
     lastRunAt: record.last_run_at,
     nextRunAt: record.next_run_at,
     lastHash: record.last_hash,
@@ -168,6 +169,7 @@ export async function runAutomationWorkflow(id: string, trigger: WorkflowContext
 
 export async function executeWorkflow(workflow: AutomationWorkflowRecord, trigger: WorkflowContext["trigger"]) {
   if (runningWorkflowIds.has(workflow.id)) throw Object.assign(new Error("Automation workflow is already running"), { code: "WORKFLOW_ALREADY_RUNNING" });
+  if (workflow.archived) throw new Error("Automation workflow is archived");
   if (!workflow.enabled && trigger.type !== "manual") throw new Error("Automation workflow is disabled");
 
   runningWorkflowIds.add(workflow.id);
