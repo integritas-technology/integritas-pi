@@ -485,7 +485,9 @@ Current implementation:
 
 - Create workflow is now a full-page Scratch-inspired draft workspace instead of a modal.
 - The block library is split into Start, Data, and Logic sections.
-- Start blocks replace the first block in the draft chain.
+- The draft canvas starts empty and prompts the operator to choose one start block first.
+- Start blocks hide after selection; Reset canvas clears the draft and shows start blocks again.
+- The selected start block inspector configures source/interval only and does not change start type.
 - Data and Logic blocks append after the start block.
 - The center canvas previews the generated block chain before creation.
 - The right inspector configures workflow name and selected-block settings.

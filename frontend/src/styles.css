@@ -1346,6 +1346,11 @@ code {
   background: #eef2ff;
 }
 
+.workflow-library-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .workflow-library-card span {
   font-weight: 800;
 }
@@ -1365,6 +1370,16 @@ code {
   border-radius: 24px;
   background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
   background-size: 22px 22px;
+}
+
+.workflow-canvas-empty {
+  display: grid;
+  gap: 8px;
+  max-width: 430px;
+  padding: 22px;
+  border: 2px dashed #93c5fd;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.78);
 }
 
 .workflow-draft-block {

@@ -234,17 +234,19 @@ type DraftWorkflowBlock = {
 };
 
 function CreateWorkflowWorkspace({ name, enabled, sources, busy, onNameChange, onEnabledChange, onCancel, onCreate }: { name: string; enabled: boolean; sources: DataSource[]; busy: boolean; onNameChange: (value: string) => void; onEnabledChange: (value: boolean) => void; onCancel: () => void; onCreate: (blocks: { type: AutomationBlockType; config: AutomationBlock["config"]; enabled?: boolean; parentBlockId?: string | null }[]) => void }) {
-  const [draftBlocks, setDraftBlocks] = useState<DraftWorkflowBlock[]>(() => [createDraftBlock("manual_start", sources)]);
-  const [selectedBlockId, setSelectedBlockId] = useState(() => draftBlocks[0]?.id ?? "");
+  const [draftBlocks, setDraftBlocks] = useState<DraftWorkflowBlock[]>([]);
+  const [selectedBlockId, setSelectedBlockId] = useState("");
   const selectedBlock = draftBlocks.find((block) => block.id === selectedBlockId) ?? draftBlocks[0];
   const draftIssues = validateDraftWorkflow(name, draftBlocks);
   const canCreate = draftIssues.errors.length === 0;
+  const hasStartBlock = draftBlocks.some((block) => block.type.endsWith("_start"));
 
   function updateBlock(id: string, patch: Partial<DraftWorkflowBlock>) {
     setDraftBlocks((blocks) => blocks.map((block) => block.id === id ? { ...block, ...patch, config: patch.config ?? block.config } : block));
   }
 
   function addDraftBlock(type: AutomationBlockType) {
+    if (!hasStartBlock && !type.endsWith("_start")) return;
     setDraftBlocks((blocks) => {
       const next = [...blocks, createDraftBlock(type, sources)];
       setSelectedBlockId(next[next.length - 1].id);
@@ -273,13 +275,18 @@ function CreateWorkflowWorkspace({ name, enabled, sources, busy, onNameChange, o
     });
   }
 
-  function replaceStartBlock(type: AutomationBlockType) {
+  function selectStartBlock(type: AutomationBlockType) {
     setDraftBlocks((blocks) => {
       const start = createDraftBlock(type, sources);
-      const next = [start, ...blocks.filter((block) => !block.type.endsWith("_start"))];
+      if (blocks.some((block) => block.type.endsWith("_start"))) return blocks;
       setSelectedBlockId(start.id);
-      return next;
+      return [start];
     });
+  }
+
+  function resetCanvas() {
+    setDraftBlocks([]);
+    setSelectedBlockId("");
   }
 
   return (
@@ -292,6 +299,7 @@ function CreateWorkflowWorkspace({ name, enabled, sources, busy, onNameChange, o
         </div>
         <div className="row-actions">
           <button type="button" disabled={busy} onClick={onCancel}>Cancel</button>
+          <button type="button" disabled={busy || draftBlocks.length === 0} onClick={resetCanvas}>Reset canvas</button>
           <button type="button" disabled={busy || !canCreate} onClick={() => onCreate(draftBlocks.map(({ type, config }) => ({ type, config })))}>Create workflow</button>
         </div>
       </div>
@@ -299,19 +307,20 @@ function CreateWorkflowWorkspace({ name, enabled, sources, busy, onNameChange, o
       <div className="workflow-create-grid">
         <aside className="workflow-block-library">
           <strong>Block library</strong>
-          <p className="muted">Start blocks replace the first block. Data and logic blocks append after it.</p>
-          <strong>Start blocks</strong>
-          <button type="button" className="workflow-library-card" onClick={() => replaceStartBlock("manual_start")}><span>Manual run</span><small>Run only when an operator starts it.</small></button>
-          <button type="button" className="workflow-library-card" onClick={() => replaceStartBlock("schedule_start")}><span>Schedule</span><small>Run repeatedly on an interval.</small></button>
-          <button type="button" className="workflow-library-card" onClick={() => replaceStartBlock("gpio_event_start")}><span>GPIO input event</span><small>Start from a configured GPIO input device.</small></button>
-          <button type="button" className="workflow-library-card" onClick={() => replaceStartBlock("webhook_event_start")}><span>Webhook received</span><small>Start when JSON arrives at a webhook URL.</small></button>
-          <button type="button" className="workflow-library-card" onClick={() => replaceStartBlock("mqtt_event_start")}><span>MQTT message received</span><small>Start when JSON arrives on an MQTT topic.</small></button>
+          <p className="muted">Choose one start block first. Reset the canvas if you need to choose a different start.</p>
+          {!hasStartBlock && <strong>Start blocks</strong>}
+          {!hasStartBlock && <button type="button" className="workflow-library-card" onClick={() => selectStartBlock("manual_start")}><span>Manual run</span><small>Run only when an operator starts it.</small></button>}
+          {!hasStartBlock && <button type="button" className="workflow-library-card" onClick={() => selectStartBlock("schedule_start")}><span>Schedule</span><small>Run repeatedly on an interval.</small></button>}
+          {!hasStartBlock && <button type="button" className="workflow-library-card" onClick={() => selectStartBlock("gpio_event_start")}><span>GPIO input event</span><small>Start from a configured GPIO input device.</small></button>}
+          {!hasStartBlock && <button type="button" className="workflow-library-card" onClick={() => selectStartBlock("webhook_event_start")}><span>Webhook received</span><small>Start when JSON arrives at a webhook URL.</small></button>}
+          {!hasStartBlock && <button type="button" className="workflow-library-card" onClick={() => selectStartBlock("mqtt_event_start")}><span>MQTT message received</span><small>Start when JSON arrives on an MQTT topic.</small></button>}
+          {hasStartBlock && <p className="muted">Start block selected. Data and logic blocks can now be added.</p>}
           <strong>Data blocks</strong>
-          <button type="button" className="workflow-library-card" onClick={() => addDraftBlock("record_trigger_event")}><span>Record trigger event</span><small>Store the trigger payload as data.</small></button>
-          <button type="button" className="workflow-library-card" onClick={() => addDraftBlock("fetch_data_source")}><span>Fetch HTTP JSON</span><small>Fetch a configured HTTP source.</small></button>
+          <button type="button" className="workflow-library-card" disabled={!hasStartBlock} onClick={() => addDraftBlock("record_trigger_event")}><span>Record trigger event</span><small>Store the trigger payload as data.</small></button>
+          <button type="button" className="workflow-library-card" disabled={!hasStartBlock} onClick={() => addDraftBlock("fetch_data_source")}><span>Fetch HTTP JSON</span><small>Fetch a configured HTTP source.</small></button>
           <strong>Logic blocks</strong>
-          <button type="button" className="workflow-library-card" onClick={() => addDraftBlock("if_payload_field_equals")}><span>If field matches</span><small>Stop unless a trigger/data field matches.</small></button>
-          <button type="button" className="workflow-library-card" onClick={() => addDraftBlock("wait")}><span>Wait</span><small>Pause before the next block.</small></button>
+          <button type="button" className="workflow-library-card" disabled={!hasStartBlock} onClick={() => addDraftBlock("if_payload_field_equals")}><span>If field matches</span><small>Stop unless a trigger/data field matches.</small></button>
+          <button type="button" className="workflow-library-card" disabled={!hasStartBlock} onClick={() => addDraftBlock("wait")}><span>Wait</span><small>Pause before the next block.</small></button>
         </aside>
 
         <section className="workflow-draft-canvas">
@@ -323,6 +332,7 @@ function CreateWorkflowWorkspace({ name, enabled, sources, busy, onNameChange, o
             <span className={`pill ${enabled ? "pill-good" : "pill-neutral"}`}>{enabled ? "Enabled on create" : "Paused on create"}</span>
           </div>
           <div className="workflow-canvas-lane">
+            {draftBlocks.length === 0 && <div className="workflow-canvas-empty"><strong>Choose a start block</strong><p className="muted">Start with Manual, Schedule, GPIO, Webhook, or MQTT. Then add data and logic blocks.</p></div>}
             {draftBlocks.map((block, index) => (
               <DraftBlockCard key={block.id} block={block} index={index} sources={sources} selected={block.id === selectedBlock?.id} canMoveUp={index > 1} canMoveDown={index > 0 && index < draftBlocks.length - 1} onSelect={() => setSelectedBlockId(block.id)} onMoveUp={() => moveDraftBlock(block.id, -1)} onMoveDown={() => moveDraftBlock(block.id, 1)} onRemove={() => removeDraftBlock(block.id)} />
             ))}
@@ -370,13 +380,7 @@ function DraftBlockInspector({ block, sources, onChange, onTypeChange }: { block
     return (
       <section className="card soft-card automation-form">
         <strong>Selected start block</strong>
-        <label>Start type<select value={block.type} onChange={(event) => onTypeChange(event.target.value as AutomationBlockType)}>
-          <option value="manual_start">Manual run</option>
-          <option value="schedule_start">Schedule</option>
-          <option value="gpio_event_start">GPIO input event</option>
-          <option value="webhook_event_start">Webhook received</option>
-          <option value="mqtt_event_start">MQTT message received</option>
-        </select></label>
+        <p className="muted">{draftBlockTitle(block)}. To choose a different start block, reset the canvas.</p>
         {block.type === "schedule_start" ? <label>Interval<select value={block.config.intervalSeconds ?? 60} onChange={(event) => onChange({ intervalSeconds: Number(event.target.value) })}>{intervals.map((interval) => <option key={interval} value={interval}>{formatInterval(interval)}</option>)}</select></label> : block.type === "manual_start" ? <p className="muted">Manual workflows run only when you click Run now.</p> : <label>Start source<select value={block.config.sourceId ?? ""} onChange={(event) => onChange({ sourceId: event.target.value })}><option value="">Select source...</option>{startSources.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>}
       </section>
     );
