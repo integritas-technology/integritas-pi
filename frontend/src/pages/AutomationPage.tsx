@@ -86,11 +86,10 @@ export function AutomationPage() {
     }
   }
 
-  async function submitWorkflow() {
+  async function submitWorkflow(blocks: { type: AutomationBlockType; config: AutomationBlock["config"]; enabled?: boolean; parentBlockId?: string | null }[]) {
     setBusy(true);
     setError(null);
     try {
-      const blocks = buildInitialBlocks({ startType, startSourceId, initialAction, initialFetchSourceId, pollingIntervalSeconds });
       const response = await createAutomationWorkflow({ name, enabled, blocks });
       setName("");
       setInitialAction(defaultInitialAction(startType));
@@ -130,34 +129,12 @@ export function AutomationPage() {
       {creatingWorkflow && (
         <CreateWorkflowWorkspace
           name={name}
-          startType={startType}
-          startSourceId={startSourceId}
-          initialAction={initialAction}
-          initialFetchSourceId={initialFetchSourceId}
-          pollingIntervalSeconds={pollingIntervalSeconds}
           enabled={enabled}
-          selectedStartSource={selectedStartSource}
-          startSources={startSources}
-          httpSources={httpSources}
           sources={sources}
           busy={busy}
           onNameChange={setName}
-          onStartTypeChange={(nextType: AutomationBlockType) => {
-            setStartType(nextType);
-            setStartSourceId(defaultSourceForStart(nextType, sources)?.id ?? "");
-            setInitialAction(defaultInitialAction(nextType));
-          }}
-          onStartSourceChange={setStartSourceId}
-          onInitialActionChange={setInitialAction}
-          onInitialFetchSourceChange={setInitialFetchSourceId}
-          onPollingIntervalSecondsChange={setPollingIntervalSeconds}
           onEnabledChange={setEnabled}
           onTemplate={(template: CreateWorkflowTemplate) => {
-            setStartType(template.startType);
-            setStartSourceId(defaultSourceForStart(template.startType, sources)?.id ?? "");
-            setInitialAction(template.initialAction);
-            setInitialFetchSourceId(firstHttpSource(sources)?.id ?? "");
-            setPollingIntervalSeconds(template.pollingIntervalSeconds ?? 60);
             if (!name) setName(template.name);
           }}
           onCancel={() => setCreatingWorkflow(false)}
@@ -262,6 +239,12 @@ type CreateWorkflowTemplate = {
   pollingIntervalSeconds?: number;
 };
 
+type DraftWorkflowBlock = {
+  id: string;
+  type: AutomationBlockType;
+  config: AutomationBlock["config"];
+};
+
 const createWorkflowTemplates: CreateWorkflowTemplate[] = [
   { id: "gpio-record", name: "GPIO button -> Record event", description: "Start from a physical button and save the trigger payload as a read.", startType: "gpio_event_start", initialAction: "record_trigger_event" },
   { id: "gpio-fetch", name: "GPIO button -> Fetch HTTP JSON", description: "Use a button as the trigger, then fetch data from an HTTP JSON source.", startType: "gpio_event_start", initialAction: "fetch_data_source" },
@@ -270,11 +253,52 @@ const createWorkflowTemplates: CreateWorkflowTemplate[] = [
   { id: "blank", name: "Start from scratch", description: "Create only a start block, then add actions in the workflow workspace.", startType: "manual_start", initialAction: "none" }
 ];
 
-function CreateWorkflowWorkspace({ name, startType, startSourceId, initialAction, initialFetchSourceId, pollingIntervalSeconds, enabled, selectedStartSource, startSources, httpSources, sources, busy, onNameChange, onStartTypeChange, onStartSourceChange, onInitialActionChange, onInitialFetchSourceChange, onPollingIntervalSecondsChange, onEnabledChange, onTemplate, onCancel, onCreate }: { name: string; startType: AutomationBlockType; startSourceId: string; initialAction: "none" | "record_trigger_event" | "fetch_data_source"; initialFetchSourceId: string; pollingIntervalSeconds: number; enabled: boolean; selectedStartSource: DataSource | undefined; startSources: DataSource[]; httpSources: DataSource[]; sources: DataSource[]; busy: boolean; onNameChange: (value: string) => void; onStartTypeChange: (value: AutomationBlockType) => void; onStartSourceChange: (value: string) => void; onInitialActionChange: (value: "none" | "record_trigger_event" | "fetch_data_source") => void; onInitialFetchSourceChange: (value: string) => void; onPollingIntervalSecondsChange: (value: number) => void; onEnabledChange: (value: boolean) => void; onTemplate: (template: CreateWorkflowTemplate) => void; onCancel: () => void; onCreate: () => void }) {
-  const draftBlocks = buildInitialBlocks({ startType, startSourceId, initialAction, initialFetchSourceId, pollingIntervalSeconds });
-  const canCreate = Boolean(name.trim()) && canCreateWorkflow(startType, startSourceId, initialAction, initialFetchSourceId);
-  const missingStartSource = startType !== "manual_start" && startType !== "schedule_start" && !startSourceId;
-  const missingFetchSource = initialAction === "fetch_data_source" && !initialFetchSourceId;
+function CreateWorkflowWorkspace({ name, enabled, sources, busy, onNameChange, onEnabledChange, onTemplate, onCancel, onCreate }: { name: string; enabled: boolean; sources: DataSource[]; busy: boolean; onNameChange: (value: string) => void; onEnabledChange: (value: boolean) => void; onTemplate: (template: CreateWorkflowTemplate) => void; onCancel: () => void; onCreate: (blocks: { type: AutomationBlockType; config: AutomationBlock["config"]; enabled?: boolean; parentBlockId?: string | null }[]) => void }) {
+  const [draftBlocks, setDraftBlocks] = useState<DraftWorkflowBlock[]>(() => templateDraftBlocks(createWorkflowTemplates[0], sources));
+  const [selectedBlockId, setSelectedBlockId] = useState(() => draftBlocks[0]?.id ?? "");
+  const selectedBlock = draftBlocks.find((block) => block.id === selectedBlockId) ?? draftBlocks[0];
+  const draftIssues = validateDraftWorkflow(name, draftBlocks);
+  const canCreate = draftIssues.errors.length === 0;
+
+  function updateBlock(id: string, patch: Partial<DraftWorkflowBlock>) {
+    setDraftBlocks((blocks) => blocks.map((block) => block.id === id ? { ...block, ...patch, config: patch.config ?? block.config } : block));
+  }
+
+  function applyTemplate(template: CreateWorkflowTemplate) {
+    const blocks = templateDraftBlocks(template, sources);
+    setDraftBlocks(blocks);
+    setSelectedBlockId(blocks[0]?.id ?? "");
+    onTemplate(template);
+  }
+
+  function addDraftBlock(type: AutomationBlockType) {
+    setDraftBlocks((blocks) => {
+      const next = [...blocks, createDraftBlock(type, sources)];
+      setSelectedBlockId(next[next.length - 1].id);
+      return next;
+    });
+  }
+
+  function removeDraftBlock(id: string) {
+    setDraftBlocks((blocks) => {
+      const block = blocks.find((item) => item.id === id);
+      if (!block || block.type.endsWith("_start")) return blocks;
+      const next = blocks.filter((item) => item.id !== id);
+      setSelectedBlockId(next[Math.max(0, blocks.findIndex((item) => item.id === id) - 1)]?.id ?? next[0]?.id ?? "");
+      return next;
+    });
+  }
+
+  function moveDraftBlock(id: string, direction: -1 | 1) {
+    setDraftBlocks((blocks) => {
+      const index = blocks.findIndex((block) => block.id === id);
+      const nextIndex = index + direction;
+      if (index <= 0 || nextIndex <= 0 || nextIndex >= blocks.length) return blocks;
+      const next = [...blocks];
+      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+      return next;
+    });
+  }
 
   return (
     <section className="workflow-create-shell">
@@ -286,7 +310,7 @@ function CreateWorkflowWorkspace({ name, startType, startSourceId, initialAction
         </div>
         <div className="row-actions">
           <button type="button" disabled={busy} onClick={onCancel}>Cancel</button>
-          <button type="button" disabled={busy || !canCreate} onClick={onCreate}>Create workflow</button>
+          <button type="button" disabled={busy || !canCreate} onClick={() => onCreate(draftBlocks.map(({ type, config }) => ({ type, config })))}>Create workflow</button>
         </div>
       </div>
 
@@ -295,11 +319,16 @@ function CreateWorkflowWorkspace({ name, startType, startSourceId, initialAction
           <strong>Block library</strong>
           <p className="muted">Templates drop a starter chain onto the canvas.</p>
           {createWorkflowTemplates.map((template) => (
-            <button key={template.id} type="button" className="workflow-library-card" onClick={() => onTemplate(template)}>
+            <button key={template.id} type="button" className="workflow-library-card" onClick={() => applyTemplate(template)}>
               <span>{template.name}</span>
               <small>{template.description}</small>
             </button>
           ))}
+          <strong>Add blocks</strong>
+          <button type="button" className="workflow-library-card" onClick={() => addDraftBlock("record_trigger_event")}><span>Record trigger event</span><small>Store the trigger payload as data.</small></button>
+          <button type="button" className="workflow-library-card" onClick={() => addDraftBlock("fetch_data_source")}><span>Fetch HTTP JSON</span><small>Fetch a configured HTTP source.</small></button>
+          <button type="button" className="workflow-library-card" onClick={() => addDraftBlock("if_payload_field_equals")}><span>If field matches</span><small>Stop unless a trigger/data field matches.</small></button>
+          <button type="button" className="workflow-library-card" onClick={() => addDraftBlock("wait")}><span>Wait</span><small>Pause before the next block.</small></button>
         </aside>
 
         <section className="workflow-draft-canvas">
@@ -312,7 +341,7 @@ function CreateWorkflowWorkspace({ name, startType, startSourceId, initialAction
           </div>
           <div className="workflow-canvas-lane">
             {draftBlocks.map((block, index) => (
-              <DraftBlockCard key={`${block.type}-${index}`} block={block} index={index} sources={sources} />
+              <DraftBlockCard key={block.id} block={block} index={index} sources={sources} selected={block.id === selectedBlock?.id} canMoveUp={index > 1} canMoveDown={index > 0 && index < draftBlocks.length - 1} onSelect={() => setSelectedBlockId(block.id)} onMoveUp={() => moveDraftBlock(block.id, -1)} onMoveDown={() => moveDraftBlock(block.id, 1)} onRemove={() => removeDraftBlock(block.id)} />
             ))}
           </div>
         </section>
@@ -320,43 +349,131 @@ function CreateWorkflowWorkspace({ name, startType, startSourceId, initialAction
         <aside className="workflow-create-inspector automation-form">
           <strong>Setup</strong>
           <label>Workflow name<input value={name} onChange={(event) => onNameChange(event.target.value)} placeholder="Button fetches weather API" /></label>
-          <label>Start block<select value={startType} onChange={(event) => onStartTypeChange(event.target.value as AutomationBlockType)}>
-            <option value="manual_start">Manual run</option>
-            <option value="schedule_start">Schedule</option>
-            <option value="gpio_event_start">GPIO input event</option>
-            <option value="webhook_event_start">Webhook received</option>
-            <option value="mqtt_event_start">MQTT message received</option>
-          </select></label>
-          {startType === "schedule_start" ? <label>Interval<select value={pollingIntervalSeconds} onChange={(event) => onPollingIntervalSecondsChange(Number(event.target.value))}>{intervals.map((interval) => <option key={interval} value={interval}>{formatInterval(interval)}</option>)}</select></label> : startType !== "manual_start" ? <label>Start source<select value={startSourceId} onChange={(event) => onStartSourceChange(event.target.value)}><option value="">Select source...</option>{startSources.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label> : <p className="muted">Manual workflows run only when you click Run now.</p>}
-          {selectedStartSource && <p className="muted">Starts from {selectedStartSource.name}: {sourceLabel(selectedStartSource)}</p>}
-          <label>First action<select value={initialAction} onChange={(event) => onInitialActionChange(event.target.value as "none" | "record_trigger_event" | "fetch_data_source")}>
-            <option value="none">No action yet</option>
-            {startType !== "schedule_start" && startType !== "manual_start" && <option value="record_trigger_event">Record trigger event</option>}
-            <option value="fetch_data_source">Fetch HTTP JSON source</option>
-          </select></label>
-          {initialAction === "fetch_data_source" && <label>HTTP source<select value={initialFetchSourceId} onChange={(event) => onInitialFetchSourceChange(event.target.value)}><option value="">Select HTTP source...</option>{httpSources.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>}
+          {selectedBlock && <DraftBlockInspector block={selectedBlock} sources={sources} onChange={(config) => updateBlock(selectedBlock.id, { config })} onTypeChange={(type) => updateBlock(selectedBlock.id, { type, config: defaultDraftConfig(type, sources) })} />}
           <label className="check-row"><input type="checkbox" checked={enabled} onChange={(event) => onEnabledChange(event.target.checked)} /> Enabled after create</label>
           <div className="card soft-card">
             <strong>Validation</strong>
-            {!name.trim() && <p className="error-text">Workflow name is required.</p>}
-            {missingStartSource && <p className="error-text">Select a start source for this trigger.</p>}
-            {missingFetchSource && <p className="error-text">Select an HTTP source for the fetch block.</p>}
+            {draftIssues.errors.map((issue) => <p key={issue} className="error-text">{issue}</p>)}
+            {draftIssues.warnings.map((issue) => <p key={issue} className="muted">{issue}</p>)}
             {canCreate && <p className="muted">Starter chain is ready to create.</p>}
           </div>
+          <button type="button" disabled={busy || !canCreate} onClick={() => onCreate(draftBlocks.map(({ type, config }) => ({ type, config })))}>Create workflow</button>
         </aside>
       </div>
     </section>
   );
 }
 
-function DraftBlockCard({ block, index, sources }: { block: { type: AutomationBlockType; config: AutomationBlock["config"] }; index: number; sources: DataSource[] }) {
+function DraftBlockCard({ block, index, sources, selected, canMoveUp, canMoveDown, onSelect, onMoveUp, onMoveDown, onRemove }: { block: DraftWorkflowBlock; index: number; sources: DataSource[]; selected: boolean; canMoveUp: boolean; canMoveDown: boolean; onSelect: () => void; onMoveUp: () => void; onMoveDown: () => void; onRemove: () => void }) {
   return (
-    <div className={`workflow-draft-block ${blockCategoryClass(block.type)}`}>
+    <div className={`workflow-draft-block ${blockCategoryClass(block.type)} ${selected ? "selected" : ""}`} onClick={onSelect} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onSelect(); }}>
       <span className="workflow-draft-kicker">{index === 0 ? "When" : "Then"}</span>
       <strong>{draftBlockTitle(block)}</strong>
       <p>{draftBlockDescription(block, sources)}</p>
+      <div className="workflow-draft-actions">
+        <button type="button" disabled={!canMoveUp} onClick={(event) => { event.stopPropagation(); onMoveUp(); }}>Up</button>
+        <button type="button" disabled={!canMoveDown} onClick={(event) => { event.stopPropagation(); onMoveDown(); }}>Down</button>
+        {!block.type.endsWith("_start") && <button type="button" onClick={(event) => { event.stopPropagation(); onRemove(); }}>Remove</button>}
+      </div>
     </div>
   );
+}
+
+function DraftBlockInspector({ block, sources, onChange, onTypeChange }: { block: DraftWorkflowBlock; sources: DataSource[]; onChange: (config: AutomationBlock["config"]) => void; onTypeChange: (type: AutomationBlockType) => void }) {
+  const startSources = sourcesForStart(block.type, sources);
+  const httpSources = sources.filter((source) => source.type === "json-api" || source.type === "internal-json-api");
+
+  if (block.type.endsWith("_start")) {
+    return (
+      <section className="card soft-card automation-form">
+        <strong>Selected start block</strong>
+        <label>Start type<select value={block.type} onChange={(event) => onTypeChange(event.target.value as AutomationBlockType)}>
+          <option value="manual_start">Manual run</option>
+          <option value="schedule_start">Schedule</option>
+          <option value="gpio_event_start">GPIO input event</option>
+          <option value="webhook_event_start">Webhook received</option>
+          <option value="mqtt_event_start">MQTT message received</option>
+        </select></label>
+        {block.type === "schedule_start" ? <label>Interval<select value={block.config.intervalSeconds ?? 60} onChange={(event) => onChange({ intervalSeconds: Number(event.target.value) })}>{intervals.map((interval) => <option key={interval} value={interval}>{formatInterval(interval)}</option>)}</select></label> : block.type === "manual_start" ? <p className="muted">Manual workflows run only when you click Run now.</p> : <label>Start source<select value={block.config.sourceId ?? ""} onChange={(event) => onChange({ sourceId: event.target.value })}><option value="">Select source...</option>{startSources.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>}
+      </section>
+    );
+  }
+
+  if (block.type === "fetch_data_source") {
+    return (
+      <section className="card soft-card automation-form">
+        <strong>Selected block</strong>
+        <p className="muted">Fetch JSON from an HTTP device/source.</p>
+        <label>HTTP source<select value={block.config.sourceId ?? ""} onChange={(event) => onChange({ sourceId: event.target.value })}><option value="">Select HTTP source...</option>{httpSources.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>
+      </section>
+    );
+  }
+
+  if (block.type === "if_payload_field_equals") {
+    return (
+      <section className="card soft-card automation-form">
+        <strong>Selected block</strong>
+        <label>Condition source<select value={block.config.source ?? "trigger"} onChange={(event) => onChange({ ...block.config, source: event.target.value as "trigger" | "data" })}><option value="trigger">Trigger event</option><option value="data">Latest data</option></select></label>
+        <label>Field path<input value={block.config.fieldPath ?? "active"} onChange={(event) => onChange({ ...block.config, fieldPath: event.target.value })} /></label>
+        <label>Operator<select value={block.config.operator ?? "equals"} onChange={(event) => onChange({ ...block.config, operator: event.target.value as ConditionOperator })}>{conditionOperatorOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+        {!operatorHasNoValue(block.config.operator ?? "equals") && <label>Compare value JSON<input value={JSON.stringify(block.config.value ?? true)} onChange={(event) => {
+          try {
+            onChange({ ...block.config, value: JSON.parse(event.target.value) as unknown });
+          } catch {
+            onChange({ ...block.config, value: event.target.value });
+          }
+        }} /></label>}
+      </section>
+    );
+  }
+
+  if (block.type === "wait") {
+    return (
+      <section className="card soft-card automation-form">
+        <strong>Selected block</strong>
+        <label>Wait duration ms<input value={String(block.config.durationMs ?? 1000)} inputMode="numeric" onChange={(event) => onChange({ durationMs: Number(event.target.value) })} /></label>
+      </section>
+    );
+  }
+
+  return <section className="card soft-card"><strong>Selected block</strong><p className="muted">{draftBlockDescription(block, sources)}</p></section>;
+}
+
+function templateDraftBlocks(template: CreateWorkflowTemplate, sources: DataSource[]) {
+  const blocks = [createDraftBlock(template.startType, sources, template.pollingIntervalSeconds)];
+  if (template.initialAction !== "none") blocks.push(createDraftBlock(template.initialAction, sources));
+  return blocks;
+}
+
+function createDraftBlock(type: AutomationBlockType, sources: DataSource[], pollingIntervalSeconds = 60): DraftWorkflowBlock {
+  return { id: `${type}-${crypto.randomUUID()}`, type, config: defaultDraftConfig(type, sources, pollingIntervalSeconds) };
+}
+
+function defaultDraftConfig(type: AutomationBlockType, sources: DataSource[], pollingIntervalSeconds = 60): AutomationBlock["config"] {
+  if (type === "schedule_start") return { intervalSeconds: pollingIntervalSeconds };
+  if (type === "manual_start") return {};
+  if (type === "fetch_data_source") return { sourceId: firstHttpSource(sources)?.id ?? "" };
+  if (type === "gpio_event_start" || type === "webhook_event_start" || type === "mqtt_event_start") return { sourceId: defaultSourceForStart(type, sources)?.id ?? "" };
+  if (type === "if_payload_field_equals") return { source: "trigger", fieldPath: "active", operator: "equals", value: true };
+  if (type === "wait") return { durationMs: 1000 };
+  return {};
+}
+
+function validateDraftWorkflow(name: string, blocks: DraftWorkflowBlock[]) {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  if (!name.trim()) errors.push("Workflow name is required.");
+  if (blocks.length === 0) errors.push("Add at least one start block.");
+  const startBlock = blocks[0];
+  if (startBlock && !startBlock.type.endsWith("_start")) errors.push("The first block must be a start block.");
+  if (blocks.slice(1).some((block) => block.type.endsWith("_start"))) errors.push("Only one start block is allowed.");
+  for (const block of blocks) {
+    if ((block.type === "gpio_event_start" || block.type === "webhook_event_start" || block.type === "mqtt_event_start" || block.type === "fetch_data_source") && !block.config.sourceId) errors.push(`${draftBlockTitle(block)} needs a source.`);
+    if (block.type === "if_payload_field_equals" && !block.config.fieldPath?.trim()) errors.push("Condition block needs a field path.");
+    if (block.type === "wait" && (!Number.isFinite(Number(block.config.durationMs)) || Number(block.config.durationMs) < 0)) errors.push("Wait block needs a valid duration.");
+  }
+  if (blocks.length === 1) warnings.push("This draft only has a start block. You can create it and add actions later, or add blocks now.");
+  return { errors, warnings };
 }
 
 function draftBlockTitle(block: { type: AutomationBlockType }) {

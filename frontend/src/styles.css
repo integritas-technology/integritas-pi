@@ -1372,8 +1372,14 @@ code {
   max-width: 430px;
   padding: 14px 18px;
   color: #ffffff;
+  cursor: pointer;
   border-radius: 18px;
   box-shadow: 0 12px 20px rgba(15, 23, 42, 0.15);
+}
+
+.workflow-draft-block.selected {
+  outline: 4px solid rgba(14, 165, 233, 0.32);
+  outline-offset: 4px;
 }
 
 .workflow-draft-block + .workflow-draft-block {
@@ -1403,6 +1409,28 @@ code {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   opacity: 0.8;
+}
+
+.workflow-draft-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.workflow-draft-actions button {
+  width: auto;
+  padding: 5px 8px;
+  color: #0f172a;
+  font-size: 0.75rem;
+  font-weight: 800;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.workflow-draft-actions button:disabled {
+  opacity: 0.45;
 }
 
 .workflow-draft-start {

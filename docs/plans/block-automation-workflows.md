@@ -508,6 +508,7 @@ Current first pass:
 - Starter template cards prefill common start/action chains.
 - The center canvas previews the generated block chain before creation.
 - The right inspector configures workflow name, trigger/source, first action, and inline validation.
+- The draft canvas now owns an editable draft block list, supports add/remove/move controls, and shows selected-block settings in the inspector for start, fetch, condition, and wait blocks.
 
 Remaining template expansion:
 

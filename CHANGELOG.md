@@ -25,6 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Workflow block-run details now link directly to matching Diagnostics read/proof history filters when a block output contains a read id or Integritas proof id.
 - Automation workflows can now be searched, filtered by status, duplicated, archived, and restored from the Automation workspace.
 - Create workflow now uses a Scratch-inspired full-page draft workspace with starter template cards, a visual block-chain canvas, setup inspector, and inline validation before creating the workflow.
+- The create workflow draft canvas now has its own editable block model: operators can add, remove, move, select, and configure draft blocks before the workflow is created.
 
 ### Changed
 
