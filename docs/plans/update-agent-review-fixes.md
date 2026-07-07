@@ -1,6 +1,6 @@
 # Update Agent Review Fixes
 
-**Status:** In progress — all critical, high, and medium code items (#1–6, #8) fixed, plus minor items #9–12; only #13 remains, which needs a product/ops decision before it can be implemented (see below). #7 moved to real-Pi testing (see below), not a code fix.
+**Status:** Done — all items resolved. #1–6, #8–13 fixed/decided in code or docs; #7 deferred to real-Pi testing (not a code fix — see below and [update-service.md](./update-service.md) Part 7 / "How to test" stage 3).
 **Created:** 2026-07-07
 **Goal:** Address the findings from the update-agent code review so the update flow actually works on real hardware and the safety guarantees (health checks, rollback) are real, not just documented.
 
@@ -68,7 +68,13 @@ Not a code fix — can only be checked on real hardware. Moved here so this doc'
   - `service-update.ts`: the port-bind-failure restore path (the one place a per-service `reason` interpolated raw error text) now logs the real error and returns a generic reason pointing at the logs.
   - Left untouched: all other `ServiceUpdateResult.reason` strings (in `service-update.ts` and `minima-update.ts`) — these were already hand-written, safe, human-readable strings, never raw Docker/system error text, so genericizing them further would only remove useful diagnostic signal from an admin-only UI for no security benefit.
   (`update-agent/src/status/status.routes.ts`, `update-agent/src/update/apply.job.ts`, `update-agent/src/update/service-update.ts`)
-- [ ] **13. Installer vs. update-agent reconciliation.** Any later `docker compose up -d` (e.g. re-running the installer) recreates containers from the compose file and silently reverts digest-pinned updates. Decide the story (installer pins digests? update-agent is the only updater?) before field use — coordinate with part 6/7 of [update-service.md](./update-service.md).
+- [x] **13. Installer vs. update-agent reconciliation.** Decided: document the reset as expected V1 behavior, rather than making `update-agent` rewrite `docker-compose.yml`/an override file to pin digests (the bigger-change option — real added complexity: `update-agent` would need write access to the compose file directory, careful merging with `install.sh`'s own GPIO override, and handling for fresh installs with no override yet). `frontend`/`backend` stay `build:`-based; re-running `install.sh` or a bare `docker compose up -d --build` rebuilds them from source and reverts any updates applied since — documented in two places so it isn't a silent surprise:
+  - `README.md`: added a paragraph next to the existing `MANIFEST_URL`/`MANIFEST_PUBLIC_KEY` docs.
+  - `AGENTS.md`'s "Update Agent Work" rules: explicit note that this is a deliberate scope decision, not an oversight, so a future coding agent doesn't "fix" it unprompted.
+
+  (An `install.sh` success-message note was considered but deliberately left out — it would print on every install including the first, where there's nothing to revert yet, and is the wrong moment for a warning that only matters on a later re-run.)
+
+  (`README.md`, `AGENTS.md`)
 
 ---
 

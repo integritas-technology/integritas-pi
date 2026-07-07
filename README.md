@@ -171,6 +171,8 @@ Future versions may support custom certificates or an external reverse proxy.
 
 `MANIFEST_URL` and `MANIFEST_PUBLIC_KEY` configure the `update-agent` service: the signed update manifest URL hosted on the VPS, and the Ed25519 public key (PEM) used to verify its signature. Leave `MANIFEST_URL` empty to disable update checks. The update UI is served at `https://<pi-ip>:8080/update` (same TLS cert/origin as the main app, proxied through `frontend`'s nginx — no extra browser approval). See [docs/plans/update-service.md](docs/plans/update-service.md) for the full design.
 
+`frontend`/`backend` are `build:`-based in `docker-compose.yml`, not pinned to a digest — re-running `install.sh` (or a bare `docker compose up -d --build`) rebuilds them from this checkout's source and silently reverts any updates applied via the Update page since. `git pull` the matching release tag first if you want to keep an update, or just use the Update page instead of re-running the installer on an already-updated device.
+
 To install with another file root or port:
 
 ```bash

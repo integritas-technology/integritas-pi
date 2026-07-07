@@ -143,6 +143,7 @@ Update Agent rules:
 - `update-agent` is deliberately excluded from the manifest it applies — it has no self-update path in V1.
 - The update UI is served by `update-agent` itself (not `frontend`) so it stays usable even if `frontend`'s own deploy is broken; `frontend`'s nginx only proxies `/update` to it, on the same origin/cert.
 - Stateless services (`frontend`, `backend`) update by starting a new container alongside the old one, health-checking, then swapping. `minima` cannot run two instances against one data directory, so it backs up the data directory, stops the old container first, then swaps — with restore-on-failure.
+- `frontend`/`backend` are `build:`-based in `docker-compose.yml`, not pinned to a digest — this is a known, accepted V1 gap: re-running `install.sh` or a bare `docker compose up -d --build` rebuilds them from source and silently reverts whatever `update-agent` last applied. Don't "fix" this by having `update-agent` rewrite `docker-compose.yml`/write an override file unless the user explicitly asks for that — it was a deliberate scope decision (see `update-agent-review-fixes.md` item 13), not an oversight.
 
 ## Minima Rules
 
