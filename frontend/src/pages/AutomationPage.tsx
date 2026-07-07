@@ -113,13 +113,19 @@ export function AutomationPage() {
   const filteredWorkflows = workflows.filter((workflow) => workflowMatchesFilter(workflow, workflowSearch, workflowFilter, sourceName(workflow.dataSourceId)));
 
   return (
-    <Page eyebrow="Automation" title="Block automation workspace" desc="Build workflows from small start, data, logic, and Integritas blocks.">
-      <section className="card">
-        <div className="status-row">
-          <div><strong>Workflow builder</strong><p className="muted">Create a workflow from a start block, then connect action blocks in the workspace.</p></div>
-          <button type="button" onClick={() => setCreatingWorkflow(true)}>Create new workflow</button>
-        </div>
-      </section>
+    <Page
+      eyebrow="Automation"
+      title={creatingWorkflow ? "Create workflow" : "Block automation workspace"}
+      desc={creatingWorkflow ? "Assemble a starter workflow from blocks, then create it when the draft validates." : "Build workflows from small start, data, logic, and Integritas blocks."}
+    >
+      {!creatingWorkflow && (
+        <section className="card">
+          <div className="status-row">
+            <div><strong>Workflow builder</strong><p className="muted">Create a workflow from a start block, then connect action blocks in the workspace.</p></div>
+            <button type="button" onClick={() => setCreatingWorkflow(true)}>Create new workflow</button>
+          </div>
+        </section>
+      )}
 
       {creatingWorkflow && (
         <CreateWorkflowWorkspace
@@ -191,7 +197,7 @@ export function AutomationPage() {
 
       {error && <p className="error-text">{error}</p>}
 
-      <section className="card automation-list">
+      {!creatingWorkflow && <section className="card automation-list">
         <div className="status-row">
           <div><strong>Workflows</strong><p className="muted">Search, filter, duplicate, and archive workflows as your test list grows.</p></div>
           <span className="pill pill-neutral">{filteredWorkflows.length}/{workflows.length} shown</span>
@@ -242,7 +248,7 @@ export function AutomationPage() {
         </div>
         {workflows.length === 0 && <p className="muted">No automation workflows yet.</p>}
         {workflows.length > 0 && filteredWorkflows.length === 0 && <p className="muted">No workflows match this filter.</p>}
-      </section>
+      </section>}
     </Page>
   );
 }
