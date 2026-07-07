@@ -497,6 +497,13 @@ function AttachedStampSettings({ block, onAttachedChange, onAttachedRemove }: { 
         <label>Condition source<select value={conditionObject.source ?? "data"} onChange={(event) => onAttachedChange(stamp.id, { condition: { ...conditionObject, source: event.target.value as "trigger" | "data" } })}><option value="data">Latest data</option><option value="trigger">Trigger event</option></select></label>
         <label>Field path<input value={conditionObject.fieldPath ?? "active"} onChange={(event) => onAttachedChange(stamp.id, { condition: { ...conditionObject, fieldPath: event.target.value } })} /></label>
         <label>Operator<select value={conditionObject.operator ?? "equals"} onChange={(event) => onAttachedChange(stamp.id, { condition: { ...conditionObject, operator: event.target.value as ConditionOperator } })}>{conditionOperatorOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+        {!operatorHasNoValue(conditionObject.operator ?? "equals") && <label>Compare value JSON<input value={JSON.stringify(conditionObject.value ?? true)} onChange={(event) => {
+          try {
+            onAttachedChange(stamp.id, { condition: { ...conditionObject, value: JSON.parse(event.target.value) as unknown } });
+          } catch {
+            onAttachedChange(stamp.id, { condition: { ...conditionObject, value: event.target.value } });
+          }
+        }} /></label>}
       </>}
       <button type="button" onClick={() => onAttachedRemove(stamp.id)}>Remove attached stamp</button>
     </div>
