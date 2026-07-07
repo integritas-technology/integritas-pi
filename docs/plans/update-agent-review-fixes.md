@@ -1,6 +1,6 @@
 # Update Agent Review Fixes
 
-**Status:** In progress — both critical items, both high items, and #5–6 (manifest replay protection, stale candidate cleanup) fixed; #7–8 medium and #9–13 minor items remain
+**Status:** In progress — both critical items, both high items, and #5–6 (manifest replay protection, stale candidate cleanup) fixed; #8 medium and #9–13 minor items remain. #7 moved to real-Pi testing (see below), not a code fix.
 **Created:** 2026-07-07
 **Goal:** Address the findings from the update-agent code review so the update flow actually works on real hardware and the safety guarantees (health checks, rollback) are real, not just documented.
 
@@ -49,8 +49,13 @@
 
   (`scripts/release/build-manifest.mjs`, `update-agent/src/manifest/manifest.service.ts`, `update-agent/src/manifest/manifest-state.ts`, `update-agent/src/status/status.service.ts`, `update-agent/src/update/apply.service.ts`, `update-agent/src/config/env.ts`, `docker-compose.yml`, `.env.example`, `README.md`)
 - [x] **6. Stale candidate container blocks retries.** Added `removeContainerByName()` to `docker.service.ts` (force-removes any container matching a name, tolerant of no match) and call it in `updateService()` right before creating the candidate, clearing any `<service>-update-candidate` left behind by a crash mid-update. Minima's flow doesn't use a candidate-name pattern (it creates directly under the real service name after removing the old container), so it isn't affected by this bug and needed no change. Verified live against a real Docker socket: a running stray container and a stopped/never-started stray container were both correctly force-removed, and calling it with no match present was a safe no-op. (`update-agent/src/docker/docker.service.ts`, `update-agent/src/update/service-update.ts`)
-- [ ] **7. Verify minima data-dir file ownership on real hardware.** update-agent runs as uid 1000 (`USER node`); if the minima image writes as root, backup fails with `EACCES` (safe, but the feature never works). Add to the "How to test" checklist in [update-service.md](./update-service.md).
 - [ ] **8. Auth check timeout.** The forwarded `GET /api/auth/me` fetch has no timeout — a hung backend hangs every update-agent request. Add `AbortSignal.timeout(5000)` like the minima health probe. (`update-agent/src/auth/auth.middleware.ts`)
+
+## Deferred to real-Pi testing
+
+Not a code fix — can only be checked on real hardware. Moved here so this doc's checkboxes reflect code work only; tracked for real in [update-service.md](./update-service.md)'s Part 7 / "How to test" stage 3.
+
+- **7. Verify minima data-dir file ownership on real hardware.** update-agent runs as uid 1000 (`USER node`); if the minima image writes as root, the backup/restore copy in `minima-update.ts` fails with `EACCES` (safe — the update is just refused — but the feature never actually works). Needs checking against the real `minimaglobal/minima` image on a real Pi.
 
 ## Minor
 
@@ -64,7 +69,7 @@
 
 ## Suggested order
 
-1 and 2 first (feature-breaking), then 3 and 4 (safety/UX), then 5–8 (hardening), 9–13 opportunistically. Item 1 forces the design decision (stop-first vs. recreate dance) that item 4's async rework builds on — do them in that order.
+1 and 2 first (feature-breaking), then 3 and 4 (safety/UX), then 5, 6, 8 (hardening — 7 deferred to real-Pi testing, see above), 9–13 opportunistically. Item 1 forces the design decision (stop-first vs. recreate dance) that item 4's async rework builds on — do them in that order.
 
 ## Explicitly out of scope
 

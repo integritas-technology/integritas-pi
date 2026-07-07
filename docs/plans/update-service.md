@@ -102,6 +102,7 @@ Mitigation is shrinking `update-agent`'s own attack surface, not network placeme
 - [x] `CHANGELOG.md` entries under `[Unreleased]` as each part lands.
 - [x] `docs/README.md` — add this plan to the "Active plans" table. (Already added earlier in this plan's work.)
 - [ ] End-to-end manual test on a real Pi: trigger update, confirm rollback on an intentionally-broken health check. See "How to test" below — do this only after part 6 (VPS + secrets) is wired up.
+- [ ] Verify minima data-dir file ownership on real hardware: `update-agent` runs as uid 1000 (`USER node` in its Dockerfile); if the real `minimaglobal/minima` image writes its data as root, the backup/restore copy in `minima-update.ts` fails with `EACCES` (safe — the update is refused, nothing corrupts — but the safety net never actually works). Can only be checked against the real image on a real Pi. (from code review item 7, tracked in [update-agent-review-fixes.md](./update-agent-review-fixes.md))
 
 ---
 
@@ -122,7 +123,7 @@ Don't validate this by merging to `main` and pushing a real `v*` tag first — t
    - Force a failure (point the manifest at a digest for an image that will fail its health check, e.g. a broken `CMD`) and confirm the old container is left running / minima's data directory is restored.
    This validates parts 3+4+5 without needing the VPS or GitHub Actions at all.
 
-3. **Real end-to-end**, only after part 6's VPS deploy step and GitHub secrets exist: cut a real `v*` tag, confirm CI builds/signs/deploys the manifest, confirm `update-agent` on a real (or test) Pi picks it up and applies it. Do this last, and ideally on a spare/test Pi or VM first, not the first real device you'd be upset to lose.
+3. **Real end-to-end**, only after part 6's VPS deploy step and GitHub secrets exist: cut a real `v*` tag, confirm CI builds/signs/deploys the manifest, confirm `update-agent` on a real (or test) Pi picks it up and applies it. Do this last, and ideally on a spare/test Pi or VM first, not the first real device you'd be upset to lose. While on real hardware, also trigger a Minima update (or force one via a hand-built manifest) and confirm the backup/restore step can actually read/write `/minima-data` — i.e. check whether the real `minimaglobal/minima` image writes as root, which would make `update-agent` (uid 1000) unable to back it up.
 
 ## Open questions
 
