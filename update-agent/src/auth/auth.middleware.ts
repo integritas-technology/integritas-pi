@@ -13,7 +13,8 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
 
   try {
     const fetchResponse = await fetch(`${env.backendInternalUrl}/api/auth/me`, {
-      headers: { cookie: cookieHeader }
+      headers: { cookie: cookieHeader },
+      signal: AbortSignal.timeout(5000)
     });
 
     if (!fetchResponse.ok) {

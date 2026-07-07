@@ -1,6 +1,6 @@
 # Update Agent Review Fixes
 
-**Status:** In progress — both critical items, both high items, and #5–6 (manifest replay protection, stale candidate cleanup) fixed; #8 medium and #9–13 minor items remain. #7 moved to real-Pi testing (see below), not a code fix.
+**Status:** In progress — all critical, high, and medium code items (#1–6, #8) fixed; #9–13 minor items remain. #7 moved to real-Pi testing (see below), not a code fix.
 **Created:** 2026-07-07
 **Goal:** Address the findings from the update-agent code review so the update flow actually works on real hardware and the safety guarantees (health checks, rollback) are real, not just documented.
 
@@ -49,7 +49,7 @@
 
   (`scripts/release/build-manifest.mjs`, `update-agent/src/manifest/manifest.service.ts`, `update-agent/src/manifest/manifest-state.ts`, `update-agent/src/status/status.service.ts`, `update-agent/src/update/apply.service.ts`, `update-agent/src/config/env.ts`, `docker-compose.yml`, `.env.example`, `README.md`)
 - [x] **6. Stale candidate container blocks retries.** Added `removeContainerByName()` to `docker.service.ts` (force-removes any container matching a name, tolerant of no match) and call it in `updateService()` right before creating the candidate, clearing any `<service>-update-candidate` left behind by a crash mid-update. Minima's flow doesn't use a candidate-name pattern (it creates directly under the real service name after removing the old container), so it isn't affected by this bug and needed no change. Verified live against a real Docker socket: a running stray container and a stopped/never-started stray container were both correctly force-removed, and calling it with no match present was a safe no-op. (`update-agent/src/docker/docker.service.ts`, `update-agent/src/update/service-update.ts`)
-- [ ] **8. Auth check timeout.** The forwarded `GET /api/auth/me` fetch has no timeout — a hung backend hangs every update-agent request. Add `AbortSignal.timeout(5000)` like the minima health probe. (`update-agent/src/auth/auth.middleware.ts`)
+- [x] **8. Auth check timeout.** Added `signal: AbortSignal.timeout(5000)` to the forwarded `GET /api/auth/me` fetch, matching the existing minima health probe pattern — a timed-out fetch throws and is caught by the existing `catch` block, returning `502` as before. Verified live: pointed `requireAdmin` at a backend that never responds, confirmed the request now returns `502 Auth check failed` after ~5s instead of hanging indefinitely. (`update-agent/src/auth/auth.middleware.ts`)
 
 ## Deferred to real-Pi testing
 
