@@ -1,6 +1,6 @@
 # Update Agent Review Fixes
 
-**Status:** In progress — both critical items and #3 (real HEALTHCHECKs) fixed; #4 (async /apply) and medium/minor items remain
+**Status:** In progress — both critical items and both high items (#3 real HEALTHCHECKs, #4 async /apply) fixed; medium/minor items remain
 **Created:** 2026-07-07
 **Goal:** Address the findings from the update-agent code review so the update flow actually works on real hardware and the safety guarantees (health checks, rollback) are real, not just documented.
 
@@ -29,7 +29,13 @@
   - Verified locally: built both images, ran the full compose stack, confirmed `docker inspect --format '{{.State.Health.Status}}'` reports `healthy` for both after `start-period`, with each check completing in well under a second — negligible overhead for a Pi.
 
   (`backend/Dockerfile`, `frontend/Dockerfile`, `update-agent/src/config/env.ts`, `docker-compose.yml`, `.env.example`, `README.md`)
-- [ ] **4. Synchronous `/apply` can't survive its own update.** nginx's default 60s proxy timeout will 504 on slow Pi image pulls, and a successful frontend swap kills the in-flight `/apply` response — success reads as failure in the UI. Rework to async: `POST /apply` returns `202` immediately, UI polls a progress endpoint; update the static page's states accordingly. (`update-agent/src/update/apply.routes.ts`, `public/app.js`)
+- [x] **4. Synchronous `/apply` can't survive its own update.** Reworked to async:
+  - New `apply.job.ts` holds in-memory job state (`idle` / `running` / `succeeded` + results / `failed` + error) and `startApplyJob()`, which kicks off `applyUpdates()` in the background without awaiting it.
+  - `apply.routes.ts`: `POST /apply` now starts the job and returns `202` immediately (or `409` if one's already running) — no longer blocks on the update itself. `GET /apply` returns the current job status for polling.
+  - `public/app.js`: `applyUpdate()` now POSTs to start, then polls `GET /apply` every 3s until the job leaves `running`. Poll *failures* (e.g. the exact moment frontend's nginx restarts mid-swap) are tolerated up to 10 consecutive misses before giving up, since a successful frontend update necessarily kills the in-flight poll connection too.
+  - Verified locally (bypassing Docker/manifest, which are out of scope for this change): built the compiled routes, ran them standalone, confirmed `POST /apply` returns in ~50ms regardless of job duration, a concurrent `POST` while running returns `409`, and polling `GET /apply` correctly transitions `running` → `succeeded`/`failed` with the right payload.
+
+  (`update-agent/src/update/apply.job.ts`, `update-agent/src/update/apply.routes.ts`, `update-agent/public/app.js`)
 
 ## Medium — hardening
 

@@ -1,23 +1,20 @@
 import { Router } from "express";
-import { applyUpdates } from "./apply.service.js";
+import { getApplyJobStatus, startApplyJob } from "./apply.job.js";
 
 export const applyRouter = Router();
 
-// Single-process in-memory lock — valid because update-agent always runs as exactly one container.
-let applyInProgress = false;
-
-applyRouter.post("/", async (_req, res) => {
-  if (applyInProgress) {
+// POST kicks off the update in the background and returns immediately: a
+// successful frontend update restarts the very container proxying this
+// request, which would kill an in-flight synchronous response. Callers must
+// poll GET /apply instead of waiting on this response body.
+applyRouter.post("/", (_req, res) => {
+  const { started } = startApplyJob();
+  if (!started) {
     return res.status(409).json({ error: "An update is already in progress" });
   }
+  res.status(202).json({ status: "running" });
+});
 
-  applyInProgress = true;
-  try {
-    const results = await applyUpdates();
-    res.json({ results });
-  } catch (error) {
-    res.status(502).json({ error: error instanceof Error ? error.message : "Update failed" });
-  } finally {
-    applyInProgress = false;
-  }
+applyRouter.get("/", (_req, res) => {
+  res.json(getApplyJobStatus());
 });
