@@ -7,6 +7,7 @@ import {
   pruneOldImages,
   pullImageByDigest,
   removeContainer,
+  removeContainerByName,
   renameContainer,
   startContainer,
   stopContainer,
@@ -40,6 +41,10 @@ export async function updateService(serviceName: string, imageRef: string): Prom
   await pullImageByDigest(imageRef);
 
   const candidateName = `${serviceName}-update-candidate`;
+  // Clear any candidate left behind by a crash mid-update (e.g. a power cut)
+  // — otherwise Docker 409s on the name conflict and every retry fails.
+  await removeContainerByName(candidateName);
+
   const createBody = createBodyFromInspect(inspected, imageRef);
   let candidate = await createContainer(candidateName, createBody);
 

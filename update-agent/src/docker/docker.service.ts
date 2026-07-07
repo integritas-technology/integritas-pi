@@ -83,6 +83,20 @@ export function removeContainer(containerId: string): Promise<void> {
   return dockerRequest<void>("DELETE", `/containers/${containerId}?force=1`);
 }
 
+/**
+ * Force-removes any container with the given name, if one exists. Used to
+ * clear a stale `<service>-update-candidate` left behind by a crash mid-update
+ * (e.g. a power cut) before creating a new one under that name — Docker
+ * otherwise 409s on the name conflict.
+ */
+export async function removeContainerByName(name: string): Promise<void> {
+  const containers = await dockerRequest<DockerContainerSummary[]>("GET", "/containers/json?all=1");
+  const match = containers.find((container) => container.Names.includes(`/${name}`));
+  if (!match) return;
+
+  await removeContainer(match.Id);
+}
+
 export function renameContainer(containerId: string, newName: string): Promise<void> {
   return dockerRequest<void>("POST", `/containers/${containerId}/rename?name=${encodeURIComponent(newName)}`);
 }

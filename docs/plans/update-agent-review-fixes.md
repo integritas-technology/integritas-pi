@@ -1,6 +1,6 @@
 # Update Agent Review Fixes
 
-**Status:** In progress — both critical items, both high items, and #5 (manifest replay protection) fixed; #6–8 medium and #9–13 minor items remain
+**Status:** In progress — both critical items, both high items, and #5–6 (manifest replay protection, stale candidate cleanup) fixed; #7–8 medium and #9–13 minor items remain
 **Created:** 2026-07-07
 **Goal:** Address the findings from the update-agent code review so the update flow actually works on real hardware and the safety guarantees (health checks, rollback) are real, not just documented.
 
@@ -48,7 +48,7 @@
   - Verified locally: generated a throwaway Ed25519 keypair, built+signed a test manifest, served it over local HTTP, and exercised `fetchVerifiedManifest`/`recordAppliedManifest` directly — confirmed first fetch succeeds, re-fetching the same applied manifest still succeeds, and a manifest older than the recorded last-applied timestamp is correctly rejected.
 
   (`scripts/release/build-manifest.mjs`, `update-agent/src/manifest/manifest.service.ts`, `update-agent/src/manifest/manifest-state.ts`, `update-agent/src/status/status.service.ts`, `update-agent/src/update/apply.service.ts`, `update-agent/src/config/env.ts`, `docker-compose.yml`, `.env.example`, `README.md`)
-- [ ] **6. Stale candidate container blocks retries.** A crash mid-update (power cut) leaves `<service>-update-candidate` behind; every later attempt 409s on the name. Remove any existing candidate by name before creating. (`update-agent/src/update/service-update.ts`)
+- [x] **6. Stale candidate container blocks retries.** Added `removeContainerByName()` to `docker.service.ts` (force-removes any container matching a name, tolerant of no match) and call it in `updateService()` right before creating the candidate, clearing any `<service>-update-candidate` left behind by a crash mid-update. Minima's flow doesn't use a candidate-name pattern (it creates directly under the real service name after removing the old container), so it isn't affected by this bug and needed no change. Verified live against a real Docker socket: a running stray container and a stopped/never-started stray container were both correctly force-removed, and calling it with no match present was a safe no-op. (`update-agent/src/docker/docker.service.ts`, `update-agent/src/update/service-update.ts`)
 - [ ] **7. Verify minima data-dir file ownership on real hardware.** update-agent runs as uid 1000 (`USER node`); if the minima image writes as root, backup fails with `EACCES` (safe, but the feature never works). Add to the "How to test" checklist in [update-service.md](./update-service.md).
 - [ ] **8. Auth check timeout.** The forwarded `GET /api/auth/me` fetch has no timeout — a hung backend hangs every update-agent request. Add `AbortSignal.timeout(5000)` like the minima health probe. (`update-agent/src/auth/auth.middleware.ts`)
 
