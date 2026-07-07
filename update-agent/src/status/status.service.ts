@@ -1,4 +1,4 @@
-import { fetchVerifiedManifest, type Manifest } from "../manifest/manifest.service.js";
+import { fetchVerifiedManifest, MANIFEST_SERVICE_KEYS, type Manifest } from "../manifest/manifest.service.js";
 import { getComposeServiceContainer } from "../docker/docker.service.js";
 
 export type ServiceStatus = {
@@ -8,7 +8,7 @@ export type ServiceStatus = {
   upToDate: boolean;
 };
 
-const MANIFEST_TO_COMPOSE_SERVICE: Record<keyof Manifest, string> = {
+const MANIFEST_TO_COMPOSE_SERVICE: Record<(typeof MANIFEST_SERVICE_KEYS)[number], string> = {
   frontend: "frontend",
   backend: "backend",
   "minima-node": "minima"
@@ -18,7 +18,7 @@ export async function getUpdateStatus(): Promise<{ manifest: Manifest; services:
   const manifest = await fetchVerifiedManifest();
 
   const services = await Promise.all(
-    (Object.keys(manifest) as (keyof Manifest)[]).map(async (manifestKey) => {
+    MANIFEST_SERVICE_KEYS.map(async (manifestKey) => {
       const composeService = MANIFEST_TO_COMPOSE_SERVICE[manifestKey];
       const container = await getComposeServiceContainer(composeService);
       const targetImage = manifest[manifestKey];

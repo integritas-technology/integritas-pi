@@ -1,6 +1,6 @@
 # Update Agent Review Fixes
 
-**Status:** In progress — both critical items and both high items (#3 real HEALTHCHECKs, #4 async /apply) fixed; medium/minor items remain
+**Status:** In progress — both critical items, both high items, and #5 (manifest replay protection) fixed; #6–8 medium and #9–13 minor items remain
 **Created:** 2026-07-07
 **Goal:** Address the findings from the update-agent code review so the update flow actually works on real hardware and the safety guarantees (health checks, rollback) are real, not just documented.
 
@@ -39,7 +39,15 @@
 
 ## Medium — hardening
 
-- [ ] **5. Manifest replay/downgrade protection.** Any previously-signed manifest verifies forever — a stale cache or MITM can roll devices back to a vulnerable image. Add a `version` (or `createdAt`) field to the manifest, persist the last-applied value, reject anything not strictly newer. Touches CI (`scripts/release/build-manifest.mjs`, `manifest.source.json`) and the verifier (`update-agent/src/manifest/manifest.service.ts`).
+- [x] **5. Manifest replay/downgrade protection.** Added a `createdAt` (ISO timestamp) field to the manifest, stamped at build time and checked against a persisted last-applied value:
+  - `scripts/release/build-manifest.mjs` now stamps `createdAt: new Date().toISOString()` on every build (the validation loop skips it — it's not a service digest).
+  - New `update-agent/src/manifest/manifest-state.ts`: reads/writes `last-applied-manifest.json` on a new dedicated host bind mount, `UPDATE_AGENT_STATE_DIR` (`./update-agent-state` by default, mounted at `/state`) — added to `docker-compose.yml`, `.env.example`, `README.md`, and `env.ts` (`stateDirInContainer`).
+  - `manifest.service.ts`: `Manifest` type and `isManifest()` guard now require `createdAt`; `fetchVerifiedManifest()` rejects any manifest **strictly older** than the last-applied timestamp (equal is allowed — that's just the current, already-applied manifest being re-fetched on a routine status check, not a replay).
+  - `apply.service.ts`: records the manifest's `createdAt` as applied only if **no** service update failed — a partial failure must stay retryable against the same manifest, since recording it as "applied" would make a later retry look like a downgrade.
+  - Fixed a real bug this surfaced: `status.service.ts` iterated `Object.keys(manifest)` to map manifest keys to compose services — with `createdAt` added to the manifest shape, that loop would have tried to treat `"createdAt"` as a service key too. Replaced with a fixed `MANIFEST_SERVICE_KEYS` tuple exported from `manifest.service.ts`.
+  - Verified locally: generated a throwaway Ed25519 keypair, built+signed a test manifest, served it over local HTTP, and exercised `fetchVerifiedManifest`/`recordAppliedManifest` directly — confirmed first fetch succeeds, re-fetching the same applied manifest still succeeds, and a manifest older than the recorded last-applied timestamp is correctly rejected.
+
+  (`scripts/release/build-manifest.mjs`, `update-agent/src/manifest/manifest.service.ts`, `update-agent/src/manifest/manifest-state.ts`, `update-agent/src/status/status.service.ts`, `update-agent/src/update/apply.service.ts`, `update-agent/src/config/env.ts`, `docker-compose.yml`, `.env.example`, `README.md`)
 - [ ] **6. Stale candidate container blocks retries.** A crash mid-update (power cut) leaves `<service>-update-candidate` behind; every later attempt 409s on the name. Remove any existing candidate by name before creating. (`update-agent/src/update/service-update.ts`)
 - [ ] **7. Verify minima data-dir file ownership on real hardware.** update-agent runs as uid 1000 (`USER node`); if the minima image writes as root, backup fails with `EACCES` (safe, but the feature never works). Add to the "How to test" checklist in [update-service.md](./update-service.md).
 - [ ] **8. Auth check timeout.** The forwarded `GET /api/auth/me` fetch has no timeout — a hung backend hangs every update-agent request. Add `AbortSignal.timeout(5000)` like the minima health probe. (`update-agent/src/auth/auth.middleware.ts`)

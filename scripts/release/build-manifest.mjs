@@ -10,10 +10,12 @@ const source = JSON.parse(readFileSync(sourcePath, "utf8"));
 const manifest = {
   ...source,
   ...(frontendDigest ? { frontend: frontendDigest } : {}),
-  ...(backendDigest ? { backend: backendDigest } : {})
+  ...(backendDigest ? { backend: backendDigest } : {}),
+  createdAt: new Date().toISOString()
 };
 
 for (const [service, digest] of Object.entries(manifest)) {
+  if (service === "createdAt") continue;
   if (!digest) {
     throw new Error(`manifest missing digest for "${service}"`);
   }

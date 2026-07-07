@@ -100,13 +100,14 @@ MANIFEST_PUBLIC_KEY=
 RELEASE_CHANNEL=stable
 UPDATE_HEALTH_CHECK_TIMEOUT_MS=60000
 UPDATE_HEALTH_CHECK_INTERVAL_MS=2000
+UPDATE_AGENT_STATE_DIR=./update-agent-state
 ```
 
 The installer sets `COOKIE_SECURE=true` for the default HTTPS Docker deploy. Use `COOKIE_SECURE=false` only for native `npm run dev` (HTTP on port 5173).
 
 `HOST_FILES_DIR` is mounted into the backend container as `/host-files:ro`. The `:ro` flag is intentional for this prototype.
 
-`MINIMA_DATA_DIR` is mounted into the Minima container as `/home/minima/data` so node data survives container restarts and updates. `MINIMA_BACKUP_DIR` is a separate host path `update-agent` copies that data into before a Minima update, and restores from if the update fails its health check.
+`MINIMA_DATA_DIR` is mounted into the Minima container as `/home/minima/data` so node data survives container restarts and updates. `MINIMA_BACKUP_DIR` is a separate host path `update-agent` copies that data into before a Minima update, and restores from if the update fails its health check. `UPDATE_AGENT_STATE_DIR` persists `update-agent`'s own bookkeeping (currently just the last successfully applied manifest's timestamp, used to reject replayed or downgraded manifests) across container restarts.
 
 `MINIMA_RPC_BIND` defaults to `127.0.0.1`, which means Minima RPC is only exposed on the Pi itself. Set it to `0.0.0.0` only on a trusted network.
 
