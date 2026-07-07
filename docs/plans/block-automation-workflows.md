@@ -469,16 +469,40 @@ The block workspace is usable for the current prototype: workflows can be create
 
 Recommended development order:
 
-1. Workflow templates.
-2. Run log filtering and deeper run links.
-3. Better workflow organization.
-4. Configure-block modal refinement.
-5. Full draft workspace save model.
-6. Branching / else flow.
+1. Complete basic create-workflow block library.
+2. Workflow templates.
+3. Run log filtering and deeper run links.
+4. Better workflow organization.
+5. Configure-block modal refinement.
+6. Full draft workspace save model.
+7. Branching / else flow.
 
-### 1. Workflow Templates
+### 1. Complete Basic Create-Workflow Block Library
+
+The create workflow workspace should prioritize clear building blocks before templates. Templates are useful as guides later, but the V1 base should first make it obvious that a valid workflow starts with exactly one start block and then appends data, logic, and action blocks.
+
+Current implementation:
+
+- Create workflow is now a full-page Scratch-inspired draft workspace instead of a modal.
+- The block library is split into Start, Data, and Logic sections.
+- Start blocks replace the first block in the draft chain.
+- Data and Logic blocks append after the start block.
+- The center canvas previews the generated block chain before creation.
+- The right inspector configures workflow name and selected-block settings.
+- The draft canvas owns an editable draft block list and supports add/remove/move controls for supported draft blocks.
+
+Remaining basic block-library work:
+
+- Add draft support for Integritas stamp side blocks.
+- Add draft support for GPIO output pulse blocks.
+- Add draft support for Send transaction blocks with safety warnings.
+- Add clearer draft validation on affected blocks.
+
+### 2. Workflow Templates
 
 Add beginner-friendly templates that create known-good starter workflows.
+
+Templates are intentionally deferred until the basic block library is complete, so they can act as user guides rather than hiding the underlying block model.
 
 Good first templates:
 
@@ -502,17 +526,7 @@ Implementation notes:
 - Avoid hidden production mock data. Use operator-selected devices/sources where possible.
 - Validate required devices before enabling a template, for example HTTP source required for fetch templates and GPIO Output target required for LED templates.
 
-Current first pass:
-
-- Create workflow is now a full-page Scratch-inspired draft workspace instead of a modal.
-- Starter template cards prefill common start/action chains.
-- The center canvas previews the generated block chain before creation.
-- The right inspector configures workflow name, trigger/source, first action, and inline validation.
-- The draft canvas now owns an editable draft block list, supports add/remove/move controls, and shows selected-block settings in the inspector for start, fetch, condition, and wait blocks.
-
-Remaining template expansion:
-
-- Add output and Integritas-attached templates once the draft canvas can configure those options directly.
+Template expansion should happen after draft support exists for all V1 block types.
 
 ### 2. Pre-Run Validation
 
@@ -780,7 +794,7 @@ Button -> fetch API -> blink LED.
 - [x] Add direct links to related read/proof details.
 - [ ] Add run-log filters.
 - [x] Add workflow archive/filter/duplicate organization tools.
-- [x] Add first-pass full-page workflow creation workspace with starter templates.
+- [x] Add first-pass full-page workflow creation workspace with clean Start/Data/Logic block library.
 - [ ] Evaluate branching/else blocks after the simpler linear workflow UX is stable.
 
 ## Progress Log

@@ -134,9 +134,6 @@ export function AutomationPage() {
           busy={busy}
           onNameChange={setName}
           onEnabledChange={setEnabled}
-          onTemplate={(template: CreateWorkflowTemplate) => {
-            if (!name) setName(template.name);
-          }}
           onCancel={() => setCreatingWorkflow(false)}
           onCreate={submitWorkflow}
         />
@@ -230,31 +227,14 @@ export function AutomationPage() {
   );
 }
 
-type CreateWorkflowTemplate = {
-  id: string;
-  name: string;
-  description: string;
-  startType: AutomationBlockType;
-  initialAction: "none" | "record_trigger_event" | "fetch_data_source";
-  pollingIntervalSeconds?: number;
-};
-
 type DraftWorkflowBlock = {
   id: string;
   type: AutomationBlockType;
   config: AutomationBlock["config"];
 };
 
-const createWorkflowTemplates: CreateWorkflowTemplate[] = [
-  { id: "gpio-record", name: "GPIO button -> Record event", description: "Start from a physical button and save the trigger payload as a read.", startType: "gpio_event_start", initialAction: "record_trigger_event" },
-  { id: "gpio-fetch", name: "GPIO button -> Fetch HTTP JSON", description: "Use a button as the trigger, then fetch data from an HTTP JSON source.", startType: "gpio_event_start", initialAction: "fetch_data_source" },
-  { id: "schedule-fetch", name: "Schedule -> Fetch HTTP JSON", description: "Poll an HTTP JSON source on an interval and make it stampable later.", startType: "schedule_start", initialAction: "fetch_data_source", pollingIntervalSeconds: 60 },
-  { id: "webhook-record", name: "Webhook -> Record event", description: "Receive JSON through a webhook and store the incoming payload.", startType: "webhook_event_start", initialAction: "record_trigger_event" },
-  { id: "blank", name: "Start from scratch", description: "Create only a start block, then add actions in the workflow workspace.", startType: "manual_start", initialAction: "none" }
-];
-
-function CreateWorkflowWorkspace({ name, enabled, sources, busy, onNameChange, onEnabledChange, onTemplate, onCancel, onCreate }: { name: string; enabled: boolean; sources: DataSource[]; busy: boolean; onNameChange: (value: string) => void; onEnabledChange: (value: boolean) => void; onTemplate: (template: CreateWorkflowTemplate) => void; onCancel: () => void; onCreate: (blocks: { type: AutomationBlockType; config: AutomationBlock["config"]; enabled?: boolean; parentBlockId?: string | null }[]) => void }) {
-  const [draftBlocks, setDraftBlocks] = useState<DraftWorkflowBlock[]>(() => templateDraftBlocks(createWorkflowTemplates[0], sources));
+function CreateWorkflowWorkspace({ name, enabled, sources, busy, onNameChange, onEnabledChange, onCancel, onCreate }: { name: string; enabled: boolean; sources: DataSource[]; busy: boolean; onNameChange: (value: string) => void; onEnabledChange: (value: boolean) => void; onCancel: () => void; onCreate: (blocks: { type: AutomationBlockType; config: AutomationBlock["config"]; enabled?: boolean; parentBlockId?: string | null }[]) => void }) {
+  const [draftBlocks, setDraftBlocks] = useState<DraftWorkflowBlock[]>(() => [createDraftBlock("manual_start", sources)]);
   const [selectedBlockId, setSelectedBlockId] = useState(() => draftBlocks[0]?.id ?? "");
   const selectedBlock = draftBlocks.find((block) => block.id === selectedBlockId) ?? draftBlocks[0];
   const draftIssues = validateDraftWorkflow(name, draftBlocks);
@@ -262,13 +242,6 @@ function CreateWorkflowWorkspace({ name, enabled, sources, busy, onNameChange, o
 
   function updateBlock(id: string, patch: Partial<DraftWorkflowBlock>) {
     setDraftBlocks((blocks) => blocks.map((block) => block.id === id ? { ...block, ...patch, config: patch.config ?? block.config } : block));
-  }
-
-  function applyTemplate(template: CreateWorkflowTemplate) {
-    const blocks = templateDraftBlocks(template, sources);
-    setDraftBlocks(blocks);
-    setSelectedBlockId(blocks[0]?.id ?? "");
-    onTemplate(template);
   }
 
   function addDraftBlock(type: AutomationBlockType) {
@@ -300,13 +273,22 @@ function CreateWorkflowWorkspace({ name, enabled, sources, busy, onNameChange, o
     });
   }
 
+  function replaceStartBlock(type: AutomationBlockType) {
+    setDraftBlocks((blocks) => {
+      const start = createDraftBlock(type, sources);
+      const next = [start, ...blocks.filter((block) => !block.type.endsWith("_start"))];
+      setSelectedBlockId(start.id);
+      return next;
+    });
+  }
+
   return (
     <section className="workflow-create-shell">
       <div className="workflow-create-topbar">
         <div>
           <span className="pill pill-neutral">Draft workflow</span>
           <h2>Create a new block workflow</h2>
-          <p className="muted">Pick a template or build a small chain. After creation, the normal workspace opens for adding conditions, stamps, outputs, and tests.</p>
+          <p className="muted">Choose one start block, then add data and logic blocks to build the first draft chain.</p>
         </div>
         <div className="row-actions">
           <button type="button" disabled={busy} onClick={onCancel}>Cancel</button>
@@ -317,16 +299,17 @@ function CreateWorkflowWorkspace({ name, enabled, sources, busy, onNameChange, o
       <div className="workflow-create-grid">
         <aside className="workflow-block-library">
           <strong>Block library</strong>
-          <p className="muted">Templates drop a starter chain onto the canvas.</p>
-          {createWorkflowTemplates.map((template) => (
-            <button key={template.id} type="button" className="workflow-library-card" onClick={() => applyTemplate(template)}>
-              <span>{template.name}</span>
-              <small>{template.description}</small>
-            </button>
-          ))}
-          <strong>Add blocks</strong>
+          <p className="muted">Start blocks replace the first block. Data and logic blocks append after it.</p>
+          <strong>Start blocks</strong>
+          <button type="button" className="workflow-library-card" onClick={() => replaceStartBlock("manual_start")}><span>Manual run</span><small>Run only when an operator starts it.</small></button>
+          <button type="button" className="workflow-library-card" onClick={() => replaceStartBlock("schedule_start")}><span>Schedule</span><small>Run repeatedly on an interval.</small></button>
+          <button type="button" className="workflow-library-card" onClick={() => replaceStartBlock("gpio_event_start")}><span>GPIO input event</span><small>Start from a configured GPIO input device.</small></button>
+          <button type="button" className="workflow-library-card" onClick={() => replaceStartBlock("webhook_event_start")}><span>Webhook received</span><small>Start when JSON arrives at a webhook URL.</small></button>
+          <button type="button" className="workflow-library-card" onClick={() => replaceStartBlock("mqtt_event_start")}><span>MQTT message received</span><small>Start when JSON arrives on an MQTT topic.</small></button>
+          <strong>Data blocks</strong>
           <button type="button" className="workflow-library-card" onClick={() => addDraftBlock("record_trigger_event")}><span>Record trigger event</span><small>Store the trigger payload as data.</small></button>
           <button type="button" className="workflow-library-card" onClick={() => addDraftBlock("fetch_data_source")}><span>Fetch HTTP JSON</span><small>Fetch a configured HTTP source.</small></button>
+          <strong>Logic blocks</strong>
           <button type="button" className="workflow-library-card" onClick={() => addDraftBlock("if_payload_field_equals")}><span>If field matches</span><small>Stop unless a trigger/data field matches.</small></button>
           <button type="button" className="workflow-library-card" onClick={() => addDraftBlock("wait")}><span>Wait</span><small>Pause before the next block.</small></button>
         </aside>
@@ -437,12 +420,6 @@ function DraftBlockInspector({ block, sources, onChange, onTypeChange }: { block
   }
 
   return <section className="card soft-card"><strong>Selected block</strong><p className="muted">{draftBlockDescription(block, sources)}</p></section>;
-}
-
-function templateDraftBlocks(template: CreateWorkflowTemplate, sources: DataSource[]) {
-  const blocks = [createDraftBlock(template.startType, sources, template.pollingIntervalSeconds)];
-  if (template.initialAction !== "none") blocks.push(createDraftBlock(template.initialAction, sources));
-  return blocks;
 }
 
 function createDraftBlock(type: AutomationBlockType, sources: DataSource[], pollingIntervalSeconds = 60): DraftWorkflowBlock {
