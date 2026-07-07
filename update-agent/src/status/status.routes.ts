@@ -8,6 +8,7 @@ statusRouter.get("/", async (_req, res) => {
     const status = await getUpdateStatus();
     res.json(status);
   } catch (error) {
-    res.status(502).json({ error: error instanceof Error ? error.message : "Failed to fetch update status" });
+    console.error("[update-agent] status check failed:", error);
+    res.status(502).json({ error: "Failed to fetch update status" });
   }
 });

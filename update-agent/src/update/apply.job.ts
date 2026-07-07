@@ -25,13 +25,16 @@ export function startApplyJob(): { started: boolean } {
   }
 
   job = { state: "running" };
+  console.log("[update-agent] apply started");
 
   applyUpdates()
     .then((results) => {
       job = { state: "succeeded", results };
+      console.log("[update-agent] apply finished");
     })
     .catch((error) => {
-      job = { state: "failed", error: error instanceof Error ? error.message : "Update failed" };
+      console.error("[update-agent] apply failed:", error);
+      job = { state: "failed", error: "Update failed unexpectedly — check update-agent's logs for details" };
     });
 
   return { started: true };

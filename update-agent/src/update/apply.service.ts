@@ -14,10 +14,14 @@ export async function applyUpdates(): Promise<ServiceUpdateResult[]> {
       continue;
     }
 
+    console.log(`[update-agent] ${status.service}: updating to ${status.targetImage}`);
+
     const result =
       status.service === "minima"
         ? await updateMinimaNode(status.targetImage)
         : await updateService(status.service, status.targetImage);
+
+    console.log(`[update-agent] ${status.service}: ${result.updated ? "updated" : "not updated"} — ${result.reason}`);
 
     results.push(result);
   }

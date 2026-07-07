@@ -1,3 +1,4 @@
+import { env } from "../config/env.js";
 import { dockerRequest, dockerRequestStream } from "./docker.client.js";
 import type { DockerContainerInspect, DockerContainerSummary, DockerImageSummary } from "./docker.types.js";
 
@@ -21,7 +22,7 @@ export function inspectContainer(containerId: string): Promise<DockerContainerIn
 }
 
 export function pullImageByDigest(imageRef: string): Promise<void> {
-  return dockerRequestStream(`/images/create?fromImage=${encodeURIComponent(imageRef)}`);
+  return dockerRequestStream(`/images/create?fromImage=${encodeURIComponent(imageRef)}`, env.pullTimeoutMs);
 }
 
 export async function createContainer(

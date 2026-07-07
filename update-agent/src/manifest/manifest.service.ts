@@ -11,6 +11,17 @@ export type Manifest = {
 
 export const MANIFEST_SERVICE_KEYS = ["frontend", "backend", "minima-node"] as const;
 
+/**
+ * Appends ".sig" to the manifest URL's path, not the raw string — a plain
+ * `${manifestUrl}.sig` concatenation would corrupt a URL with a query string
+ * (e.g. `?token=...sig`) instead of producing a sibling path.
+ */
+function signatureUrl(): string {
+  const url = new URL(env.manifestUrl);
+  url.pathname += ".sig";
+  return url.toString();
+}
+
 function isManifest(value: unknown): value is Manifest {
   if (!value || typeof value !== "object") return false;
   const record = value as Record<string, unknown>;
@@ -31,10 +42,7 @@ export async function fetchVerifiedManifest(): Promise<Manifest> {
     throw new Error("MANIFEST_PUBLIC_KEY is not configured");
   }
 
-  const [manifestResponse, signatureResponse] = await Promise.all([
-    fetch(env.manifestUrl),
-    fetch(`${env.manifestUrl}.sig`)
-  ]);
+  const [manifestResponse, signatureResponse] = await Promise.all([fetch(env.manifestUrl), fetch(signatureUrl())]);
 
   if (!manifestResponse.ok) {
     throw new Error(`Failed to fetch manifest: HTTP ${manifestResponse.status}`);

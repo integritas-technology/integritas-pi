@@ -10,5 +10,6 @@ export const env = {
   minimaBackupDirInContainer: process.env.MINIMA_BACKUP_DIR_IN_CONTAINER ?? "/minima-backup",
   stateDirInContainer: process.env.STATE_DIR_IN_CONTAINER ?? "/state",
   healthCheckTimeoutMs: Number(process.env.HEALTH_CHECK_TIMEOUT_MS ?? 60000),
-  healthCheckIntervalMs: Number(process.env.HEALTH_CHECK_INTERVAL_MS ?? 2000)
+  healthCheckIntervalMs: Number(process.env.HEALTH_CHECK_INTERVAL_MS ?? 2000),
+  pullTimeoutMs: Number(process.env.PULL_TIMEOUT_MS ?? 300000)
 };

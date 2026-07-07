@@ -77,15 +77,14 @@ export async function updateService(serviceName: string, imageRef: string): Prom
         candidate = await createContainer(candidateName, finalBody);
         await startContainer(candidate.Id);
       } catch (error) {
+        console.error(`[update-agent] ${serviceName}: failed to bind port on updated container:`, error);
         const restoreBody = createBodyFromInspect(inspected, running.Image, true);
         const restored = await createContainer(originalName, restoreBody);
         await startContainer(restored.Id);
         return {
           service: serviceName,
           updated: false,
-          reason: `failed to bind port on updated container; restored previous container: ${
-            error instanceof Error ? error.message : String(error)
-          }`
+          reason: "failed to bind port on updated container; restored previous container — check update-agent's logs for details"
         };
       }
     } else {

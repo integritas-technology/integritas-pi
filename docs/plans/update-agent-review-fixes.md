@@ -1,6 +1,6 @@
 # Update Agent Review Fixes
 
-**Status:** In progress — all critical, high, and medium code items (#1–6, #8) fixed; #9–13 minor items remain. #7 moved to real-Pi testing (see below), not a code fix.
+**Status:** In progress — all critical, high, and medium code items (#1–6, #8) fixed, plus minor items #9–12; only #13 remains, which needs a product/ops decision before it can be implemented (see below). #7 moved to real-Pi testing (see below), not a code fix.
 **Created:** 2026-07-07
 **Goal:** Address the findings from the update-agent code review so the update flow actually works on real hardware and the safety guarantees (health checks, rollback) are real, not just documented.
 
@@ -59,10 +59,15 @@ Not a code fix — can only be checked on real hardware. Moved here so this doc'
 
 ## Minor
 
-- [ ] **9. Logging.** `/apply` replaces the running product silently. Log each service update start/result so `docker logs update-agent` tells the story after an incident.
-- [ ] **10. Pull timeout configurable.** 300s hardcoded in `dockerRequestStream` is optimistic for a Pi on slow broadband — make it an env var alongside the health-check timeouts.
-- [ ] **11. `.sig` URL building.** `${manifestUrl}.sig` breaks if the URL ever gains a query string — add a comment or build the URL properly.
-- [ ] **12. Error detail leakage.** Raw `error.message` (Docker API bodies, internal paths) goes to the browser. Admin-only audience, but prefer generic message + logged detail.
+- [x] **9. Logging.** Added `console.log`/`console.error` calls: `apply.job.ts` logs "apply started"/"apply finished"/"apply failed" for the overall run, `apply.service.ts` logs each service's update start (target image) and result (updated/not-updated + reason). `docker logs update-agent` now tells the full story of an update run after the fact. (`update-agent/src/update/apply.job.ts`, `update-agent/src/update/apply.service.ts`)
+- [x] **10. Pull timeout configurable.** Added `PULL_TIMEOUT_MS` env var (default 300000, matching the old hardcoded value) alongside the health-check timeouts; `pullImageByDigest` now passes `env.pullTimeoutMs` through to `dockerRequestStream` instead of relying on its hardcoded default. Added to `docker-compose.yml` (`UPDATE_PULL_TIMEOUT_MS`), `.env.example`, `README.md`. Verified live: pointed a real Docker-API call at a Unix socket that accepts connections but never responds, confirmed a `PULL_TIMEOUT_MS=2000` correctly aborted the pull at ~2s instead of the old 300s. (`update-agent/src/config/env.ts`, `update-agent/src/docker/docker.service.ts`, `docker-compose.yml`, `.env.example`, `README.md`)
+- [x] **11. `.sig` URL building.** Replaced `` `${manifestUrl}.sig` `` string concatenation with a `signatureUrl()` helper that parses `MANIFEST_URL` as a `URL` and appends `.sig` to the pathname specifically, leaving any query string in its correct place. Verified: `https://example.com/releases/manifest.json?token=abc123` now correctly produces `https://example.com/releases/manifest.json.sig?token=abc123` instead of the old broken `...json?token=abc123.sig`. (`update-agent/src/manifest/manifest.service.ts`)
+- [x] **12. Error detail leakage.** Replaced raw `error.message` in client-visible responses with generic messages, logging the real error server-side via `console.error` instead:
+  - `status.routes.ts`: `GET /status` failure now logs the real error and returns a generic "Failed to fetch update status".
+  - `apply.job.ts`: an unexpected top-level `applyUpdates()` failure now logs the real error and stores a generic "Update failed unexpectedly — check update-agent's logs for details" in job state.
+  - `service-update.ts`: the port-bind-failure restore path (the one place a per-service `reason` interpolated raw error text) now logs the real error and returns a generic reason pointing at the logs.
+  - Left untouched: all other `ServiceUpdateResult.reason` strings (in `service-update.ts` and `minima-update.ts`) — these were already hand-written, safe, human-readable strings, never raw Docker/system error text, so genericizing them further would only remove useful diagnostic signal from an admin-only UI for no security benefit.
+  (`update-agent/src/status/status.routes.ts`, `update-agent/src/update/apply.job.ts`, `update-agent/src/update/service-update.ts`)
 - [ ] **13. Installer vs. update-agent reconciliation.** Any later `docker compose up -d` (e.g. re-running the installer) recreates containers from the compose file and silently reverts digest-pinned updates. Decide the story (installer pins digests? update-agent is the only updater?) before field use — coordinate with part 6/7 of [update-service.md](./update-service.md).
 
 ---
