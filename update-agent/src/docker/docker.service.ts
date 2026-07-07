@@ -35,8 +35,17 @@ export async function createContainer(
  * Builds a /containers/create body from a running container's inspect output,
  * substituted with a new image ref. Only forwards the fields this stack's
  * compose services actually use — not a general-purpose inspect passthrough.
+ *
+ * Host port bindings are omitted by default: a candidate container is started
+ * alongside the still-running old one for health checking, and two containers
+ * can't bind the same host port. Pass includePortBindings once the old
+ * container has been stopped and the port is free.
  */
-export function createBodyFromInspect(inspected: DockerContainerInspect, newImageRef: string) {
+export function createBodyFromInspect(
+  inspected: DockerContainerInspect,
+  newImageRef: string,
+  includePortBindings = false
+) {
   const networkNames = Object.keys(inspected.NetworkSettings.Networks);
 
   return {
@@ -49,7 +58,7 @@ export function createBodyFromInspect(inspected: DockerContainerInspect, newImag
       GroupAdd: inspected.HostConfig.GroupAdd,
       RestartPolicy: inspected.HostConfig.RestartPolicy,
       ExtraHosts: inspected.HostConfig.ExtraHosts,
-      PortBindings: inspected.HostConfig.PortBindings
+      PortBindings: includePortBindings ? inspected.HostConfig.PortBindings : undefined
     },
     NetworkingConfig: {
       EndpointsConfig: Object.fromEntries(
