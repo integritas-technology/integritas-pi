@@ -1293,6 +1293,40 @@ code {
   font-weight: 700;
 }
 
+.automation-form > button,
+.automation-form .row-actions button,
+.automation-list .row-actions button {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  color: #ffffff;
+  font-weight: 800;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #020617, #1e293b);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    background 150ms ease;
+}
+
+.automation-form > button:hover:not(:disabled),
+.automation-form .row-actions button:hover:not(:disabled),
+.automation-list .row-actions button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
+}
+
+.automation-form > button:focus-visible,
+.automation-form .row-actions button:focus-visible,
+.automation-list .row-actions button:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 2px;
+}
+
 .check-row {
   grid-template-columns: auto 1fr;
   align-items: center;

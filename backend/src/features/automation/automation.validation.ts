@@ -1,0 +1,202 @@
+import { getAddressBookEntryById } from "../address-book/address-book.repository.js";
+import { getDataSource } from "../data-sources/dataSources.repository.js";
+import { parseGpioOutputConfig } from "../data-sources/dataSources.service.js";
+import { getIntegritasApiKey } from "../settings/secrets.service.js";
+import { getWalletStatus } from "../wallet/wallet.service.js";
+import { listAutomationBlocks, type AutomationBlockRecord, type AutomationBlockType } from "./automation.repository.js";
+
+export type AutomationValidationIssue = {
+  level: "error" | "warning";
+  code: string;
+  message: string;
+  blockId?: string;
+  blockType?: AutomationBlockType;
+};
+
+export type AutomationValidationResult = {
+  ok: boolean;
+  errors: AutomationValidationIssue[];
+  warnings: AutomationValidationIssue[];
+};
+
+type BlockConfig = {
+  sourceId?: string;
+  targetId?: string;
+  action?: string;
+  durationMs?: number;
+  source?: "trigger" | "data";
+  fieldPath?: string;
+  operator?: string;
+  value?: unknown;
+  condition?: { source?: "trigger" | "data" } | null;
+  recipientAddressBookId?: string;
+  tokenId?: string;
+  amount?: string;
+};
+
+export async function validateAutomationWorkflow(workflowId: string): Promise<AutomationValidationResult> {
+  const issues: AutomationValidationIssue[] = [];
+  const blocks = listAutomationBlocks(workflowId);
+  const mainBlocks = blocks.filter((block) => !block.parent_block_id);
+  const startBlock = mainBlocks[0];
+
+  if (mainBlocks.length === 0) {
+    addIssue(issues, "error", "workflow.no_blocks", "Workflow has no blocks.");
+  } else if (!startBlock.type.endsWith("_start")) {
+    addIssue(issues, "error", "workflow.missing_start", "The first workflow block must be a start block.", startBlock);
+  }
+
+  if (mainBlocks.slice(1).some((block) => block.type.endsWith("_start"))) {
+    addIssue(issues, "error", "workflow.multiple_starts", "Only the first workflow block can be a start block.");
+  }
+
+  if (startBlock && !startBlock.enabled) {
+    addIssue(issues, "error", "workflow.start_disabled", "The start block is disabled, so this workflow cannot run.", startBlock);
+  }
+
+  if (blocks.filter((block) => block.enabled && !block.type.endsWith("_start") && !block.parent_block_id).length === 0) {
+    addIssue(issues, "warning", "workflow.no_enabled_actions", "Workflow has no enabled action blocks after the start block.");
+  }
+
+  let hasData = false;
+  const startType = startBlock?.type;
+  const startConfig = startBlock ? parseConfig(startBlock) : {};
+
+  for (const block of mainBlocks) {
+    if (!block.enabled) continue;
+    const config = parseConfig(block);
+
+    validateBlockReference(block, config, issues);
+
+    if (block.type === "record_trigger_event") {
+      if (startType !== "gpio_event_start" && startType !== "webhook_event_start" && startType !== "mqtt_event_start") {
+        addIssue(issues, "error", "record_trigger_event.requires_event_start", "Record trigger event requires a GPIO, webhook, or MQTT event start block.", block);
+      }
+      if (!startConfig.sourceId) addIssue(issues, "error", "record_trigger_event.missing_source", "Record trigger event requires the start block to reference a device/source.", block);
+      hasData = true;
+    }
+
+    if (block.type === "fetch_data_source") {
+      hasData = true;
+    }
+
+    if (block.type === "if_payload_field_equals" && (config.source ?? "trigger") === "data" && !hasData) {
+      addIssue(issues, "error", "condition.data_before_data_block", "This condition reads Data, but no enabled record/fetch block runs before it.", block);
+    }
+
+    for (const attachedBlock of blocks.filter((item) => item.enabled && item.parent_block_id === block.id)) {
+      const attachedConfig = parseConfig(attachedBlock);
+      if (attachedBlock.type !== "stamp_integritas") {
+        addIssue(issues, "error", "attached.unsupported", "Only Integritas stamp blocks can be attached to another block.", attachedBlock);
+        continue;
+      }
+      if (block.type !== "record_trigger_event" && block.type !== "fetch_data_source") {
+        addIssue(issues, "error", "stamp_integritas.invalid_parent", "Integritas stamps must be attached to a record or fetch block.", attachedBlock);
+      }
+      if (!hasData) {
+        addIssue(issues, "error", "stamp_integritas.no_hash", "Integritas stamping requires a prior record/fetch block that creates a hash.", attachedBlock);
+      }
+      if (attachedConfig.condition && (attachedConfig.condition.source ?? "data") === "data" && !hasData) {
+        addIssue(issues, "error", "stamp_integritas.condition_data_before_data_block", "Stamp condition reads Data, but no data is available before this stamp.", attachedBlock);
+      }
+      if (!getIntegritasApiKey()) {
+        addIssue(issues, "warning", "stamp_integritas.no_api_key", "Integritas API key is not configured; this stamp block will fail until a key is saved.", attachedBlock);
+      }
+    }
+  }
+
+  await validateTransactionBalances(blocks.filter((block) => block.enabled), issues);
+
+  const errors = issues.filter((issue) => issue.level === "error");
+  const warnings = issues.filter((issue) => issue.level === "warning");
+  return { ok: errors.length === 0, errors, warnings };
+}
+
+function validateBlockReference(block: AutomationBlockRecord, config: BlockConfig, issues: AutomationValidationIssue[]) {
+  if (block.type === "gpio_event_start" || block.type === "webhook_event_start" || block.type === "mqtt_event_start" || block.type === "fetch_data_source") {
+    const source = config.sourceId ? getDataSource(config.sourceId) : undefined;
+    if (!source) {
+      addIssue(issues, "error", `${block.type}.missing_source`, "Block references a missing device/source.", block);
+      return;
+    }
+    if (block.type === "gpio_event_start" && source.type !== "gpio-input") addIssue(issues, "error", "gpio_event_start.invalid_source", "GPIO start requires a GPIO input source.", block);
+    if (block.type === "webhook_event_start" && source.type !== "webhook") addIssue(issues, "error", "webhook_event_start.invalid_source", "Webhook start requires a webhook source.", block);
+    if (block.type === "mqtt_event_start" && source.type !== "mqtt") addIssue(issues, "error", "mqtt_event_start.invalid_source", "MQTT start requires an MQTT source.", block);
+    if (block.type === "fetch_data_source" && (source.type === "gpio-input" || source.type === "gpio-output" || source.type === "webhook" || source.type === "mqtt")) addIssue(issues, "error", "fetch_data_source.invalid_source", "Fetch block requires an HTTP JSON source.", block);
+  }
+
+  if (block.type === "control_output") {
+    const target = config.targetId ? getDataSource(config.targetId) : undefined;
+    if (!target || target.type !== "gpio-output") {
+      addIssue(issues, "error", "control_output.missing_target", "Control output references a missing or non-output device.", block);
+      return;
+    }
+    const targetConfig = parseGpioOutputConfig(JSON.parse(target.config) as unknown);
+    if (targetConfig.profile !== "led") addIssue(issues, "error", "control_output.unsupported_profile", "Only LED output targets are supported.", block);
+    addIssue(issues, "warning", "control_output.hardware", "Control output drives GPIO hardware. Verify wiring and test pulse before enabling this workflow.", block);
+  }
+
+  if (block.type === "send_transaction") {
+    const recipient = config.recipientAddressBookId ? getAddressBookEntryById(config.recipientAddressBookId) : null;
+    if (!recipient) addIssue(issues, "error", "send_transaction.missing_recipient", "Send transaction references a missing address book recipient.", block);
+    if (String(config.tokenId ?? "0x00").toLowerCase() !== "0x00") addIssue(issues, "error", "send_transaction.unsupported_token", "Send transaction currently supports only native MINIMA tokenid 0x00.", block);
+    if (!isPositiveDecimal(String(config.amount ?? ""))) addIssue(issues, "error", "send_transaction.invalid_amount", "Send transaction requires a positive amount.", block);
+    addIssue(issues, "warning", "send_transaction.moves_funds", "This block sends wallet funds automatically when the workflow runs.", block);
+  }
+}
+
+async function validateTransactionBalances(blocks: AutomationBlockRecord[], issues: AutomationValidationIssue[]) {
+  const transactionBlocks = blocks.filter((block) => block.type === "send_transaction");
+  if (transactionBlocks.length === 0) return;
+
+  try {
+    const wallet = await getWalletStatus();
+    const nativeToken = wallet.tokens.find((token) => token.isNative || token.tokenId.toLowerCase() === "0x00");
+    if (!nativeToken) {
+      for (const block of transactionBlocks) addIssue(issues, "error", "send_transaction.no_native_balance", "Wallet does not report a native MINIMA balance.", block);
+      return;
+    }
+    for (const block of transactionBlocks) {
+      const amount = String(parseConfig(block).amount ?? "").trim();
+      if (isPositiveDecimal(amount) && compareDecimalStrings(amount, nativeToken.sendable) > 0) {
+        addIssue(issues, "error", "send_transaction.insufficient_balance", `Amount exceeds available balance (${nativeToken.sendable} MINIMA).`, block);
+      }
+    }
+  } catch (error) {
+    for (const block of transactionBlocks) {
+      addIssue(issues, "error", "send_transaction.wallet_unavailable", `Wallet balance could not be checked: ${error instanceof Error ? error.message : "unknown error"}.`, block);
+    }
+  }
+}
+
+function parseConfig(block: AutomationBlockRecord) {
+  return JSON.parse(block.config_json) as BlockConfig;
+}
+
+function addIssue(issues: AutomationValidationIssue[], level: AutomationValidationIssue["level"], code: string, message: string, block?: AutomationBlockRecord) {
+  issues.push({ level, code, message, blockId: block?.id, blockType: block?.type });
+}
+
+function isPositiveDecimal(value: string) {
+  const trimmed = value.trim();
+  if (!/^\d+(\.\d+)?$/.test(trimmed)) return false;
+  return compareDecimalStrings(trimmed, "0") > 0;
+}
+
+function compareDecimalStrings(a: string, b: string) {
+  const normalize = (value: string) => {
+    const trimmed = value.trim();
+    const [intPart = "0", fracPart = ""] = trimmed.split(".");
+    return {
+      int: intPart.replace(/^0+(?=\d)/, "") || "0",
+      frac: fracPart
+    };
+  };
+  const aNorm = normalize(a);
+  const bNorm = normalize(b);
+  const fracLen = Math.max(aNorm.frac.length, bNorm.frac.length);
+  const aCombined = `${aNorm.int}${aNorm.frac.padEnd(fracLen, "0")}`;
+  const bCombined = `${bNorm.int}${bNorm.frac.padEnd(fracLen, "0")}`;
+  if (aCombined === bCombined) return 0;
+  return BigInt(aCombined) > BigInt(bCombined) ? 1 : -1;
+}

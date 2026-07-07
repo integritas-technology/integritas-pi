@@ -13,6 +13,7 @@ docs/
 
 | Plan | Status |
 |---|---|
+| [plans/block-automation-workflows.md](./plans/block-automation-workflows.md) | In progress |
 | [plans/security-checklist.md](./plans/security-checklist.md) | In progress |
 
 ---
@@ -22,3 +23,11 @@ docs/
 | Doc | Purpose |
 |---|---|
 | [qa/gaps.md](./qa/gaps.md) | Open QA, security, and test gaps (all areas) |
+
+---
+
+## Hardware
+
+| Doc | Purpose |
+|---|---|
+| [gpio-device-settings.md](./gpio-device-settings.md) | Tested and suggested GPIO input/output settings by device type |

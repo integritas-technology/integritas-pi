@@ -7,7 +7,7 @@ export const nav: NavItem[] = [
   { id: "node", label: "Minima Core", icon: RadioTower },
   { id: "wallet", label: "Wallet", icon: Wallet },
   { id: "integritas", label: "Integritas", icon: ShieldCheck },
-  { id: "data", label: "Data Sources", icon: Database },
+  { id: "data", label: "Devices", icon: Database },
   { id: "automation", label: "Automation", icon: BellRing },
   { id: "diagnostics", label: "Diagnostics", icon: Activity }
 ];

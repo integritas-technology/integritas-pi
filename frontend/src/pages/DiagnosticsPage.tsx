@@ -3,11 +3,14 @@ import { useSearchParams } from 'react-router-dom';
 import { ListPagerFilterBar } from '../components/ListPagerFilterBar';
 import { Page } from '../components/Page';
 import { useToast } from '../components/ToastProvider';
-import { integritasErrorToast } from '../features/integritas/integritasErrors';
+import { listAutomationRuns } from '../features/automation/automationApi';
+import { AutomationRunsTable } from '../features/automation/AutomationRunsTable';
+import type { AutomationRun } from '../features/automation/automationTypes';
 import { listDataReads } from '../features/data-reads/dataReadsApi';
 import { DataReadsHistoryTable } from '../features/data-reads/DataReadsHistoryTable';
 import type { DataSourceRead } from '../features/data-reads/dataReadTypes';
 import { deleteSelected, downloadSelected, getHistory, pollPendingRecords, verifyRecord } from '../features/integritas/integritasApi';
+import { integritasErrorToast } from '../features/integritas/integritasErrors';
 import { IntegritasHistoryTable } from '../features/integritas/IntegritasHistoryTable';
 import type { IntegritasHistoryPage, IntegritasProofRecord } from '../features/integritas/integritasTypes';
 import { useIntegritasHistoryAutoRefresh } from '../features/integritas/useIntegritasHistoryAutoRefresh';
@@ -51,6 +54,7 @@ export function DiagnosticsPage() {
   );
   const [proofsPage, setProofsPage] = useState(emptyProofsPage);
   const [readsPage, setReadsPage] = useState(emptyPaginatedPage<DataSourceRead>);
+  const [workflowRuns, setWorkflowRuns] = useState<AutomationRun[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -109,9 +113,15 @@ export function DiagnosticsPage() {
           return;
         }
 
-        const response = await listDataReads(listQuery);
-        if (cancelled) return;
-        applyPaginatedPage(response, listQuery.page, setReadsPage, clampPage);
+        if (activeTab === 'reads') {
+          const response = await listDataReads(listQuery);
+          if (cancelled) return;
+          applyPaginatedPage(response, listQuery.page, setReadsPage, clampPage);
+          return;
+        }
+
+        const response = await listAutomationRuns(100);
+        if (!cancelled) setWorkflowRuns(response.items);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Failed to load diagnostics history.');
@@ -172,6 +182,18 @@ export function DiagnosticsPage() {
     }, { refresh: false });
   }
 
+  async function handleRefreshWorkflowRuns() {
+    setBusy(true);
+    try {
+      const response = await listAutomationRuns(100);
+      setWorkflowRuns(response.items);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to refresh workflow logs.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const activePager = activeTab === 'proofs' ? proofsPage : readsPage;
   const statusOptions = activeTab === 'proofs' ? PROOF_STATUS_OPTIONS : READ_STATUS_OPTIONS;
   const listFiltered = Boolean(listQuery.status || listQuery.q);
@@ -201,21 +223,32 @@ export function DiagnosticsPage() {
         >
           Read history
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'workflow-runs'}
+          className={activeTab === 'workflow-runs' ? 'active' : ''}
+          onClick={() => selectTab('workflow-runs')}
+        >
+          Workflow logs
+        </button>
       </div>
 
-      <ListPagerFilterBar
-        page={listQuery.page}
-        pageSize={listQuery.pageSize}
-        total={activePager.total}
-        totalPages={activePager.totalPages}
-        status={listQuery.status}
-        q={listQuery.q}
-        statusOptions={statusOptions}
-        onPageChange={(page) => updateListQuery({ page })}
-        onPageSizeChange={(pageSize) => updateListQuery({ pageSize })}
-        onStatusChange={(status) => updateListQuery({ status })}
-        onQueryChange={(q) => updateListQuery({ q })}
-      />
+      {activeTab !== 'workflow-runs' && (
+        <ListPagerFilterBar
+          page={listQuery.page}
+          pageSize={listQuery.pageSize}
+          total={activePager.total}
+          totalPages={activePager.totalPages}
+          status={listQuery.status}
+          q={listQuery.q}
+          statusOptions={statusOptions}
+          onPageChange={(page) => updateListQuery({ page })}
+          onPageSizeChange={(pageSize) => updateListQuery({ pageSize })}
+          onStatusChange={(status) => updateListQuery({ status })}
+          onQueryChange={(q) => updateListQuery({ q })}
+        />
+      )}
 
       {activeTab === 'proofs' ? (
         <IntegritasHistoryTable
@@ -235,8 +268,21 @@ export function DiagnosticsPage() {
           })}
           onDownloadSelected={() => run(() => downloadSelected(selectedIds), { refresh: false })}
         />
-      ) : (
+      ) : activeTab === 'reads' ? (
         <DataReadsHistoryTable items={readsPage.items} filtered={listFiltered} />
+      ) : (
+        <section className="card">
+          <div className="status-row">
+            <div>
+              <strong>Workflow logs</strong>
+              <p className="muted">Recent automated and manual workflow runs across all workflows.</p>
+            </div>
+            <button type="button" disabled={busy} onClick={() => void handleRefreshWorkflowRuns()}>
+              Refresh
+            </button>
+          </div>
+          <AutomationRunsTable runs={workflowRuns} />
+        </section>
       )}
 
       {error && <p className="error-text">{error}</p>}

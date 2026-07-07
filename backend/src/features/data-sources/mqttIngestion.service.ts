@@ -1,5 +1,5 @@
 import mqtt, { type MqttClient } from "mqtt";
-import { listAutomationWorkflows, type AutomationWorkflowRecord } from "../automation/automation.repository.js";
+import { listEnabledEventWorkflows, type AutomationWorkflowRecord } from "../automation/automation.repository.js";
 import { recordPushAutomationError, recordPushAutomationPayload } from "../automation/automation.service.js";
 import { listDataSources, updateDataSourceReadResult, type DataSourceRecord } from "./dataSources.repository.js";
 import { parseMqttConfig, processMqttPayload } from "./dataSources.service.js";
@@ -24,8 +24,8 @@ export function stopMqttIngestion() {
 
 export function syncMqttDataSources() {
   const mqttSources = new Map(listDataSources().filter((source) => source.type === "mqtt").map((source) => [source.id, source]));
-  const mqttWorkflows = listAutomationWorkflows().filter((workflow) => workflow.enabled && mqttSources.has(workflow.data_source_id));
-  const activeIds = new Set(mqttWorkflows.map((workflow) => workflow.data_source_id));
+  const mqttWorkflows = new Map([...mqttSources.keys()].map((sourceId) => [sourceId, listEnabledEventWorkflows("mqtt_event_start", sourceId)[0]]).filter((entry): entry is [string, AutomationWorkflowRecord] => Boolean(entry[1])));
+  const activeIds = new Set(mqttWorkflows.keys());
 
   for (const [sourceId, subscription] of subscriptions.entries()) {
     if (!activeIds.has(sourceId)) {
@@ -34,11 +34,11 @@ export function syncMqttDataSources() {
     }
   }
 
-  for (const workflow of mqttWorkflows) {
-    const source = mqttSources.get(workflow.data_source_id)!;
+  for (const [sourceId, workflow] of mqttWorkflows.entries()) {
+    const source = mqttSources.get(sourceId)!;
     try {
       const config = parseMqttConfig(JSON.parse(source.config) as unknown);
-      const key = `${workflow.id}|${workflow.stamp_with_integritas}|${config.brokerUrl}|${config.topic}`;
+      const key = `${workflow.id}|${workflow.updated_at}|${config.brokerUrl}|${config.topic}`;
       const existing = subscriptions.get(source.id);
       if (existing?.key === key) continue;
 
@@ -64,6 +64,7 @@ function connectMqttSource(source: DataSourceRecord, workflow: AutomationWorkflo
 
   client.on("message", (_topic, payload) => {
     handleMqttMessage(source, workflow, config, payload).catch((error: Error) => {
+      if ("code" in error && error.code === "WORKFLOW_ALREADY_RUNNING") return;
       recordPushAutomationError({ workflow, dataSource: source, sourceUrl: `${config.brokerUrl} ${config.topic}`, triggerType: "mqtt", error: error.message });
     });
   });

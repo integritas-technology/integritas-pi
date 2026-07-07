@@ -91,6 +91,23 @@ Status: HTTPS enabled by default on Docker deploy; self-signed trust limitations
 
 > **Megammr resync interaction:** The Minima `restore` command used by `/api/wallet/import` triggers a node restart, which may overlap with active or auto-triggered Megammr resyncs. If a malicious or misconfigured Megammr host is set at the time of a resync, the resulting chain state could force the node to re-derive keys in an unexpected state. Operators should verify the Megammr host URL before importing a wallet and before enabling `MINIMA_AUTO_RESYNC`. This is a known prototype risk — investigate before production use.
 
+### Automated Wallet Transactions
+
+Risk: Automation workflows can send wallet transactions without a human clicking the Wallet page send button at execution time.
+
+Impact: A misconfigured or malicious workflow could spend native MINIMA when its trigger fires. Event-driven triggers such as GPIO, webhooks, or MQTT can be caused by external input.
+
+Current Controls:
+
+- Creating/editing transaction blocks requires admin role through the protected automation API.
+- V1 transaction blocks can only send native MINIMA (`tokenid:0x00`); custom token IDs are rejected.
+- Recipients must be selected from the saved address book and are resolved by address book entry id at execution time.
+- The backend validates the amount and checks current sendable native MINIMA balance before calling Minima `send`.
+- The block uses the existing narrow wallet send service, not a generic Minima command proxy.
+- Sends are recorded in wallet send history and audit events with workflow/recipient/amount metadata.
+
+Status: Accepted prototype risk. Use only on trusted local workflows and treat enabled event-triggered transaction workflows as funds-moving automation.
+
 ### Wallet debug clears (admin, non-production)
 
 Risk: `POST /api/wallet/debug/clear-wallet-accounts` and `POST /api/wallet/debug/clear-wallet-history` delete labeled account mappings and SQLite send history. Misuse on a shared dev stack could remove operator labels or local audit context (not on-chain funds).
@@ -292,6 +309,8 @@ Status: Accepted prototype risk.
 
 Risk: Webhook data sources expose generated public receive URLs under `/api/data-source-webhooks/:token` so external systems can POST JSON without a browser session.
 
+TLS note: The default Docker deploy serves webhook URLs through the same self-signed HTTPS endpoint as the UI, for example `https://<pi-ip>:8080/api/data-source-webhooks/:token`. Webhook senders must use `https://` on this port. Plain `http://` requests to the HTTPS port fail with nginx's "plain HTTP request was sent to HTTPS port" error. Because the certificate is self-signed, some webhook senders will reject it unless they explicitly trust the Pi certificate or allow self-signed certificates for local prototype testing.
+
 Impact: Anyone with a webhook URL can submit JSON to that source. If an automation workflow is enabled for the source, submitted JSON can update its latest preview/hash and create read-history rows.
 
 Current Controls:
@@ -301,11 +320,13 @@ Current Controls:
 - Webhook sources accept JSON only through the existing Express JSON parser.
 - Admin authentication is still required to create, edit, list, or delete webhook sources.
 - Incoming webhook payloads are recorded only when the source has an enabled automation workflow; otherwise the endpoint returns a disabled-ingestion error.
+- HTTPS encrypts webhook payload transport by default, but self-signed certificate trust must be handled by the sending system.
 
 Plan:
 
 - Add optional webhook secret headers/signatures and rate limiting before production use.
 - Add optional event retention limits if webhook volume grows.
+- Add custom/trusted certificate support or documented reverse-proxy TLS for senders that cannot accept self-signed certificates.
 
 Status: Accepted prototype risk.
 
@@ -352,6 +373,25 @@ Plan:
 - Keep output/control actions separate and high-risk if added later.
 
 Status: Accepted prototype risk. Pi GPIO pins are 3.3V only; use proper level shifting, resistors, and isolation for external or industrial signals.
+
+### GPIO Output Targets
+
+Risk: GPIO output targets let automation workflows drive Raspberry Pi GPIO pins through `gpioset` when `/dev/gpiochip0` is mounted into the backend container.
+
+Impact: Unsafe wiring or incorrect profiles can damage the Pi or connected components. GPIO pins are 3.3V logic and cannot safely drive motors, relays, high-current loads, or 5V signals directly.
+
+Current Controls:
+
+- GPIO output targets require admin role to create/edit/delete.
+- V1 exposes only the LED output profile and pulse action.
+- Output actions are allowlisted workflow blocks, not arbitrary shell commands.
+- GPIO output config uses BCM pin numbering and validates chip/pin shape.
+- The backend rejects GPIO output targets that reuse a configured GPIO input/output pin.
+- GPIO device access remains opt-in through `ENABLE_GPIO=true` and `/dev/gpiochip0` mounting.
+
+Required wiring baseline: use an LED with a 220-330 ohm resistor in series. Do not connect GPIO pins directly to 5V, motors, relays, mains voltage, or unknown modules.
+
+Status: Accepted prototype risk for local learning hardware only.
 
 ### Integritas Request Proxy
 

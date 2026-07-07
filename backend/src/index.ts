@@ -7,6 +7,7 @@ import { startIntegritasProofPoller, stopIntegritasProofPoller } from "./feature
 import { startMinimaHealthPoller, stopMinimaHealthPoller } from "./features/minima/minima-poll.service.js";
 import { startMqttIngestion, stopMqttIngestion } from "./features/data-sources/mqttIngestion.service.js";
 import { startGpioIngestion, stopGpioIngestion } from "./features/data-sources/gpioIngestion.service.js";
+import { stopGpioOutputHolders } from "./features/data-sources/gpioOutput.service.js";
 import { ensureDeviceId } from "./features/status/device.service.js";
 
 if (env.appSecret === "dev-change-me") {
@@ -37,6 +38,7 @@ function shutdown() {
   stopMinimaHealthPoller();
   stopMqttIngestion();
   stopGpioIngestion();
+  stopGpioOutputHolders();
   db.close();
   process.exit(0);
 }

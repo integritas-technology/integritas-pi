@@ -1,4 +1,4 @@
-import { Pencil, Play, Trash2 } from "lucide-react";
+import { Pencil, Play, Trash2, Zap } from "lucide-react";
 import { JsonPreview } from "../../components/JsonPreview";
 import type { DataSource, DataSourceHealthStatus } from "./dataSourceTypes";
 
@@ -7,6 +7,7 @@ export function DataSourcesList({
   healthStatuses,
   busy,
   onRead,
+  onTestOutput,
   onEdit,
   onDelete,
 }: {
@@ -14,21 +15,23 @@ export function DataSourcesList({
   healthStatuses: Record<string, DataSourceHealthStatus>;
   busy: boolean;
   onRead: (source: DataSource) => void;
+  onTestOutput: (source: DataSource) => void;
   onEdit: (source: DataSource) => void;
   onDelete: (source: DataSource) => void;
 }) {
   return (
     <section className="card data-source-list">
       <div>
-        <strong>Added data sources</strong>
-        <p className="muted">JSON API sources saved in SQLite.</p>
+        <strong>Configured devices</strong>
+        <p className="muted">Input sources and future output targets saved in SQLite.</p>
       </div>
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
               <th>Name</th>
-              <th>Type</th>
+            <th>Direction</th>
+            <th>Type</th>
               <th>Endpoint</th>
               <th>Health</th>
               <th>Last hash</th>
@@ -43,9 +46,10 @@ export function DataSourcesList({
                   <strong>{source.name}</strong>
                   <p className="muted">{source.description}</p>
                 </td>
+                <td>{source.type === "json-api" || source.type === "internal-json-api" || source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" ? "Input" : "Output"}</td>
                 <td>{source.type}</td>
                 <td>
-                  <code>{source.type === "webhook" ? webhookUrl(source) : source.type === "mqtt" ? mqttEndpoint(source) : source.type === "gpio-input" ? gpioEndpoint(source) : source.config.url}</code>
+                  <code>{source.type === "webhook" ? webhookUrl(source) : source.type === "mqtt" ? mqttEndpoint(source) : source.type === "gpio-input" ? gpioEndpoint(source) : source.type === "gpio-output" ? gpioOutputEndpoint(source) : source.config.url}</code>
                 </td>
                 <td>
                   <HealthCell source={source} status={healthStatuses[source.id]} />
@@ -71,18 +75,30 @@ export function DataSourcesList({
                     <button
                       className="icon-action-button"
                       type="button"
-                      disabled={busy || source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input"}
+                      disabled={busy || source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output"}
                       title="Trigger manually"
                       aria-label={`Trigger ${source.name} manually`}
                       onClick={() => onRead(source)}
                     >
                       <Play size={16} />
                     </button>
+                    {source.type === "gpio-output" && (
+                      <button
+                        className="icon-action-button"
+                        type="button"
+                        disabled={busy}
+                        title="Test pulse"
+                        aria-label={`Test pulse ${source.name}`}
+                        onClick={() => onTestOutput(source)}
+                      >
+                        <Zap size={16} />
+                      </button>
+                    )}
                     <button
                       className="icon-action-button"
                       type="button"
                       disabled={busy}
-                      title="Edit source"
+                      title="Edit device"
                       aria-label={`Edit ${source.name}`}
                       onClick={() => onEdit(source)}
                     >
@@ -106,7 +122,7 @@ export function DataSourcesList({
         </table>
       </div>
       {items.length === 0 && (
-        <p className="muted">No data sources added yet.</p>
+        <p className="muted">No devices added yet.</p>
       )}
     </section>
   );
@@ -124,8 +140,12 @@ function gpioEndpoint(source: DataSource) {
   return `${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"} ${source.config.edge ?? "both"}`;
 }
 
+function gpioOutputEndpoint(source: DataSource) {
+  return `${source.config.profile ?? "led"} ${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"} active:${source.config.activeState ?? "high"}`;
+}
+
 function HealthCell({ source, status }: { source: DataSource; status?: DataSourceHealthStatus }) {
-  if (source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input") return <span className="muted">Automation controlled</span>;
+  if (source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output") return <span className="muted">Automation controlled</span>;
   if (!source.config.healthStatusUrl) return <span className="muted">Not configured</span>;
   if (!status) return <span className="health-status"><span className="health-dot pending" />Checking</span>;
 

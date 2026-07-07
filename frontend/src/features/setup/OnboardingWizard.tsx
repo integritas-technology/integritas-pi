@@ -123,7 +123,7 @@ function WelcomeStep() {
           <ShieldCheck size={22} />
           <h3>Run at the edge</h3>
           <p>
-            Poll data sources, track stamp history, and keep services healthy
+            Poll input sources, track stamp history, and keep services healthy
             without leaving your Pi.
           </p>
         </article>

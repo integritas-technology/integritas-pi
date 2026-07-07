@@ -6,6 +6,55 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Block automation workflow implementation plan for replacing coarse automation rules with small composable start/action/logic blocks.
+- Block automation development plan now documents the remaining major workspace improvements and recommended implementation order.
+- Automation backend now stores workflows as ordered blocks, resets the disposable legacy automation schema, records trigger metadata on data reads, and executes schedule/manual/GPIO/webhook/MQTT workflows through the new block executor while preserving the existing UI/API compatibility surface.
+- GPIO and MQTT event workflows no longer create failed read-history rows for ignored overlapping events while the same workflow is still running, and the compatibility UI no longer shows start blocks as duplicate collect rules.
+- Automation workspace now displays real workflow blocks and can append fetch, wait, and Integritas stamp blocks from the UI.
+- Automation blocks can now be updated and reordered from the workspace, including changing fetch targets, wait durations, and action-block enabled state.
+- Workflow creation is now block-first: operators choose a start block (manual, schedule, GPIO, webhook, or MQTT) and an optional initial record/fetch action instead of creating workflows from a single data source.
+- Workflow run history now records each workflow execution and per-block status/timing/error details, visible in the workflow workspace and in Diagnostics -> Workflow logs.
+- Devices now support GPIO Output targets with an LED profile, and Automation supports a generic Control output block that can pulse those LED targets from workflows.
+- GPIO Output devices can now be test-pulsed directly from the Devices page before wiring them into an automation workflow.
+- Workflow run details now load the stored data-read preview for fetch/record blocks, making it clear which JSON a data condition evaluated.
+- Automation workflows can now include a Send transaction block that sends native MINIMA (`0x00`) to an address book recipient with a fixed operator-defined amount.
+- GPIO device settings guide documenting tested GPIO17 button input and GPIO18 LED output setups plus suggested untested device profiles.
+- Automation workflows now have a validation endpoint and workspace validation panel that flags missing devices, invalid block order/data dependencies, hardware-output warnings, Integritas key warnings, and wallet transaction balance/configuration issues before manual runs.
+- Workflow block-run details now link directly to matching Diagnostics read/proof history filters when a block output contains a read id or Integritas proof id.
+- Automation workflows can now be searched, filtered by status, duplicated, archived, and restored from the Automation workspace.
+
+### Changed
+
+- Data Sources UI is now presented as Devices, with template cards split into Input sources and Output targets ahead of GPIO output support.
+- Integritas automation stamping is now attached as a side block on record/fetch data blocks, so stamping no longer has to be the final linear workflow block or block later actions.
+- Attached Integritas stamp blocks now show clearer status, last-stamped timing, enable/disable controls, and side-block labeling in workflow run details.
+- Automation workflows can now be manually tested with an editable JSON trigger payload from the workflow workspace.
+- Automation workflows now support an If payload field equals block that continues when a trigger payload field matches a JSON value and stops the remaining workflow when it does not.
+- Attached Integritas stamp blocks can now have an optional field-equals condition against the recorded/fetched data, allowing workflows to skip stamping unless data matches.
+- Field-equals conditions now explicitly choose whether they read from the workflow trigger event or the latest recorded/fetched data.
+- Event-start workflows can now add a Record trigger event block later from the workflow workspace when the workflow was created without one.
+- Workflow workspace Add block controls are now grouped into collapsible cards with titles and descriptions for each block type.
+- Field conditions now support operators: equals, not equals, greater/less than, greater/less than or equal to, exists, and does not exist. Existing workflows using the old equals-only condition config should be recreated.
+- Workflow workspace now clarifies that edits are saved per block, and Fetch data source edits use an explicit Save fetch source button.
+- Workflow block editing now shows per-block unsaved/saved feedback, disables unchanged save buttons, and labels immediate actions such as move/remove/enable as applying now.
+- Workflow run details now separate the trigger payload from the fetched/recorded data preview so manual test runs are easier to interpret.
+- Automation create/save buttons now use the same styled primary action treatment as the rest of the workspace.
+- Manual workflow runs are now blocked when workflow validation reports errors; warnings remain visible for operator review.
+- Archived automation workflows are excluded from automatic/event execution and cannot be manually run until restored.
+
+### Fixed
+
+- GPIO Output LED pulses now explicitly return the line to the inactive state after pulsing so LEDs do not remain stuck on after a workflow run.
+- Automation Run now is available for all workflow start types and records a synthetic manual test trigger for event workflows instead of being limited to scheduled workflows.
+- Backend shutdown now stops GPIO Output holder processes so LED output lines are released cleanly when the container stops.
+- Conditional Integritas stamp blocks now log as skipped when their condition is not met instead of appearing as successful stamps, and skipped blocks are not counted as successful blocks in run summaries.
+
+### Security
+
+- Automated wallet transaction blocks are restricted to address book recipients and native MINIMA (`0x00`) only, validate sendable balance server-side, and record wallet history plus audit events.
+
 ## [0.12.0] - 2026-07-02
 
 ### Changed
