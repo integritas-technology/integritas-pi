@@ -1,10 +1,10 @@
 # Update Service Plan
 
-**Status:** Not started
+**Status:** In progress — parts 1–5 and 7 implemented; part 6 (VPS deploy + GitHub secrets) and the real-Pi end-to-end test remain. Code review findings tracked in [update-agent-review-fixes.md](./update-agent-review-fixes.md) must be addressed before the end-to-end test.
 **Created:** 2026-07-06
 **Goal:** V1 manual "Update Now" flow for `frontend`, `backend`, and a pinned `minima-node` digest, driven by a signed manifest built in CI and applied by a new `update-agent` container.
 
-**Related:** [security-checklist.md](./security-checklist.md)
+**Related:** [security-checklist.md](./security-checklist.md), [update-agent-review-fixes.md](./update-agent-review-fixes.md)
 
 ---
 
