@@ -1,4 +1,5 @@
-import { cp, rm } from "node:fs/promises";
+import { cp, mkdir, readdir, rm } from "node:fs/promises";
+import path from "node:path";
 import { env } from "../config/env.js";
 import {
   createBodyFromInspect,
@@ -14,7 +15,6 @@ import {
 import type { ServiceUpdateResult } from "./update.types.js";
 
 const SERVICE_NAME = "minima";
-const BACKUP_DIR = `${env.minimaDataDirInContainer}.update-backup`;
 
 async function isMinimaHealthy(): Promise<boolean> {
   try {
@@ -35,10 +35,21 @@ async function waitForMinimaHealthy(timeoutMs: number, intervalMs: number): Prom
 }
 
 /**
+ * Removes only the contents of a directory, leaving the directory itself
+ * (and, importantly, the bind mount it may be the root of) intact.
+ */
+async function clearDirContents(dir: string): Promise<void> {
+  const entries = await readdir(dir).catch(() => []);
+  await Promise.all(entries.map((entry) => rm(path.join(dir, entry), { recursive: true, force: true })));
+}
+
+/**
  * Updates the minima-node container to a manually-approved image digest.
- * Unlike stateless services, this backs up the data directory first and
- * restores it if the new container fails its health check, since Minima
- * cannot run two instances against the same data directory at once.
+ * Unlike stateless services, Minima cannot run two instances against the
+ * same data directory at once, so this stops the old container first, backs
+ * up the (now quiescent) data directory to a host-mounted backup path, then
+ * swaps in the new container — restoring the backup and restarting the old
+ * image if the new one fails its health check.
  */
 export async function updateMinimaNode(imageRef: string): Promise<ServiceUpdateResult> {
   const running = await getComposeServiceContainer(SERVICE_NAME);
@@ -53,12 +64,14 @@ export async function updateMinimaNode(imageRef: string): Promise<ServiceUpdateR
   const inspected = await inspectContainer(running.Id);
   await pullImageByDigest(imageRef);
 
-  await rm(BACKUP_DIR, { recursive: true, force: true });
-  await cp(env.minimaDataDirInContainer, BACKUP_DIR, { recursive: true });
-
   const originalName = inspected.Name.replace(/^\//, "");
+
   await stopContainer(running.Id, 30);
   await removeContainer(running.Id);
+
+  await mkdir(env.minimaBackupDirInContainer, { recursive: true });
+  await clearDirContents(env.minimaBackupDirInContainer);
+  await cp(env.minimaDataDirInContainer, env.minimaBackupDirInContainer, { recursive: true });
 
   const createBody = createBodyFromInspect(inspected, imageRef);
 
@@ -74,7 +87,7 @@ export async function updateMinimaNode(imageRef: string): Promise<ServiceUpdateR
       return { service: SERVICE_NAME, updated: false, reason: "new container failed health check; data restored and old image restarted" };
     }
 
-    await rm(BACKUP_DIR, { recursive: true, force: true });
+    await clearDirContents(env.minimaBackupDirInContainer);
     return { service: SERVICE_NAME, updated: true, reason: "updated and healthy" };
   } catch (error) {
     await restoreBackupAndRestartOld(inspected, running.Image, originalName);
@@ -87,9 +100,9 @@ async function restoreBackupAndRestartOld(
   oldImageRef: string,
   originalName: string
 ) {
-  await rm(env.minimaDataDirInContainer, { recursive: true, force: true });
-  await cp(BACKUP_DIR, env.minimaDataDirInContainer, { recursive: true });
-  await rm(BACKUP_DIR, { recursive: true, force: true });
+  await clearDirContents(env.minimaDataDirInContainer);
+  await cp(env.minimaBackupDirInContainer, env.minimaDataDirInContainer, { recursive: true });
+  await clearDirContents(env.minimaBackupDirInContainer);
 
   const restoreBody = createBodyFromInspect(inspected, oldImageRef);
   const restored = await createContainer(originalName, restoreBody);

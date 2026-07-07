@@ -81,11 +81,13 @@ services:
       BACKEND_INTERNAL_URL: http://backend:3000
       MINIMA_STATUS_URL: http://minima:9005/status
       MINIMA_DATA_DIR_IN_CONTAINER: /minima-data
+      MINIMA_BACKUP_DIR_IN_CONTAINER: /minima-backup
       HEALTH_CHECK_TIMEOUT_MS: ${UPDATE_HEALTH_CHECK_TIMEOUT_MS:-30000}
       HEALTH_CHECK_INTERVAL_MS: ${UPDATE_HEALTH_CHECK_INTERVAL_MS:-2000}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${MINIMA_DATA_DIR:-./minima}:/minima-data
+      - ${MINIMA_BACKUP_DIR:-./minima-backup}:/minima-backup
     group_add:
       - "${DOCKER_GID:-0}"
     expose:

@@ -1,6 +1,6 @@
 # Update Agent Review Fixes
 
-**Status:** Not started
+**Status:** In progress — both critical items fixed; high/medium/minor items remain
 **Created:** 2026-07-07
 **Goal:** Address the findings from the update-agent code review so the update flow actually works on real hardware and the safety guarantees (health checks, rollback) are real, not just documented.
 
@@ -11,11 +11,13 @@
 ## Critical — updates fail without these
 
 - [x] **1. Frontend update: host port conflict.** Fixed via create-without-ports → health-check → stop old → recreate-with-ports. `createBodyFromInspect` now takes an `includePortBindings` flag (default `false`); `updateService` creates and health-checks the candidate with no port bindings, then — only for services that publish host ports — stops/removes the old container, recreates the candidate with `PortBindings`, and starts it. If that final port-bound start fails, it best-effort restores the old container from its inspect data instead of leaving the service down. Old container keeps serving during the entire pull/start/health-check window; the only unavoidable gap is the brief stop-old → recreate-with-ports swap itself. (`update-agent/src/update/service-update.ts`, `createBodyFromInspect` in `docker.service.ts`)
-- [ ] **2. Minima rollback is broken.** Three stacked issues in `update-agent/src/update/minima-update.ts`:
-  - `rm()` targets the bind-mount point `/minima-data` itself → `EBUSY` mid-restore, after the data dir is emptied and before the old container is restarted. Clear directory *contents* instead, never the mount point.
-  - Backup goes to `/minima-data.update-backup` — the container's ephemeral overlay layer, not the host. Multi-GB copy onto the SD card's container layer, lost if the container restarts. Back up to a host-mounted path.
-  - Backup is taken while Minima is still running/writing → inconsistent snapshot. Reorder: stop → backup → swap.
-  - Also: `stopContainer`/`removeContainer` of the old container sit outside the `try`, so failures there skip the restore entirely.
+- [x] **2. Minima rollback is broken.** Fixed all three issues in `update-agent/src/update/minima-update.ts`:
+  - Backup/restore now goes through a new `clearDirContents()` helper that only removes a directory's *children* (via `readdir` + per-entry `rm`), never the directory/mount point itself — no more `EBUSY` on the bind mount root.
+  - Backup now lands on a new dedicated host bind mount, `MINIMA_BACKUP_DIR` (`./minima-backup` by default, mounted at `/minima-backup` in `update-agent`), separate from the live `/minima-data` mount — not a sibling path inside the container's ephemeral layer. Added to `docker-compose.yml`, `.env.example`, `README.md`, and `env.ts` (`minimaBackupDirInContainer`).
+  - Flow reordered: stop old container → backup (now-quiescent) data dir → create/start new → health-check. Backup is never taken while Minima is still writing.
+  - Stop/remove of the old container now happen *before* any backup is taken (not inside the try), so there's no window where a stop/remove failure leaves us mid-flow with nothing to restore — if they fail, the function just aborts before touching the data dir or creating anything new.
+
+  (`update-agent/src/update/minima-update.ts`, `update-agent/src/config/env.ts`, `docker-compose.yml`, `.env.example`, `README.md`)
 
 ## High — the safety story is weaker than documented
 

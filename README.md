@@ -77,6 +77,7 @@ DOCKER_GID=0
 ENABLE_GPIO=false
 GPIO_GID=0
 MINIMA_DATA_DIR=./minima
+MINIMA_BACKUP_DIR=./minima-backup
 MINIMA_P2P_PORT=9003
 MINIMA_RPC_BIND=127.0.0.1
 MINIMA_RPC_PORT=9005
@@ -105,7 +106,7 @@ The installer sets `COOKIE_SECURE=true` for the default HTTPS Docker deploy. Use
 
 `HOST_FILES_DIR` is mounted into the backend container as `/host-files:ro`. The `:ro` flag is intentional for this prototype.
 
-`MINIMA_DATA_DIR` is mounted into the Minima container as `/home/minima/data` so node data survives container restarts and updates.
+`MINIMA_DATA_DIR` is mounted into the Minima container as `/home/minima/data` so node data survives container restarts and updates. `MINIMA_BACKUP_DIR` is a separate host path `update-agent` copies that data into before a Minima update, and restores from if the update fails its health check.
 
 `MINIMA_RPC_BIND` defaults to `127.0.0.1`, which means Minima RPC is only exposed on the Pi itself. Set it to `0.0.0.0` only on a trusted network.
 
