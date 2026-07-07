@@ -427,13 +427,7 @@ function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChan
         <label>Condition source<select value={block.config.source ?? "trigger"} onChange={(event) => onChange({ ...block.config, source: event.target.value as "trigger" | "data" })}><option value="trigger">Trigger event</option><option value="data">Latest data</option></select></label>
         <label>Field path<input value={block.config.fieldPath ?? "active"} onChange={(event) => onChange({ ...block.config, fieldPath: event.target.value })} /></label>
         <label>Operator<select value={block.config.operator ?? "equals"} onChange={(event) => onChange({ ...block.config, operator: event.target.value as ConditionOperator })}>{conditionOperatorOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-        {!operatorHasNoValue(block.config.operator ?? "equals") && <label>Compare value JSON<input value={JSON.stringify(block.config.value ?? true)} onChange={(event) => {
-          try {
-            onChange({ ...block.config, value: JSON.parse(event.target.value) as unknown });
-          } catch {
-            onChange({ ...block.config, value: event.target.value });
-          }
-        }} /></label>}
+        {!operatorHasNoValue(block.config.operator ?? "equals") && <label>Compare value<input value={compareValueInputText(block.config.value ?? true)} onChange={(event) => onChange({ ...block.config, value: parseCompareValueInput(event.target.value) })} /></label>}
       </section>
     );
   }
@@ -497,13 +491,7 @@ function AttachedStampSettings({ block, onAttachedChange, onAttachedRemove }: { 
         <p className="muted">The condition checks the data produced by the Record/Fetch block this stamp is attached to.</p>
         <label>This block's data field path<input value={conditionObject.fieldPath ?? "active"} onChange={(event) => onAttachedChange(stamp.id, { condition: { ...conditionObject, source: "data", fieldPath: event.target.value } })} /></label>
         <label>Operator<select value={conditionObject.operator ?? "equals"} onChange={(event) => onAttachedChange(stamp.id, { condition: { ...conditionObject, source: "data", operator: event.target.value as ConditionOperator } })}>{conditionOperatorOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-        {!operatorHasNoValue(conditionObject.operator ?? "equals") && <label>Compare value JSON<input value={JSON.stringify(conditionObject.value ?? true)} onChange={(event) => {
-          try {
-            onAttachedChange(stamp.id, { condition: { ...conditionObject, source: "data", value: JSON.parse(event.target.value) as unknown } });
-          } catch {
-            onAttachedChange(stamp.id, { condition: { ...conditionObject, source: "data", value: event.target.value } });
-          }
-        }} /></label>}
+        {!operatorHasNoValue(conditionObject.operator ?? "equals") && <label>Compare value<input value={compareValueInputText(conditionObject.value ?? true)} onChange={(event) => onAttachedChange(stamp.id, { condition: { ...conditionObject, source: "data", value: parseCompareValueInput(event.target.value) } })} /></label>}
       </>}
       <button type="button" onClick={() => onAttachedRemove(stamp.id)}>Remove attached stamp</button>
     </div>
@@ -1126,6 +1114,18 @@ const conditionOperatorOptions: { value: ConditionOperator; label: string }[] = 
 
 function operatorHasNoValue(operator: ConditionOperator) {
   return operator === "exists" || operator === "does_not_exist";
+}
+
+function compareValueInputText(value: unknown) {
+  return typeof value === "string" ? value : JSON.stringify(value);
+}
+
+function parseCompareValueInput(value: string) {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
 }
 
 function conditionConfig(source: "trigger" | "data", fieldPath: string, operator: ConditionOperator, valueText: string) {
