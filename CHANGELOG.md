@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Automation workflows now have a validation endpoint and workspace validation panel that flags missing devices, invalid block order/data dependencies, hardware-output warnings, Integritas key warnings, and wallet transaction balance/configuration issues before manual runs.
 - Workflow block-run details now link directly to matching Diagnostics read/proof history filters when a block output contains a read id or Integritas proof id.
 - Automation workflows can now be searched, filtered by status, duplicated, archived, and restored from the Automation workspace.
+- Create workflow now uses a Scratch-inspired full-page draft workspace with starter template cards, a visual block-chain canvas, setup inspector, and inline validation before creating the workflow.
 
 ### Changed
 

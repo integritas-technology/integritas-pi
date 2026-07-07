@@ -502,6 +502,17 @@ Implementation notes:
 - Avoid hidden production mock data. Use operator-selected devices/sources where possible.
 - Validate required devices before enabling a template, for example HTTP source required for fetch templates and GPIO Output target required for LED templates.
 
+Current first pass:
+
+- Create workflow is now a full-page Scratch-inspired draft workspace instead of a modal.
+- Starter template cards prefill common start/action chains.
+- The center canvas previews the generated block chain before creation.
+- The right inspector configures workflow name, trigger/source, first action, and inline validation.
+
+Remaining template expansion:
+
+- Add output and Integritas-attached templates once the draft canvas can configure those options directly.
+
 ### 2. Pre-Run Validation
 
 Before `Run now` or `Run with payload`, surface likely failures without requiring the operator to inspect a failed run log.
@@ -768,6 +779,7 @@ Button -> fetch API -> blink LED.
 - [x] Add direct links to related read/proof details.
 - [ ] Add run-log filters.
 - [x] Add workflow archive/filter/duplicate organization tools.
+- [x] Add first-pass full-page workflow creation workspace with starter templates.
 - [ ] Evaluate branching/else blocks after the simpler linear workflow UX is stable.
 
 ## Progress Log
