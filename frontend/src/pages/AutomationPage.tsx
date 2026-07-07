@@ -492,16 +492,16 @@ function AttachedStampSettings({ block, onAttachedChange, onAttachedRemove }: { 
   return (
     <div className="card soft-card automation-form">
       <strong>+ Stamp with Integritas attached</strong>
-      <label className="check-row"><input type="checkbox" checked={Boolean(conditionObject)} onChange={(event) => onAttachedChange(stamp.id, { condition: event.target.checked ? { source: "data", fieldPath: "active", operator: "equals", value: true } : null })} /> Add stamp condition</label>
+      <label className="check-row"><input type="checkbox" checked={Boolean(conditionObject)} onChange={(event) => onAttachedChange(stamp.id, { condition: event.target.checked ? { source: "data", fieldPath: "active", operator: "equals", value: true } : null })} /> Only stamp when this block's data matches</label>
       {conditionObject && <>
-        <label>Condition source<select value={conditionObject.source ?? "data"} onChange={(event) => onAttachedChange(stamp.id, { condition: { ...conditionObject, source: event.target.value as "trigger" | "data" } })}><option value="data">Latest data</option><option value="trigger">Trigger event</option></select></label>
-        <label>Field path<input value={conditionObject.fieldPath ?? "active"} onChange={(event) => onAttachedChange(stamp.id, { condition: { ...conditionObject, fieldPath: event.target.value } })} /></label>
-        <label>Operator<select value={conditionObject.operator ?? "equals"} onChange={(event) => onAttachedChange(stamp.id, { condition: { ...conditionObject, operator: event.target.value as ConditionOperator } })}>{conditionOperatorOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+        <p className="muted">The condition checks the data produced by the Record/Fetch block this stamp is attached to.</p>
+        <label>This block's data field path<input value={conditionObject.fieldPath ?? "active"} onChange={(event) => onAttachedChange(stamp.id, { condition: { ...conditionObject, source: "data", fieldPath: event.target.value } })} /></label>
+        <label>Operator<select value={conditionObject.operator ?? "equals"} onChange={(event) => onAttachedChange(stamp.id, { condition: { ...conditionObject, source: "data", operator: event.target.value as ConditionOperator } })}>{conditionOperatorOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
         {!operatorHasNoValue(conditionObject.operator ?? "equals") && <label>Compare value JSON<input value={JSON.stringify(conditionObject.value ?? true)} onChange={(event) => {
           try {
-            onAttachedChange(stamp.id, { condition: { ...conditionObject, value: JSON.parse(event.target.value) as unknown } });
+            onAttachedChange(stamp.id, { condition: { ...conditionObject, source: "data", value: JSON.parse(event.target.value) as unknown } });
           } catch {
-            onAttachedChange(stamp.id, { condition: { ...conditionObject, value: event.target.value } });
+            onAttachedChange(stamp.id, { condition: { ...conditionObject, source: "data", value: event.target.value } });
           }
         }} /></label>}
       </>}
