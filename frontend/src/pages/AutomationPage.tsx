@@ -571,47 +571,10 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
         <div><span className="muted">Next</span><strong>{workflow.nextRunAt ? formatLocalTime(workflow.nextRunAt) : workflow.pollingIntervalSeconds > 0 ? "Paused" : "On incoming data"}</strong></div>
       </div>
 
-      <WorkflowSavedCanvas blocks={workflow.blocks} sources={sources} workflowEnabled={workflow.enabled} workflowArchived={workflow.archived} selectedBlockId={selectedBlock?.id ?? ""} onSelectBlock={setSelectedBlockId} onMoveBlock={(blockId, direction) => {
-        const index = mainBlocks.findIndex((block) => block.id === blockId);
-        if (index > 0) onReorderBlocks(moveBlock(mainBlocks, index, index + direction));
-      }} onRemoveBlock={(blockId) => {
-        const block = mainBlocks.find((item) => item.id === blockId);
-        if (block && !block.type.endsWith("_start")) onDeleteBlock(block.id);
-      }} />
-
-      {selectedBlock && <BlockCard
-        key={selectedBlock.id}
-        block={selectedBlock}
-        attachedBlocks={workflow.blocks.filter((item) => item.parentBlockId === selectedBlock.id)}
-        sources={sources}
-        addressBook={addressBook}
-        nativeTokens={nativeTokens}
-        busy={busy}
-        canMoveUp={mainBlocks.findIndex((block) => block.id === selectedBlock.id) > 1}
-        canMoveDown={mainBlocks.findIndex((block) => block.id === selectedBlock.id) > 0 && mainBlocks.findIndex((block) => block.id === selectedBlock.id) < mainBlocks.length - 1}
-        onMoveUp={() => {
-          const index = mainBlocks.findIndex((block) => block.id === selectedBlock.id);
-          onReorderBlocks(moveBlock(mainBlocks, index, index - 1));
-        }}
-        onMoveDown={() => {
-          const index = mainBlocks.findIndex((block) => block.id === selectedBlock.id);
-          onReorderBlocks(moveBlock(mainBlocks, index, index + 1));
-        }}
-        onAttachStamp={() => onAddBlock({ type: "stamp_integritas", config: {}, parentBlockId: selectedBlock.id })}
-        onUpdate={(input) => onUpdateBlock(selectedBlock.id, input)}
-        onUpdateAttached={(blockId, input) => onUpdateBlock(blockId, input)}
-        onDelete={() => selectedBlock.type.endsWith("_start") ? undefined : onDeleteBlock(selectedBlock.id)}
-        onDeleteAttached={onDeleteBlock}
-      />}
-
-      <section className="card soft-card">
-        <div className="status-row">
-          <div>
-            <strong>Add block</strong>
-            <p className="muted">Append small logic pieces to this workflow. Attach Integritas stamps directly to record or fetch blocks.</p>
-          </div>
-        </div>
-        <div className="grid-list">
+      <div className="workflow-create-grid">
+        <aside className="workflow-block-library">
+          <strong>Block library</strong>
+          <p className="muted">Add blocks to this workflow. Actions apply immediately; select a block on the canvas to edit its settings.</p>
           {canAddRecordTriggerEvent && (
             <AddBlockCard id="record" title="Record trigger event" description="Store the event that started this workflow as data, making it hashable and stampable." expanded={expandedAddBlock === "record"} onToggle={() => setExpandedAddBlock(expandedAddBlock === "record" ? null : "record")}>
               <div className="row-actions">
@@ -676,8 +639,43 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
               </div>
             </div>
           </AddBlockCard>
-        </div>
-      </section>
+        </aside>
+
+        <WorkflowSavedCanvas blocks={workflow.blocks} sources={sources} workflowEnabled={workflow.enabled} workflowArchived={workflow.archived} selectedBlockId={selectedBlock?.id ?? ""} onSelectBlock={setSelectedBlockId} onMoveBlock={(blockId, direction) => {
+          const index = mainBlocks.findIndex((block) => block.id === blockId);
+          if (index > 0) onReorderBlocks(moveBlock(mainBlocks, index, index + direction));
+        }} onRemoveBlock={(blockId) => {
+          const block = mainBlocks.find((item) => item.id === blockId);
+          if (block && !block.type.endsWith("_start")) onDeleteBlock(block.id);
+        }} />
+
+        <aside className="workflow-create-inspector">
+          {selectedBlock ? <BlockCard
+            key={selectedBlock.id}
+            block={selectedBlock}
+            attachedBlocks={workflow.blocks.filter((item) => item.parentBlockId === selectedBlock.id)}
+            sources={sources}
+            addressBook={addressBook}
+            nativeTokens={nativeTokens}
+            busy={busy}
+            canMoveUp={mainBlocks.findIndex((block) => block.id === selectedBlock.id) > 1}
+            canMoveDown={mainBlocks.findIndex((block) => block.id === selectedBlock.id) > 0 && mainBlocks.findIndex((block) => block.id === selectedBlock.id) < mainBlocks.length - 1}
+            onMoveUp={() => {
+              const index = mainBlocks.findIndex((block) => block.id === selectedBlock.id);
+              onReorderBlocks(moveBlock(mainBlocks, index, index - 1));
+            }}
+            onMoveDown={() => {
+              const index = mainBlocks.findIndex((block) => block.id === selectedBlock.id);
+              onReorderBlocks(moveBlock(mainBlocks, index, index + 1));
+            }}
+            onAttachStamp={() => onAddBlock({ type: "stamp_integritas", config: {}, parentBlockId: selectedBlock.id })}
+            onUpdate={(input) => onUpdateBlock(selectedBlock.id, input)}
+            onUpdateAttached={(blockId, input) => onUpdateBlock(blockId, input)}
+            onDelete={() => selectedBlock.type.endsWith("_start") ? undefined : onDeleteBlock(selectedBlock.id)}
+            onDeleteAttached={onDeleteBlock}
+          /> : <section className="card soft-card"><strong>No block selected</strong><p className="muted">Select a block on the canvas to edit it.</p></section>}
+        </aside>
+      </div>
 
       <div className="status-row">
         <div>

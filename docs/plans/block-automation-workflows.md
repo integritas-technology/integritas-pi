@@ -493,7 +493,9 @@ Current implementation:
 - Integritas stamping attaches as a side block on Record/Fetch data blocks and is created with `parentBlockId` mapping from draft IDs.
 - Draft validation calls `POST /api/automation/workflows/validate-draft`, which reuses the backend block-graph validator used by created workflows.
 - The canvas presentation layer is now extracted into reusable automation components (`WorkflowCanvas.tsx`) so create, edit, and future watch modes can share the same visual blocks.
-- Existing workflows now render through the shared canvas for block selection, move, and remove actions, with the current per-block save editor shown for the selected block.
+- Existing workflows now use the same full-page canvas layout: add-block library on the left, saved workflow canvas in the center, and selected-block editor on the right.
+- The current per-block save model remains in the edit inspector while add/remove/move actions apply immediately.
+- `Run with payload` remains a temporary modal until Watch mode moves it into a canvas-side test runner.
 - The center canvas previews the generated block chain before creation.
 - The right inspector configures workflow name and selected-block settings.
 - The draft canvas owns an editable draft block list and supports add/remove/move controls for supported draft blocks.
@@ -501,6 +503,7 @@ Current implementation:
 Remaining basic block-library work:
 
 - Add clearer draft validation on affected blocks.
+- Add Watch mode on the shared canvas, including a test-run payload editor, live block status, outputs, and read/proof links.
 
 ### 2. Workflow Templates
 

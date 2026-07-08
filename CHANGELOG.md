@@ -17,7 +17,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Draft workflow validation now uses a backend `POST /api/automation/workflows/validate-draft` endpoint backed by the same block-graph validation as created workflows.
 - The create workflow draft canvas now has its own editable block model: operators can add, remove, move, select, and configure draft blocks before the workflow is created.
 - Workflow canvas presentation has been extracted into reusable automation components as the first step toward using the same canvas for create, edit, and watch modes.
-- Existing workflow editing now uses the shared canvas to select, move, and remove blocks while keeping detailed per-block configuration in the selected-block editor.
+- Existing workflow editing now uses the shared full-page canvas layout with add-block controls on the left, the saved workflow canvas in the center, and selected-block configuration on the right.
+- `Run with payload` is documented as a temporary modal while Watch mode is prepared to host manual test runs inside the canvas workspace.
 
 ### Changed
 
