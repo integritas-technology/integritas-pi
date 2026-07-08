@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { DataSource } from "../data-sources/dataSourceTypes";
 import type { AutomationBlock, AutomationBlockType } from "./automationTypes";
 
@@ -6,7 +7,32 @@ export type DraftWorkflowBlock = {
   type: AutomationBlockType;
   config: AutomationBlock["config"];
   attachedBlocks?: DraftWorkflowBlock[];
+  enabled?: boolean;
+  lastRunAt?: string | null;
+  lastError?: string | null;
 };
+
+export function WorkflowWorkspaceShell({ eyebrow, title, description, actions, left, center, right, bottom, notices }: { eyebrow: string; title: string; description: ReactNode; actions?: ReactNode; left: ReactNode; center: ReactNode; right: ReactNode; bottom?: ReactNode; notices?: ReactNode }) {
+  return (
+    <section className="workflow-create-shell">
+      <div className="workflow-create-topbar">
+        <div>
+          <span className="pill pill-neutral">{eyebrow}</span>
+          <h2>{title}</h2>
+          {typeof description === "string" ? <p className="muted">{description}</p> : description}
+        </div>
+        {actions && <div className="row-actions">{actions}</div>}
+      </div>
+      {notices}
+      <div className="workflow-create-grid">
+        {left}
+        {center}
+        {right}
+      </div>
+      {bottom}
+    </section>
+  );
+}
 
 export function WorkflowBlockLibrary({ mode = "build", hasStartBlock, selectedBlock, canAddRecordTriggerEvent = true, onSelectStartBlock, onAddBlock, onAttachStamp }: { mode?: "build" | "edit"; hasStartBlock: boolean; selectedBlock: DraftWorkflowBlock | undefined; canAddRecordTriggerEvent?: boolean; onSelectStartBlock: (type: AutomationBlockType) => void; onAddBlock: (type: AutomationBlockType) => void; onAttachStamp: (parentId: string) => void }) {
   const canAddMainBlock = hasStartBlock;
@@ -37,84 +63,74 @@ export function WorkflowBlockLibrary({ mode = "build", hasStartBlock, selectedBl
 }
 
 export function WorkflowDraftCanvas({ blocks, sources, enabled, selectedBlockId, onSelectBlock, onMoveBlock, onRemoveBlock }: { blocks: DraftWorkflowBlock[]; sources: DataSource[]; enabled: boolean; selectedBlockId: string; onSelectBlock: (id: string) => void; onMoveBlock: (id: string, direction: -1 | 1) => void; onRemoveBlock: (id: string) => void }) {
-  return (
-    <section className="workflow-draft-canvas">
-      <div className="status-row">
-        <div>
-          <strong>Draft canvas</strong>
-          <p className="muted">This is the starter chain that will be created.</p>
-        </div>
-        <span className={`pill ${enabled ? "pill-good" : "pill-neutral"}`}>{enabled ? "Enabled on create" : "Paused on create"}</span>
-      </div>
-      <div className="workflow-canvas-lane">
-        {blocks.length === 0 && <div className="workflow-canvas-empty"><strong>Choose a start block</strong><p className="muted">Start with Manual, Schedule, GPIO, Webhook, or MQTT. Then add data and logic blocks.</p></div>}
-        {blocks.map((block, index) => (
-          <DraftBlockCard key={block.id} block={block} index={index} sources={sources} selected={block.id === selectedBlockId} canMoveUp={index > 1} canMoveDown={index > 0 && index < blocks.length - 1} onSelect={() => onSelectBlock(block.id)} onMoveUp={() => onMoveBlock(block.id, -1)} onMoveDown={() => onMoveBlock(block.id, 1)} onRemove={() => onRemoveBlock(block.id)} />
-        ))}
-      </div>
-    </section>
-  );
+  return <WorkflowCanvas title="Draft canvas" description="This is the starter chain that will be created." statusLabel={enabled ? "Enabled on create" : "Paused on create"} statusGood={enabled} blocks={blocks} sources={sources} selectedBlockId={selectedBlockId} emptyTitle="Choose a start block" emptyDescription="Start with Manual, Schedule, GPIO, Webhook, or MQTT. Then add data and logic blocks." actionLabels={{ up: "Up", down: "Down", remove: "Remove" }} onSelectBlock={onSelectBlock} onMoveBlock={onMoveBlock} onRemoveBlock={onRemoveBlock} />;
 }
 
 export function WorkflowSavedCanvas({ blocks, sources, workflowEnabled, workflowArchived, selectedBlockId, onSelectBlock, onMoveBlock, onRemoveBlock }: { blocks: AutomationBlock[]; sources: DataSource[]; workflowEnabled: boolean; workflowArchived: boolean; selectedBlockId: string; onSelectBlock: (id: string) => void; onMoveBlock: (id: string, direction: -1 | 1) => void; onRemoveBlock: (id: string) => void }) {
-  const mainBlocks = blocks.filter((block) => !block.parentBlockId);
+  const canvasBlocks = blocks.filter((block) => !block.parentBlockId).map((block) => toCanvasBlock(block, blocks));
 
+  return <WorkflowCanvas title="Workflow canvas" description="Select a block to edit or inspect it. Move and remove actions apply immediately." statusLabel={workflowArchived ? "Archived" : workflowEnabled ? "Enabled" : "Paused"} statusGood={!workflowArchived && workflowEnabled} blocks={canvasBlocks} sources={sources} selectedBlockId={selectedBlockId} emptyTitle="No blocks" emptyDescription="Add a start block by creating a new workflow." actionLabels={{ up: "Move up", down: "Move down", remove: "Remove" }} onSelectBlock={onSelectBlock} onMoveBlock={onMoveBlock} onRemoveBlock={onRemoveBlock} />;
+}
+
+function WorkflowCanvas({ title, description, statusLabel, statusGood, blocks, sources, selectedBlockId, emptyTitle, emptyDescription, actionLabels, onSelectBlock, onMoveBlock, onRemoveBlock }: { title: string; description: string; statusLabel: string; statusGood: boolean; blocks: DraftWorkflowBlock[]; sources: DataSource[]; selectedBlockId: string; emptyTitle: string; emptyDescription: string; actionLabels: { up: string; down: string; remove: string }; onSelectBlock: (id: string) => void; onMoveBlock: (id: string, direction: -1 | 1) => void; onRemoveBlock: (id: string) => void }) {
   return (
     <section className="workflow-draft-canvas">
       <div className="status-row">
         <div>
-          <strong>Workflow canvas</strong>
-          <p className="muted">Select a block to edit it below. Move and remove actions apply immediately.</p>
+          <strong>{title}</strong>
+          <p className="muted">{description}</p>
         </div>
-        <span className={`pill ${workflowArchived ? "pill-neutral" : workflowEnabled ? "pill-good" : "pill-neutral"}`}>{workflowArchived ? "Archived" : workflowEnabled ? "Enabled" : "Paused"}</span>
+        <span className={`pill ${statusGood ? "pill-good" : "pill-neutral"}`}>{statusLabel}</span>
       </div>
       <div className="workflow-canvas-lane">
-        {mainBlocks.length === 0 && <div className="workflow-canvas-empty"><strong>No blocks</strong><p className="muted">Add a start block by creating a new workflow.</p></div>}
-        {mainBlocks.map((block, index) => (
-          <WorkflowBlockCard key={block.id} block={block} index={index} sources={sources} selected={block.id === selectedBlockId} canMoveUp={index > 1} canMoveDown={index > 0 && index < mainBlocks.length - 1} onSelect={() => onSelectBlock(block.id)} onMoveUp={() => onMoveBlock(block.id, -1)} onMoveDown={() => onMoveBlock(block.id, 1)} onRemove={() => onRemoveBlock(block.id)} attachedBlocks={blocks.filter((item) => item.parentBlockId === block.id)} />
+        {blocks.length === 0 && <div className="workflow-canvas-empty"><strong>{emptyTitle}</strong><p className="muted">{emptyDescription}</p></div>}
+        {blocks.map((block, index) => (
+          <WorkflowBlockCard key={block.id} block={block} index={index} sources={sources} selected={block.id === selectedBlockId} canMoveUp={index > 1} canMoveDown={index > 0 && index < blocks.length - 1} actionLabels={actionLabels} onSelect={() => onSelectBlock(block.id)} onMoveUp={() => onMoveBlock(block.id, -1)} onMoveDown={() => onMoveBlock(block.id, 1)} onRemove={() => onRemoveBlock(block.id)} />
         ))}
       </div>
     </section>
   );
 }
 
-function DraftBlockCard({ block, index, sources, selected, canMoveUp, canMoveDown, onSelect, onMoveUp, onMoveDown, onRemove }: { block: DraftWorkflowBlock; index: number; sources: DataSource[]; selected: boolean; canMoveUp: boolean; canMoveDown: boolean; onSelect: () => void; onMoveUp: () => void; onMoveDown: () => void; onRemove: () => void }) {
+function WorkflowBlockCard({ block, index, sources, selected, canMoveUp, canMoveDown, actionLabels, onSelect, onMoveUp, onMoveDown, onRemove }: { block: DraftWorkflowBlock; index: number; sources: DataSource[]; selected: boolean; canMoveUp: boolean; canMoveDown: boolean; actionLabels: { up: string; down: string; remove: string }; onSelect: () => void; onMoveUp: () => void; onMoveDown: () => void; onRemove: () => void }) {
   return (
     <div className={`workflow-draft-block ${blockCategoryClass(block.type)} ${selected ? "selected" : ""}`} onClick={onSelect} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onSelect(); }}>
       <span className="workflow-draft-kicker">{index === 0 ? "When" : "Then"}</span>
       <strong>{draftBlockTitle(block)}</strong>
       <p>{draftBlockDescription(block, sources)}</p>
       <DraftBlockBadges block={block} />
+      {(typeof block.enabled === "boolean" || block.lastRunAt || block.lastError) && <div className="workflow-draft-badges">
+        {typeof block.enabled === "boolean" && <span>{block.enabled ? "Enabled" : "Disabled"}</span>}
+        {block.lastRunAt && <span>Ran {new Date(block.lastRunAt).toLocaleString()}</span>}
+        {block.lastError && <span>Error</span>}
+      </div>}
       {block.attachedBlocks?.map((attached) => <div key={attached.id} className="workflow-attached-draft-block"><strong>+ {draftBlockTitle(attached)}</strong><p>{draftBlockDescription(attached, sources)}</p><DraftBlockBadges block={attached} /></div>)}
       {!block.type.endsWith("_start") && <div className="workflow-draft-actions">
-        <button type="button" disabled={!canMoveUp} onClick={(event) => { event.stopPropagation(); onMoveUp(); }}>Up</button>
-        <button type="button" disabled={!canMoveDown} onClick={(event) => { event.stopPropagation(); onMoveDown(); }}>Down</button>
-        <button type="button" onClick={(event) => { event.stopPropagation(); onRemove(); }}>Remove</button>
+        <button type="button" disabled={!canMoveUp} onClick={(event) => { event.stopPropagation(); onMoveUp(); }}>{actionLabels.up}</button>
+        <button type="button" disabled={!canMoveDown} onClick={(event) => { event.stopPropagation(); onMoveDown(); }}>{actionLabels.down}</button>
+        <button type="button" onClick={(event) => { event.stopPropagation(); onRemove(); }}>{actionLabels.remove}</button>
       </div>}
     </div>
   );
 }
 
-function WorkflowBlockCard({ block, index, sources, selected, canMoveUp, canMoveDown, onSelect, onMoveUp, onMoveDown, onRemove, attachedBlocks }: { block: AutomationBlock; index: number; sources: DataSource[]; selected: boolean; canMoveUp: boolean; canMoveDown: boolean; onSelect: () => void; onMoveUp: () => void; onMoveDown: () => void; onRemove: () => void; attachedBlocks: AutomationBlock[] }) {
-  return (
-    <div className={`workflow-draft-block ${blockCategoryClass(block.type)} ${selected ? "selected" : ""}`} onClick={onSelect} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onSelect(); }}>
-      <span className="workflow-draft-kicker">{index === 0 ? "When" : "Then"}</span>
-      <strong>{draftBlockTitle(block)}</strong>
-      <p>{draftBlockDescription(block, sources)}</p>
-      <DraftBlockBadges block={block} />
-      <div className="workflow-draft-badges">
-        <span>{block.enabled ? "Enabled" : "Disabled"}</span>
-        {block.lastRunAt && <span>Ran {new Date(block.lastRunAt).toLocaleString()}</span>}
-        {block.lastError && <span>Error</span>}
-      </div>
-      {attachedBlocks.map((attached) => <div key={attached.id} className="workflow-attached-draft-block"><strong>+ {draftBlockTitle(attached)}</strong><p>{draftBlockDescription(attached, sources)}</p><DraftBlockBadges block={attached} /></div>)}
-      {!block.type.endsWith("_start") && <div className="workflow-draft-actions">
-        <button type="button" disabled={!canMoveUp} onClick={(event) => { event.stopPropagation(); onMoveUp(); }}>Move up</button>
-        <button type="button" disabled={!canMoveDown} onClick={(event) => { event.stopPropagation(); onMoveDown(); }}>Move down</button>
-        <button type="button" onClick={(event) => { event.stopPropagation(); onRemove(); }}>Remove</button>
-      </div>}
-    </div>
-  );
+function toCanvasBlock(block: AutomationBlock, allBlocks: AutomationBlock[]): DraftWorkflowBlock {
+  return {
+    id: block.id,
+    type: block.type,
+    config: block.config,
+    enabled: block.enabled,
+    lastRunAt: block.lastRunAt,
+    lastError: block.lastError,
+    attachedBlocks: allBlocks.filter((item) => item.parentBlockId === block.id).map((attached) => ({
+      id: attached.id,
+      type: attached.type,
+      config: attached.config,
+      enabled: attached.enabled,
+      lastRunAt: attached.lastRunAt,
+      lastError: attached.lastError
+    }))
+  };
 }
 
 function DraftBlockBadges({ block }: { block: DraftWorkflowBlock }) {

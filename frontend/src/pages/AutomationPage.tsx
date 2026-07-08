@@ -1,10 +1,10 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { JsonPreview } from "../components/JsonPreview";
 import { Page } from "../components/Page";
 import { addAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, duplicateAutomationWorkflow, getAutomationWorkflowValidation, listAutomationWorkflowRuns, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow, validateAutomationDraft } from "../features/automation/automationApi";
 import { AutomationRunsTable } from "../features/automation/AutomationRunsTable";
-import { draftBlockDescription, draftBlockTitle, isDataBlock, WorkflowBlockLibrary, WorkflowDraftCanvas, WorkflowSavedCanvas, type DraftWorkflowBlock } from "../features/automation/WorkflowCanvas";
+import { draftBlockDescription, draftBlockTitle, isDataBlock, WorkflowBlockLibrary, WorkflowDraftCanvas, WorkflowSavedCanvas, WorkflowWorkspaceShell, type DraftWorkflowBlock } from "../features/automation/WorkflowCanvas";
 import type { AutomationBlock, AutomationBlockType, AutomationRun, AutomationValidationResult, AutomationWorkflow, ConditionOperator } from "../features/automation/automationTypes";
 import { listAddressBookEntries } from "../features/address-book/addressBookApi";
 import type { AddressBookEntry } from "../features/address-book/addressBookTypes";
@@ -360,25 +360,18 @@ function CreateWorkflowWorkspace({ name, enabled, sources, addressBook, walletSt
   }
 
   return (
-    <section className="workflow-create-shell">
-      <div className="workflow-create-topbar">
-        <div>
-          <span className="pill pill-neutral">Draft workflow</span>
-          <h2>Create a new block workflow</h2>
-          <p className="muted">Choose one start block, then add data and logic blocks to build the first draft chain.</p>
-        </div>
-        <div className="row-actions">
-          <button type="button" disabled={busy} onClick={onCancel}>Cancel</button>
-          <button type="button" disabled={busy || draftBlocks.length === 0} onClick={resetCanvas}>Reset canvas</button>
-          <button type="button" disabled={busy || !canCreate} onClick={() => onCreate(flattenDraftBlocks(draftBlocks))}>Create workflow</button>
-        </div>
-      </div>
-
-      <div className="workflow-create-grid">
-        <WorkflowBlockLibrary hasStartBlock={hasStartBlock} selectedBlock={selectedBlock} onSelectStartBlock={selectStartBlock} onAddBlock={addDraftBlock} onAttachStamp={attachStampBlock} />
-
-        <WorkflowDraftCanvas blocks={draftBlocks} sources={sources} enabled={enabled} selectedBlockId={selectedBlock?.id ?? ""} onSelectBlock={setSelectedBlockId} onMoveBlock={moveDraftBlock} onRemoveBlock={removeDraftBlock} />
-
+    <WorkflowWorkspaceShell
+      eyebrow="Draft workflow"
+      title="Create a new block workflow"
+      description="Choose one start block, then add data and logic blocks to build the first draft chain."
+      actions={<>
+        <button type="button" disabled={busy} onClick={onCancel}>Cancel</button>
+        <button type="button" disabled={busy || draftBlocks.length === 0} onClick={resetCanvas}>Reset canvas</button>
+        <button type="button" disabled={busy || !canCreate} onClick={() => onCreate(flattenDraftBlocks(draftBlocks))}>Create workflow</button>
+      </>}
+      left={<WorkflowBlockLibrary hasStartBlock={hasStartBlock} selectedBlock={selectedBlock} onSelectStartBlock={selectStartBlock} onAddBlock={addDraftBlock} onAttachStamp={attachStampBlock} />}
+      center={<WorkflowDraftCanvas blocks={draftBlocks} sources={sources} enabled={enabled} selectedBlockId={selectedBlock?.id ?? ""} onSelectBlock={setSelectedBlockId} onMoveBlock={moveDraftBlock} onRemoveBlock={removeDraftBlock} />}
+      right={
         <aside className="workflow-create-inspector automation-form">
           <div className="card soft-card">
             <strong>Workflow setup</strong>
@@ -398,8 +391,8 @@ function CreateWorkflowWorkspace({ name, enabled, sources, addressBook, walletSt
           </div>
           <button type="button" disabled={busy || !canCreate} onClick={() => onCreate(flattenDraftBlocks(draftBlocks))}>Create workflow</button>
         </aside>
-      </div>
-    </section>
+      }
+    />
   );
 }
 
@@ -563,43 +556,38 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
   }
 
   return (
-    <section className="workflow-create-shell">
-      <div className="workflow-create-topbar">
-        <div>
-          <span className="pill pill-neutral">{mode === "watch" ? "Watch workflow" : "Edit workflow"}</span>
-          <h2>{workflow.name}</h2>
-          <p className="muted">{source?.name ?? "Unknown source"} · {workflow.pollingIntervalSeconds > 0 ? formatInterval(workflow.pollingIntervalSeconds) : "Event driven"}</p>
-          <p className="muted">{mode === "watch" ? "Run and inspect this workflow from the shared canvas shell." : "Changes are saved per block. Edit fields, then click that block's save button; add/remove/move/pause/enable actions apply immediately."}</p>
-        </div>
-        <div className="row-actions">
-          <span className={`pill ${workflow.archived ? "pill-neutral" : workflow.lastError ? "pill-warn" : workflow.enabled ? "pill-good" : "pill-neutral"}`}>{workflow.archived ? "Archived" : workflow.lastError ? "Error" : workflow.enabled ? "Enabled" : "Paused"}</span>
-          <span className="pill pill-neutral">Blocks {workflow.blocks.length}</span>
-          <span className="pill pill-neutral">Last run {workflow.lastRunAt ? formatLocalTime(workflow.lastRunAt) : "Never"}</span>
-          <span className="pill pill-neutral">Next {workflow.nextRunAt ? formatLocalTime(workflow.nextRunAt) : workflow.pollingIntervalSeconds > 0 ? "Paused" : "On incoming data"}</span>
-        </div>
-      </div>
-
-      {workflow.archived && <p className="muted">Archived workflows do not run automatically or manually until restored.</p>}
-      {workflow.lastError && <p className="error-text">{workflow.lastError}</p>}
-
-      <div className="workflow-create-grid">
-        {mode === "edit" ? <WorkflowBlockLibrary mode="edit" hasStartBlock={Boolean(startBlock)} selectedBlock={selectedDraftBlock} canAddRecordTriggerEvent={canAddRecordTriggerEvent} onSelectStartBlock={() => undefined} onAddBlock={addBlockFromLibrary} onAttachStamp={(parentId) => onAddBlock({ type: "stamp_integritas", config: {}, parentBlockId: parentId })} /> : <WatchRunControls workflow={workflow} busy={busy} hasValidationErrors={hasValidationErrors} payloadText={payloadText} payloadError={payloadError} onPayloadTextChange={(value) => {
+    <WorkflowWorkspaceShell
+      eyebrow={mode === "watch" ? "Watch workflow" : "Edit workflow"}
+      title={workflow.name}
+      description={<>
+        <p className="muted">{source?.name ?? "Unknown source"} · {workflow.pollingIntervalSeconds > 0 ? formatInterval(workflow.pollingIntervalSeconds) : "Event driven"}</p>
+        <p className="muted">{mode === "watch" ? "Run and inspect this workflow from the shared canvas shell." : "Changes are saved per block. Edit fields, then click that block's save button; add/remove/move/pause/enable actions apply immediately."}</p>
+      </>}
+      actions={<>
+        <span className={`pill ${workflow.archived ? "pill-neutral" : workflow.lastError ? "pill-warn" : workflow.enabled ? "pill-good" : "pill-neutral"}`}>{workflow.archived ? "Archived" : workflow.lastError ? "Error" : workflow.enabled ? "Enabled" : "Paused"}</span>
+        <span className="pill pill-neutral">Blocks {workflow.blocks.length}</span>
+        <span className="pill pill-neutral">Last run {workflow.lastRunAt ? formatLocalTime(workflow.lastRunAt) : "Never"}</span>
+        <span className="pill pill-neutral">Next {workflow.nextRunAt ? formatLocalTime(workflow.nextRunAt) : workflow.pollingIntervalSeconds > 0 ? "Paused" : "On incoming data"}</span>
+      </>}
+      notices={<>
+        {workflow.archived && <p className="muted">Archived workflows do not run automatically or manually until restored.</p>}
+        {workflow.lastError && <p className="error-text">{workflow.lastError}</p>}
+      </>}
+      left={mode === "edit" ? <WorkflowBlockLibrary mode="edit" hasStartBlock={Boolean(startBlock)} selectedBlock={selectedDraftBlock} canAddRecordTriggerEvent={canAddRecordTriggerEvent} onSelectStartBlock={() => undefined} onAddBlock={addBlockFromLibrary} onAttachStamp={(parentId) => onAddBlock({ type: "stamp_integritas", config: {}, parentBlockId: parentId })} /> : <WatchRunControls workflow={workflow} busy={busy} hasValidationErrors={hasValidationErrors} payloadText={payloadText} payloadError={payloadError} onPayloadTextChange={(value) => {
           setPayloadText(value);
           setPayloadError(null);
         }} onPayloadError={setPayloadError} onResetPayload={() => {
           setPayloadText(JSON.stringify(examplePayload(workflow), null, 2));
           setPayloadError(null);
         }} onRunNow={onRunNow} onRunWithPayload={onRunWithPayload} />}
-
-        <WorkflowSavedCanvas blocks={workflow.blocks} sources={sources} workflowEnabled={workflow.enabled} workflowArchived={workflow.archived} selectedBlockId={selectedBlock?.id ?? ""} onSelectBlock={setSelectedBlockId} onMoveBlock={(blockId, direction) => {
+      center={<WorkflowSavedCanvas blocks={workflow.blocks} sources={sources} workflowEnabled={workflow.enabled} workflowArchived={workflow.archived} selectedBlockId={selectedBlock?.id ?? ""} onSelectBlock={setSelectedBlockId} onMoveBlock={(blockId, direction) => {
           const index = mainBlocks.findIndex((block) => block.id === blockId);
           if (index > 0) onReorderBlocks(moveBlock(mainBlocks, index, index + direction));
         }} onRemoveBlock={(blockId) => {
           const block = mainBlocks.find((item) => item.id === blockId);
           if (block && !block.type.endsWith("_start")) onDeleteBlock(block.id);
-        }} />
-
-        <aside className="workflow-create-inspector">
+        }} />}
+      right={<aside className="workflow-create-inspector">
           {mode === "edit" ? <>
             <div className="card soft-card automation-form">
               <strong>Workflow setup</strong>
@@ -636,25 +624,9 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
               /> : <p className="muted">Select a block on the canvas to edit it.</p>}
             </div>
           </> : <WatchRuntimeInspector selectedBlock={selectedBlock} latestBlockRun={latestBlockRunForBlock(runs, selectedBlock?.id ?? null)} validation={validation} />}
-        </aside>
-      </div>
-
-      {mode === "watch" && <WatchRunHistory runs={runs} />}
-    </section>
-  );
-}
-
-function AddBlockCard({ title, description, expanded, onToggle, children }: { id: string; title: string; description: string; expanded: boolean; onToggle: () => void; children: ReactNode }) {
-  return (
-    <section className="card soft-card">
-      <button type="button" className="ghost-button" onClick={onToggle} aria-expanded={expanded}>
-        <div className="status-row">
-          <div><strong>{title}</strong><p className="muted">{description}</p></div>
-          <span aria-hidden="true">{expanded ? "Collapse" : "Expand"}</span>
-        </div>
-      </button>
-      {expanded && <div>{children}</div>}
-    </section>
+        </aside>}
+      bottom={mode === "watch" ? <WatchRunHistory runs={runs} /> : undefined}
+    />
   );
 }
 
