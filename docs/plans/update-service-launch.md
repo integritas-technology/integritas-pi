@@ -10,10 +10,16 @@
 
 ## 1. VPS deploy wiring (`update-service.md` Part 6)
 
-- [ ] Confirm/create the dedicated low-privilege VPS deploy user, scoped to one folder.
-- [ ] Confirm how the existing Next.js VPS app serves static/manifest files (route, folder convention).
-- [ ] Replace the `release.yml` "Deploy manifest (placeholder)" step with the real `scp`/`rsync` (or equivalent), using `VPS_DEPLOY_HOST`/`VPS_DEPLOY_USER`/`VPS_DEPLOY_KEY` secrets.
-- [ ] Confirm the production `MANIFEST_URL` `update-agent` will fetch from.
+**QA first:** wired up against the QA VPS/secrets before ever touching prod. Step-by-step guide lives in Notion (moved out of the repo — no infra hostnames/paths in version control).
+
+- [ ] Create `/srv/update-manifests/qa/`, outside the Next.js app's project directory (not `next build`/PM2-managed, so redeploys can't wipe it).
+- [ ] Create the dedicated low-privilege QA VPS deploy user (`qa-manifest-deploy`), owning only that folder.
+- [ ] Add an nginx `location /update-manifest/` block serving that folder directly (nginx already sits in front of PM2 — no Next.js route needed).
+- [ ] Register `QA_VPS_DEPLOY_HOST`/`QA_VPS_DEPLOY_USER`/`QA_VPS_DEPLOY_KEY`/`QA_VPS_DEPLOY_PATH` GH secrets.
+- [ ] Replace the `release.yml` "Deploy manifest (placeholder)" step with the real `scp` step, pointed at the QA secrets.
+- [ ] Set QA `update-agent`'s `MANIFEST_URL` to the QA manifest path.
+- [ ] Verify via a disposable-tag dry run (§3) that the manifest actually lands on the QA VPS and is fetchable.
+- [ ] **Repeat for prod** once QA is verified end-to-end: same steps against the production VPS/app, prod-scoped secret names (`VPS_DEPLOY_HOST`/`VPS_DEPLOY_USER`/`VPS_DEPLOY_KEY`), confirm the production `MANIFEST_URL`.
 
 ## 2. Signing key generation (one-time, real)
 
