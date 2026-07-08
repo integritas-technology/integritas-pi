@@ -15,6 +15,20 @@ import { formatLocalTime } from "../lib/time";
 
 const intervals = [10, 30, 60, 300, 900, 3600];
 
+type AutomationPageFlow =
+  | { mode: "list" }
+  | { mode: "build" }
+  | { mode: "edit" | "watch"; workflowId: string };
+
+function automationFlowFromUrl(): AutomationPageFlow {
+  const params = new URLSearchParams(window.location.search);
+  const flow = params.get("flow");
+  const workflowId = params.get("id") ?? "";
+  if (flow === "build") return { mode: "build" };
+  if ((flow === "edit" || flow === "watch") && workflowId) return { mode: flow, workflowId };
+  return { mode: "list" };
+}
+
 export function AutomationPage() {
   const [sources, setSources] = useState<DataSource[]>([]);
   const [addressBook, setAddressBook] = useState<AddressBookEntry[]>([]);
@@ -29,8 +43,7 @@ export function AutomationPage() {
   const [enabled, setEnabled] = useState(true);
   const [workflowSearch, setWorkflowSearch] = useState("");
   const [workflowFilter, setWorkflowFilter] = useState<"active" | "all" | "enabled" | "paused" | "error" | "archived">("active");
-  const [creatingWorkflow, setCreatingWorkflow] = useState(false);
-  const [workspaceWorkflowId, setWorkspaceWorkflowId] = useState<string | null>(null);
+  const [flow, setFlow] = useState(() => automationFlowFromUrl());
   const [workspaceRuns, setWorkspaceRuns] = useState<AutomationRun[]>([]);
   const [workspaceValidation, setWorkspaceValidation] = useState<AutomationValidationResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -41,18 +54,25 @@ export function AutomationPage() {
   }, []);
 
   useEffect(() => {
-    if (!workspaceWorkflowId) {
+    const onPopState = () => setFlow(automationFlowFromUrl());
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  useEffect(() => {
+    const workflowId = "workflowId" in flow ? flow.workflowId : null;
+    if (!workflowId) {
       setWorkspaceRuns([]);
       setWorkspaceValidation(null);
       return;
     }
-    Promise.all([listAutomationWorkflowRuns(workspaceWorkflowId, 10), getAutomationWorkflowValidation(workspaceWorkflowId)])
+    Promise.all([listAutomationWorkflowRuns(workflowId, 10), getAutomationWorkflowValidation(workflowId)])
       .then(([runs, validation]) => {
         setWorkspaceRuns(runs.items);
         setWorkspaceValidation(validation.item);
       })
       .catch((err: Error) => setError(err.message));
-  }, [workspaceWorkflowId]);
+  }, [flow]);
 
   async function refresh() {
     const [sourceResponse, workflowResponse, addressBookResponse, walletResponse] = await Promise.all([
@@ -67,11 +87,27 @@ export function AutomationPage() {
     setWalletStatus(walletResponse);
     if (!startSourceId) setStartSourceId(defaultSourceForStart(startType, sourceResponse.items)?.id ?? "");
     if (!initialFetchSourceId) setInitialFetchSourceId(firstHttpSource(sourceResponse.items)?.id ?? "");
-    if (workspaceWorkflowId) {
-      const [runs, validation] = await Promise.all([listAutomationWorkflowRuns(workspaceWorkflowId, 10), getAutomationWorkflowValidation(workspaceWorkflowId)]);
+    const workflowId = "workflowId" in flow ? flow.workflowId : null;
+    if (workflowId) {
+      const [runs, validation] = await Promise.all([listAutomationWorkflowRuns(workflowId, 10), getAutomationWorkflowValidation(workflowId)]);
       setWorkspaceRuns(runs.items);
       setWorkspaceValidation(validation.item);
     }
+  }
+
+  function navigateFlow(nextFlow: AutomationPageFlow) {
+    const params = new URLSearchParams(window.location.search);
+    if (nextFlow.mode === "list") {
+      params.delete("flow");
+      params.delete("id");
+    } else {
+      params.set("flow", nextFlow.mode);
+      if ("workflowId" in nextFlow) params.set("id", nextFlow.workflowId);
+      else params.delete("id");
+    }
+    const query = params.toString();
+    window.history.pushState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
+    setFlow(nextFlow);
   }
 
   async function run(action: () => Promise<unknown>) {
@@ -94,9 +130,8 @@ export function AutomationPage() {
       const response = await createAutomationWorkflow({ name, enabled, blocks });
       setName("");
       setInitialAction(defaultInitialAction(startType));
-      setCreatingWorkflow(false);
-      setWorkspaceWorkflowId(response.item.id);
       await refresh();
+      navigateFlow({ mode: "edit", workflowId: response.item.id });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -109,25 +144,36 @@ export function AutomationPage() {
   const httpSources = sources.filter((source) => source.type === "json-api" || source.type === "internal-json-api");
   const sourceById = (id: string) => sources.find((source) => source.id === id);
   const sourceName = (id: string) => sourceById(id)?.name ?? "Unknown source";
-  const workspaceWorkflow = workflows.find((workflow) => workflow.id === workspaceWorkflowId) ?? null;
+  const activeWorkflowId = "workflowId" in flow ? flow.workflowId : null;
+  const workspaceWorkflow = activeWorkflowId ? workflows.find((workflow) => workflow.id === activeWorkflowId) ?? null : null;
   const filteredWorkflows = workflows.filter((workflow) => workflowMatchesFilter(workflow, workflowSearch, workflowFilter, sourceName(workflow.dataSourceId)));
+  const workspaceMode = flow.mode === "edit" || flow.mode === "watch" ? flow.mode : null;
 
   return (
     <Page
       eyebrow="Automation"
-      title={creatingWorkflow ? "Create workflow" : "Block automation workspace"}
-      desc={creatingWorkflow ? "Assemble a starter workflow from blocks, then create it when the draft validates." : "Build workflows from small start, data, logic, and Integritas blocks."}
+      title={flow.mode === "build" ? "Create workflow" : workspaceMode === "edit" ? "Edit workflow" : workspaceMode === "watch" ? "Watch workflow" : "Block automation workspace"}
+      desc={flow.mode === "build" ? "Assemble a starter workflow from blocks, then create it when the draft validates." : workspaceMode ? "Use the shared workflow canvas without opening a modal." : "Build workflows from small start, data, logic, and Integritas blocks."}
     >
-      {!creatingWorkflow && (
+      {flow.mode !== "list" && (
         <section className="card">
           <div className="status-row">
-            <div><strong>Workflow builder</strong><p className="muted">Create a workflow from a start block, then connect action blocks in the workspace.</p></div>
-            <button type="button" onClick={() => setCreatingWorkflow(true)}>Create new workflow</button>
+            <div><strong>{flow.mode === "build" ? "Builder" : workspaceMode === "watch" ? "Watch canvas" : "Editor canvas"}</strong><p className="muted">This workspace is loaded directly from the Automation page URL.</p></div>
+            <button type="button" onClick={() => navigateFlow({ mode: "list" })}>Back to workflows</button>
           </div>
         </section>
       )}
 
-      {creatingWorkflow && (
+      {flow.mode === "list" && (
+        <section className="card">
+          <div className="status-row">
+            <div><strong>Workflow builder</strong><p className="muted">Create a workflow from a start block, then connect action blocks in the workspace.</p></div>
+            <button type="button" onClick={() => navigateFlow({ mode: "build" })}>Create new workflow</button>
+          </div>
+        </section>
+      )}
+
+      {flow.mode === "build" && (
         <CreateWorkflowWorkspace
           name={name}
           enabled={enabled}
@@ -137,44 +183,45 @@ export function AutomationPage() {
           busy={busy}
           onNameChange={setName}
           onEnabledChange={setEnabled}
-          onCancel={() => setCreatingWorkflow(false)}
+          onCancel={() => navigateFlow({ mode: "list" })}
           onCreate={submitWorkflow}
         />
       )}
 
-      {workspaceWorkflow && (
-        <Modal title="Workflow workspace" onClose={() => setWorkspaceWorkflowId(null)}>
-          <WorkflowWorkspace
-            workflow={workspaceWorkflow}
-            runs={workspaceRuns}
-            validation={workspaceValidation}
-            source={sourceById(workspaceWorkflow.dataSourceId)}
-            sources={sources}
-            addressBook={addressBook}
-            walletStatus={walletStatus}
-            busy={busy}
-            onAddBlock={(input) => run(() => addAutomationBlock(workspaceWorkflow.id, input))}
-            onDeleteBlock={(blockId) => run(() => deleteAutomationBlock(workspaceWorkflow.id, blockId))}
-            onUpdateBlock={(blockId, input) => run(() => updateAutomationBlock(workspaceWorkflow.id, blockId, input))}
-            onReorderBlocks={(blockIds) => run(() => reorderAutomationBlocks(workspaceWorkflow.id, blockIds))}
-            onRunNow={() => run(() => runAutomationWorkflow(workspaceWorkflow.id))}
-            onRunWithPayload={(payload) => run(() => runAutomationWorkflow(workspaceWorkflow.id, payload))}
-            onToggleEnabled={() => run(() => updateAutomationWorkflow(workspaceWorkflow.id, { enabled: !workspaceWorkflow.enabled }))}
-            onToggleArchived={() => run(async () => {
-              await updateAutomationWorkflow(workspaceWorkflow.id, { archived: !workspaceWorkflow.archived });
-              if (!workspaceWorkflow.archived) setWorkspaceWorkflowId(null);
-            })}
-            onDelete={() => run(async () => {
-              await deleteAutomationWorkflow(workspaceWorkflow.id);
-              setWorkspaceWorkflowId(null);
-            })}
-          />
-        </Modal>
+      {workspaceMode && workspaceWorkflow && (
+        <WorkflowWorkspace
+          workflow={workspaceWorkflow}
+          runs={workspaceRuns}
+          validation={workspaceValidation}
+          source={sourceById(workspaceWorkflow.dataSourceId)}
+          sources={sources}
+          addressBook={addressBook}
+          walletStatus={walletStatus}
+          busy={busy}
+          mode={workspaceMode}
+          onAddBlock={(input) => run(() => addAutomationBlock(workspaceWorkflow.id, input))}
+          onDeleteBlock={(blockId) => run(() => deleteAutomationBlock(workspaceWorkflow.id, blockId))}
+          onUpdateBlock={(blockId, input) => run(() => updateAutomationBlock(workspaceWorkflow.id, blockId, input))}
+          onReorderBlocks={(blockIds) => run(() => reorderAutomationBlocks(workspaceWorkflow.id, blockIds))}
+          onRunNow={() => run(() => runAutomationWorkflow(workspaceWorkflow.id))}
+          onRunWithPayload={(payload) => run(() => runAutomationWorkflow(workspaceWorkflow.id, payload))}
+          onToggleEnabled={() => run(() => updateAutomationWorkflow(workspaceWorkflow.id, { enabled: !workspaceWorkflow.enabled }))}
+          onToggleArchived={() => run(async () => {
+            await updateAutomationWorkflow(workspaceWorkflow.id, { archived: !workspaceWorkflow.archived });
+            if (!workspaceWorkflow.archived) navigateFlow({ mode: "list" });
+          })}
+          onDelete={() => run(async () => {
+            await deleteAutomationWorkflow(workspaceWorkflow.id);
+            navigateFlow({ mode: "list" });
+          })}
+        />
       )}
+
+      {workspaceMode && activeWorkflowId && !workspaceWorkflow && <section className="card"><p className="muted">Loading workflow...</p></section>}
 
       {error && <p className="error-text">{error}</p>}
 
-      {!creatingWorkflow && <section className="card automation-list">
+      {flow.mode === "list" && <section className="card automation-list">
         <div className="status-row">
           <div><strong>Workflows</strong><p className="muted">Search, filter, duplicate, and archive workflows as your test list grows.</p></div>
           <span className="pill pill-neutral">{filteredWorkflows.length}/{workflows.length} shown</span>
@@ -212,7 +259,8 @@ export function AutomationPage() {
                     {workflow.archived && <p className="muted">Archived workflows do not run until restored.</p>}
                   </div>
                   <div className="row-actions">
-                    <button type="button" disabled={busy} onClick={() => setWorkspaceWorkflowId(workflow.id)}>Open</button>
+                    <button type="button" disabled={busy} onClick={() => navigateFlow({ mode: "edit", workflowId: workflow.id })}>Open and edit</button>
+                    <button type="button" disabled={busy} onClick={() => navigateFlow({ mode: "watch", workflowId: workflow.id })}>Watch</button>
                     <button type="button" disabled={busy || workflow.archived} onClick={() => run(() => runAutomationWorkflow(workflow.id))}>Run now</button>
                     <button type="button" disabled={busy || workflow.archived} onClick={() => run(() => updateAutomationWorkflow(workflow.id, { enabled: !workflow.enabled }))}>{workflow.enabled ? "Pause now" : "Enable now"}</button>
                     <button type="button" disabled={busy} onClick={() => run(() => duplicateAutomationWorkflow(workflow.id))}>Duplicate</button>
@@ -490,7 +538,7 @@ function defaultDraftConfig(type: AutomationBlockType, sources: DataSource[], po
   return {};
 }
 
-function WorkflowWorkspace({ workflow, runs, validation, source, sources, addressBook, walletStatus, busy, onAddBlock, onDeleteBlock, onUpdateBlock, onReorderBlocks, onRunNow, onRunWithPayload, onToggleEnabled, onToggleArchived, onDelete }: { workflow: AutomationWorkflow; runs: AutomationRun[]; validation: AutomationValidationResult | null; source: DataSource | undefined; sources: DataSource[]; addressBook: AddressBookEntry[]; walletStatus: WalletStatus | null; busy: boolean; onAddBlock: (input: Parameters<typeof addAutomationBlock>[1]) => void; onDeleteBlock: (blockId: string) => void; onUpdateBlock: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onReorderBlocks: (blockIds: string[]) => void; onRunNow: () => void; onRunWithPayload: (payload: unknown) => void; onToggleEnabled: () => void; onToggleArchived: () => void; onDelete: () => void }) {
+function WorkflowWorkspace({ workflow, runs, validation, source, sources, addressBook, walletStatus, busy, mode, onAddBlock, onDeleteBlock, onUpdateBlock, onReorderBlocks, onRunNow, onRunWithPayload, onToggleEnabled, onToggleArchived, onDelete }: { workflow: AutomationWorkflow; runs: AutomationRun[]; validation: AutomationValidationResult | null; source: DataSource | undefined; sources: DataSource[]; addressBook: AddressBookEntry[]; walletStatus: WalletStatus | null; busy: boolean; mode: "edit" | "watch"; onAddBlock: (input: Parameters<typeof addAutomationBlock>[1]) => void; onDeleteBlock: (blockId: string) => void; onUpdateBlock: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onReorderBlocks: (blockIds: string[]) => void; onRunNow: () => void; onRunWithPayload: (payload: unknown) => void; onToggleEnabled: () => void; onToggleArchived: () => void; onDelete: () => void }) {
   const [fetchSourceId, setFetchSourceId] = useState(() => sources.find((item) => item.type === "json-api" || item.type === "internal-json-api")?.id ?? "");
   const [outputTargetId, setOutputTargetId] = useState(() => sources.find((item) => item.type === "gpio-output")?.id ?? "");
   const [outputPulseMs, setOutputPulseMs] = useState("500");
@@ -555,7 +603,7 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
         <div>
           <strong>{workflow.name}</strong>
           <p className="muted">{source?.name ?? "Unknown source"} · {workflow.pollingIntervalSeconds > 0 ? formatInterval(workflow.pollingIntervalSeconds) : "Event driven"}</p>
-          <p className="muted">Changes are saved per block. Edit fields, then click that block's save button; add/remove/move/pause/enable actions apply immediately.</p>
+          <p className="muted">{mode === "watch" ? "Watch mode uses the same canvas shell; manual test runs will move here next." : "Changes are saved per block. Edit fields, then click that block's save button; add/remove/move/pause/enable actions apply immediately."}</p>
         </div>
         <span className={`pill ${workflow.archived ? "pill-neutral" : workflow.lastError ? "pill-warn" : workflow.enabled ? "pill-good" : "pill-neutral"}`}>{workflow.archived ? "Archived" : workflow.lastError ? "Error" : workflow.enabled ? "Enabled" : "Paused"}</span>
       </div>

@@ -495,6 +495,8 @@ Current implementation:
 - The canvas presentation layer is now extracted into reusable automation components (`WorkflowCanvas.tsx`) so create, edit, and future watch modes can share the same visual blocks.
 - Existing workflows now use the same full-page canvas layout: add-block library on the left, saved workflow canvas in the center, and selected-block editor on the right.
 - The current per-block save model remains in the edit inspector while add/remove/move actions apply immediately.
+- Workflow workspace entry points are URL-driven: `/automation?flow=build`, `/automation?flow=edit&id=<workflowId>`, and `/automation?flow=watch&id=<workflowId>`.
+- Opening an existing workflow no longer uses a modal; the shared canvas is loaded directly inside the Automation page.
 - `Run with payload` remains a temporary modal until Watch mode moves it into a canvas-side test runner.
 - The center canvas previews the generated block chain before creation.
 - The right inspector configures workflow name and selected-block settings.
