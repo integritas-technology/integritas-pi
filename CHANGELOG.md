@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Workflow create, edit, and watch entry points are now URL-driven (`/automation?flow=build`, `/automation?flow=edit&id=...`, `/automation?flow=watch&id=...`) so workflow workspaces render in the page instead of opening edit in a modal.
 - Existing workflow validation now appears in the edit workspace right inspector beside selected-block configuration, matching the create workspace layout.
 - Workflow-level lifecycle actions remain in the workflow list, while run controls, test payloads, and recent runs now live in Watch mode.
+- The edit workspace now shares the builder shell, categorized block library, and selected-block inspector patterns from the create workspace, and operators can rename workflows from the edit setup panel.
 
 ### Changed
 

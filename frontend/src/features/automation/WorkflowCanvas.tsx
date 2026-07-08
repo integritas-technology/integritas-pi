@@ -8,27 +8,28 @@ export type DraftWorkflowBlock = {
   attachedBlocks?: DraftWorkflowBlock[];
 };
 
-export function WorkflowBlockLibrary({ hasStartBlock, selectedBlock, onSelectStartBlock, onAddBlock, onAttachStamp }: { hasStartBlock: boolean; selectedBlock: DraftWorkflowBlock | undefined; onSelectStartBlock: (type: AutomationBlockType) => void; onAddBlock: (type: AutomationBlockType) => void; onAttachStamp: (parentId: string) => void }) {
+export function WorkflowBlockLibrary({ mode = "build", hasStartBlock, selectedBlock, canAddRecordTriggerEvent = true, onSelectStartBlock, onAddBlock, onAttachStamp }: { mode?: "build" | "edit"; hasStartBlock: boolean; selectedBlock: DraftWorkflowBlock | undefined; canAddRecordTriggerEvent?: boolean; onSelectStartBlock: (type: AutomationBlockType) => void; onAddBlock: (type: AutomationBlockType) => void; onAttachStamp: (parentId: string) => void }) {
+  const canAddMainBlock = hasStartBlock;
   return (
     <aside className="workflow-block-library">
       <strong>Block library</strong>
-      <p className="muted">Choose one start block first. Reset the canvas if you need to choose a different start.</p>
-      {!hasStartBlock && <strong>Start blocks</strong>}
-      {!hasStartBlock && <button type="button" className="workflow-library-card" onClick={() => onSelectStartBlock("manual_start")}><span>Manual run</span><small>Run only when an operator starts it.</small></button>}
-      {!hasStartBlock && <button type="button" className="workflow-library-card" onClick={() => onSelectStartBlock("schedule_start")}><span>Schedule</span><small>Run repeatedly on an interval.</small></button>}
-      {!hasStartBlock && <button type="button" className="workflow-library-card" onClick={() => onSelectStartBlock("gpio_event_start")}><span>GPIO input event</span><small>Start from a configured GPIO input device.</small></button>}
-      {!hasStartBlock && <button type="button" className="workflow-library-card" onClick={() => onSelectStartBlock("webhook_event_start")}><span>Webhook received</span><small>Start when JSON arrives at a webhook URL.</small></button>}
-      {!hasStartBlock && <button type="button" className="workflow-library-card" onClick={() => onSelectStartBlock("mqtt_event_start")}><span>MQTT message received</span><small>Start when JSON arrives on an MQTT topic.</small></button>}
-      {hasStartBlock && <p className="muted">Start block selected. Data and logic blocks can now be added.</p>}
+      <p className="muted">{mode === "build" ? "Choose one start block first. Reset the canvas if you need to choose a different start." : "Add blocks to this workflow. Select a block on the canvas to configure it."}</p>
+      {mode === "build" && !hasStartBlock && <strong>Start blocks</strong>}
+      {mode === "build" && !hasStartBlock && <button type="button" className="workflow-library-card" onClick={() => onSelectStartBlock("manual_start")}><span>Manual run</span><small>Run only when an operator starts it.</small></button>}
+      {mode === "build" && !hasStartBlock && <button type="button" className="workflow-library-card" onClick={() => onSelectStartBlock("schedule_start")}><span>Schedule</span><small>Run repeatedly on an interval.</small></button>}
+      {mode === "build" && !hasStartBlock && <button type="button" className="workflow-library-card" onClick={() => onSelectStartBlock("gpio_event_start")}><span>GPIO input event</span><small>Start from a configured GPIO input device.</small></button>}
+      {mode === "build" && !hasStartBlock && <button type="button" className="workflow-library-card" onClick={() => onSelectStartBlock("webhook_event_start")}><span>Webhook received</span><small>Start when JSON arrives at a webhook URL.</small></button>}
+      {mode === "build" && !hasStartBlock && <button type="button" className="workflow-library-card" onClick={() => onSelectStartBlock("mqtt_event_start")}><span>MQTT message received</span><small>Start when JSON arrives on an MQTT topic.</small></button>}
+      {mode === "build" && hasStartBlock && <p className="muted">Start block selected. Data and logic blocks can now be added.</p>}
       <strong>Data blocks</strong>
-      <button type="button" className="workflow-library-card" disabled={!hasStartBlock} onClick={() => onAddBlock("record_trigger_event")}><span>Record trigger event</span><small>Store the trigger payload as data.</small></button>
-      <button type="button" className="workflow-library-card" disabled={!hasStartBlock} onClick={() => onAddBlock("fetch_data_source")}><span>Fetch HTTP JSON</span><small>Fetch a configured HTTP source.</small></button>
+      <button type="button" className="workflow-library-card" disabled={!canAddMainBlock || !canAddRecordTriggerEvent} onClick={() => onAddBlock("record_trigger_event")}><span>Record trigger event</span><small>Store the trigger payload as data.</small></button>
+      <button type="button" className="workflow-library-card" disabled={!canAddMainBlock} onClick={() => onAddBlock("fetch_data_source")}><span>Fetch HTTP JSON</span><small>Fetch a configured HTTP source.</small></button>
       <strong>Logic blocks</strong>
-      <button type="button" className="workflow-library-card" disabled={!hasStartBlock} onClick={() => onAddBlock("if_payload_field_equals")}><span>If field matches</span><small>Stop unless a trigger/data field matches.</small></button>
-      <button type="button" className="workflow-library-card" disabled={!hasStartBlock} onClick={() => onAddBlock("wait")}><span>Wait</span><small>Pause before the next block.</small></button>
+      <button type="button" className="workflow-library-card" disabled={!canAddMainBlock} onClick={() => onAddBlock("if_payload_field_equals")}><span>If field matches</span><small>Stop unless a trigger/data field matches.</small></button>
+      <button type="button" className="workflow-library-card" disabled={!canAddMainBlock} onClick={() => onAddBlock("wait")}><span>Wait</span><small>Pause before the next block.</small></button>
       <strong>Action blocks</strong>
-      <button type="button" className="workflow-library-card" disabled={!hasStartBlock} onClick={() => onAddBlock("control_output")}><span>Pulse output</span><small>Pulse a configured GPIO LED output.</small></button>
-      <button type="button" className="workflow-library-card" disabled={!hasStartBlock} onClick={() => onAddBlock("send_transaction")}><span>Send transaction</span><small>Send native MINIMA to an address book recipient.</small></button>
+      <button type="button" className="workflow-library-card" disabled={!canAddMainBlock} onClick={() => onAddBlock("control_output")}><span>Pulse output</span><small>Pulse a configured GPIO LED output.</small></button>
+      <button type="button" className="workflow-library-card" disabled={!canAddMainBlock} onClick={() => onAddBlock("send_transaction")}><span>Send transaction</span><small>Send native MINIMA to an address book recipient.</small></button>
       <strong>Attached actions</strong>
       <button type="button" className="workflow-library-card" disabled={!selectedBlock || !isDataBlock(selectedBlock.type) || Boolean(selectedBlock.attachedBlocks?.some((block) => block.type === "stamp_integritas"))} onClick={() => selectedBlock && onAttachStamp(selectedBlock.id)}><span>Stamp with Integritas</span><small>Select a Record or Fetch block to attach a stamp.</small></button>
     </aside>

@@ -499,6 +499,8 @@ Current implementation:
 - Opening an existing workflow no longer uses a modal; the shared canvas is loaded directly inside the Automation page.
 - Edit mode keeps validation in the right inspector above selected-block configuration, matching the create workspace placement.
 - Workflow-level lifecycle actions stay in the workflow list. Run controls, test payload execution, and recent runs live in Watch mode.
+- Edit mode now uses the same outer builder shell, categorized block library, and selected-block inspector pattern as create mode, with persisted block changes still applied through explicit per-block saves.
+- Workflow names are editable from the edit workspace setup panel.
 - The center canvas previews the generated block chain before creation.
 - The right inspector configures workflow name and selected-block settings.
 - The draft canvas owns an editable draft block list and supports add/remove/move controls for supported draft blocks.
