@@ -16,6 +16,7 @@ docs/
 | [plans/security-checklist.md](./plans/security-checklist.md) | In progress |
 | [plans/update-service.md](./plans/update-service.md) | In progress |
 | [plans/update-agent-review-fixes.md](./plans/update-agent-review-fixes.md) | Done |
+| [plans/update-service-launch.md](./plans/update-service-launch.md) | Not started |
 
 ---
 

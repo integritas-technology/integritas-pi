@@ -1,6 +1,6 @@
 # Update Service Plan
 
-**Status:** In progress — parts 1–5 and 7 implemented; part 6 (VPS deploy + GitHub secrets) and the real-Pi end-to-end test remain. Code review findings in [update-agent-review-fixes.md](./update-agent-review-fixes.md) are all resolved except item 7 (minima data-dir ownership), which can only be checked on real hardware — see Part 7's checklist below.
+**Status:** Design and code complete (parts 1–5, 7). Everything left — VPS deploy wiring, real signing key, branch dry run, real-Pi verification — is testing/audit work, tracked in [update-service-launch.md](./update-service-launch.md). Code review findings in [update-agent-review-fixes.md](./update-agent-review-fixes.md) are all resolved except item 7 (minima data-dir ownership), which is a real-hardware check, also tracked there.
 **Created:** 2026-07-06
 **Goal:** V1 manual "Update Now" flow for `frontend`, `backend`, and a pinned `minima-node` digest, driven by a signed manifest built in CI and applied by a new `update-agent` container.
 
@@ -90,10 +90,7 @@ Mitigation is shrinking `update-agent`'s own attack surface, not network placeme
 
 ### 6) VPS deploy setup
 
-- [ ] Confirm/create the dedicated low-privilege VPS deploy user, scoped to one folder.
-- [ ] Confirm how the existing Next.js VPS app serves static/manifest files (route, folder convention).
-- [ ] Wire the real deploy step (replace part 2's placeholder) with actual host/path/credentials, stored as GH secrets.
-- [ ] Confirm the manifest URL `update-agent` will fetch from in production.
+Moved to [update-service-launch.md](./update-service-launch.md) §1 — this is launch/audit work, not design work.
 
 ### 7) Cleanup / hardening pass
 
@@ -101,8 +98,7 @@ Mitigation is shrinking `update-agent`'s own attack surface, not network placeme
 - [x] `AGENTS.md`: new "Update Agent" section once the shape settles.
 - [x] `CHANGELOG.md` entries under `[Unreleased]` as each part lands.
 - [x] `docs/README.md` — add this plan to the "Active plans" table. (Already added earlier in this plan's work.)
-- [ ] End-to-end manual test on a real Pi: trigger update, confirm rollback on an intentionally-broken health check. See "How to test" below — do this only after part 6 (VPS + secrets) is wired up.
-- [ ] Verify minima data-dir file ownership on real hardware: `update-agent` runs as uid 1000 (`USER node` in its Dockerfile); if the real `minimaglobal/minima` image writes its data as root, the backup/restore copy in `minima-update.ts` fails with `EACCES` (safe — the update is refused, nothing corrupts — but the safety net never actually works). Can only be checked against the real image on a real Pi. (from code review item 7, tracked in [update-agent-review-fixes.md](./update-agent-review-fixes.md))
+- [ ] End-to-end manual test on a real Pi, and Minima data-dir ownership verification (review item #7): moved to [update-service-launch.md](./update-service-launch.md) §4.
 
 ---
 
