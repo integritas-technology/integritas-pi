@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
 
 jobs:
   changes:
@@ -107,16 +107,16 @@ jobs:
           MANIFEST_SIGNING_KEY: ${{ secrets.MANIFEST_SIGNING_KEY }}
         run: node scripts/release/sign-manifest.mjs manifest.json manifest.json.sig
 
-      # TODO (part 6): deploy manifest.json + manifest.json.sig to the VPS
-      # Next.js app via the dedicated low-privilege deploy user. Placeholder
-      # secrets referenced below don't exist yet.
-      - name: Deploy manifest (placeholder)
-        env:
-          VPS_DEPLOY_HOST: ${{ secrets.VPS_DEPLOY_HOST }}
-          VPS_DEPLOY_USER: ${{ secrets.VPS_DEPLOY_USER }}
-          VPS_DEPLOY_KEY: ${{ secrets.VPS_DEPLOY_KEY }}
-        run: |
-          echo "TODO (part 6): scp/rsync manifest.json + manifest.json.sig to $VPS_DEPLOY_HOST"
+      # QA deploy: change QA variables for Production once QA is verified end-to-end.
+      - name: Deploy manifest
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.QA_VPS_DEPLOY_HOST }}
+          username: ${{ secrets.QA_VPS_DEPLOY_USER }}
+          key: ${{ secrets.QA_VPS_DEPLOY_KEY }}
+          source: 'manifest.json,manifest.json.sig'
+          target: ${{ secrets.QA_VPS_DEPLOY_PATH }}
+          strip_components: 0
 
       - name: Upload manifest artifact
         uses: actions/upload-artifact@v4
