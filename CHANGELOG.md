@@ -10,11 +10,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - **Update service (V1)**: new `update-agent` container provides a manual "Update Now" flow for `frontend`, `backend`, and `minima`. Updates are driven by a signed manifest (Ed25519) built and published by a tag-triggered GitHub Actions release workflow, and applied only after the new container passes a health check; a failed update leaves the previous container running (or, for `minima`, restores its data directory and restarts the previous version).
 - The update UI is served at `https://<pi-ip>:8080/update`, proxied through the existing frontend nginx on the same origin/certificate — no extra browser certificate approval.
-- New `MANIFEST_URL`, `MANIFEST_PUBLIC_KEY`, `RELEASE_CHANNEL`, `UPDATE_HEALTH_CHECK_TIMEOUT_MS`, `UPDATE_HEALTH_CHECK_INTERVAL_MS` environment variables (see README Configuration section).
+- Real Docker `HEALTHCHECK`s for `frontend`/`backend` so update-agent's health-gated swap has real health data to act on, not just "is the container running".
+- Manifest replay/downgrade protection: manifests carry a signed `createdAt` timestamp; `update-agent` persists the last-applied timestamp (`UPDATE_AGENT_STATE_DIR`) and rejects any manifest strictly older than it.
+- `/apply` is now asynchronous: `POST /apply` starts a background job and returns immediately, `GET /apply` polls job status — needed since a successful frontend update kills its own in-flight request.
+- New `MANIFEST_URL`, `MANIFEST_PUBLIC_KEY`, `RELEASE_CHANNEL`, `UPDATE_HEALTH_CHECK_TIMEOUT_MS`, `UPDATE_HEALTH_CHECK_INTERVAL_MS`, `UPDATE_PULL_TIMEOUT_MS`, `MINIMA_BACKUP_DIR`, `UPDATE_AGENT_STATE_DIR` environment variables (see README Configuration section).
+
+### Fixed
+
+- **Update-agent frontend/backend swap**: updates to services publishing a host port no longer fail on a port-binding conflict between the old and new container; the candidate is created and health-checked without port bindings first, and only swapped in (old stopped/removed, candidate recreated with its ports, started) once healthy.
+- **Update-agent Minima rollback**: backup/restore no longer fails with `EBUSY` on the bind mount root, no longer risks a backup taken mid-write, and now lands on its own dedicated `MINIMA_BACKUP_DIR` bind mount instead of a path inside the container's ephemeral layer.
+- **Update-agent retry after a crash**: a stale `<service>-update-candidate` container left behind by a crash mid-update (e.g. a power cut) no longer blocks every subsequent retry with a Docker name-conflict `409`.
+- **Update-agent auth check**: the forwarded `GET /api/auth/me` check now times out after 5s instead of hanging indefinitely if `backend` never responds.
+- **Update-agent `.sig` URL building**: signature URL is now built by parsing `MANIFEST_URL` and appending `.sig` to the pathname, instead of raw string concatenation (which broke when the manifest URL had a query string).
 
 ### Security
 
 - `update-agent` mounts `/var/run/docker.sock` to apply updates; documented as an accepted, host-root-equivalent risk mitigated by minimal code surface, admin-only access, and signature/digest verification — not by network placement. See `SECURITY.md`.
+- **Update-agent error responses**: client-visible error messages (`GET /status`, `POST /apply` job failures, port-bind-failure restore path) no longer leak raw Docker/system error text; full detail is still logged server-side via `console.error`.
 
 ## [0.12.0] - 2026-07-02
 
