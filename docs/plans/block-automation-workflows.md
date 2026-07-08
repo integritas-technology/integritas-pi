@@ -497,7 +497,8 @@ Current implementation:
 - The current per-block save model remains in the edit inspector while add/remove/move actions apply immediately.
 - Workflow workspace entry points are URL-driven: `/automation?flow=build`, `/automation?flow=edit&id=<workflowId>`, and `/automation?flow=watch&id=<workflowId>`.
 - Opening an existing workflow no longer uses a modal; the shared canvas is loaded directly inside the Automation page.
-- `Run with payload` remains a temporary modal until Watch mode moves it into a canvas-side test runner.
+- Edit mode keeps validation in the right inspector above selected-block configuration, matching the create workspace placement.
+- Workflow-level lifecycle actions stay in the workflow list. Run controls, test payload execution, and recent runs live in Watch mode.
 - The center canvas previews the generated block chain before creation.
 - The right inspector configures workflow name and selected-block settings.
 - The draft canvas owns an editable draft block list and supports add/remove/move controls for supported draft blocks.

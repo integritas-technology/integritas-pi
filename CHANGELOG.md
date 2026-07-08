@@ -19,7 +19,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Workflow canvas presentation has been extracted into reusable automation components as the first step toward using the same canvas for create, edit, and watch modes.
 - Existing workflow editing now uses the shared full-page canvas layout with add-block controls on the left, the saved workflow canvas in the center, and selected-block configuration on the right.
 - Workflow create, edit, and watch entry points are now URL-driven (`/automation?flow=build`, `/automation?flow=edit&id=...`, `/automation?flow=watch&id=...`) so workflow workspaces render in the page instead of opening edit in a modal.
-- `Run with payload` is documented as a temporary modal while Watch mode is prepared to host manual test runs inside the canvas workspace.
+- Existing workflow validation now appears in the edit workspace right inspector beside selected-block configuration, matching the create workspace layout.
+- Workflow-level lifecycle actions remain in the workflow list, while run controls, test payloads, and recent runs now live in Watch mode.
 
 ### Changed
 

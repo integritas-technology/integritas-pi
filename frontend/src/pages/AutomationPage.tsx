@@ -1,5 +1,4 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
 import { addAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, duplicateAutomationWorkflow, getAutomationWorkflowValidation, listAutomationWorkflowRuns, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow, validateAutomationDraft } from "../features/automation/automationApi";
 import { AutomationRunsTable } from "../features/automation/AutomationRunsTable";
@@ -205,15 +204,6 @@ export function AutomationPage() {
           onReorderBlocks={(blockIds) => run(() => reorderAutomationBlocks(workspaceWorkflow.id, blockIds))}
           onRunNow={() => run(() => runAutomationWorkflow(workspaceWorkflow.id))}
           onRunWithPayload={(payload) => run(() => runAutomationWorkflow(workspaceWorkflow.id, payload))}
-          onToggleEnabled={() => run(() => updateAutomationWorkflow(workspaceWorkflow.id, { enabled: !workspaceWorkflow.enabled }))}
-          onToggleArchived={() => run(async () => {
-            await updateAutomationWorkflow(workspaceWorkflow.id, { archived: !workspaceWorkflow.archived });
-            if (!workspaceWorkflow.archived) navigateFlow({ mode: "list" });
-          })}
-          onDelete={() => run(async () => {
-            await deleteAutomationWorkflow(workspaceWorkflow.id);
-            navigateFlow({ mode: "list" });
-          })}
         />
       )}
 
@@ -265,6 +255,7 @@ export function AutomationPage() {
                     <button type="button" disabled={busy || workflow.archived} onClick={() => run(() => updateAutomationWorkflow(workflow.id, { enabled: !workflow.enabled }))}>{workflow.enabled ? "Pause now" : "Enable now"}</button>
                     <button type="button" disabled={busy} onClick={() => run(() => duplicateAutomationWorkflow(workflow.id))}>Duplicate</button>
                     <button type="button" disabled={busy} onClick={() => run(() => updateAutomationWorkflow(workflow.id, { archived: !workflow.archived }))}>{workflow.archived ? "Restore" : "Archive"}</button>
+                    <button type="button" disabled={busy} onClick={() => run(() => deleteAutomationWorkflow(workflow.id))}>Delete</button>
                   </div>
                 </div>
               </article>
@@ -538,7 +529,7 @@ function defaultDraftConfig(type: AutomationBlockType, sources: DataSource[], po
   return {};
 }
 
-function WorkflowWorkspace({ workflow, runs, validation, source, sources, addressBook, walletStatus, busy, mode, onAddBlock, onDeleteBlock, onUpdateBlock, onReorderBlocks, onRunNow, onRunWithPayload, onToggleEnabled, onToggleArchived, onDelete }: { workflow: AutomationWorkflow; runs: AutomationRun[]; validation: AutomationValidationResult | null; source: DataSource | undefined; sources: DataSource[]; addressBook: AddressBookEntry[]; walletStatus: WalletStatus | null; busy: boolean; mode: "edit" | "watch"; onAddBlock: (input: Parameters<typeof addAutomationBlock>[1]) => void; onDeleteBlock: (blockId: string) => void; onUpdateBlock: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onReorderBlocks: (blockIds: string[]) => void; onRunNow: () => void; onRunWithPayload: (payload: unknown) => void; onToggleEnabled: () => void; onToggleArchived: () => void; onDelete: () => void }) {
+function WorkflowWorkspace({ workflow, runs, validation, source, sources, addressBook, walletStatus, busy, mode, onAddBlock, onDeleteBlock, onUpdateBlock, onReorderBlocks, onRunNow, onRunWithPayload }: { workflow: AutomationWorkflow; runs: AutomationRun[]; validation: AutomationValidationResult | null; source: DataSource | undefined; sources: DataSource[]; addressBook: AddressBookEntry[]; walletStatus: WalletStatus | null; busy: boolean; mode: "edit" | "watch"; onAddBlock: (input: Parameters<typeof addAutomationBlock>[1]) => void; onDeleteBlock: (blockId: string) => void; onUpdateBlock: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onReorderBlocks: (blockIds: string[]) => void; onRunNow: () => void; onRunWithPayload: (payload: unknown) => void }) {
   const [fetchSourceId, setFetchSourceId] = useState(() => sources.find((item) => item.type === "json-api" || item.type === "internal-json-api")?.id ?? "");
   const [outputTargetId, setOutputTargetId] = useState(() => sources.find((item) => item.type === "gpio-output")?.id ?? "");
   const [outputPulseMs, setOutputPulseMs] = useState("500");
@@ -552,7 +543,6 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
   const [conditionValue, setConditionValue] = useState("true");
   const [conditionError, setConditionError] = useState<string | null>(null);
   const [expandedAddBlock, setExpandedAddBlock] = useState<"record" | "fetch" | "condition" | "wait" | "output" | "transaction" | null>(null);
-  const [payloadModalOpen, setPayloadModalOpen] = useState(false);
   const [payloadText, setPayloadText] = useState(() => JSON.stringify(examplePayload(workflow), null, 2));
   const [payloadError, setPayloadError] = useState<string | null>(null);
   const mainBlocks = workflow.blocks.filter((block) => !block.parentBlockId);
@@ -571,47 +561,17 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
 
   return (
     <section className="automation-list">
-      {payloadModalOpen && (
-        <Modal title="Run with payload" onClose={() => setPayloadModalOpen(false)}>
-          <section className="automation-form">
-            <div className="status-row">
-              <div><strong>Manual test payload</strong><p className="muted">This runs the workflow now using the JSON below as the trigger payload. It does not wait for the real trigger.</p></div>
-              <span className="pill pill-neutral">Test run</span>
-            </div>
-            <label>Trigger payload<textarea rows={12} value={payloadText} onChange={(event) => {
-              setPayloadText(event.target.value);
-              setPayloadError(null);
-            }} /></label>
-            {payloadError && <p className="error-text">{payloadError}</p>}
-            <div className="row-actions">
-              <button type="button" disabled={busy} onClick={() => setPayloadText(JSON.stringify(examplePayload(workflow), null, 2))}>Reset example</button>
-              <button type="button" disabled={busy} onClick={() => setPayloadModalOpen(false)}>Cancel</button>
-              <button type="button" disabled={busy || hasValidationErrors} onClick={() => {
-                try {
-                  const parsed = JSON.parse(payloadText) as unknown;
-                  setPayloadModalOpen(false);
-                  onRunWithPayload(parsed);
-                } catch (error) {
-                  setPayloadError(error instanceof Error ? error.message : "Payload must be valid JSON");
-                }
-              }}>Run test</button>
-            </div>
-          </section>
-        </Modal>
-      )}
       <div className="status-row">
         <div>
           <strong>{workflow.name}</strong>
           <p className="muted">{source?.name ?? "Unknown source"} · {workflow.pollingIntervalSeconds > 0 ? formatInterval(workflow.pollingIntervalSeconds) : "Event driven"}</p>
-          <p className="muted">{mode === "watch" ? "Watch mode uses the same canvas shell; manual test runs will move here next." : "Changes are saved per block. Edit fields, then click that block's save button; add/remove/move/pause/enable actions apply immediately."}</p>
+          <p className="muted">{mode === "watch" ? "Run and inspect this workflow from the shared canvas shell." : "Changes are saved per block. Edit fields, then click that block's save button; add/remove/move/pause/enable actions apply immediately."}</p>
         </div>
         <span className={`pill ${workflow.archived ? "pill-neutral" : workflow.lastError ? "pill-warn" : workflow.enabled ? "pill-good" : "pill-neutral"}`}>{workflow.archived ? "Archived" : workflow.lastError ? "Error" : workflow.enabled ? "Enabled" : "Paused"}</span>
       </div>
 
       {workflow.archived && <p className="muted">Archived workflows do not run automatically or manually until restored.</p>}
       {workflow.lastError && <p className="error-text">{workflow.lastError}</p>}
-
-      <WorkflowValidationPanel validation={validation} />
 
       <div className="metric-grid">
         <div><span className="muted">Blocks</span><strong>{workflow.blocks.length}</strong></div>
@@ -698,6 +658,7 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
         }} />
 
         <aside className="workflow-create-inspector">
+          <WorkflowValidationPanel validation={validation} />
           {selectedBlock ? <BlockCard
             key={selectedBlock.id}
             block={selectedBlock}
@@ -725,28 +686,13 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
         </aside>
       </div>
 
-      <div className="status-row">
-        <div>
-          <strong>Improve this workflow</strong>
-          <p className="muted">Run the workflow manually, pause it, or delete it. Add Integritas stamps from record/fetch blocks.</p>
-        </div>
-        <div className="row-actions">
-          <button type="button" disabled={busy || hasValidationErrors || workflow.archived} onClick={onRunNow}>Run now</button>
-          <button type="button" disabled={busy || hasValidationErrors || workflow.archived} onClick={() => {
-            setPayloadText(JSON.stringify(examplePayload(workflow), null, 2));
-            setPayloadError(null);
-            setPayloadModalOpen(true);
-          }}>Run with payload</button>
-          <button type="button" disabled={busy || workflow.archived} onClick={onToggleEnabled}>{workflow.enabled ? "Pause now" : "Enable now"}</button>
-          <button type="button" disabled={busy} onClick={onToggleArchived}>{workflow.archived ? "Restore workflow" : "Archive workflow"}</button>
-          <button type="button" disabled={busy} onClick={onDelete}>Delete workflow now</button>
-        </div>
-      </div>
-
-      <section className="card soft-card">
-        <div><strong>Recent runs</strong><p className="muted">Latest executions for this workflow, including per-block status.</p></div>
-        <AutomationRunsTable runs={runs} compact />
-      </section>
+      {mode === "watch" && <WatchWorkflowPanel workflow={workflow} runs={runs} busy={busy} hasValidationErrors={hasValidationErrors} payloadText={payloadText} payloadError={payloadError} onPayloadTextChange={(value) => {
+        setPayloadText(value);
+        setPayloadError(null);
+      }} onPayloadError={setPayloadError} onResetPayload={() => {
+        setPayloadText(JSON.stringify(examplePayload(workflow), null, 2));
+        setPayloadError(null);
+      }} onRunNow={onRunNow} onRunWithPayload={onRunWithPayload} />}
     </section>
   );
 }
@@ -782,6 +728,37 @@ function WorkflowValidationPanel({ validation }: { validation: AutomationValidat
       </div>
       {validation.errors.map((issue) => <ValidationIssueRow key={`${issue.code}-${issue.blockId ?? "workflow"}`} issue={issue} />)}
       {validation.warnings.map((issue) => <ValidationIssueRow key={`${issue.code}-${issue.blockId ?? "workflow"}`} issue={issue} />)}
+    </section>
+  );
+}
+
+function WatchWorkflowPanel({ workflow, runs, busy, hasValidationErrors, payloadText, payloadError, onPayloadTextChange, onPayloadError, onResetPayload, onRunNow, onRunWithPayload }: { workflow: AutomationWorkflow; runs: AutomationRun[]; busy: boolean; hasValidationErrors: boolean; payloadText: string; payloadError: string | null; onPayloadTextChange: (value: string) => void; onPayloadError: (value: string | null) => void; onResetPayload: () => void; onRunNow: () => void; onRunWithPayload: (payload: unknown) => void }) {
+  return (
+    <section className="card soft-card">
+      <div className="status-row">
+        <div>
+          <strong>Watch and test</strong>
+          <p className="muted">Run this workflow and review recent executions. Live block highlighting will build on this panel.</p>
+        </div>
+        <span className="pill pill-neutral">Watch mode</span>
+      </div>
+      <div className="automation-form">
+        <label>Trigger payload<textarea rows={8} value={payloadText} onChange={(event) => onPayloadTextChange(event.target.value)} /></label>
+        {payloadError && <p className="error-text">{payloadError}</p>}
+        <div className="row-actions">
+          <button type="button" disabled={busy || hasValidationErrors || workflow.archived} onClick={onRunNow}>Run now</button>
+          <button type="button" disabled={busy} onClick={onResetPayload}>Reset example</button>
+          <button type="button" disabled={busy || hasValidationErrors || workflow.archived} onClick={() => {
+            try {
+              onRunWithPayload(JSON.parse(payloadText) as unknown);
+            } catch (error) {
+              onPayloadError(error instanceof Error ? error.message : "Payload must be valid JSON");
+            }
+          }}>Run with payload</button>
+        </div>
+      </div>
+      <div><strong>Recent runs</strong><p className="muted">Latest executions for this workflow, including per-block status.</p></div>
+      <AutomationRunsTable runs={runs} compact />
     </section>
   );
 }
