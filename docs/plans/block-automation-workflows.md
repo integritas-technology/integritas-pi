@@ -503,6 +503,7 @@ Current implementation:
 - Workflow names are editable from the edit workspace setup panel.
 - Watch mode now replaces edit controls with run/test controls, selected-block runtime details, latest output/error/timing, read/proof Diagnostics links, and recent run history.
 - Build, Edit, and Watch now use a shared workflow workspace shell and one normalized canvas renderer for draft and persisted blocks.
+- The public canvas API is now mode-aware (`build`, `edit`, `watch`) and accepts normalized canvas blocks.
 - The center canvas previews the generated block chain before creation.
 - The right inspector configures workflow name and selected-block settings.
 - The draft canvas owns an editable draft block list and supports add/remove/move controls for supported draft blocks.

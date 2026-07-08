@@ -12,6 +12,10 @@ export type DraftWorkflowBlock = {
   lastError?: string | null;
 };
 
+export type WorkflowCanvasMode = "build" | "edit" | "watch";
+
+export type WorkflowCanvasBlock = DraftWorkflowBlock;
+
 export function WorkflowWorkspaceShell({ eyebrow, title, description, actions, left, center, right, bottom, notices }: { eyebrow: string; title: string; description: ReactNode; actions?: ReactNode; left: ReactNode; center: ReactNode; right: ReactNode; bottom?: ReactNode; notices?: ReactNode }) {
   return (
     <section className="workflow-create-shell">
@@ -62,28 +66,20 @@ export function WorkflowBlockLibrary({ mode = "build", hasStartBlock, selectedBl
   );
 }
 
-export function WorkflowDraftCanvas({ blocks, sources, enabled, selectedBlockId, onSelectBlock, onMoveBlock, onRemoveBlock }: { blocks: DraftWorkflowBlock[]; sources: DataSource[]; enabled: boolean; selectedBlockId: string; onSelectBlock: (id: string) => void; onMoveBlock: (id: string, direction: -1 | 1) => void; onRemoveBlock: (id: string) => void }) {
-  return <WorkflowCanvas title="Draft canvas" description="This is the starter chain that will be created." statusLabel={enabled ? "Enabled on create" : "Paused on create"} statusGood={enabled} blocks={blocks} sources={sources} selectedBlockId={selectedBlockId} emptyTitle="Choose a start block" emptyDescription="Start with Manual, Schedule, GPIO, Webhook, or MQTT. Then add data and logic blocks." actionLabels={{ up: "Up", down: "Down", remove: "Remove" }} onSelectBlock={onSelectBlock} onMoveBlock={onMoveBlock} onRemoveBlock={onRemoveBlock} />;
-}
-
-export function WorkflowSavedCanvas({ blocks, sources, workflowEnabled, workflowArchived, selectedBlockId, onSelectBlock, onMoveBlock, onRemoveBlock }: { blocks: AutomationBlock[]; sources: DataSource[]; workflowEnabled: boolean; workflowArchived: boolean; selectedBlockId: string; onSelectBlock: (id: string) => void; onMoveBlock: (id: string, direction: -1 | 1) => void; onRemoveBlock: (id: string) => void }) {
-  const canvasBlocks = blocks.filter((block) => !block.parentBlockId).map((block) => toCanvasBlock(block, blocks));
-
-  return <WorkflowCanvas title="Workflow canvas" description="Select a block to edit or inspect it. Move and remove actions apply immediately." statusLabel={workflowArchived ? "Archived" : workflowEnabled ? "Enabled" : "Paused"} statusGood={!workflowArchived && workflowEnabled} blocks={canvasBlocks} sources={sources} selectedBlockId={selectedBlockId} emptyTitle="No blocks" emptyDescription="Add a start block by creating a new workflow." actionLabels={{ up: "Move up", down: "Move down", remove: "Remove" }} onSelectBlock={onSelectBlock} onMoveBlock={onMoveBlock} onRemoveBlock={onRemoveBlock} />;
-}
-
-function WorkflowCanvas({ title, description, statusLabel, statusGood, blocks, sources, selectedBlockId, emptyTitle, emptyDescription, actionLabels, onSelectBlock, onMoveBlock, onRemoveBlock }: { title: string; description: string; statusLabel: string; statusGood: boolean; blocks: DraftWorkflowBlock[]; sources: DataSource[]; selectedBlockId: string; emptyTitle: string; emptyDescription: string; actionLabels: { up: string; down: string; remove: string }; onSelectBlock: (id: string) => void; onMoveBlock: (id: string, direction: -1 | 1) => void; onRemoveBlock: (id: string) => void }) {
+export function WorkflowCanvas({ mode, blocks, sources, selectedBlockId, statusLabel, statusGood, onSelectBlock, onMoveBlock, onRemoveBlock }: { mode: WorkflowCanvasMode; blocks: WorkflowCanvasBlock[]; sources: DataSource[]; selectedBlockId: string; statusLabel: string; statusGood: boolean; onSelectBlock: (id: string) => void; onMoveBlock: (id: string, direction: -1 | 1) => void; onRemoveBlock: (id: string) => void }) {
+  const isBuild = mode === "build";
+  const actionLabels = isBuild ? { up: "Up", down: "Down", remove: "Remove" } : { up: "Move up", down: "Move down", remove: "Remove" };
   return (
     <section className="workflow-draft-canvas">
       <div className="status-row">
         <div>
-          <strong>{title}</strong>
-          <p className="muted">{description}</p>
+          <strong>{isBuild ? "Draft canvas" : "Workflow canvas"}</strong>
+          <p className="muted">{isBuild ? "This is the starter chain that will be created." : "Select a block to edit or inspect it. Move and remove actions apply immediately."}</p>
         </div>
         <span className={`pill ${statusGood ? "pill-good" : "pill-neutral"}`}>{statusLabel}</span>
       </div>
       <div className="workflow-canvas-lane">
-        {blocks.length === 0 && <div className="workflow-canvas-empty"><strong>{emptyTitle}</strong><p className="muted">{emptyDescription}</p></div>}
+        {blocks.length === 0 && <div className="workflow-canvas-empty"><strong>{isBuild ? "Choose a start block" : "No blocks"}</strong><p className="muted">{isBuild ? "Start with Manual, Schedule, GPIO, Webhook, or MQTT. Then add data and logic blocks." : "Add a start block by creating a new workflow."}</p></div>}
         {blocks.map((block, index) => (
           <WorkflowBlockCard key={block.id} block={block} index={index} sources={sources} selected={block.id === selectedBlockId} canMoveUp={index > 1} canMoveDown={index > 0 && index < blocks.length - 1} actionLabels={actionLabels} onSelect={() => onSelectBlock(block.id)} onMoveUp={() => onMoveBlock(block.id, -1)} onMoveDown={() => onMoveBlock(block.id, 1)} onRemove={() => onRemoveBlock(block.id)} />
         ))}
@@ -114,7 +110,7 @@ function WorkflowBlockCard({ block, index, sources, selected, canMoveUp, canMove
   );
 }
 
-function toCanvasBlock(block: AutomationBlock, allBlocks: AutomationBlock[]): DraftWorkflowBlock {
+export function automationBlockToCanvasBlock(block: AutomationBlock, allBlocks: AutomationBlock[]): WorkflowCanvasBlock {
   return {
     id: block.id,
     type: block.type,

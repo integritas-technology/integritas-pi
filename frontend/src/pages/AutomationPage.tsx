@@ -4,7 +4,7 @@ import { JsonPreview } from "../components/JsonPreview";
 import { Page } from "../components/Page";
 import { addAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, duplicateAutomationWorkflow, getAutomationWorkflowValidation, listAutomationWorkflowRuns, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow, validateAutomationDraft } from "../features/automation/automationApi";
 import { AutomationRunsTable } from "../features/automation/AutomationRunsTable";
-import { draftBlockDescription, draftBlockTitle, isDataBlock, WorkflowBlockLibrary, WorkflowDraftCanvas, WorkflowSavedCanvas, WorkflowWorkspaceShell, type DraftWorkflowBlock } from "../features/automation/WorkflowCanvas";
+import { automationBlockToCanvasBlock, draftBlockDescription, draftBlockTitle, isDataBlock, WorkflowBlockLibrary, WorkflowCanvas, WorkflowWorkspaceShell, type DraftWorkflowBlock } from "../features/automation/WorkflowCanvas";
 import type { AutomationBlock, AutomationBlockType, AutomationRun, AutomationValidationResult, AutomationWorkflow, ConditionOperator } from "../features/automation/automationTypes";
 import { listAddressBookEntries } from "../features/address-book/addressBookApi";
 import type { AddressBookEntry } from "../features/address-book/addressBookTypes";
@@ -370,7 +370,7 @@ function CreateWorkflowWorkspace({ name, enabled, sources, addressBook, walletSt
         <button type="button" disabled={busy || !canCreate} onClick={() => onCreate(flattenDraftBlocks(draftBlocks))}>Create workflow</button>
       </>}
       left={<WorkflowBlockLibrary hasStartBlock={hasStartBlock} selectedBlock={selectedBlock} onSelectStartBlock={selectStartBlock} onAddBlock={addDraftBlock} onAttachStamp={attachStampBlock} />}
-      center={<WorkflowDraftCanvas blocks={draftBlocks} sources={sources} enabled={enabled} selectedBlockId={selectedBlock?.id ?? ""} onSelectBlock={setSelectedBlockId} onMoveBlock={moveDraftBlock} onRemoveBlock={removeDraftBlock} />}
+      center={<WorkflowCanvas mode="build" blocks={draftBlocks} sources={sources} statusLabel={enabled ? "Enabled on create" : "Paused on create"} statusGood={enabled} selectedBlockId={selectedBlock?.id ?? ""} onSelectBlock={setSelectedBlockId} onMoveBlock={moveDraftBlock} onRemoveBlock={removeDraftBlock} />}
       right={
         <aside className="workflow-create-inspector automation-form">
           <div className="card soft-card">
@@ -540,6 +540,7 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
   const [selectedBlockId, setSelectedBlockId] = useState(startBlock?.id ?? "");
   const selectedBlock = mainBlocks.find((block) => block.id === selectedBlockId) ?? startBlock;
   const selectedDraftBlock = selectedBlock ? { id: selectedBlock.id, type: selectedBlock.type, config: selectedBlock.config, attachedBlocks: workflow.blocks.filter((item) => item.parentBlockId === selectedBlock.id).map((item) => ({ id: item.id, type: item.type, config: item.config })) } : undefined;
+  const canvasBlocks = mainBlocks.map((block) => automationBlockToCanvasBlock(block, workflow.blocks));
   const canAddRecordTriggerEvent = Boolean(startBlock && (startBlock.type === "gpio_event_start" || startBlock.type === "webhook_event_start" || startBlock.type === "mqtt_event_start") && !mainBlocks.some((block) => block.type === "record_trigger_event"));
   const hasValidationErrors = Boolean(validation && validation.errors.length > 0);
 
@@ -580,7 +581,7 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
           setPayloadText(JSON.stringify(examplePayload(workflow), null, 2));
           setPayloadError(null);
         }} onRunNow={onRunNow} onRunWithPayload={onRunWithPayload} />}
-      center={<WorkflowSavedCanvas blocks={workflow.blocks} sources={sources} workflowEnabled={workflow.enabled} workflowArchived={workflow.archived} selectedBlockId={selectedBlock?.id ?? ""} onSelectBlock={setSelectedBlockId} onMoveBlock={(blockId, direction) => {
+      center={<WorkflowCanvas mode={mode} blocks={canvasBlocks} sources={sources} statusLabel={workflow.archived ? "Archived" : workflow.enabled ? "Enabled" : "Paused"} statusGood={!workflow.archived && workflow.enabled} selectedBlockId={selectedBlock?.id ?? ""} onSelectBlock={setSelectedBlockId} onMoveBlock={(blockId, direction) => {
           const index = mainBlocks.findIndex((block) => block.id === blockId);
           if (index > 0) onReorderBlocks(moveBlock(mainBlocks, index, index + direction));
         }} onRemoveBlock={(blockId) => {
