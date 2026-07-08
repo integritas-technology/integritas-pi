@@ -492,6 +492,8 @@ Current implementation:
 - Action blocks currently include Pulse output and Send transaction.
 - Integritas stamping attaches as a side block on Record/Fetch data blocks and is created with `parentBlockId` mapping from draft IDs.
 - Draft validation calls `POST /api/automation/workflows/validate-draft`, which reuses the backend block-graph validator used by created workflows.
+- The canvas presentation layer is now extracted into reusable automation components (`WorkflowCanvas.tsx`) so create, edit, and future watch modes can share the same visual blocks.
+- Existing workflows now render through the shared canvas for block selection, move, and remove actions, with the current per-block save editor shown for the selected block.
 - The center canvas previews the generated block chain before creation.
 - The right inspector configures workflow name and selected-block settings.
 - The draft canvas owns an editable draft block list and supports add/remove/move controls for supported draft blocks.
