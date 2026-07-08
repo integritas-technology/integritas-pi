@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Existing workflow validation now appears in the edit workspace right inspector beside selected-block configuration, matching the create workspace layout.
 - Workflow-level lifecycle actions remain in the workflow list, while run controls, test payloads, and recent runs now live in Watch mode.
 - The edit workspace now shares the builder shell, categorized block library, and selected-block inspector patterns from the create workspace, and operators can rename workflows from the edit setup panel.
+- Watch mode now uses the shared canvas with run/test controls on the left, selected-block runtime output/status/timing and Diagnostics links on the right, and recent run history below the canvas.
 
 ### Changed
 

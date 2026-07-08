@@ -1,4 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
+import { JsonPreview } from "../components/JsonPreview";
 import { Page } from "../components/Page";
 import { addAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, duplicateAutomationWorkflow, getAutomationWorkflowValidation, listAutomationWorkflowRuns, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow, validateAutomationDraft } from "../features/automation/automationApi";
 import { AutomationRunsTable } from "../features/automation/AutomationRunsTable";
@@ -581,7 +583,13 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
       {workflow.lastError && <p className="error-text">{workflow.lastError}</p>}
 
       <div className="workflow-create-grid">
-        <WorkflowBlockLibrary mode="edit" hasStartBlock={Boolean(startBlock)} selectedBlock={selectedDraftBlock} canAddRecordTriggerEvent={canAddRecordTriggerEvent} onSelectStartBlock={() => undefined} onAddBlock={addBlockFromLibrary} onAttachStamp={(parentId) => onAddBlock({ type: "stamp_integritas", config: {}, parentBlockId: parentId })} />
+        {mode === "edit" ? <WorkflowBlockLibrary mode="edit" hasStartBlock={Boolean(startBlock)} selectedBlock={selectedDraftBlock} canAddRecordTriggerEvent={canAddRecordTriggerEvent} onSelectStartBlock={() => undefined} onAddBlock={addBlockFromLibrary} onAttachStamp={(parentId) => onAddBlock({ type: "stamp_integritas", config: {}, parentBlockId: parentId })} /> : <WatchRunControls workflow={workflow} busy={busy} hasValidationErrors={hasValidationErrors} payloadText={payloadText} payloadError={payloadError} onPayloadTextChange={(value) => {
+          setPayloadText(value);
+          setPayloadError(null);
+        }} onPayloadError={setPayloadError} onResetPayload={() => {
+          setPayloadText(JSON.stringify(examplePayload(workflow), null, 2));
+          setPayloadError(null);
+        }} onRunNow={onRunNow} onRunWithPayload={onRunWithPayload} />}
 
         <WorkflowSavedCanvas blocks={workflow.blocks} sources={sources} workflowEnabled={workflow.enabled} workflowArchived={workflow.archived} selectedBlockId={selectedBlock?.id ?? ""} onSelectBlock={setSelectedBlockId} onMoveBlock={(blockId, direction) => {
           const index = mainBlocks.findIndex((block) => block.id === blockId);
@@ -592,50 +600,46 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
         }} />
 
         <aside className="workflow-create-inspector">
-          <div className="card soft-card automation-form">
-            <strong>Workflow setup</strong>
-            <label>Workflow name<input value={workflowName} onChange={(event) => setWorkflowName(event.target.value)} placeholder="Button fetches weather API" /></label>
-            <SaveState dirty={workflowName.trim() !== workflow.name} saved={false} />
-            <button type="button" disabled={busy || !workflowName.trim() || workflowName.trim() === workflow.name} onClick={() => onUpdateWorkflow({ name: workflowName.trim() })}>Save workflow name</button>
-          </div>
-          <WorkflowValidationPanel validation={validation} />
-          <div className="card soft-card">
-            <strong>Selected block</strong>
-            {selectedBlock ? <PersistedBlockInspector
-              key={selectedBlock.id}
-              block={selectedBlock}
-              attachedBlocks={workflow.blocks.filter((item) => item.parentBlockId === selectedBlock.id)}
-              sources={sources}
-              addressBook={addressBook}
-              walletStatus={walletStatus}
-              busy={busy}
-              canMoveUp={mainBlocks.findIndex((block) => block.id === selectedBlock.id) > 1}
-              canMoveDown={mainBlocks.findIndex((block) => block.id === selectedBlock.id) > 0 && mainBlocks.findIndex((block) => block.id === selectedBlock.id) < mainBlocks.length - 1}
-              onMoveUp={() => {
-                const index = mainBlocks.findIndex((block) => block.id === selectedBlock.id);
-                onReorderBlocks(moveBlock(mainBlocks, index, index - 1));
-              }}
-              onMoveDown={() => {
-                const index = mainBlocks.findIndex((block) => block.id === selectedBlock.id);
-                onReorderBlocks(moveBlock(mainBlocks, index, index + 1));
-              }}
-              onAttachStamp={() => onAddBlock({ type: "stamp_integritas", config: {}, parentBlockId: selectedBlock.id })}
-              onUpdate={(input) => onUpdateBlock(selectedBlock.id, input)}
-              onUpdateAttached={(blockId, input) => onUpdateBlock(blockId, input)}
-              onDelete={() => selectedBlock.type.endsWith("_start") ? undefined : onDeleteBlock(selectedBlock.id)}
-              onDeleteAttached={onDeleteBlock}
-            /> : <p className="muted">Select a block on the canvas to edit it.</p>}
-          </div>
+          {mode === "edit" ? <>
+            <div className="card soft-card automation-form">
+              <strong>Workflow setup</strong>
+              <label>Workflow name<input value={workflowName} onChange={(event) => setWorkflowName(event.target.value)} placeholder="Button fetches weather API" /></label>
+              <SaveState dirty={workflowName.trim() !== workflow.name} saved={false} />
+              <button type="button" disabled={busy || !workflowName.trim() || workflowName.trim() === workflow.name} onClick={() => onUpdateWorkflow({ name: workflowName.trim() })}>Save workflow name</button>
+            </div>
+            <WorkflowValidationPanel validation={validation} />
+            <div className="card soft-card">
+              <strong>Selected block</strong>
+              {selectedBlock ? <PersistedBlockInspector
+                key={selectedBlock.id}
+                block={selectedBlock}
+                attachedBlocks={workflow.blocks.filter((item) => item.parentBlockId === selectedBlock.id)}
+                sources={sources}
+                addressBook={addressBook}
+                walletStatus={walletStatus}
+                busy={busy}
+                canMoveUp={mainBlocks.findIndex((block) => block.id === selectedBlock.id) > 1}
+                canMoveDown={mainBlocks.findIndex((block) => block.id === selectedBlock.id) > 0 && mainBlocks.findIndex((block) => block.id === selectedBlock.id) < mainBlocks.length - 1}
+                onMoveUp={() => {
+                  const index = mainBlocks.findIndex((block) => block.id === selectedBlock.id);
+                  onReorderBlocks(moveBlock(mainBlocks, index, index - 1));
+                }}
+                onMoveDown={() => {
+                  const index = mainBlocks.findIndex((block) => block.id === selectedBlock.id);
+                  onReorderBlocks(moveBlock(mainBlocks, index, index + 1));
+                }}
+                onAttachStamp={() => onAddBlock({ type: "stamp_integritas", config: {}, parentBlockId: selectedBlock.id })}
+                onUpdate={(input) => onUpdateBlock(selectedBlock.id, input)}
+                onUpdateAttached={(blockId, input) => onUpdateBlock(blockId, input)}
+                onDelete={() => selectedBlock.type.endsWith("_start") ? undefined : onDeleteBlock(selectedBlock.id)}
+                onDeleteAttached={onDeleteBlock}
+              /> : <p className="muted">Select a block on the canvas to edit it.</p>}
+            </div>
+          </> : <WatchRuntimeInspector selectedBlock={selectedBlock} latestBlockRun={latestBlockRunForBlock(runs, selectedBlock?.id ?? null)} validation={validation} />}
         </aside>
       </div>
 
-      {mode === "watch" && <WatchWorkflowPanel workflow={workflow} runs={runs} busy={busy} hasValidationErrors={hasValidationErrors} payloadText={payloadText} payloadError={payloadError} onPayloadTextChange={(value) => {
-        setPayloadText(value);
-        setPayloadError(null);
-      }} onPayloadError={setPayloadError} onResetPayload={() => {
-        setPayloadText(JSON.stringify(examplePayload(workflow), null, 2));
-        setPayloadError(null);
-      }} onRunNow={onRunNow} onRunWithPayload={onRunWithPayload} />}
+      {mode === "watch" && <WatchRunHistory runs={runs} />}
     </section>
   );
 }
@@ -711,35 +715,103 @@ function PersistedBlockInspector({ block, attachedBlocks, sources, addressBook, 
   );
 }
 
-function WatchWorkflowPanel({ workflow, runs, busy, hasValidationErrors, payloadText, payloadError, onPayloadTextChange, onPayloadError, onResetPayload, onRunNow, onRunWithPayload }: { workflow: AutomationWorkflow; runs: AutomationRun[]; busy: boolean; hasValidationErrors: boolean; payloadText: string; payloadError: string | null; onPayloadTextChange: (value: string) => void; onPayloadError: (value: string | null) => void; onResetPayload: () => void; onRunNow: () => void; onRunWithPayload: (payload: unknown) => void }) {
+function WatchRunControls({ workflow, busy, hasValidationErrors, payloadText, payloadError, onPayloadTextChange, onPayloadError, onResetPayload, onRunNow, onRunWithPayload }: { workflow: AutomationWorkflow; busy: boolean; hasValidationErrors: boolean; payloadText: string; payloadError: string | null; onPayloadTextChange: (value: string) => void; onPayloadError: (value: string | null) => void; onResetPayload: () => void; onRunNow: () => void; onRunWithPayload: (payload: unknown) => void }) {
+  return (
+    <aside className="workflow-block-library automation-form">
+      <strong>Run controls</strong>
+      <p className="muted">Run this workflow or test it with a manual trigger payload.</p>
+      {workflow.archived && <p className="muted">Archived workflows cannot run until restored from the workflow list.</p>}
+      {hasValidationErrors && <p className="error-text">Fix validation errors before running.</p>}
+      <button type="button" disabled={busy || hasValidationErrors || workflow.archived} onClick={onRunNow}>Run now</button>
+      <strong>Test payload</strong>
+      <p className="muted">This payload is used only for a manual test run.</p>
+      <label>Trigger payload<textarea rows={12} value={payloadText} onChange={(event) => onPayloadTextChange(event.target.value)} /></label>
+      {payloadError && <p className="error-text">{payloadError}</p>}
+      <div className="row-actions">
+        <button type="button" disabled={busy} onClick={onResetPayload}>Reset example</button>
+        <button type="button" disabled={busy || hasValidationErrors || workflow.archived} onClick={() => {
+          try {
+            onRunWithPayload(JSON.parse(payloadText) as unknown);
+          } catch (error) {
+            onPayloadError(error instanceof Error ? error.message : "Payload must be valid JSON");
+          }
+        }}>Run with payload</button>
+      </div>
+    </aside>
+  );
+}
+
+function WatchRuntimeInspector({ selectedBlock, latestBlockRun, validation }: { selectedBlock: AutomationBlock | undefined; latestBlockRun: AutomationRun["blocks"][number] | null; validation: AutomationValidationResult | null }) {
+  const readId = readIdFromOutput(latestBlockRun?.output);
+  const proofId = proofIdFromOutput(latestBlockRun?.output);
+
+  return (
+    <>
+      <WorkflowValidationPanel validation={validation} />
+      <section className="card soft-card">
+        <strong>Selected block runtime</strong>
+        {!selectedBlock && <p className="muted">Select a block on the canvas to inspect its latest run output.</p>}
+        {selectedBlock && <>
+          <div className="metric-grid">
+            <RulePart title="Block" value={blockLabel(selectedBlock)} />
+            <RulePart title="Last block run" value={latestBlockRun ? latestBlockRun.status : selectedBlock.lastRunAt ? "No run details loaded" : "Not run yet"} />
+            <RulePart title="Duration" value={latestBlockRun ? formatDuration(latestBlockRun.durationMs) : "No timing"} />
+          </div>
+          {selectedBlock.lastError && <p className="error-text">{selectedBlock.lastError}</p>}
+          {latestBlockRun?.error && <p className="error-text">{latestBlockRun.error}</p>}
+          {latestBlockRun?.output !== null && latestBlockRun?.output !== undefined ? <JsonPreview value={latestBlockRun.output} /> : <p className="muted">No output recorded for the latest selected-block run.</p>}
+          {readId && <p className="muted"><Link to={diagnosticsLink("reads", readId)}>Open read in Diagnostics</Link></p>}
+          {proofId && <p className="muted"><Link to={diagnosticsLink("proofs", proofId)}>Open proof in Diagnostics</Link></p>}
+        </>}
+      </section>
+    </>
+  );
+}
+
+function WatchRunHistory({ runs }: { runs: AutomationRun[] }) {
   return (
     <section className="card soft-card">
-      <div className="status-row">
-        <div>
-          <strong>Watch and test</strong>
-          <p className="muted">Run this workflow and review recent executions. Live block highlighting will build on this panel.</p>
-        </div>
-        <span className="pill pill-neutral">Watch mode</span>
-      </div>
       <div className="automation-form">
-        <label>Trigger payload<textarea rows={8} value={payloadText} onChange={(event) => onPayloadTextChange(event.target.value)} /></label>
-        {payloadError && <p className="error-text">{payloadError}</p>}
-        <div className="row-actions">
-          <button type="button" disabled={busy || hasValidationErrors || workflow.archived} onClick={onRunNow}>Run now</button>
-          <button type="button" disabled={busy} onClick={onResetPayload}>Reset example</button>
-          <button type="button" disabled={busy || hasValidationErrors || workflow.archived} onClick={() => {
-            try {
-              onRunWithPayload(JSON.parse(payloadText) as unknown);
-            } catch (error) {
-              onPayloadError(error instanceof Error ? error.message : "Payload must be valid JSON");
-            }
-          }}>Run with payload</button>
-        </div>
+        <strong>Recent runs</strong>
+        <p className="muted">Latest executions for this workflow, including per-block status and output details.</p>
       </div>
-      <div><strong>Recent runs</strong><p className="muted">Latest executions for this workflow, including per-block status.</p></div>
       <AutomationRunsTable runs={runs} compact />
     </section>
   );
+}
+
+function latestBlockRunForBlock(runs: AutomationRun[], blockId: string | null) {
+  if (!blockId) return null;
+  for (const run of runs) {
+    const blockRun = run.blocks.find((block) => block.blockId === blockId);
+    if (blockRun) return blockRun;
+  }
+  return null;
+}
+
+function diagnosticsLink(tab: "proofs" | "reads", id: string) {
+  const params = new URLSearchParams({ tab, page: "1", pageSize: "25", q: id });
+  return `/diagnostics?${params.toString()}`;
+}
+
+function readIdFromOutput(output: unknown) {
+  if (!output || typeof output !== "object") return null;
+  const record = output as { readId?: unknown; data?: { readId?: unknown } };
+  if (typeof record.readId === "string") return record.readId;
+  if (record.data && typeof record.data.readId === "string") return record.data.readId;
+  return null;
+}
+
+function proofIdFromOutput(output: unknown) {
+  if (!output || typeof output !== "object") return null;
+  const record = output as { proofId?: unknown };
+  return typeof record.proofId === "string" ? record.proofId : null;
+}
+
+function formatDuration(ms: number | null) {
+  if (ms === null) return "Running";
+  if (ms < 1000) return `${ms} ms`;
+  return `${(ms / 1000).toFixed(1)} s`;
 }
 
 function workflowMatchesFilter(workflow: AutomationWorkflow, search: string, filter: "active" | "all" | "enabled" | "paused" | "error" | "archived", sourceName: string) {
