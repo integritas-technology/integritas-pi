@@ -20,6 +20,7 @@
 - [ ] Set QA `update-agent`'s `MANIFEST_URL` to the QA manifest path.
 - [ ] Verify via a disposable-tag dry run (§3) that the manifest actually lands on the QA VPS and is fetchable.
 - [ ] **Repeat for prod** once QA is verified end-to-end: same steps against the production VPS/app, prod-scoped secret names (`VPS_DEPLOY_HOST`/`VPS_DEPLOY_USER`/`VPS_DEPLOY_KEY`), confirm the production `MANIFEST_URL`.
+- [ ] **`manifest.source.json`'s `minima-node` digest is currently a placeholder** (`sha256:000...000`, added just to unblock `build-manifest.mjs`'s validation during the QA dry run) — replace with the real digest of the trusted `minimaglobal/minima` image/tag before this nears `main`/prod. Ties into the open question below.
 
 ## 2. Signing key generation (one-time, real)
 
