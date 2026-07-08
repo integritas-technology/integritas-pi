@@ -17,20 +17,17 @@
 
 ## 2. Signing key generation (one-time, real)
 
-- [ ] Generate the real Ed25519 signing keypair via `scripts/release/generate-signing-key.mjs` (not a throwaway test key).
-- [ ] Register the private key as GH secret `MANIFEST_SIGNING_KEY`.
-- [ ] Commit the public key into the repo / bake into `update-agent`'s image (`MANIFEST_PUBLIC_KEY`).
+- [ ] Generate the real Ed25519 signing keypair via `npm run release:generate-signing-key` (`scripts/release/generate-signing-key.mjs`, not a throwaway test key). Writes the public key to `update-agent/manifest-public-key.pem` and prints the private key to stdout only.
+- [ ] Register the printed private key as GH secret `MANIFEST_SIGNING_KEY`.
+- [ ] Commit `update-agent/manifest-public-key.pem`.
+- [ ] **Code change:** update `update-agent` to read the public key from the committed `manifest-public-key.pem` file (`readFileSync` at a fixed path, baked into the Dockerfile via `COPY`) instead of `process.env.MANIFEST_PUBLIC_KEY` — remove `manifestPublicKey` from `update-agent/src/config/env.ts:5` and drop `MANIFEST_PUBLIC_KEY` from `docker-compose.yml`/`.env.example`. Do this **before** generating the real key above, so the real key is registered against the final code path, not the old env-var one.
 - [ ] Decide `manifest.source.json`'s real location/shape if it should differ from the current repo-root placeholder (tracked as an open question in `update-service.md`).
 
 ### Config sourcing decision: `MANIFEST_URL` vs `MANIFEST_PUBLIC_KEY`
 
-Both are currently plain runtime env vars (`update-agent/src/config/env.ts:4-5`, `process.env.*` with `""` fallback, passed through via `docker-compose.yml`). Neither is a secret — the manifest URL is just an endpoint, and the public key's entire job is to verify signatures, not create them, so publishing it (even in an open-source repo) grants no attacker capability.
+`MANIFEST_URL` stays a plain runtime env var (`update-agent/src/config/env.ts:4`, `process.env.MANIFEST_URL ?? ""`, passed through `docker-compose.yml`) — no secrecy concern, and overridability is a feature (self-hosters point it elsewhere).
 
-They should not be treated the same way going forward, though:
-
-- **`MANIFEST_URL`** — stays a runtime-overridable env var. No secrecy concern, and overridability is a feature (self-hosters point it elsewhere).
-- **`MANIFEST_PUBLIC_KEY`** — should move off plain runtime env into a build-time bake (Dockerfile `ARG`/`ENV` set at image build, or a literal source constant), so it becomes fixed per image rather than swappable at deploy time. Rationale: if it stays a runtime env var, anyone who can influence the deploy environment (compromised host, malicious compose override, bad fork config) can swap in their own keypair and get `update-agent` to accept a manifest signed by an attacker-controlled key — defeating the point of signature verification. Baking it in at build time removes that override surface entirely.
-- [ ] Move `MANIFEST_PUBLIC_KEY` from runtime env to build-time bake in `update-agent`'s Dockerfile; keep `MANIFEST_URL` as runtime env.
+`MANIFEST_PUBLIC_KEY` is moving off runtime env entirely, onto the committed file `update-agent/manifest-public-key.pem` baked into the image at build time (see code-change item above). It's not a secret — the public key's job is to verify signatures, not create them, so committing it is safe even in an open-source repo — but it must not be runtime-overridable: if it stayed a plain env var, anyone who could influence the deploy environment (compromised host, malicious compose override, bad fork config) could swap in their own keypair and get `update-agent` to accept a manifest signed by an attacker-controlled key, defeating signature verification. A file baked into the image at build time removes that override surface entirely.
 
 ## 3. Branch-based dry run (no VPS, no real tag)
 
