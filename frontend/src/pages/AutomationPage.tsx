@@ -408,14 +408,25 @@ function DraftBlockCard({ block, index, sources, selected, canMoveUp, canMoveDow
       <span className="workflow-draft-kicker">{index === 0 ? "When" : "Then"}</span>
       <strong>{draftBlockTitle(block)}</strong>
       <p>{draftBlockDescription(block, sources)}</p>
-      {block.attachedBlocks?.map((attached) => <div key={attached.id} className="workflow-attached-draft-block"><strong>+ {draftBlockTitle(attached)}</strong><p>{draftBlockDescription(attached, sources)}</p></div>)}
-      <div className="workflow-draft-actions">
+      <DraftBlockBadges block={block} />
+      {block.attachedBlocks?.map((attached) => <div key={attached.id} className="workflow-attached-draft-block"><strong>+ {draftBlockTitle(attached)}</strong><p>{draftBlockDescription(attached, sources)}</p><DraftBlockBadges block={attached} /></div>)}
+      {!block.type.endsWith("_start") && <div className="workflow-draft-actions">
         <button type="button" disabled={!canMoveUp} onClick={(event) => { event.stopPropagation(); onMoveUp(); }}>Up</button>
         <button type="button" disabled={!canMoveDown} onClick={(event) => { event.stopPropagation(); onMoveDown(); }}>Down</button>
-        {!block.type.endsWith("_start") && <button type="button" onClick={(event) => { event.stopPropagation(); onRemove(); }}>Remove</button>}
-      </div>
+        <button type="button" onClick={(event) => { event.stopPropagation(); onRemove(); }}>Remove</button>
+      </div>}
     </div>
   );
+}
+
+function DraftBlockBadges({ block }: { block: DraftWorkflowBlock }) {
+  const badges: string[] = [];
+  if (block.type.endsWith("_start")) badges.push("Provides trigger event");
+  if (isDataBlock(block.type)) badges.push("Provides latest data");
+  if (block.type === "if_payload_field_equals") badges.push((block.config.source ?? "trigger") === "data" ? "Reads latest data" : "Reads trigger event");
+  if (block.type === "stamp_integritas") badges.push("Reads parent data");
+  if (badges.length === 0) return null;
+  return <div className="workflow-draft-badges">{badges.map((badge) => <span key={badge}>{badge}</span>)}</div>;
 }
 
 function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChange, onAttachedChange, onAttachedRemove }: { block: DraftWorkflowBlock; sources: DataSource[]; addressBook: AddressBookEntry[]; walletStatus: WalletStatus | null; onChange: (config: AutomationBlock["config"]) => void; onAttachedChange: (attachedId: string, config: AutomationBlock["config"]) => void; onAttachedRemove: (attachedId: string) => void }) {

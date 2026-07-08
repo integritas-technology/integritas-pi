@@ -1426,6 +1426,22 @@ code {
   opacity: 0.8;
 }
 
+.workflow-draft-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.workflow-draft-badges span {
+  padding: 4px 8px;
+  color: #0f172a;
+  font-size: 0.7rem;
+  font-weight: 900;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
 .workflow-draft-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1462,6 +1478,10 @@ code {
 .workflow-attached-draft-block p {
   margin: 0;
   color: #475569;
+}
+
+.workflow-attached-draft-block .workflow-draft-badges span {
+  background: #ffffff;
 }
 
 .workflow-draft-start {
