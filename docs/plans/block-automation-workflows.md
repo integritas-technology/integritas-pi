@@ -491,6 +491,7 @@ Current implementation:
 - Data and Logic blocks append after the start block.
 - Action blocks currently include Pulse output and Send transaction.
 - Integritas stamping attaches as a side block on Record/Fetch data blocks and is created with `parentBlockId` mapping from draft IDs.
+- Draft validation calls `POST /api/automation/workflows/validate-draft`, which reuses the backend block-graph validator used by created workflows.
 - The center canvas previews the generated block chain before creation.
 - The right inspector configures workflow name and selected-block settings.
 - The draft canvas owns an editable draft block list and supports add/remove/move controls for supported draft blocks.

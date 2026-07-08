@@ -9,6 +9,10 @@ export async function createAutomationWorkflow(input: { name: string; enabled: b
   return postJson<{ item: AutomationWorkflow }>("/api/automation/workflows", input);
 }
 
+export async function validateAutomationDraft(input: { blocks: { type: AutomationBlockType; config?: AutomationBlock["config"]; enabled?: boolean; parentBlockId?: string | null; clientId?: string | null }[] }) {
+  return postJson<{ item: AutomationValidationResult }>("/api/automation/workflows/validate-draft", input);
+}
+
 export async function updateAutomationWorkflow(id: string, input: Partial<Pick<AutomationWorkflow, "name" | "enabled" | "archived" | "pollingIntervalSeconds" | "stampWithIntegritas">>) {
   return patchJson<{ item: AutomationWorkflow }>(`/api/automation/workflows/${id}`, input);
 }

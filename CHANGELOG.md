@@ -27,6 +27,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Create workflow now uses a Scratch-inspired full-page draft workspace with a clean Start/Data/Logic block library, a visual block-chain canvas, setup inspector, and inline validation before creating the workflow.
 - The create workflow draft now starts empty, requires choosing one start block first, hides start blocks after selection, and includes Reset canvas to choose a different start block.
 - The create workflow draft block library now includes Pulse output and Send transaction action blocks plus attached Integritas stamps on Record/Fetch data blocks.
+- Draft workflow validation now uses a backend `POST /api/automation/workflows/validate-draft` endpoint backed by the same block-graph validation as created workflows.
 - The create workflow draft canvas now has its own editable block model: operators can add, remove, move, select, and configure draft blocks before the workflow is created.
 
 ### Changed

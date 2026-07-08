@@ -3,7 +3,7 @@ import { getDataSource } from "../data-sources/dataSources.repository.js";
 import { parseGpioOutputConfig } from "../data-sources/dataSources.service.js";
 import { getIntegritasApiKey } from "../settings/secrets.service.js";
 import { getWalletStatus } from "../wallet/wallet.service.js";
-import { listAutomationBlocks, type AutomationBlockRecord, type AutomationBlockType } from "./automation.repository.js";
+import { listAutomationBlocks, type AutomationBlockType } from "./automation.repository.js";
 
 export type AutomationValidationIssue = {
   level: "error" | "warning";
@@ -19,7 +19,23 @@ export type AutomationValidationResult = {
   warnings: AutomationValidationIssue[];
 };
 
-type BlockConfig = {
+export type AutomationDraftValidationBlock = {
+  clientId?: string | null;
+  type: AutomationBlockType;
+  enabled?: boolean;
+  parentBlockId?: string | null;
+  config: BlockConfig;
+};
+
+type ValidationBlock = {
+  id: string;
+  type: AutomationBlockType;
+  enabled: boolean;
+  parentId: string | null;
+  config: BlockConfig;
+};
+
+export type BlockConfig = {
   sourceId?: string;
   targetId?: string;
   action?: string;
@@ -35,9 +51,29 @@ type BlockConfig = {
 };
 
 export async function validateAutomationWorkflow(workflowId: string): Promise<AutomationValidationResult> {
+  const blocks = listAutomationBlocks(workflowId).map((block): ValidationBlock => ({
+    id: block.id,
+    type: block.type,
+    enabled: Boolean(block.enabled),
+    parentId: block.parent_block_id,
+    config: parseConfig(block)
+  }));
+  return validateAutomationBlockGraph(blocks);
+}
+
+export async function validateAutomationDraft(blocks: AutomationDraftValidationBlock[]): Promise<AutomationValidationResult> {
+  return validateAutomationBlockGraph(blocks.map((block, index): ValidationBlock => ({
+    id: block.clientId || `draft-${index}`,
+    type: block.type,
+    enabled: block.enabled !== false,
+    parentId: block.parentBlockId ?? null,
+    config: block.config
+  })));
+}
+
+async function validateAutomationBlockGraph(blocks: ValidationBlock[]): Promise<AutomationValidationResult> {
   const issues: AutomationValidationIssue[] = [];
-  const blocks = listAutomationBlocks(workflowId);
-  const mainBlocks = blocks.filter((block) => !block.parent_block_id);
+  const mainBlocks = blocks.filter((block) => !block.parentId);
   const startBlock = mainBlocks[0];
 
   if (mainBlocks.length === 0) {
@@ -54,17 +90,17 @@ export async function validateAutomationWorkflow(workflowId: string): Promise<Au
     addIssue(issues, "error", "workflow.start_disabled", "The start block is disabled, so this workflow cannot run.", startBlock);
   }
 
-  if (blocks.filter((block) => block.enabled && !block.type.endsWith("_start") && !block.parent_block_id).length === 0) {
+  if (blocks.filter((block) => block.enabled && !block.type.endsWith("_start") && !block.parentId).length === 0) {
     addIssue(issues, "warning", "workflow.no_enabled_actions", "Workflow has no enabled action blocks after the start block.");
   }
 
   let hasData = false;
   const startType = startBlock?.type;
-  const startConfig = startBlock ? parseConfig(startBlock) : {};
+  const startConfig = startBlock?.config ?? {};
 
   for (const block of mainBlocks) {
     if (!block.enabled) continue;
-    const config = parseConfig(block);
+    const config = block.config;
 
     validateBlockReference(block, config, issues);
 
@@ -84,8 +120,8 @@ export async function validateAutomationWorkflow(workflowId: string): Promise<Au
       addIssue(issues, "error", "condition.data_before_data_block", "This condition reads Data, but no enabled record/fetch block runs before it.", block);
     }
 
-    for (const attachedBlock of blocks.filter((item) => item.enabled && item.parent_block_id === block.id)) {
-      const attachedConfig = parseConfig(attachedBlock);
+    for (const attachedBlock of blocks.filter((item) => item.enabled && item.parentId === block.id)) {
+      const attachedConfig = attachedBlock.config;
       if (attachedBlock.type !== "stamp_integritas") {
         addIssue(issues, "error", "attached.unsupported", "Only Integritas stamp blocks can be attached to another block.", attachedBlock);
         continue;
@@ -112,7 +148,7 @@ export async function validateAutomationWorkflow(workflowId: string): Promise<Au
   return { ok: errors.length === 0, errors, warnings };
 }
 
-function validateBlockReference(block: AutomationBlockRecord, config: BlockConfig, issues: AutomationValidationIssue[]) {
+function validateBlockReference(block: ValidationBlock, config: BlockConfig, issues: AutomationValidationIssue[]) {
   if (block.type === "gpio_event_start" || block.type === "webhook_event_start" || block.type === "mqtt_event_start" || block.type === "fetch_data_source") {
     const source = config.sourceId ? getDataSource(config.sourceId) : undefined;
     if (!source) {
@@ -145,7 +181,7 @@ function validateBlockReference(block: AutomationBlockRecord, config: BlockConfi
   }
 }
 
-async function validateTransactionBalances(blocks: AutomationBlockRecord[], issues: AutomationValidationIssue[]) {
+async function validateTransactionBalances(blocks: ValidationBlock[], issues: AutomationValidationIssue[]) {
   const transactionBlocks = blocks.filter((block) => block.type === "send_transaction");
   if (transactionBlocks.length === 0) return;
 
@@ -157,7 +193,7 @@ async function validateTransactionBalances(blocks: AutomationBlockRecord[], issu
       return;
     }
     for (const block of transactionBlocks) {
-      const amount = String(parseConfig(block).amount ?? "").trim();
+      const amount = String(block.config.amount ?? "").trim();
       if (isPositiveDecimal(amount) && compareDecimalStrings(amount, nativeToken.sendable) > 0) {
         addIssue(issues, "error", "send_transaction.insufficient_balance", `Amount exceeds available balance (${nativeToken.sendable} MINIMA).`, block);
       }
@@ -169,11 +205,11 @@ async function validateTransactionBalances(blocks: AutomationBlockRecord[], issu
   }
 }
 
-function parseConfig(block: AutomationBlockRecord) {
+function parseConfig(block: { config_json: string }) {
   return JSON.parse(block.config_json) as BlockConfig;
 }
 
-function addIssue(issues: AutomationValidationIssue[], level: AutomationValidationIssue["level"], code: string, message: string, block?: AutomationBlockRecord) {
+function addIssue(issues: AutomationValidationIssue[], level: AutomationValidationIssue["level"], code: string, message: string, block?: ValidationBlock) {
   issues.push({ level, code, message, blockId: block?.id, blockType: block?.type });
 }
 

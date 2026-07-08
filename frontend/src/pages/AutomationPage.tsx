@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
-import { addAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, duplicateAutomationWorkflow, getAutomationWorkflowValidation, listAutomationWorkflowRuns, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow } from "../features/automation/automationApi";
+import { addAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, duplicateAutomationWorkflow, getAutomationWorkflowValidation, listAutomationWorkflowRuns, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow, validateAutomationDraft } from "../features/automation/automationApi";
 import { AutomationRunsTable } from "../features/automation/AutomationRunsTable";
 import type { AutomationBlock, AutomationBlockType, AutomationRun, AutomationValidationResult, AutomationWorkflow, ConditionOperator } from "../features/automation/automationTypes";
 import { listAddressBookEntries } from "../features/address-book/addressBookApi";
@@ -239,10 +239,29 @@ type DraftWorkflowBlock = {
 function CreateWorkflowWorkspace({ name, enabled, sources, addressBook, walletStatus, busy, onNameChange, onEnabledChange, onCancel, onCreate }: { name: string; enabled: boolean; sources: DataSource[]; addressBook: AddressBookEntry[]; walletStatus: WalletStatus | null; busy: boolean; onNameChange: (value: string) => void; onEnabledChange: (value: boolean) => void; onCancel: () => void; onCreate: (blocks: { type: AutomationBlockType; config: AutomationBlock["config"]; enabled?: boolean; parentBlockId?: string | null; clientId?: string | null }[]) => void }) {
   const [draftBlocks, setDraftBlocks] = useState<DraftWorkflowBlock[]>([]);
   const [selectedBlockId, setSelectedBlockId] = useState("");
+  const [backendValidation, setBackendValidation] = useState<AutomationValidationResult | null>(null);
+  const [backendValidationError, setBackendValidationError] = useState<string | null>(null);
   const selectedBlock = draftBlocks.find((block) => block.id === selectedBlockId) ?? draftBlocks[0];
-  const draftIssues = validateDraftWorkflow(name, draftBlocks);
-  const canCreate = draftIssues.errors.length === 0;
+  const localErrors = name.trim() ? [] : ["Workflow name is required."];
+  const backendErrors = backendValidation?.errors.map((issue) => issue.message) ?? [];
+  const backendWarnings = backendValidation?.warnings.map((issue) => issue.message) ?? [];
+  const canCreate = localErrors.length === 0 && Boolean(backendValidation?.ok);
   const hasStartBlock = draftBlocks.some((block) => block.type.endsWith("_start"));
+
+  useEffect(() => {
+    let cancelled = false;
+    setBackendValidationError(null);
+    validateAutomationDraft({ blocks: flattenDraftBlocks(draftBlocks) })
+      .then((response) => {
+        if (!cancelled) setBackendValidation(response.item);
+      })
+      .catch((error) => {
+        if (!cancelled) setBackendValidationError(error instanceof Error ? error.message : "Could not validate draft workflow.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [draftBlocks]);
 
   function updateBlock(id: string, patch: Partial<DraftWorkflowBlock>) {
     setDraftBlocks((blocks) => blocks.map((block) => block.id === id ? { ...block, ...patch, config: patch.config ?? block.config } : block));
@@ -360,15 +379,21 @@ function CreateWorkflowWorkspace({ name, enabled, sources, addressBook, walletSt
         </section>
 
         <aside className="workflow-create-inspector automation-form">
-          <strong>Setup</strong>
-          <label>Workflow name<input value={name} onChange={(event) => onNameChange(event.target.value)} placeholder="Button fetches weather API" /></label>
-          {selectedBlock && <DraftBlockInspector block={selectedBlock} sources={sources} addressBook={addressBook} walletStatus={walletStatus} onChange={(config) => updateBlock(selectedBlock.id, { config })} onAttachedChange={(attachedId, config) => updateAttachedBlock(selectedBlock.id, attachedId, config)} onAttachedRemove={(attachedId) => removeAttachedBlock(selectedBlock.id, attachedId)} />}
-          <label className="check-row"><input type="checkbox" checked={enabled} onChange={(event) => onEnabledChange(event.target.checked)} /> Enabled after create</label>
           <div className="card soft-card">
+            <strong>Workflow setup</strong>
+            <label>Workflow name<input value={name} onChange={(event) => onNameChange(event.target.value)} placeholder="Button fetches weather API" /></label>
+            <label className="check-row"><input type="checkbox" checked={enabled} onChange={(event) => onEnabledChange(event.target.checked)} /> Enabled after create</label>
             <strong>Validation</strong>
-            {draftIssues.errors.map((issue) => <p key={issue} className="error-text">{issue}</p>)}
-            {draftIssues.warnings.map((issue) => <p key={issue} className="muted">{issue}</p>)}
-            {canCreate && <p className="muted">Starter chain is ready to create.</p>}
+            {localErrors.map((issue) => <p key={issue} className="error-text">{issue}</p>)}
+            {backendErrors.map((issue) => <p key={issue} className="error-text">{issue}</p>)}
+            {backendWarnings.map((issue) => <p key={issue} className="muted">{issue}</p>)}
+            {backendValidationError && <p className="error-text">{backendValidationError}</p>}
+            {!backendValidation && !backendValidationError && <p className="muted">Checking draft workflow...</p>}
+            {canCreate && <p className="muted">No blocking draft errors. Review any warnings before creating.</p>}
+          </div>
+          <div className="card soft-card">
+            <strong>Selected block</strong>
+            {selectedBlock ? <DraftBlockInspector block={selectedBlock} sources={sources} addressBook={addressBook} walletStatus={walletStatus} onChange={(config) => updateBlock(selectedBlock.id, { config })} onAttachedChange={(attachedId, config) => updateAttachedBlock(selectedBlock.id, attachedId, config)} onAttachedRemove={(attachedId) => removeAttachedBlock(selectedBlock.id, attachedId)} /> : <p className="muted">Choose a start block on the left or select a block on the canvas to configure it.</p>}
           </div>
           <button type="button" disabled={busy || !canCreate} onClick={() => onCreate(flattenDraftBlocks(draftBlocks))}>Create workflow</button>
         </aside>
@@ -520,32 +545,6 @@ function defaultDraftConfig(type: AutomationBlockType, sources: DataSource[], po
   if (type === "send_transaction") return { recipientAddressBookId: "", tokenId: "0x00", amount: "" };
   if (type === "stamp_integritas") return { condition: null };
   return {};
-}
-
-function validateDraftWorkflow(name: string, blocks: DraftWorkflowBlock[]) {
-  const errors: string[] = [];
-  const warnings: string[] = [];
-  if (!name.trim()) errors.push("Workflow name is required.");
-  if (blocks.length === 0) errors.push("Add at least one start block.");
-  const startBlock = blocks[0];
-  if (startBlock && !startBlock.type.endsWith("_start")) errors.push("The first block must be a start block.");
-  if (blocks.slice(1).some((block) => block.type.endsWith("_start"))) errors.push("Only one start block is allowed.");
-  for (const block of blocks) {
-    if ((block.type === "gpio_event_start" || block.type === "webhook_event_start" || block.type === "mqtt_event_start" || block.type === "fetch_data_source") && !block.config.sourceId) errors.push(`${draftBlockTitle(block)} needs a source.`);
-    if (block.type === "if_payload_field_equals" && !block.config.fieldPath?.trim()) errors.push("Condition block needs a field path.");
-    if (block.type === "wait" && (!Number.isFinite(Number(block.config.durationMs)) || Number(block.config.durationMs) < 0)) errors.push("Wait block needs a valid duration.");
-    if (block.type === "control_output" && !block.config.targetId) errors.push("Pulse output needs a GPIO output target.");
-    if (block.type === "control_output" && (!Number.isFinite(Number(block.config.durationMs)) || Number(block.config.durationMs) < 1)) errors.push("Pulse output needs a positive duration.");
-    if (block.type === "send_transaction" && !block.config.recipientAddressBookId) errors.push("Send transaction needs an address book recipient.");
-    if (block.type === "send_transaction" && !isPositiveDecimal(block.config.amount ?? "")) errors.push("Send transaction needs a positive amount.");
-    if (block.type === "send_transaction") warnings.push("Send transaction spends wallet funds automatically. Keep the workflow paused until you are ready to test.");
-    if (block.type === "control_output") warnings.push("Pulse output drives GPIO hardware. Verify LED wiring and resistor before running.");
-    for (const attached of block.attachedBlocks ?? []) {
-      if (attached.type === "stamp_integritas" && !isDataBlock(block.type)) errors.push("Integritas stamps can only attach to Record or Fetch data blocks.");
-    }
-  }
-  if (blocks.length === 1) warnings.push("This draft only has a start block. You can create it and add actions later, or add blocks now.");
-  return { errors, warnings };
 }
 
 function isDataBlock(type: AutomationBlockType) {
