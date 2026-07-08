@@ -17,10 +17,20 @@
 
 ## 2. Signing key generation (one-time, real)
 
-- [ ] Generate the real Ed25519 signing keypair (not a throwaway test key).
+- [ ] Generate the real Ed25519 signing keypair via `scripts/release/generate-signing-key.mjs` (not a throwaway test key).
 - [ ] Register the private key as GH secret `MANIFEST_SIGNING_KEY`.
 - [ ] Commit the public key into the repo / bake into `update-agent`'s image (`MANIFEST_PUBLIC_KEY`).
 - [ ] Decide `manifest.source.json`'s real location/shape if it should differ from the current repo-root placeholder (tracked as an open question in `update-service.md`).
+
+### Config sourcing decision: `MANIFEST_URL` vs `MANIFEST_PUBLIC_KEY`
+
+Both are currently plain runtime env vars (`update-agent/src/config/env.ts:4-5`, `process.env.*` with `""` fallback, passed through via `docker-compose.yml`). Neither is a secret — the manifest URL is just an endpoint, and the public key's entire job is to verify signatures, not create them, so publishing it (even in an open-source repo) grants no attacker capability.
+
+They should not be treated the same way going forward, though:
+
+- **`MANIFEST_URL`** — stays a runtime-overridable env var. No secrecy concern, and overridability is a feature (self-hosters point it elsewhere).
+- **`MANIFEST_PUBLIC_KEY`** — should move off plain runtime env into a build-time bake (Dockerfile `ARG`/`ENV` set at image build, or a literal source constant), so it becomes fixed per image rather than swappable at deploy time. Rationale: if it stays a runtime env var, anyone who can influence the deploy environment (compromised host, malicious compose override, bad fork config) can swap in their own keypair and get `update-agent` to accept a manifest signed by an attacker-controlled key — defeating the point of signature verification. Baking it in at build time removes that override surface entirely.
+- [ ] Move `MANIFEST_PUBLIC_KEY` from runtime env to build-time bake in `update-agent`'s Dockerfile; keep `MANIFEST_URL` as runtime env.
 
 ## 3. Branch-based dry run (no VPS, no real tag)
 
