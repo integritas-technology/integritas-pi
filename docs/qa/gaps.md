@@ -153,7 +153,7 @@ Shipped features with open QA, security, and test gaps. Close P0 items (or docum
 
 These are not code gaps but stale docs that confuse QA:
 
-- `SECURITY.md` custom-token section still mentions labeled accounts / `fromAccountAddress` (removed in 0.8.0).
+- ~~`SECURITY.md` custom-token section still mentions labeled accounts / `fromAccountAddress` (removed in 0.8.0).~~ Fixed — split into `docs/security/wallet-and-tokens.md`, rewritten for the single-wallet model.
 - `docs/README.md` active-plans table references deleted plan files.
 
 ---
@@ -162,4 +162,5 @@ These are not code gaps but stale docs that confuse QA:
 
 | Date | Change |
 |------|--------|
+| 2026-07-09 | `SECURITY.md` split into lean top-level file + `docs/security/*`; fixed stale `fromAccountAddress` reference |
 | 2026-06-29 | Consolidated per-area QA docs into single backlog; applied 0.8.0/0.9.0 corrections |

@@ -87,3 +87,19 @@ V1 security is **accepted** when:
 - [ ] [gaps.md](../qa/gaps.md) sign-off criteria reviewed
 
 Then mark this plan **Complete** and move remaining P1/P2 items to QA only.
+
+---
+
+## Longer-Term Roadmap
+
+Moved from `SECURITY.md`'s former "Development Security Plan." Broader than V1 sign-off above.
+
+1. ~~Add authentication and admin authorization.~~ Done (Phase 1).
+2. Replace direct Docker socket mount with a safer monitoring path.
+3. ~~Add HTTPS or a documented trusted-network-only mode.~~ Done (self-signed HTTPS default on Docker deploy).
+4. Add rate limiting and audit logs.
+5. Persist Integritas proof records in SQLite with schema migrations.
+6. Add automated tests for security-sensitive endpoints.
+7. Pin Docker images and add dependency/image scanning.
+8. Design production-grade secret management for API keys.
+
