@@ -5,8 +5,12 @@ export async function listAutomationWorkflows() {
   return getJson<{ items: AutomationWorkflow[] }>("/api/automation/workflows");
 }
 
-export async function createAutomationWorkflow(input: { name: string; enabled: boolean; blocks: { type: AutomationBlockType; config?: AutomationBlock["config"]; enabled?: boolean; parentBlockId?: string | null }[] } | { name: string; dataSourceId: string; enabled: boolean; pollingIntervalSeconds: number; stampWithIntegritas: boolean }) {
+export async function createAutomationWorkflow(input: { name: string; enabled: boolean; blocks: { type: AutomationBlockType; config?: AutomationBlock["config"]; enabled?: boolean; parentBlockId?: string | null; clientId?: string | null }[] } | { name: string; dataSourceId: string; enabled: boolean; pollingIntervalSeconds: number; stampWithIntegritas: boolean }) {
   return postJson<{ item: AutomationWorkflow }>("/api/automation/workflows", input);
+}
+
+export async function validateAutomationDraft(input: { blocks: { type: AutomationBlockType; config?: AutomationBlock["config"]; enabled?: boolean; parentBlockId?: string | null; clientId?: string | null }[] }) {
+  return postJson<{ item: AutomationValidationResult }>("/api/automation/workflows/validate-draft", input);
 }
 
 export async function updateAutomationWorkflow(id: string, input: Partial<Pick<AutomationWorkflow, "name" | "enabled" | "archived" | "pollingIntervalSeconds" | "stampWithIntegritas">>) {

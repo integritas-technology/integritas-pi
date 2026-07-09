@@ -95,7 +95,7 @@ export function getEnabledAutomationWorkflowForDataSource(dataSourceId: string) 
     ?? listEnabledEventWorkflows("gpio_event_start", dataSourceId)[0];
 }
 
-export function createAutomationWorkflow(input: { name: string; enabled: boolean; blocks?: { type: AutomationBlockType; config: unknown; enabled?: boolean; parentBlockId?: string | null }[]; nextRunAt?: string | null }) {
+export function createAutomationWorkflow(input: { name: string; enabled: boolean; blocks?: { type: AutomationBlockType; config: unknown; enabled?: boolean; parentBlockId?: string | null; clientId?: string | null }[]; nextRunAt?: string | null }) {
   const id = crypto.randomUUID();
   const nowIso = new Date().toISOString();
   db.prepare(`
@@ -103,8 +103,18 @@ export function createAutomationWorkflow(input: { name: string; enabled: boolean
     VALUES (?, ?, ?, ?, ?, ?)
   `).run(id, nowIso, nowIso, input.name, input.enabled ? 1 : 0, input.nextRunAt ?? null);
 
-  for (const [index, block] of (input.blocks ?? []).entries()) {
-    createAutomationBlock(id, { ...block, orderIndex: index + 1 });
+  const clientIdMap = new Map<string, string>();
+  const blocks = input.blocks ?? [];
+
+  for (const [index, block] of blocks.filter((item) => !item.parentBlockId).entries()) {
+    const created = createAutomationBlock(id, { ...block, orderIndex: index + 1 });
+    if (block.clientId) clientIdMap.set(block.clientId, created.id);
+  }
+
+  for (const block of blocks.filter((item) => item.parentBlockId)) {
+    const parentBlockId = block.parentBlockId ? clientIdMap.get(block.parentBlockId) ?? block.parentBlockId : null;
+    const created = createAutomationBlock(id, { ...block, parentBlockId });
+    if (block.clientId) clientIdMap.set(block.clientId, created.id);
   }
 
   return getAutomationWorkflow(id)!;
