@@ -117,12 +117,24 @@ jobs:
       # See docs/plans/update-service-launch.md §1 for why this is pull-based
       # (push-over-SSH can't reach the VPS: its firewall only allows known
       # dev-team IPs, and GitHub-hosted runners have no stable IP to allowlist).
+      # Auth is a GitHub App (integritas-pi-manifest-deploy), not a deploy key
+      # or PAT — the org disables write-access deploy keys org-wide, and a
+      # GitHub App isn't tied to any one person's account.
       # Switch to integritas-pi/prod/ once QA is verified end-to-end.
+      - name: Generate manifest repo access token
+        id: manifest-repo-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.MANIFEST_APP_ID }}
+          private-key: ${{ secrets.MANIFEST_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: integritas-manifests
+
       - name: Checkout manifest repo
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/integritas-manifests
-          ssh-key: ${{ secrets.MANIFEST_REPO_DEPLOY_KEY }}
+          token: ${{ steps.manifest-repo-token.outputs.token }}
           path: manifest-repo
 
       - name: Deploy manifest (push to private manifest repo)

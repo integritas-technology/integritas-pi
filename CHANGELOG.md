@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - **Release workflow manifest deploy**: the signed manifest is now pushed to a private `integritas-manifests` repo over HTTPS instead of `scp`'d directly to the VPS over SSH; the VPS pulls it on a cron schedule and serves it locally via nginx. Avoids requiring inbound SSH access from GitHub-hosted Actions runners' unpredictable IPs through the VPS firewall. See `docs/plans/update-service-launch.md` §1.
+- **Manifest repo auth**: CI authenticates to `integritas-manifests` via a dedicated GitHub App (`integritas-pi-manifest-deploy`) generating short-lived installation tokens, instead of a static SSH deploy key — the org disables write-access deploy keys org-wide.
 
 ### Fixed
 
