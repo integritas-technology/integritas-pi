@@ -35,8 +35,8 @@ export function DataSourceForm({ template, name, setName, description, setDescri
           <label>Output profile<select value="led" disabled><option value="led">LED</option></select></label>
           <label>GPIO chip<input value={gpioChip} onChange={(event) => setGpioChip(event.target.value)} placeholder="gpiochip0" /></label>
           <label>BCM pin number<input value={gpioPin} onChange={(event) => setGpioPin(event.target.value)} placeholder="18" inputMode="numeric" /></label>
-          <label>Active state<select value={gpioActiveState} onChange={(event) => setGpioActiveState(event.target.value as "high" | "low")}><option value="high">High</option><option value="low">Low</option></select></label>
-          <p className="muted">LED output targets can be pulsed from Automation. Wire the LED with a 220-330 ohm resistor and never connect GPIO directly to 5V, motors, or relays.</p>
+          <label>LED turns on when GPIO is<select value={gpioActiveState} onChange={(event) => setGpioActiveState(event.target.value as "high" | "low")}><option value="high">High (common GPIO to resistor to LED to GND wiring)</option><option value="low">Low (LED/resistor tied to 3.3V, GPIO sinks current)</option></select></label>
+          <p className="muted">LED output targets can be pulsed from Automation. For the documented GPIO18 LED wiring, choose High. Wire the LED with a 220-330 ohm resistor and never connect GPIO directly to 5V, motors, or relays.</p>
         </>
       ) : (
         <>

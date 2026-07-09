@@ -445,11 +445,13 @@ function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChan
   }
 
   if (block.type === "control_output") {
+    const selectedOutput = outputTargets.find((source) => source.id === block.config.targetId);
     return (
       <section className="card soft-card automation-form">
         <strong>Selected block</strong>
         <label>Output target<select value={block.config.targetId ?? ""} onChange={(event) => onChange({ targetId: event.target.value, action: "pulse", durationMs: block.config.durationMs ?? 500 })}><option value="">Select GPIO output...</option>{outputTargets.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>
         <label>Pulse duration ms<input value={String(block.config.durationMs ?? 500)} inputMode="numeric" onChange={(event) => onChange({ ...block.config, action: "pulse", durationMs: Number(event.target.value) })} /></label>
+        {selectedOutput && <p className="muted">Selected device active state: <strong>{selectedOutput.config.activeState ?? "high"}</strong>. Use High for common GPIO to resistor to LED to GND wiring. Change this from Devices by editing the GPIO Output target.</p>}
         <p className="muted">LED output only. Verify resistor wiring and test pulse before enabling.</p>
       </section>
     );
@@ -1278,7 +1280,7 @@ function sourceLabel(source: DataSource) {
   if (source.type === "webhook") return "Webhook receive URL";
   if (source.type === "mqtt") return `${source.config.brokerUrl ?? "MQTT broker"} ${source.config.topic ?? ""}`;
   if (source.type === "gpio-input") return `${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"}`;
-  if (source.type === "gpio-output") return `${source.config.profile ?? "led"} ${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"}`;
+  if (source.type === "gpio-output") return `${source.config.profile ?? "led"} ${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"} active:${source.config.activeState ?? "high"}`;
   return source.config.url ?? "HTTP JSON API";
 }
 
