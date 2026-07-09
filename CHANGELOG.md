@@ -15,7 +15,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `/apply` is now asynchronous: `POST /apply` starts a background job and returns immediately, `GET /apply` polls job status — needed since a successful frontend update kills its own in-flight request.
 - New `MANIFEST_URL`, `MANIFEST_PUBLIC_KEY`, `RELEASE_CHANNEL`, `UPDATE_HEALTH_CHECK_TIMEOUT_MS`, `UPDATE_HEALTH_CHECK_INTERVAL_MS`, `UPDATE_PULL_TIMEOUT_MS`, `MINIMA_BACKUP_DIR`, `UPDATE_AGENT_STATE_DIR` environment variables (see README Configuration section).
 
+### Changed
+
+- **Release workflow manifest deploy**: the signed manifest is now pushed to a private `integritas-manifests` repo over HTTPS instead of `scp`'d directly to the VPS over SSH; the VPS pulls it on a cron schedule and serves it locally via nginx. Avoids requiring inbound SSH access from GitHub-hosted Actions runners' unpredictable IPs through the VPS firewall. See `docs/plans/update-service-launch.md` §1.
+
 ### Fixed
+
+- **Release workflow "previous release tag" lookup**: no longer considers pre-release/test-shaped tags (e.g. `v0.0.0-test.1`) as a candidate "previous release," preventing a leftover test tag from hiding real `frontend`/`backend` changes from the release diff.
 
 - **Update-agent frontend/backend swap**: updates to services publishing a host port no longer fail on a port-binding conflict between the old and new container; the candidate is created and health-checked without port bindings first, and only swapped in (old stopped/removed, candidate recreated with its ports, started) once healthy.
 - **Update-agent Minima rollback**: backup/restore no longer fails with `EBUSY` on the bind mount root, no longer risks a backup taken mid-write, and now lands on its own dedicated `MINIMA_BACKUP_DIR` bind mount instead of a path inside the container's ephemeral layer.

@@ -19,7 +19,10 @@ jobs:
       - name: Find previous release tag
         id: prev-tag
         run: |
-          prev=$(git tag --sort=-v:refname | grep -v "^${GITHUB_REF_NAME}$" | head -n1)
+          # Exclude pre-release-shaped tags (e.g. v0.0.0-test.1) so a leftover
+          # test tag from a dry run can never be picked as "previous release"
+          # and hide real changes from the diff below.
+          prev=$(git tag --sort=-v:refname | grep -v "^${GITHUB_REF_NAME}$" | grep -v -- '-' | head -n1)
           echo "tag=${prev}" >> "$GITHUB_OUTPUT"
 
       - name: Detect changed service folders since previous release
@@ -107,16 +110,29 @@ jobs:
           MANIFEST_SIGNING_KEY: ${{ secrets.MANIFEST_SIGNING_KEY }}
         run: node scripts/release/sign-manifest.mjs manifest.json manifest.json.sig
 
-      # QA deploy: change QA variables for Production once QA is verified end-to-end.
-      - name: Deploy manifest
-        uses: appleboy/scp-action@v0.1.7
+      # QA deploy: pushes to the private integritas-manifests repo's qa/ folder.
+      # The QA VPS pulls this repo on a cron schedule and serves qa/ via nginx.
+      # See docs/plans/update-service-launch.md §1 for why this is pull-based
+      # (push-over-SSH can't reach the VPS: its firewall only allows known
+      # dev-team IPs, and GitHub-hosted runners have no stable IP to allowlist).
+      # Switch to prod/ once QA is verified end-to-end.
+      - name: Checkout manifest repo
+        uses: actions/checkout@v4
         with:
-          host: ${{ secrets.QA_VPS_DEPLOY_HOST }}
-          username: ${{ secrets.QA_VPS_DEPLOY_USER }}
-          key: ${{ secrets.QA_VPS_DEPLOY_KEY }}
-          source: 'manifest.json,manifest.json.sig'
-          target: ${{ secrets.QA_VPS_DEPLOY_PATH }}
-          strip_components: 0
+          repository: ${{ github.repository_owner }}/integritas-manifests
+          ssh-key: ${{ secrets.MANIFEST_REPO_DEPLOY_KEY }}
+          path: manifest-repo
+
+      - name: Deploy manifest (push to private manifest repo)
+        run: |
+          cp manifest.json manifest.json.sig manifest-repo/qa/
+          cd manifest-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add qa/manifest.json qa/manifest.json.sig
+          git diff --staged --quiet && exit 0
+          git commit -m "qa: update manifest (${{ github.ref_name }})"
+          git push
 
       - name: Upload manifest artifact
         uses: actions/upload-artifact@v4

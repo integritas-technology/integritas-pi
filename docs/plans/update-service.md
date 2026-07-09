@@ -15,7 +15,7 @@
 - Manifest: signed JSON, `{ "frontend": "sha256:...", "backend": "sha256:...", "minima-node": "sha256:..." }`.
 - Signing keypair generated once, manually. Private key lives only in GitHub Actions Secrets. Public key committed to the repo and baked into `update-agent`'s image.
 - `minima-node`'s digest is a normal manifest entry, manually maintained in a repo source file (e.g. `manifest.source.json`) that CI reads; CI fills in `frontend`/`backend` digests from what it just built and leaves `minima-node` untouched, then signs. Bumping the trusted Minima version later is a one-line PR to that file.
-- Manifest served from the existing Next.js VPS app, deployed by CI via a dedicated low-privilege VPS user scoped to one folder.
+- Manifest deployed by CI to a private `integritas-manifests` GitHub repo (HTTPS push); a cron job on the VPS pulls it and nginx serves it directly from the clone. Pull-based to avoid needing inbound SSH access to the VPS from GitHub-hosted Actions runners — see [update-service-launch.md](./update-service-launch.md) §1.
 - `update-agent` has its own `docker.sock` mount. Product `backend`'s existing socket use is untouched.
 - `update-agent`'s UI is reached through the **existing product `frontend` nginx**, same cert, same port (`${FRONTEND_PORT:-8080}/update`) — one added `location` block, same pattern as the existing `/api` → `backend` block. Same origin means no extra browser cert approval.
 - Only 2 images kept on disk per service (current + previous).
@@ -57,7 +57,7 @@ Mitigation is shrinking `update-agent`'s own attack surface, not network placeme
 - [x] Build step: `docker build` for changed services, push to `ghcr.io/<org>/...` by digest. (`build` job in `release.yml`, resolves full `repo@sha256:digest` refs)
 - [x] Manifest build step: read `manifest.source.json`, overwrite `frontend`/`backend` digests with freshly pushed digests, leave `minima-node` as-is. (`scripts/release/build-manifest.mjs`)
 - [x] Sign step: sign the resulting manifest with the private key from GitHub Actions Secrets; key never written to a file that survives the job. (`scripts/release/sign-manifest.mjs`, Node `crypto` Ed25519, key only lives in env for the step)
-- [ ] Deploy step: push signed manifest (+ signature) to the VPS Next.js app via the dedicated low-privilege deploy user. Placeholder in `release.yml` — real wiring is part 6.
+- [x] Deploy step: push signed manifest (+ signature) to the private `integritas-manifests` repo (`release.yml`); VPS-side pull/serve wiring is part 6.
 - [ ] One-time setup: generate the signing keypair, register the private key as a GH secret (`MANIFEST_SIGNING_KEY`), commit the public key into the repo/`update-agent`. Not done yet — needs to happen before any real release tag.
 - [x] Signature format/tool: Node `crypto` Ed25519 (PEM keys, base64 signature) — no external binary, both CI and `update-agent` are already Node/TypeScript.
 
