@@ -4,5 +4,6 @@ dist/
 /data/
 /data/certs/
 /minima/
+/minima-backup/
 npm-debug.log*
 .DS_Store
