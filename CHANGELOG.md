@@ -28,6 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Workflow canvas blocks now show validation error/warning badges in Build and Edit, plus latest run status/duration badges and highlighting in Watch.
 - Watch mode now lets operators choose a historic run to visualize on the canvas; the previous expandable recent-runs log table is replaced by a `Show on canvas` run picker.
 - Workflow log rows now link to `Show on canvas`, opening Watch mode for the selected workflow run via the `run` URL parameter.
+- Watch mode now live-refreshes while the selected or latest run is running, selects the newest run after manual/test execution, and shows whether the canvas is live-updating or viewing a historic run.
 - GPIO LED output pulses now explicitly drive the inactive level before and after each pulse, return active/inactive GPIO values in the result, and clarify active-high vs active-low LED wiring in the Devices form.
 
 ### Changed

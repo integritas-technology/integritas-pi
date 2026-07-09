@@ -507,6 +507,7 @@ Current implementation:
 - Canvas blocks now accept validation and runtime overlays so Build/Edit can mark affected blocks and Watch can show latest block status/duration directly on the canvas.
 - Watch mode now treats recent runs as a run picker: selecting `Show on canvas` drives the canvas overlays and selected-block runtime inspector for that historic run.
 - Workflow log tables now use `Show on canvas` links to `/automation?flow=watch&id=<workflowId>&run=<runId>` instead of expanding raw logs inline.
+- Watch mode polls while a selected/latest run is active, selects the newest run after manual/test execution, and marks the canvas as live-updating vs historic review.
 - The center canvas previews the generated block chain before creation.
 - The right inspector configures workflow name and selected-block settings.
 - The draft canvas owns an editable draft block list and supports add/remove/move controls for supported draft blocks.

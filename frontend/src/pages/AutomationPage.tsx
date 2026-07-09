@@ -67,13 +67,20 @@ export function AutomationPage() {
       setWorkspaceValidation(null);
       return;
     }
-    Promise.all([listAutomationWorkflowRuns(workflowId, 10), getAutomationWorkflowValidation(workflowId)])
-      .then(([runs, validation]) => {
-        setWorkspaceRuns(runs.items);
-        setWorkspaceValidation(validation.item);
-      })
-      .catch((err: Error) => setError(err.message));
+    refreshWorkspace(workflowId).catch((err: Error) => setError(err.message));
   }, [flow]);
+
+  useEffect(() => {
+    if (flow.mode !== "watch") return;
+    const selectedRun = workspaceRuns.find((run) => run.id === flow.runId) ?? workspaceRuns[0];
+    const shouldPoll = selectedRun?.status === "running" || workspaceRuns[0]?.status === "running";
+    if (!shouldPoll) return;
+
+    const interval = window.setInterval(() => {
+      refreshWorkspace(flow.workflowId).catch((err: Error) => setError(err.message));
+    }, 2000);
+    return () => window.clearInterval(interval);
+  }, [flow, workspaceRuns]);
 
   async function refresh() {
     const [sourceResponse, workflowResponse, addressBookResponse, walletResponse] = await Promise.all([
@@ -90,10 +97,21 @@ export function AutomationPage() {
     if (!initialFetchSourceId) setInitialFetchSourceId(firstHttpSource(sourceResponse.items)?.id ?? "");
     const workflowId = "workflowId" in flow ? flow.workflowId : null;
     if (workflowId) {
-      const [runs, validation] = await Promise.all([listAutomationWorkflowRuns(workflowId, 10), getAutomationWorkflowValidation(workflowId)]);
-      setWorkspaceRuns(runs.items);
-      setWorkspaceValidation(validation.item);
+      await refreshWorkspace(workflowId);
     }
+  }
+
+  async function refreshWorkspace(workflowId: string) {
+    const [runs, validation] = await Promise.all([listAutomationWorkflowRuns(workflowId, 10), getAutomationWorkflowValidation(workflowId)]);
+    setWorkspaceRuns(runs.items);
+    setWorkspaceValidation(validation.item);
+    return runs.items;
+  }
+
+  async function runWorkflowAndSelectLatest(workflowId: string, payload?: unknown) {
+    await runAutomationWorkflow(workflowId, payload);
+    const runs = await refreshWorkspace(workflowId);
+    if (runs[0]) navigateFlow({ mode: "watch", workflowId, runId: runs[0].id });
   }
 
   function navigateFlow(nextFlow: AutomationPageFlow) {
@@ -210,8 +228,8 @@ export function AutomationPage() {
           onUpdateBlock={(blockId, input) => run(() => updateAutomationBlock(workspaceWorkflow.id, blockId, input))}
           onUpdateWorkflow={(input) => run(() => updateAutomationWorkflow(workspaceWorkflow.id, input))}
           onReorderBlocks={(blockIds) => run(() => reorderAutomationBlocks(workspaceWorkflow.id, blockIds))}
-          onRunNow={() => run(() => runAutomationWorkflow(workspaceWorkflow.id))}
-          onRunWithPayload={(payload) => run(() => runAutomationWorkflow(workspaceWorkflow.id, payload))}
+          onRunNow={() => run(() => runWorkflowAndSelectLatest(workspaceWorkflow.id))}
+          onRunWithPayload={(payload) => run(() => runWorkflowAndSelectLatest(workspaceWorkflow.id, payload))}
         />
       )}
 
@@ -555,6 +573,7 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
   const validationByBlockId = validationIssuesByBlockId(validation);
   const selectedRun = mode === "watch" ? runs.find((run) => run.id === selectedRunId) ?? runs[0] : undefined;
   const runtimeByBlockId = mode === "watch" ? runtimeByBlockIdFromRun(selectedRun) : {};
+  const watchRunStatusLabel = selectedRun?.status === "running" ? "Live updating" : selectedRun ? "Viewing historic run" : "No run selected";
 
   useEffect(() => {
     if (startBlock && !mainBlocks.some((block) => block.id === selectedBlockId)) setSelectedBlockId(startBlock.id);
@@ -593,6 +612,7 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
       actions={<>
         <button type="button" disabled={busy} onClick={() => onNavigateMode(mode === "watch" ? "edit" : "watch")}>{mode === "watch" ? "Open in edit" : "Open in watch"}</button>
         <span className={`pill ${workflow.archived ? "pill-neutral" : workflow.lastError ? "pill-warn" : workflow.enabled ? "pill-good" : "pill-neutral"}`}>{workflow.archived ? "Archived" : workflow.lastError ? "Error" : workflow.enabled ? "Enabled" : "Paused"}</span>
+        {mode === "watch" && <span className={`pill ${selectedRun?.status === "running" ? "pill-good" : "pill-neutral"}`}>{watchRunStatusLabel}</span>}
         <span className="pill pill-neutral">Blocks {workflow.blocks.length}</span>
         <span className="pill pill-neutral">Last run {workflow.lastRunAt ? formatLocalTime(workflow.lastRunAt) : "Never"}</span>
         <span className="pill pill-neutral">Next {workflow.nextRunAt ? formatLocalTime(workflow.nextRunAt) : workflow.pollingIntervalSeconds > 0 ? "Paused" : "On incoming data"}</span>
