@@ -505,6 +505,7 @@ Current implementation:
 - Build, Edit, and Watch now use a shared workflow workspace shell and one normalized canvas renderer for draft and persisted blocks.
 - The public canvas API is now mode-aware (`build`, `edit`, `watch`) and accepts normalized canvas blocks.
 - Canvas blocks now accept validation and runtime overlays so Build/Edit can mark affected blocks and Watch can show latest block status/duration directly on the canvas.
+- Watch mode now treats recent runs as a run picker: selecting `Show on canvas` drives the canvas overlays and selected-block runtime inspector for that historic run.
 - The center canvas previews the generated block chain before creation.
 - The right inspector configures workflow name and selected-block settings.
 - The draft canvas owns an editable draft block list and supports add/remove/move controls for supported draft blocks.

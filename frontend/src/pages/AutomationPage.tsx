@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { JsonPreview } from "../components/JsonPreview";
 import { Page } from "../components/Page";
 import { addAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, duplicateAutomationWorkflow, getAutomationWorkflowValidation, listAutomationWorkflowRuns, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow, validateAutomationDraft } from "../features/automation/automationApi";
-import { AutomationRunsTable } from "../features/automation/AutomationRunsTable";
 import { automationBlockToCanvasBlock, draftBlockDescription, draftBlockTitle, isDataBlock, WorkflowBlockLibrary, WorkflowCanvas, WorkflowWorkspaceShell, type DraftWorkflowBlock, type WorkflowCanvasRuntimeState, type WorkflowCanvasValidationIssue } from "../features/automation/WorkflowCanvas";
 import type { AutomationBlock, AutomationBlockType, AutomationRun, AutomationValidationResult, AutomationWorkflow, ConditionOperator } from "../features/automation/automationTypes";
 import { listAddressBookEntries } from "../features/address-book/addressBookApi";
@@ -536,6 +535,7 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
   const [payloadText, setPayloadText] = useState(() => JSON.stringify(examplePayload(workflow), null, 2));
   const [payloadError, setPayloadError] = useState<string | null>(null);
   const [workflowName, setWorkflowName] = useState(workflow.name);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const mainBlocks = workflow.blocks.filter((block) => !block.parentBlockId);
   const startBlock = mainBlocks[0];
   const [selectedBlockId, setSelectedBlockId] = useState(startBlock?.id ?? "");
@@ -545,7 +545,8 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
   const canAddRecordTriggerEvent = Boolean(startBlock && (startBlock.type === "gpio_event_start" || startBlock.type === "webhook_event_start" || startBlock.type === "mqtt_event_start") && !mainBlocks.some((block) => block.type === "record_trigger_event"));
   const hasValidationErrors = Boolean(validation && validation.errors.length > 0);
   const validationByBlockId = validationIssuesByBlockId(validation);
-  const runtimeByBlockId = mode === "watch" ? runtimeByBlockIdFromRun(runs[0]) : {};
+  const selectedRun = mode === "watch" ? runs.find((run) => run.id === selectedRunId) ?? runs[0] : undefined;
+  const runtimeByBlockId = mode === "watch" ? runtimeByBlockIdFromRun(selectedRun) : {};
 
   useEffect(() => {
     if (startBlock && !mainBlocks.some((block) => block.id === selectedBlockId)) setSelectedBlockId(startBlock.id);
@@ -554,6 +555,15 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
   useEffect(() => {
     setWorkflowName(workflow.name);
   }, [workflow.id, workflow.name]);
+
+  useEffect(() => {
+    if (mode !== "watch") return;
+    if (runs.length === 0) {
+      setSelectedRunId(null);
+      return;
+    }
+    if (!selectedRunId || !runs.some((run) => run.id === selectedRunId)) setSelectedRunId(runs[0].id);
+  }, [mode, runs, selectedRunId]);
 
   function addBlockFromLibrary(type: AutomationBlockType) {
     onAddBlock({ type, config: defaultEditBlockConfig(type, sources, addressBook) });
@@ -566,6 +576,7 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
       description={<>
         <p className="muted">{source?.name ?? "Unknown source"} · {workflow.pollingIntervalSeconds > 0 ? formatInterval(workflow.pollingIntervalSeconds) : "Event driven"}</p>
         <p className="muted">{mode === "watch" ? "Run and inspect this workflow from the shared canvas shell." : "Changes are saved per block. Edit fields, then click that block's save button; add/remove/move/pause/enable actions apply immediately."}</p>
+        {mode === "watch" && selectedRun && <p className="muted">Canvas showing run from {formatLocalTime(selectedRun.startedAt)} · {selectedRun.status} · {formatDuration(selectedRun.durationMs)}</p>}
       </>}
       actions={<>
         <span className={`pill ${workflow.archived ? "pill-neutral" : workflow.lastError ? "pill-warn" : workflow.enabled ? "pill-good" : "pill-neutral"}`}>{workflow.archived ? "Archived" : workflow.lastError ? "Error" : workflow.enabled ? "Enabled" : "Paused"}</span>
@@ -627,9 +638,9 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
                 onDeleteAttached={onDeleteBlock}
               /> : <p className="muted">Select a block on the canvas to edit it.</p>}
             </div>
-          </> : <WatchRuntimeInspector selectedBlock={selectedBlock} latestBlockRun={latestBlockRunForBlock(runs, selectedBlock?.id ?? null)} validation={validation} />}
+          </> : <WatchRuntimeInspector selectedBlock={selectedBlock} latestBlockRun={blockRunForBlock(selectedRun, selectedBlock?.id ?? null)} selectedRun={selectedRun} validation={validation} />}
         </aside>}
-      bottom={mode === "watch" ? <WatchRunHistory runs={runs} /> : undefined}
+      bottom={mode === "watch" ? <WatchRunHistory runs={runs} selectedRunId={selectedRun?.id ?? null} onSelectRun={setSelectedRunId} /> : undefined}
     />
   );
 }
@@ -737,13 +748,22 @@ function WatchRunControls({ workflow, busy, hasValidationErrors, payloadText, pa
   );
 }
 
-function WatchRuntimeInspector({ selectedBlock, latestBlockRun, validation }: { selectedBlock: AutomationBlock | undefined; latestBlockRun: AutomationRun["blocks"][number] | null; validation: AutomationValidationResult | null }) {
+function WatchRuntimeInspector({ selectedBlock, latestBlockRun, selectedRun, validation }: { selectedBlock: AutomationBlock | undefined; latestBlockRun: AutomationRun["blocks"][number] | null; selectedRun: AutomationRun | undefined; validation: AutomationValidationResult | null }) {
   const readId = readIdFromOutput(latestBlockRun?.output);
   const proofId = proofIdFromOutput(latestBlockRun?.output);
 
   return (
     <>
       <WorkflowValidationPanel validation={validation} />
+      <section className="card soft-card">
+        <strong>Selected run</strong>
+        {selectedRun ? <div className="metric-grid">
+          <RulePart title="Started" value={formatLocalTime(selectedRun.startedAt)} />
+          <RulePart title="Status" value={selectedRun.status} />
+          <RulePart title="Duration" value={formatDuration(selectedRun.durationMs)} />
+        </div> : <p className="muted">No run selected yet. Run the workflow or choose a historic run below.</p>}
+        {selectedRun?.error && <p className="error-text">{selectedRun.error}</p>}
+      </section>
       <section className="card soft-card">
         <strong>Selected block runtime</strong>
         {!selectedBlock && <p className="muted">Select a block on the canvas to inspect its latest run output.</p>}
@@ -764,25 +784,49 @@ function WatchRuntimeInspector({ selectedBlock, latestBlockRun, validation }: { 
   );
 }
 
-function WatchRunHistory({ runs }: { runs: AutomationRun[] }) {
+function WatchRunHistory({ runs, selectedRunId, onSelectRun }: { runs: AutomationRun[]; selectedRunId: string | null; onSelectRun: (runId: string) => void }) {
   return (
     <section className="card soft-card">
-      <div className="automation-form">
-        <strong>Recent runs</strong>
-        <p className="muted">Latest executions for this workflow, including per-block status and output details.</p>
+      <div className="status-row">
+        <div>
+          <strong>Historic runs</strong>
+          <p className="muted">Choose a run to visualize on the canvas. Full raw details remain available in Diagnostics.</p>
+        </div>
+        <span className="pill pill-neutral">{runs.length} run(s)</span>
       </div>
-      <AutomationRunsTable runs={runs} compact />
+      {runs.length === 0 ? <p className="muted">No workflow runs recorded yet.</p> : <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Started</th>
+              <th>Trigger</th>
+              <th>Status</th>
+              <th>Duration</th>
+              <th>Blocks</th>
+              <th>Canvas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {runs.map((run) => (
+              <tr key={run.id}>
+                <td>{formatLocalTime(run.startedAt)}</td>
+                <td>{run.triggerType}</td>
+                <td><span className={`pill ${run.status === "success" ? "pill-good" : run.status === "failed" ? "pill-warn" : "pill-neutral"}`}>{run.status}</span></td>
+                <td>{formatDuration(run.durationMs)}</td>
+                <td>{run.blocks.filter((block) => block.status === "success").length}/{run.blockCount}</td>
+                <td><button type="button" disabled={selectedRunId === run.id} onClick={() => onSelectRun(run.id)}>{selectedRunId === run.id ? "Showing" : "Show on canvas"}</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>}
     </section>
   );
 }
 
-function latestBlockRunForBlock(runs: AutomationRun[], blockId: string | null) {
-  if (!blockId) return null;
-  for (const run of runs) {
-    const blockRun = run.blocks.find((block) => block.blockId === blockId);
-    if (blockRun) return blockRun;
-  }
-  return null;
+function blockRunForBlock(run: AutomationRun | undefined, blockId: string | null) {
+  if (!run || !blockId) return null;
+  return run.blocks.find((block) => block.blockId === blockId) ?? null;
 }
 
 function diagnosticsLink(tab: "proofs" | "reads", id: string) {
