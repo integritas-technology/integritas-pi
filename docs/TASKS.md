@@ -12,7 +12,7 @@
 
 ## Current Focus
 
-- [ ] Agent config cleanup: split `SECURITY.md` into a lean top-level file plus `docs/security/*` detail docs.
+- [ ] Add `CLAUDE.md` (`@AGENTS.md` import) so Claude Code loads project instructions.
 
 ## In Progress
 
@@ -21,15 +21,16 @@
 
 ## Next
 
-- [ ] Fix stale `SECURITY.md` reference to removed `fromAccountAddress` / labeled accounts (tracked in `docs/qa/gaps.md`).
-- [ ] Fix stale `docs/README.md` active-plans table (references deleted plan files).
-- [ ] Add `CLAUDE.md` (`@AGENTS.md` import) so Claude Code loads project instructions.
+- [ ] Fix stale `docs/README.md` active-plans table (references deleted plan files) — re-check, may already be resolved.
+- [ ] Decide whether/how to fix the `docs/gpio-device-settings.md` link now that the file may have moved to `archive/docs/guides/`.
 
 ## Done
 
-- [x] `AGENTS.md` established as the cross-tool source of truth.
-- [x] `.cursor/rules.mdc` set up as a pointer to `AGENTS.md` (no duplicated rules).
-- [x] `docs/PROJECT.md` and `docs/TASKS.md` added.
+- [x] `AGENTS.md` rewritten as Karpathy-style behavioral guidelines; project-specific rules split into `.agents/rules/*.md`, indexed from `AGENTS.md` and `docs/README.md`.
+- [x] `SECURITY.md` split into a policy document (supported use, guidelines, reporting) plus a detailed risk register in `docs/security/*.md`.
+- [x] Fixed stale `SECURITY.md` reference to removed `fromAccountAddress` / labeled accounts.
+- [x] `.cursor/rules.mdc` updated to point at `.agents/rules/` and `docs/security/` alongside `AGENTS.md`/`SECURITY.md`.
+- [x] `docs/PROJECT.md`, `docs/TASKS.md`, `docs/SESSION.md` added.
 
 ## Ideas
 

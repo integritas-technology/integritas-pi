@@ -5,11 +5,13 @@ docs/
 ├── PROJECT.md   goal, audience, constraints, success criteria
 ├── TASKS.md     current work items (read every session)
 ├── SESSION.md   scratch log for the session in progress
-├── security/    full security risk register (see SECURITY.md for the lean entry point)
+├── security/    detailed security risk register (see SECURITY.md for the policy)
 ├── plans/       active or upcoming work
 ├── qa/          open gaps and hardening backlog
 └── reports/     point-in-time audits (not maintained after creation)
 ```
+
+Project-specific agent rules live outside `docs/`, in `.agents/rules/` at the repo root (agent-config, not human documentation) — see below.
 
 ---
 
@@ -21,7 +23,21 @@ docs/
 | [TASKS.md](./TASKS.md) | Current focus / in progress / next / done |
 | [SESSION.md](./SESSION.md) | Scratch notes for the session in progress — reset per session |
 
-See also `AGENTS.md` at the repo root (source of truth for architecture and agent rules) and `.cursor/rules.mdc` (tool-specific pointer to it).
+`AGENTS.md` at the repo root holds behavioral guidelines (loaded every session by every tool) and indexes the project-specific rules below. `.cursor/rules.mdc` is a tool-specific pointer to it.
+
+| Doc | Purpose |
+|---|---|
+| [../.agents/rules/project-shape.md](../.agents/rules/project-shape.md) | Architecture, core principles, what to read before editing |
+| [../.agents/rules/backend.md](../.agents/rules/backend.md) | Backend feature folders, route/schema conventions, auth rules |
+| [../.agents/rules/frontend.md](../.agents/rules/frontend.md) | Frontend feature folders, API usage, styling conventions |
+| [../.agents/rules/cli.md](../.agents/rules/cli.md) | CLI conventions and constraints |
+| [../.agents/rules/minima.md](../.agents/rules/minima.md) | Minima RPC command rules |
+| [../.agents/rules/integritas.md](../.agents/rules/integritas.md) | Integritas stamping/proof rules |
+| [../.agents/rules/data-sources.md](../.agents/rules/data-sources.md) | Data source types and rules |
+| [../.agents/rules/automation.md](../.agents/rules/automation.md) | Automation workflow rules |
+| [../.agents/rules/docker.md](../.agents/rules/docker.md) | Docker / Raspberry Pi deployment rules |
+| [../.agents/rules/verification.md](../.agents/rules/verification.md) | Commands to run before finishing changes |
+| [../.agents/rules/documenting-work.md](../.agents/rules/documenting-work.md) | Task summaries, doc updates, changelog policy |
 
 ---
 
@@ -29,7 +45,7 @@ See also `AGENTS.md` at the repo root (source of truth for architecture and agen
 
 | Doc | Purpose |
 |---|---|
-| [../SECURITY.md](../SECURITY.md) | Lean entry point: scope, current posture, highest-priority accepted risks |
+| [../SECURITY.md](../SECURITY.md) | Security policy: supported use, guidelines, vulnerability reporting |
 | [security/auth-and-transport.md](./security/auth-and-transport.md) | LAN access, TLS trust, API keys, `APP_SECRET` |
 | [security/host-and-infrastructure.md](./security/host-and-infrastructure.md) | Docker socket, file browser, path traversal, SQLite permissions, supply chain, installer |
 | [security/wallet-and-tokens.md](./security/wallet-and-tokens.md) | Seed phrase import, automated transactions, debug clears, token creation |
