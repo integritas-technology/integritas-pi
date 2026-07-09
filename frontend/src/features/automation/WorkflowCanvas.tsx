@@ -16,6 +16,17 @@ export type WorkflowCanvasMode = "build" | "edit" | "watch";
 
 export type WorkflowCanvasBlock = DraftWorkflowBlock;
 
+export type WorkflowCanvasValidationIssue = {
+  level: "error" | "warning";
+  message: string;
+};
+
+export type WorkflowCanvasRuntimeState = {
+  status: "running" | "success" | "failed" | "skipped";
+  durationMs: number | null;
+  error?: string | null;
+};
+
 export function WorkflowWorkspaceShell({ eyebrow, title, description, actions, left, center, right, bottom, notices }: { eyebrow: string; title: string; description: ReactNode; actions?: ReactNode; left: ReactNode; center: ReactNode; right: ReactNode; bottom?: ReactNode; notices?: ReactNode }) {
   return (
     <section className="workflow-create-shell">
@@ -66,7 +77,7 @@ export function WorkflowBlockLibrary({ mode = "build", hasStartBlock, selectedBl
   );
 }
 
-export function WorkflowCanvas({ mode, blocks, sources, selectedBlockId, statusLabel, statusGood, onSelectBlock, onMoveBlock, onRemoveBlock }: { mode: WorkflowCanvasMode; blocks: WorkflowCanvasBlock[]; sources: DataSource[]; selectedBlockId: string; statusLabel: string; statusGood: boolean; onSelectBlock: (id: string) => void; onMoveBlock: (id: string, direction: -1 | 1) => void; onRemoveBlock: (id: string) => void }) {
+export function WorkflowCanvas({ mode, blocks, sources, selectedBlockId, statusLabel, statusGood, validationByBlockId = {}, runtimeByBlockId = {}, onSelectBlock, onMoveBlock, onRemoveBlock }: { mode: WorkflowCanvasMode; blocks: WorkflowCanvasBlock[]; sources: DataSource[]; selectedBlockId: string; statusLabel: string; statusGood: boolean; validationByBlockId?: Record<string, WorkflowCanvasValidationIssue[]>; runtimeByBlockId?: Record<string, WorkflowCanvasRuntimeState>; onSelectBlock: (id: string) => void; onMoveBlock: (id: string, direction: -1 | 1) => void; onRemoveBlock: (id: string) => void }) {
   const isBuild = mode === "build";
   const actionLabels = isBuild ? { up: "Up", down: "Down", remove: "Remove" } : { up: "Move up", down: "Move down", remove: "Remove" };
   return (
@@ -81,26 +92,22 @@ export function WorkflowCanvas({ mode, blocks, sources, selectedBlockId, statusL
       <div className="workflow-canvas-lane">
         {blocks.length === 0 && <div className="workflow-canvas-empty"><strong>{isBuild ? "Choose a start block" : "No blocks"}</strong><p className="muted">{isBuild ? "Start with Manual, Schedule, GPIO, Webhook, or MQTT. Then add data and logic blocks." : "Add a start block by creating a new workflow."}</p></div>}
         {blocks.map((block, index) => (
-          <WorkflowBlockCard key={block.id} block={block} index={index} sources={sources} selected={block.id === selectedBlockId} canMoveUp={index > 1} canMoveDown={index > 0 && index < blocks.length - 1} actionLabels={actionLabels} onSelect={() => onSelectBlock(block.id)} onMoveUp={() => onMoveBlock(block.id, -1)} onMoveDown={() => onMoveBlock(block.id, 1)} onRemove={() => onRemoveBlock(block.id)} />
+          <WorkflowBlockCard key={block.id} block={block} index={index} sources={sources} selected={block.id === selectedBlockId} canMoveUp={index > 1} canMoveDown={index > 0 && index < blocks.length - 1} actionLabels={actionLabels} validationIssues={validationByBlockId[block.id] ?? []} runtime={runtimeByBlockId[block.id]} onSelect={() => onSelectBlock(block.id)} onMoveUp={() => onMoveBlock(block.id, -1)} onMoveDown={() => onMoveBlock(block.id, 1)} onRemove={() => onRemoveBlock(block.id)} />
         ))}
       </div>
     </section>
   );
 }
 
-function WorkflowBlockCard({ block, index, sources, selected, canMoveUp, canMoveDown, actionLabels, onSelect, onMoveUp, onMoveDown, onRemove }: { block: DraftWorkflowBlock; index: number; sources: DataSource[]; selected: boolean; canMoveUp: boolean; canMoveDown: boolean; actionLabels: { up: string; down: string; remove: string }; onSelect: () => void; onMoveUp: () => void; onMoveDown: () => void; onRemove: () => void }) {
+function WorkflowBlockCard({ block, index, sources, selected, canMoveUp, canMoveDown, actionLabels, validationIssues, runtime, onSelect, onMoveUp, onMoveDown, onRemove }: { block: DraftWorkflowBlock; index: number; sources: DataSource[]; selected: boolean; canMoveUp: boolean; canMoveDown: boolean; actionLabels: { up: string; down: string; remove: string }; validationIssues: WorkflowCanvasValidationIssue[]; runtime?: WorkflowCanvasRuntimeState; onSelect: () => void; onMoveUp: () => void; onMoveDown: () => void; onRemove: () => void }) {
+  const presentation = blockPresentation(block, sources, validationIssues, runtime);
   return (
-    <div className={`workflow-draft-block ${blockCategoryClass(block.type)} ${selected ? "selected" : ""}`} onClick={onSelect} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onSelect(); }}>
+    <div className={`workflow-draft-block ${presentation.className} ${selected ? "selected" : ""}`} onClick={onSelect} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onSelect(); }}>
       <span className="workflow-draft-kicker">{index === 0 ? "When" : "Then"}</span>
-      <strong>{draftBlockTitle(block)}</strong>
-      <p>{draftBlockDescription(block, sources)}</p>
-      <DraftBlockBadges block={block} />
-      {(typeof block.enabled === "boolean" || block.lastRunAt || block.lastError) && <div className="workflow-draft-badges">
-        {typeof block.enabled === "boolean" && <span>{block.enabled ? "Enabled" : "Disabled"}</span>}
-        {block.lastRunAt && <span>Ran {new Date(block.lastRunAt).toLocaleString()}</span>}
-        {block.lastError && <span>Error</span>}
-      </div>}
-      {block.attachedBlocks?.map((attached) => <div key={attached.id} className="workflow-attached-draft-block"><strong>+ {draftBlockTitle(attached)}</strong><p>{draftBlockDescription(attached, sources)}</p><DraftBlockBadges block={attached} /></div>)}
+      <strong>{presentation.title}</strong>
+      <p>{presentation.description}</p>
+      <WorkflowBadges badges={presentation.badges} />
+      {block.attachedBlocks?.map((attached) => <AttachedBlockCard key={attached.id} block={attached} sources={sources} />)}
       {!block.type.endsWith("_start") && <div className="workflow-draft-actions">
         <button type="button" disabled={!canMoveUp} onClick={(event) => { event.stopPropagation(); onMoveUp(); }}>{actionLabels.up}</button>
         <button type="button" disabled={!canMoveDown} onClick={(event) => { event.stopPropagation(); onMoveDown(); }}>{actionLabels.down}</button>
@@ -108,6 +115,37 @@ function WorkflowBlockCard({ block, index, sources, selected, canMoveUp, canMove
       </div>}
     </div>
   );
+}
+
+function AttachedBlockCard({ block, sources }: { block: DraftWorkflowBlock; sources: DataSource[] }) {
+  const presentation = blockPresentation(block, sources, [], undefined);
+  return <div className="workflow-attached-draft-block"><strong>+ {presentation.title}</strong><p>{presentation.description}</p><WorkflowBadges badges={presentation.badges} /></div>;
+}
+
+function WorkflowBadges({ badges }: { badges: string[] }) {
+  if (badges.length === 0) return null;
+  return <div className="workflow-draft-badges">{badges.map((badge) => <span key={badge}>{badge}</span>)}</div>;
+}
+
+function blockPresentation(block: DraftWorkflowBlock, sources: DataSource[], validationIssues: WorkflowCanvasValidationIssue[], runtime?: WorkflowCanvasRuntimeState) {
+  const validationErrors = validationIssues.filter((issue) => issue.level === "error");
+  const validationWarnings = validationIssues.filter((issue) => issue.level === "warning");
+  const badges = capabilityBadges(block);
+
+  if (typeof block.enabled === "boolean") badges.push(block.enabled ? "Enabled" : "Disabled");
+  if (block.lastRunAt) badges.push(`Ran ${new Date(block.lastRunAt).toLocaleString()}`);
+  if (block.lastError) badges.push("Error");
+  if (validationErrors.length > 0) badges.push(`${validationErrors.length} validation error${validationErrors.length === 1 ? "" : "s"}`);
+  if (validationWarnings.length > 0) badges.push(`${validationWarnings.length} warning${validationWarnings.length === 1 ? "" : "s"}`);
+  if (runtime) badges.push(runtime.durationMs === null ? runtime.status : `${runtime.status} · ${formatDuration(runtime.durationMs)}`);
+  if (runtime?.error) badges.push("Run error");
+
+  return {
+    title: draftBlockTitle(block),
+    description: draftBlockDescription(block, sources),
+    badges,
+    className: [blockCategoryClass(block.type), validationErrors.length > 0 ? "workflow-draft-validation-error" : "", validationWarnings.length > 0 ? "workflow-draft-validation-warning" : "", runtime ? `workflow-draft-runtime-${runtime.status}` : ""].filter(Boolean).join(" ")
+  };
 }
 
 export function automationBlockToCanvasBlock(block: AutomationBlock, allBlocks: AutomationBlock[]): WorkflowCanvasBlock {
@@ -129,14 +167,13 @@ export function automationBlockToCanvasBlock(block: AutomationBlock, allBlocks: 
   };
 }
 
-function DraftBlockBadges({ block }: { block: DraftWorkflowBlock }) {
+function capabilityBadges(block: DraftWorkflowBlock) {
   const badges: string[] = [];
   if (block.type.endsWith("_start")) badges.push("Provides trigger event");
   if (isDataBlock(block.type)) badges.push("Provides latest data");
   if (block.type === "if_payload_field_equals") badges.push((block.config.source ?? "trigger") === "data" ? "Reads latest data" : "Reads trigger event");
   if (block.type === "stamp_integritas") badges.push("Reads parent data");
-  if (badges.length === 0) return null;
-  return <div className="workflow-draft-badges">{badges.map((badge) => <span key={badge}>{badge}</span>)}</div>;
+  return badges;
 }
 
 export function isDataBlock(type: AutomationBlockType) {
@@ -189,4 +226,10 @@ function formatInterval(seconds: number) {
   if (seconds < 60) return `Every ${seconds}s`;
   if (seconds < 3600) return `Every ${seconds / 60}m`;
   return `Every ${seconds / 3600}h`;
+}
+
+function formatDuration(ms: number | null) {
+  if (ms === null) return "running";
+  if (ms < 1000) return `${ms} ms`;
+  return `${(ms / 1000).toFixed(1)} s`;
 }

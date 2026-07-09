@@ -25,6 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Watch mode now uses the shared canvas with run/test controls on the left, selected-block runtime output/status/timing and Diagnostics links on the right, and recent run history below the canvas.
 - Build, Edit, and Watch now share a reusable workflow workspace shell and a unified canvas renderer, reducing duplicated UI paths before adding validation and runtime overlays.
 - The workflow canvas is now exposed as one mode-aware component for Build, Edit, and Watch, with persisted workflow blocks normalized before rendering.
+- Workflow canvas blocks now show validation error/warning badges in Build and Edit, plus latest run status/duration badges and highlighting in Watch.
 
 ### Changed
 

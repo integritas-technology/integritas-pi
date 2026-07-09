@@ -4,7 +4,7 @@ import { JsonPreview } from "../components/JsonPreview";
 import { Page } from "../components/Page";
 import { addAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, duplicateAutomationWorkflow, getAutomationWorkflowValidation, listAutomationWorkflowRuns, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow, validateAutomationDraft } from "../features/automation/automationApi";
 import { AutomationRunsTable } from "../features/automation/AutomationRunsTable";
-import { automationBlockToCanvasBlock, draftBlockDescription, draftBlockTitle, isDataBlock, WorkflowBlockLibrary, WorkflowCanvas, WorkflowWorkspaceShell, type DraftWorkflowBlock } from "../features/automation/WorkflowCanvas";
+import { automationBlockToCanvasBlock, draftBlockDescription, draftBlockTitle, isDataBlock, WorkflowBlockLibrary, WorkflowCanvas, WorkflowWorkspaceShell, type DraftWorkflowBlock, type WorkflowCanvasRuntimeState, type WorkflowCanvasValidationIssue } from "../features/automation/WorkflowCanvas";
 import type { AutomationBlock, AutomationBlockType, AutomationRun, AutomationValidationResult, AutomationWorkflow, ConditionOperator } from "../features/automation/automationTypes";
 import { listAddressBookEntries } from "../features/address-book/addressBookApi";
 import type { AddressBookEntry } from "../features/address-book/addressBookTypes";
@@ -283,6 +283,7 @@ function CreateWorkflowWorkspace({ name, enabled, sources, addressBook, walletSt
   const backendWarnings = backendValidation?.warnings.map((issue) => issue.message) ?? [];
   const canCreate = localErrors.length === 0 && Boolean(backendValidation?.ok);
   const hasStartBlock = draftBlocks.some((block) => block.type.endsWith("_start"));
+  const draftValidationByBlockId = validationIssuesByBlockId(backendValidation);
 
   useEffect(() => {
     let cancelled = false;
@@ -370,7 +371,7 @@ function CreateWorkflowWorkspace({ name, enabled, sources, addressBook, walletSt
         <button type="button" disabled={busy || !canCreate} onClick={() => onCreate(flattenDraftBlocks(draftBlocks))}>Create workflow</button>
       </>}
       left={<WorkflowBlockLibrary hasStartBlock={hasStartBlock} selectedBlock={selectedBlock} onSelectStartBlock={selectStartBlock} onAddBlock={addDraftBlock} onAttachStamp={attachStampBlock} />}
-      center={<WorkflowCanvas mode="build" blocks={draftBlocks} sources={sources} statusLabel={enabled ? "Enabled on create" : "Paused on create"} statusGood={enabled} selectedBlockId={selectedBlock?.id ?? ""} onSelectBlock={setSelectedBlockId} onMoveBlock={moveDraftBlock} onRemoveBlock={removeDraftBlock} />}
+      center={<WorkflowCanvas mode="build" blocks={draftBlocks} sources={sources} statusLabel={enabled ? "Enabled on create" : "Paused on create"} statusGood={enabled} selectedBlockId={selectedBlock?.id ?? ""} validationByBlockId={draftValidationByBlockId} onSelectBlock={setSelectedBlockId} onMoveBlock={moveDraftBlock} onRemoveBlock={removeDraftBlock} />}
       right={
         <aside className="workflow-create-inspector automation-form">
           <div className="card soft-card">
@@ -543,6 +544,8 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
   const canvasBlocks = mainBlocks.map((block) => automationBlockToCanvasBlock(block, workflow.blocks));
   const canAddRecordTriggerEvent = Boolean(startBlock && (startBlock.type === "gpio_event_start" || startBlock.type === "webhook_event_start" || startBlock.type === "mqtt_event_start") && !mainBlocks.some((block) => block.type === "record_trigger_event"));
   const hasValidationErrors = Boolean(validation && validation.errors.length > 0);
+  const validationByBlockId = validationIssuesByBlockId(validation);
+  const runtimeByBlockId = mode === "watch" ? runtimeByBlockIdFromRun(runs[0]) : {};
 
   useEffect(() => {
     if (startBlock && !mainBlocks.some((block) => block.id === selectedBlockId)) setSelectedBlockId(startBlock.id);
@@ -581,7 +584,7 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
           setPayloadText(JSON.stringify(examplePayload(workflow), null, 2));
           setPayloadError(null);
         }} onRunNow={onRunNow} onRunWithPayload={onRunWithPayload} />}
-      center={<WorkflowCanvas mode={mode} blocks={canvasBlocks} sources={sources} statusLabel={workflow.archived ? "Archived" : workflow.enabled ? "Enabled" : "Paused"} statusGood={!workflow.archived && workflow.enabled} selectedBlockId={selectedBlock?.id ?? ""} onSelectBlock={setSelectedBlockId} onMoveBlock={(blockId, direction) => {
+      center={<WorkflowCanvas mode={mode} blocks={canvasBlocks} sources={sources} statusLabel={workflow.archived ? "Archived" : workflow.enabled ? "Enabled" : "Paused"} statusGood={!workflow.archived && workflow.enabled} selectedBlockId={selectedBlock?.id ?? ""} validationByBlockId={validationByBlockId} runtimeByBlockId={runtimeByBlockId} onSelectBlock={setSelectedBlockId} onMoveBlock={(blockId, direction) => {
           const index = mainBlocks.findIndex((block) => block.id === blockId);
           if (index > 0) onReorderBlocks(moveBlock(mainBlocks, index, index + direction));
         }} onRemoveBlock={(blockId) => {
@@ -650,6 +653,26 @@ function WorkflowValidationPanel({ validation }: { validation: AutomationValidat
       {validation.warnings.map((issue) => <ValidationIssueRow key={`${issue.code}-${issue.blockId ?? "workflow"}`} issue={issue} />)}
     </section>
   );
+}
+
+function validationIssuesByBlockId(validation: AutomationValidationResult | null): Record<string, WorkflowCanvasValidationIssue[]> {
+  const result: Record<string, WorkflowCanvasValidationIssue[]> = {};
+  if (!validation) return result;
+  for (const issue of [...validation.errors, ...validation.warnings]) {
+    if (!issue.blockId) continue;
+    result[issue.blockId] = [...(result[issue.blockId] ?? []), { level: issue.level, message: issue.message }];
+  }
+  return result;
+}
+
+function runtimeByBlockIdFromRun(run: AutomationRun | undefined): Record<string, WorkflowCanvasRuntimeState> {
+  const result: Record<string, WorkflowCanvasRuntimeState> = {};
+  if (!run) return result;
+  for (const block of run.blocks) {
+    if (!block.blockId) continue;
+    result[block.blockId] = { status: block.status, durationMs: block.durationMs, error: block.error };
+  }
+  return result;
 }
 
 function PersistedBlockInspector({ block, attachedBlocks, sources, addressBook, walletStatus, busy, canMoveUp, canMoveDown, onMoveUp, onMoveDown, onAttachStamp, onUpdate, onUpdateAttached, onDelete, onDeleteAttached }: { block: AutomationBlock; attachedBlocks: AutomationBlock[]; sources: DataSource[]; addressBook: AddressBookEntry[]; walletStatus: WalletStatus | null; busy: boolean; canMoveUp: boolean; canMoveDown: boolean; onMoveUp: () => void; onMoveDown: () => void; onAttachStamp: () => void; onUpdate: (input: Parameters<typeof updateAutomationBlock>[2]) => void; onUpdateAttached: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onDelete: () => void; onDeleteAttached: (blockId: string) => void }) {
