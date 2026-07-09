@@ -1,56 +1,31 @@
-# Security Notes And Risk Register
+# Security Policy
 
-This project is a learning prototype. It is not production-ready and should only be run on a trusted local network while these risks are understood and actively managed.
+## Supported Use
 
-This file is the lean entry point. Full risk register: `docs/security/`. V1 security sign-off checklist: `docs/plans/security-checklist.md`. Open QA hardening: `docs/qa/gaps.md`. Docs index: `docs/README.md`.
+Integritas Pi is a prototype intended to run on a trusted local network. It is not hardened for public internet exposure or multi-tenant production use. Only the version on `main` is supported.
 
-## Scope And Responsibility
+## Guidelines
 
-**In scope (application):**
-- API authentication and session security (Phase 1 implemented)
-- Secrets handling within the backend (encrypted settings, hashed sessions)
-- Input validation and safe proxying to Integritas / Minima
-- Read-only host file access with path traversal controls
+Follow these when deploying, operating, or contributing to this project:
 
-**Out of scope (operator / environment):**
-- OS hardening, firewall, SSH, physical device security
-- Network topology (router, VPN, cellular)
-- Full-disk encryption and device attestation
+- Never expose the backend, Minima RPC, or the Docker socket directly to an untrusted network. Access the UI only through the frontend's HTTPS proxy.
+- Never enter admin credentials or import a wallet seed phrase over a network connection you cannot verify, even though it is TLS-encrypted. A self-signed certificate proves encryption, not server identity.
+- Never disable HTTPS or set `COOKIE_SECURE=false` outside local development.
+- Never commit `.env`, `APP_SECRET`, Integritas API keys, or any other credential to version control.
+- Never add a generic Minima command proxy or arbitrary shell execution path. Expose only narrow, allowlisted, validated actions.
+- Never return secrets, password hashes, TOTP secrets, or raw session tokens from an API response.
+- Treat Docker socket access, GPIO device access, and host file mounts as high-privilege capabilities — keep them opt-in, admin-gated, and off by default wherever possible.
+- Preserve `APP_SECRET` across upgrades; losing it makes stored encrypted secrets unrecoverable.
+- Pin dependency and image versions before any production-like deployment; avoid mutable tags such as `:dev`.
 
-We document recommended setup in README; we cannot enforce it on the device.
+The detailed risk register — specific risks, current controls, and mitigation plans by area — is maintained separately and kept current as the system changes.
 
-## Current Security Posture
+## Reporting A Vulnerability
 
-- Admin authentication is implemented: password + TOTP login, stateful HttpOnly session cookies, protected `/api/*` routes.
-- The frontend is reachable on the LAN through `https://<pi-ip>:8080` with a self-signed TLS certificate.
-- Backend APIs are reachable through the frontend Nginx `/api` proxy.
-- The backend stores local settings in SQLite under `/data/integritas-pi.db`.
-- Integritas API keys entered in the UI are encrypted before storage with AES-256-GCM using `APP_SECRET`.
-- The backend mounts `/var/run/docker.sock` for prototype container monitoring and allowlisted Minima container restart.
-- The backend can read the configured host file directory through `/host-files:ro`.
-- Minima RPC is bound to `127.0.0.1` on the host by default, but is reachable by backend over the Docker network.
+Open a private security advisory or contact a maintainer directly. Include reproduction steps, affected version, and potential impact.
 
-**Auth (Phase 1 — implemented):** Admin login with password + TOTP, stateful sessions (hashed in SQLite), protected `/api/*` routes, login/setup rate limiting, audit log for secret changes. See `docs/plans/auth-security.md`. Default Docker deploy uses HTTPS with a self-signed certificate and `COOKIE_SECURE=true`.
+You should expect an acknowledgment within 48 hours and a more detailed response within 5 business days. There is no bug bounty program.
 
-## Highest-Priority Accepted Risks
+## Disclosure Policy
 
-The two risks most likely to bite an operator if misunderstood. See `docs/security/` for the complete register.
-
-- **Self-signed TLS does not prove server identity.** Traffic is encrypted, but a network attacker could present a different certificate. Never import a wallet seed phrase or enter credentials over a network you can't verify. Details: `docs/security/auth-and-transport.md`, `docs/security/wallet-and-tokens.md`.
-- **The backend mounts the Docker socket** (`/var/run/docker.sock`) for prototype container monitoring and restart. If the backend is compromised, this is a high-value target. Details: `docs/security/host-and-infrastructure.md`.
-
-## Full Risk Register
-
-| Doc | Covers |
-|---|---|
-| [docs/security/auth-and-transport.md](docs/security/auth-and-transport.md) | LAN access, TLS trust, API keys, `APP_SECRET` |
-| [docs/security/host-and-infrastructure.md](docs/security/host-and-infrastructure.md) | Docker socket, file browser, path traversal, SQLite permissions, supply chain, installer |
-| [docs/security/wallet-and-tokens.md](docs/security/wallet-and-tokens.md) | Seed phrase import, automated transactions, debug clears, token creation |
-| [docs/security/data-sources-and-automation.md](docs/security/data-sources-and-automation.md) | Minima RPC/resync/restart/peers, data source URLs, webhooks, MQTT, GPIO, Integritas proxy |
-| [docs/security/low-priority-and-future.md](docs/security/low-priority-and-future.md) | Rate limiting, error detail, logging hygiene, missing security tests |
-
-Development roadmap (beyond V1 sign-off): `docs/plans/security-checklist.md`.
-
-## Reporting Security Issues
-
-This is currently a private learning prototype. For now, document discovered issues in the relevant `docs/security/*` file (or here, if general) and fix them before expanding deployment beyond a trusted local network.
+Please report privately and allow time for a fix before public disclosure. Once a fix is available, it will be released and noted in `CHANGELOG.md` under a `Security` entry.
