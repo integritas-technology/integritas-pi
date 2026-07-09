@@ -110,12 +110,14 @@ jobs:
           MANIFEST_SIGNING_KEY: ${{ secrets.MANIFEST_SIGNING_KEY }}
         run: node scripts/release/sign-manifest.mjs manifest.json manifest.json.sig
 
-      # QA deploy: pushes to the private integritas-manifests repo's qa/ folder.
-      # The QA VPS pulls this repo on a cron schedule and serves qa/ via nginx.
+      # QA deploy: pushes to the private integritas-manifests repo, under
+      # integritas-pi/qa/ (app-namespaced so other apps can reuse this repo
+      # later without a restructure). The QA VPS pulls this repo on a cron
+      # schedule and serves integritas-pi/qa/ via nginx.
       # See docs/plans/update-service-launch.md §1 for why this is pull-based
       # (push-over-SSH can't reach the VPS: its firewall only allows known
       # dev-team IPs, and GitHub-hosted runners have no stable IP to allowlist).
-      # Switch to prod/ once QA is verified end-to-end.
+      # Switch to integritas-pi/prod/ once QA is verified end-to-end.
       - name: Checkout manifest repo
         uses: actions/checkout@v4
         with:
@@ -125,13 +127,13 @@ jobs:
 
       - name: Deploy manifest (push to private manifest repo)
         run: |
-          cp manifest.json manifest.json.sig manifest-repo/qa/
+          cp manifest.json manifest.json.sig manifest-repo/integritas-pi/qa/
           cd manifest-repo
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add qa/manifest.json qa/manifest.json.sig
+          git add integritas-pi/qa/manifest.json integritas-pi/qa/manifest.json.sig
           git diff --staged --quiet && exit 0
-          git commit -m "qa: update manifest (${{ github.ref_name }})"
+          git commit -m "integritas-pi/qa: update manifest (${{ github.ref_name }})"
           git push
 
       - name: Upload manifest artifact

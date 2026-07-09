@@ -16,18 +16,20 @@
 
 Fix: CI now pushes the signed manifest to a small **private GitHub repo** (`integritas-manifests`) over HTTPS instead of SSH. A cron job on the VPS pulls that repo periodically and nginx serves the manifest folder directly from the clone. Signature verification in `update-agent` is still the real trust boundary regardless of transport, so this isn't a security downgrade — the trade-off is a pull failure is silent unless the cron job's own logging is checked (no CI-visible failure signal like a failed Actions run).
 
+The manifest repo is laid out app-namespaced (`<app>/<env>/manifest.json`+`.sig`, e.g. `integritas-pi/qa/`) rather than just `<env>/`, in case this update-agent mechanism gets reused by another app later. This is a one-segment path decision only — `update-agent` has no concept of manifest filenames or repo layout, it just fetches whatever full URL is in its own `MANIFEST_URL` — so there's no deeper design cost to it. No other future-proofing is being done now.
+
 **Done:**
 - Create the dedicated low-privilege QA VPS deploy user (`qa-manifest-deploy`) with SSH access.
 - Register initial GH repo secrets (`MANIFEST_SIGNING_KEY`; the SSH-push secrets `QA_VPS_DEPLOY_HOST`/`USER`/`KEY`/`PATH` were also registered but are now superseded by this transport change — see below).
 
 **Not done** (full detail and rationale in [manifest-deploy-pull-model.md](./manifest-deploy-pull-model.md)):
-- Create the private `integritas-manifests` repo (`qa/manifest.json`+`.sig`, `prod/manifest.json`+`.sig`).
+- Create the private `integritas-manifests` repo (`integritas-pi/qa/manifest.json`+`.sig`, `integritas-pi/prod/manifest.json`+`.sig`).
 - Register `MANIFEST_REPO_DEPLOY_KEY` GH secret — write-scoped deploy key (or fine-grained PAT) CI uses to push to `integritas-manifests`.
 - Retire `QA_VPS_DEPLOY_HOST`/`QA_VPS_DEPLOY_USER`/`QA_VPS_DEPLOY_KEY`/`QA_VPS_DEPLOY_PATH` GH secrets once the new deploy step is confirmed working (no longer used).
 - On the QA VPS: clone `integritas-manifests` to `/srv/update-manifests/repo/` (outside the Next.js app's project directory — not `next build`/PM2-managed, so redeploys can't wipe it) using a read-only deploy key, separate from CI's write key.
 - Add a small pull script (`git -C /srv/update-manifests/repo pull --ff-only`), logged (journald/syslog) so pull failures are locally visible.
 - Add a cron job under `qa-manifest-deploy` running that script every 5–15 min.
-- Add an nginx `location /update-manifest/` block aliasing to `/srv/update-manifests/repo/qa/` (the leaf subfolder — never the repo root, so `.git/` stays unreachable over HTTP; same trailing-slash-on-both-sides rule as before).
+- Add an nginx `location /update-manifest/` block aliasing to `/srv/update-manifests/repo/integritas-pi/qa/` (the leaf subfolder — never the repo root, so `.git/` stays unreachable over HTTP; same trailing-slash-on-both-sides rule as before).
 - Replace the `release.yml` "Deploy manifest" step with the private-repo push step (done in code — see `release.yml`; this item is about confirming it runs clean against real secrets).
 - Set QA `update-agent`'s `MANIFEST_URL` to the QA manifest endpoint.
 - Verify via a disposable-tag dry run (§3): manifest lands in `integritas-manifests` (commit shows up), VPS cron pulls it, nginx serves it, and a traversal attempt (`.git/config` etc.) fails.
