@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-07-09
+
 ### Added
 
 - Automation workflows now have a validation endpoint and workspace validation panel that flags missing devices, invalid block order/data dependencies, hardware-output warnings, Integritas key warnings, and wallet transaction balance/configuration issues before manual runs.
