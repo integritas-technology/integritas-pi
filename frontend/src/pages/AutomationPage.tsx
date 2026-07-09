@@ -18,14 +18,15 @@ const intervals = [10, 30, 60, 300, 900, 3600];
 type AutomationPageFlow =
   | { mode: "list" }
   | { mode: "build" }
-  | { mode: "edit" | "watch"; workflowId: string };
+  | { mode: "edit" | "watch"; workflowId: string; runId?: string };
 
 function automationFlowFromUrl(): AutomationPageFlow {
   const params = new URLSearchParams(window.location.search);
   const flow = params.get("flow");
   const workflowId = params.get("id") ?? "";
+  const runId = params.get("run") ?? undefined;
   if (flow === "build") return { mode: "build" };
-  if ((flow === "edit" || flow === "watch") && workflowId) return { mode: flow, workflowId };
+  if ((flow === "edit" || flow === "watch") && workflowId) return { mode: flow, workflowId, runId };
   return { mode: "list" };
 }
 
@@ -104,6 +105,8 @@ export function AutomationPage() {
       params.set("flow", nextFlow.mode);
       if ("workflowId" in nextFlow) params.set("id", nextFlow.workflowId);
       else params.delete("id");
+      if ("runId" in nextFlow && nextFlow.runId) params.set("run", nextFlow.runId);
+      else params.delete("run");
     }
     const query = params.toString();
     window.history.pushState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
@@ -199,6 +202,9 @@ export function AutomationPage() {
           walletStatus={walletStatus}
           busy={busy}
           mode={workspaceMode}
+          initialRunId={flow.mode === "watch" ? flow.runId : undefined}
+          onNavigateMode={(nextMode) => navigateFlow({ mode: nextMode, workflowId: workspaceWorkflow.id })}
+          onSelectWatchRun={(runId) => navigateFlow({ mode: "watch", workflowId: workspaceWorkflow.id, runId })}
           onAddBlock={(input) => run(() => addAutomationBlock(workspaceWorkflow.id, input))}
           onDeleteBlock={(blockId) => run(() => deleteAutomationBlock(workspaceWorkflow.id, blockId))}
           onUpdateBlock={(blockId, input) => run(() => updateAutomationBlock(workspaceWorkflow.id, blockId, input))}
@@ -533,7 +539,7 @@ function defaultEditBlockConfig(type: AutomationBlockType, sources: DataSource[]
   return config;
 }
 
-function WorkflowWorkspace({ workflow, runs, validation, source, sources, addressBook, walletStatus, busy, mode, onAddBlock, onDeleteBlock, onUpdateBlock, onUpdateWorkflow, onReorderBlocks, onRunNow, onRunWithPayload }: { workflow: AutomationWorkflow; runs: AutomationRun[]; validation: AutomationValidationResult | null; source: DataSource | undefined; sources: DataSource[]; addressBook: AddressBookEntry[]; walletStatus: WalletStatus | null; busy: boolean; mode: "edit" | "watch"; onAddBlock: (input: Parameters<typeof addAutomationBlock>[1]) => void; onDeleteBlock: (blockId: string) => void; onUpdateBlock: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onUpdateWorkflow: (input: Parameters<typeof updateAutomationWorkflow>[1]) => void; onReorderBlocks: (blockIds: string[]) => void; onRunNow: () => void; onRunWithPayload: (payload: unknown) => void }) {
+function WorkflowWorkspace({ workflow, runs, validation, source, sources, addressBook, walletStatus, busy, mode, initialRunId, onNavigateMode, onSelectWatchRun, onAddBlock, onDeleteBlock, onUpdateBlock, onUpdateWorkflow, onReorderBlocks, onRunNow, onRunWithPayload }: { workflow: AutomationWorkflow; runs: AutomationRun[]; validation: AutomationValidationResult | null; source: DataSource | undefined; sources: DataSource[]; addressBook: AddressBookEntry[]; walletStatus: WalletStatus | null; busy: boolean; mode: "edit" | "watch"; initialRunId?: string; onNavigateMode: (mode: "edit" | "watch") => void; onSelectWatchRun: (runId: string) => void; onAddBlock: (input: Parameters<typeof addAutomationBlock>[1]) => void; onDeleteBlock: (blockId: string) => void; onUpdateBlock: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onUpdateWorkflow: (input: Parameters<typeof updateAutomationWorkflow>[1]) => void; onReorderBlocks: (blockIds: string[]) => void; onRunNow: () => void; onRunWithPayload: (payload: unknown) => void }) {
   const [payloadText, setPayloadText] = useState(() => JSON.stringify(examplePayload(workflow), null, 2));
   const [payloadError, setPayloadError] = useState<string | null>(null);
   const [workflowName, setWorkflowName] = useState(workflow.name);
@@ -564,8 +570,12 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
       setSelectedRunId(null);
       return;
     }
+    if (initialRunId && runs.some((run) => run.id === initialRunId)) {
+      setSelectedRunId(initialRunId);
+      return;
+    }
     if (!selectedRunId || !runs.some((run) => run.id === selectedRunId)) setSelectedRunId(runs[0].id);
-  }, [mode, runs, selectedRunId]);
+  }, [initialRunId, mode, runs, selectedRunId]);
 
   function addBlockFromLibrary(type: AutomationBlockType) {
     onAddBlock({ type, config: defaultEditBlockConfig(type, sources, addressBook) });
@@ -581,6 +591,7 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
         {mode === "watch" && selectedRun && <p className="muted">Canvas showing run from {formatLocalTime(selectedRun.startedAt)} · {selectedRun.status} · {formatDuration(selectedRun.durationMs)}</p>}
       </>}
       actions={<>
+        <button type="button" disabled={busy} onClick={() => onNavigateMode(mode === "watch" ? "edit" : "watch")}>{mode === "watch" ? "Open in edit" : "Open in watch"}</button>
         <span className={`pill ${workflow.archived ? "pill-neutral" : workflow.lastError ? "pill-warn" : workflow.enabled ? "pill-good" : "pill-neutral"}`}>{workflow.archived ? "Archived" : workflow.lastError ? "Error" : workflow.enabled ? "Enabled" : "Paused"}</span>
         <span className="pill pill-neutral">Blocks {workflow.blocks.length}</span>
         <span className="pill pill-neutral">Last run {workflow.lastRunAt ? formatLocalTime(workflow.lastRunAt) : "Never"}</span>
@@ -642,7 +653,10 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
             </div>
           </> : <WatchRuntimeInspector selectedBlock={selectedBlock} latestBlockRun={blockRunForBlock(selectedRun, selectedBlock?.id ?? null)} selectedRun={selectedRun} validation={validation} />}
         </aside>}
-      bottom={mode === "watch" ? <WatchRunHistory runs={runs} selectedRunId={selectedRun?.id ?? null} onSelectRun={setSelectedRunId} /> : undefined}
+      bottom={mode === "watch" ? <WatchRunHistory runs={runs} selectedRunId={selectedRun?.id ?? null} onSelectRun={(runId) => {
+        setSelectedRunId(runId);
+        onSelectWatchRun(runId);
+      }} /> : undefined}
     />
   );
 }

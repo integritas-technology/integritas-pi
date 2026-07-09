@@ -7,8 +7,6 @@ import { formatLocalTime } from "../../lib/time";
 import type { AutomationRun } from "./automationTypes";
 
 export function AutomationRunsTable({ runs, compact = false }: { runs: AutomationRun[]; compact?: boolean }) {
-  const [openRunId, setOpenRunId] = useState<string | null>(null);
-
   if (runs.length === 0) return <p className="muted">No workflow runs recorded yet.</p>;
 
   return (
@@ -34,12 +32,11 @@ export function AutomationRunsTable({ runs, compact = false }: { runs: Automatio
               <td><span className={`pill ${run.status === "success" ? "pill-good" : run.status === "failed" ? "pill-warn" : "pill-neutral"}`}>{run.status}</span></td>
               <td>{formatDuration(run.durationMs)}</td>
               <td>{run.blocks.filter((block) => block.status === "success").length}/{run.blockCount}</td>
-              <td><button type="button" onClick={() => setOpenRunId(openRunId === run.id ? null : run.id)}>{openRunId === run.id ? "Hide" : "View"}</button></td>
+              <td><Link to={`/automation?flow=watch&id=${encodeURIComponent(run.workflowId)}&run=${encodeURIComponent(run.id)}`}>Show on canvas</Link></td>
             </tr>
           ))}
         </tbody>
       </table>
-      {runs.map((run) => openRunId === run.id ? <RunDetails key={`${run.id}-details`} run={run} compact={compact} /> : null)}
     </div>
   );
 }
