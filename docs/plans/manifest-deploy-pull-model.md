@@ -19,6 +19,8 @@ While editing `release.yml` for this, the "find previous release tag" bug was al
 
 **CI → `integritas-manifests` auth is a GitHub App, not a deploy key or PAT.** The original plan (Step 2 below, as originally written) called for a write-access SSH deploy key on `integritas-manifests`. The `integritas-technology` org disables write-access deploy keys org-wide (confirmed directly in the GitHub UI, and matches GitHub's own published guidance steering orgs toward Apps — deploy keys have no expiry and can't be passphrase-protected, so a compromised CI secret grants standing, hard-to-revoke write access). Switched to a GitHub App (`integritas-pi-manifest-deploy`) instead: installed only on `integritas-manifests` with `Contents: Read and write`, CI generates a short-lived (1 hour) installation token per run via the official `actions/create-github-app-token` action, rather than using any long-lived static secret.
 
+**Test-tag dry runs push to `integritas-manifests`' `dev` branch, not `main`.** `release.yml` checks the pushed git tag: anything matching `*-test.*` (the existing dry-run tag convention, e.g. `v0.0.0-test.1`) pushes to `dev`; real release tags push to `main`. Keeps ad-hoc CI testing out of the manifest repo's real history. **`dev` must exist in `integritas-manifests` before running a dry run** — create it once via the GitHub UI (branch dropdown → create `dev` from `main`); `actions/checkout`'s `ref:` only checks out existing branches, it doesn't create them.
+
 ## Already done
 
 - QA VPS: dedicated low-privilege deploy user (`qa-manifest-deploy`) + SSH access set up.
@@ -35,6 +37,7 @@ While editing `release.yml` for this, the "find previous release tag" bug was al
 
 All of the below are external/infra steps — nothing here is committed code, and none of it has been executed yet. This new workflow code is untested until at least the first is done.
 
+- Create a `dev` branch in `integritas-manifests` (from `main`, empty is fine) — required before any test-tag dry run, since the deploy step's checkout targets `dev` for test tags and will fail if it doesn't exist yet.
 - On the QA VPS: clone `integritas-manifests` to `/srv/update-manifests/repo/` (outside the Next.js app's project directory — not `next build`/PM2-managed, so redeploys can't wipe it) using a **read-only** credential (e.g. a fine-grained PAT scoped to just that repo, or a second GitHub App install with read-only permission), separate from CI's write access.
 - Add a small pull script (`git -C /srv/update-manifests/repo pull --ff-only`), logged (journald/syslog or a logfile) so pull failures are locally visible — mitigates the pull model's silent-failure trade-off.
 - Add a cron job under `qa-manifest-deploy` running that script every 5–15 minutes.

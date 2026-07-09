@@ -19,9 +19,6 @@ jobs:
       - name: Find previous release tag
         id: prev-tag
         run: |
-          # Exclude pre-release-shaped tags (e.g. v0.0.0-test.1) so a leftover
-          # test tag from a dry run can never be picked as "previous release"
-          # and hide real changes from the diff below.
           prev=$(git tag --sort=-v:refname | grep -v "^${GITHUB_REF_NAME}$" | grep -v -- '-' | head -n1)
           echo "tag=${prev}" >> "$GITHUB_OUTPUT"
 
@@ -110,17 +107,6 @@ jobs:
           MANIFEST_SIGNING_KEY: ${{ secrets.MANIFEST_SIGNING_KEY }}
         run: node scripts/release/sign-manifest.mjs manifest.json manifest.json.sig
 
-      # QA deploy: pushes to the private integritas-manifests repo, under
-      # integritas-pi/qa/ (app-namespaced so other apps can reuse this repo
-      # later without a restructure). The QA VPS pulls this repo on a cron
-      # schedule and serves integritas-pi/qa/ via nginx.
-      # See docs/plans/update-service-launch.md §1 for why this is pull-based
-      # (push-over-SSH can't reach the VPS: its firewall only allows known
-      # dev-team IPs, and GitHub-hosted runners have no stable IP to allowlist).
-      # Auth is a GitHub App (integritas-pi-manifest-deploy), not a deploy key
-      # or PAT — the org disables write-access deploy keys org-wide, and a
-      # GitHub App isn't tied to any one person's account.
-      # Switch to integritas-pi/prod/ once QA is verified end-to-end.
       - name: Generate manifest repo access token
         id: manifest-repo-token
         uses: actions/create-github-app-token@v2
@@ -130,10 +116,20 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: integritas-manifests
 
+      - name: Pick manifest repo branch
+        id: manifest-repo-branch
+        run: |
+          if [[ "${{ github.ref_name }}" == *-test.* ]]; then
+            echo "branch=dev" >> "$GITHUB_OUTPUT"
+          else
+            echo "branch=main" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout manifest repo
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/integritas-manifests
+          ref: ${{ steps.manifest-repo-branch.outputs.branch }}
           token: ${{ steps.manifest-repo-token.outputs.token }}
           path: manifest-repo
 
@@ -146,7 +142,7 @@ jobs:
           git add integritas-pi/qa/manifest.json integritas-pi/qa/manifest.json.sig
           git diff --staged --quiet && exit 0
           git commit -m "integritas-pi/qa: update manifest (${{ github.ref_name }})"
-          git push
+          git push origin HEAD:${{ steps.manifest-repo-branch.outputs.branch }}
 
       - name: Upload manifest artifact
         uses: actions/upload-artifact@v4
