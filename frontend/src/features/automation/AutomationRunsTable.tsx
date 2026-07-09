@@ -3,63 +3,87 @@ import { Link } from "react-router-dom";
 import { JsonPreview } from "../../components/JsonPreview";
 import { getDataSourceRead } from "../data-reads/dataReadsApi";
 import type { DataSourceRead } from "../data-reads/dataReadTypes";
+import { cx } from "../../lib/cx";
 import { formatLocalTime } from "../../lib/time";
 import type { AutomationRun } from "./automationTypes";
 
+const mutedText = "text-sm text-slate-500";
+const cardClass = "rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm";
+const softCardClass = "rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 shadow-sm";
+const statusRowClass = "flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between";
+const gridListClass = "grid gap-4 md:grid-cols-2";
+const rowActionsClass = "flex flex-wrap items-center gap-2";
+const actionButtonClass = "rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-slate-700 transition hover:border-blue-300 hover:text-blue-700";
+
 export function AutomationRunsTable({ runs, compact = false }: { runs: AutomationRun[]; compact?: boolean }) {
-  if (runs.length === 0) return <p className="muted">No workflow runs recorded yet.</p>;
+  const [rawRunId, setRawRunId] = useState<string | null>(null);
+
+  if (runs.length === 0) return <p className={mutedText}>No workflow runs recorded yet.</p>;
 
   return (
-    <div className="table-wrap">
-      <table>
+    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+      <table className="w-full min-w-[760px] border-collapse text-left text-sm">
         <thead>
-          <tr>
-            <th>Started</th>
-            {!compact && <th>Workflow</th>}
-            <th>Trigger</th>
-            <th>Status</th>
-            <th>Duration</th>
-            <th>Blocks</th>
-            <th>Details</th>
+          <tr className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <th className="px-4 py-3 font-black">Started</th>
+            {!compact && <th className="px-4 py-3 font-black">Workflow</th>}
+            <th className="px-4 py-3 font-black">Trigger</th>
+            <th className="px-4 py-3 font-black">Status</th>
+            <th className="px-4 py-3 font-black">Duration</th>
+            <th className="px-4 py-3 font-black">Blocks</th>
+            <th className="px-4 py-3 font-black">Details</th>
           </tr>
         </thead>
         <tbody>
           {runs.map((run) => (
-            <tr key={run.id}>
-              <td>{formatLocalTime(run.startedAt)}</td>
-              {!compact && <td>{run.workflowName}</td>}
-              <td>{run.triggerType}</td>
-              <td><span className={`pill ${run.status === "success" ? "pill-good" : run.status === "failed" ? "pill-warn" : "pill-neutral"}`}>{run.status}</span></td>
-              <td>{formatDuration(run.durationMs)}</td>
-              <td>{run.blocks.filter((block) => block.status === "success").length}/{run.blockCount}</td>
-              <td><Link to={`/automation?flow=watch&id=${encodeURIComponent(run.workflowId)}&run=${encodeURIComponent(run.id)}`}>Show on canvas</Link></td>
+            <tr key={run.id} className="border-t border-slate-200 align-top">
+              <td className="px-4 py-3">{formatLocalTime(run.startedAt)}</td>
+              {!compact && <td className="px-4 py-3">{run.workflowName}</td>}
+              <td className="px-4 py-3">{run.triggerType}</td>
+              <td className="px-4 py-3"><StatusPill status={run.status} /></td>
+              <td className="px-4 py-3">{formatDuration(run.durationMs)}</td>
+              <td className="px-4 py-3">{run.blocks.filter((block) => block.status === "success").length}/{run.blockCount}</td>
+              <td className="px-4 py-3"><div className={rowActionsClass}><Link className="font-bold text-blue-700 hover:text-blue-900" to={`/automation?flow=watch&id=${encodeURIComponent(run.workflowId)}&run=${encodeURIComponent(run.id)}`}>Show on canvas</Link><button type="button" className={actionButtonClass} onClick={() => setRawRunId(rawRunId === run.id ? null : run.id)}>{rawRunId === run.id ? "Hide raw" : "Raw details"}</button></div></td>
             </tr>
           ))}
         </tbody>
       </table>
+      {runs.map((run) => rawRunId === run.id ? <RawRunDetails key={`${run.id}-raw`} run={run} /> : null)}
     </div>
+  );
+}
+
+function RawRunDetails({ run }: { run: AutomationRun }) {
+  return (
+    <section className={softCardClass}>
+      <div className={statusRowClass}>
+        <div><strong>Raw workflow run JSON</strong><p className={mutedText}>Full stored run payload for diagnostics.</p></div>
+        <StatusPill status={run.status} />
+      </div>
+      <JsonPreview value={run} />
+    </section>
   );
 }
 
 function RunDetails({ run, compact }: { run: AutomationRun; compact: boolean }) {
   return (
-    <section className="card soft-card">
-      <div className="status-row">
+    <section className={softCardClass}>
+      <div className={statusRowClass}>
         <div>
           <strong>{compact ? "Run details" : run.workflowName}</strong>
-          <p className="muted">Started {formatLocalTime(run.startedAt)} · trigger {run.triggerType} · {formatDuration(run.durationMs)}</p>
+          <p className={mutedText}>Started {formatLocalTime(run.startedAt)} · trigger {run.triggerType} · {formatDuration(run.durationMs)}</p>
         </div>
-        <span className={`pill ${run.status === "success" ? "pill-good" : run.status === "failed" ? "pill-warn" : "pill-neutral"}`}>{run.status}</span>
+        <StatusPill status={run.status} />
       </div>
-      {run.error && <p className="error-text">{run.error}</p>}
-      <div className="grid-list">
-        <div className="card">
+      {run.error && <p className="text-sm font-semibold text-red-700">{run.error}</p>}
+      <div className={gridListClass}>
+        <div className={cardClass}>
           <strong>Trigger payload started the run</strong>
-          <p className="muted">This is why the workflow ran. For Run now tests, this is the synthetic manual test payload.</p>
-          {run.triggerPayload !== null && run.triggerPayload !== undefined ? <JsonPreview value={run.triggerPayload} /> : <p className="muted">No trigger payload recorded.</p>}
+          <p className={mutedText}>This is why the workflow ran. For Run now tests, this is the synthetic manual test payload.</p>
+          {run.triggerPayload !== null && run.triggerPayload !== undefined ? <JsonPreview value={run.triggerPayload} /> : <p className={mutedText}>No trigger payload recorded.</p>}
         </div>
       </div>
-      <div className="grid-list">
+      <div className={gridListClass}>
         {run.blocks.map((block) => <BlockRunDetails key={block.id} block={block} />)}
       </div>
     </section>
@@ -71,14 +95,14 @@ function BlockRunDetails({ block }: { block: AutomationRun["blocks"][number] }) 
   const proofId = proofIdFromOutput(block.output);
 
   return (
-    <div className="card">
-      <div className="status-row">
-        <div><strong>{block.blockType === "stamp_integritas" ? "+ " : `${block.order}. `}{block.blockLabel}</strong><p className="muted">{blockTypeLabel(block.blockType)} · {formatDuration(block.durationMs)}</p></div>
-        <span className={`pill ${block.status === "success" ? "pill-good" : block.status === "failed" ? "pill-warn" : "pill-neutral"}`}>{block.status}</span>
+    <div className={cardClass}>
+      <div className={statusRowClass}>
+        <div><strong>{block.blockType === "stamp_integritas" ? "+ " : `${block.order}. `}{block.blockLabel}</strong><p className={mutedText}>{blockTypeLabel(block.blockType)} · {formatDuration(block.durationMs)}</p></div>
+        <StatusPill status={block.status} />
       </div>
-      {block.error && <p className="error-text">{block.error}</p>}
+      {block.error && <p className="text-sm font-semibold text-red-700">{block.error}</p>}
       {block.output !== null && <JsonPreview value={block.output} />}
-      {proofId && <p className="muted"><Link to={diagnosticsLink("proofs", proofId)}>Open proof in Diagnostics</Link></p>}
+      {proofId && <p className={mutedText}><Link className="font-bold text-blue-700 hover:text-blue-900" to={diagnosticsLink("proofs", proofId)}>Open proof in Diagnostics</Link></p>}
       {readId && <ReadPreview readId={readId} blockType={block.blockType} />}
     </div>
   );
@@ -107,18 +131,26 @@ function ReadPreview({ readId, blockType }: { readId: string; blockType: string 
   }, [readId]);
 
   return (
-    <div className="card soft-card">
-      <div className="status-row">
+    <div className={softCardClass}>
+      <div className={statusRowClass}>
         <div>
           <strong>Fetched data preview</strong>
-          <p className="muted">This is the stored JSON {blockType === "record_trigger_event" ? "recorded from the trigger" : "fetched from the device/source"}. Data conditions evaluate this preview when their source is Data.</p>
-          <p className="muted">Read <code>{readId}</code>{read ? ` · ${read.sourceName}` : ""}</p>
-          <p className="muted"><Link to={diagnosticsLink("reads", readId)}>Open read in Diagnostics</Link></p>
+          <p className={mutedText}>This is the stored JSON {blockType === "record_trigger_event" ? "recorded from the trigger" : "fetched from the device/source"}. Data conditions evaluate this preview when their source is Data.</p>
+          <p className={mutedText}>Read <code>{readId}</code>{read ? ` · ${read.sourceName}` : ""}</p>
+          <p className={mutedText}><Link className="font-bold text-blue-700 hover:text-blue-900" to={diagnosticsLink("reads", readId)}>Open read in Diagnostics</Link></p>
         </div>
-        {read && <span className={`pill ${read.status === "success" ? "pill-good" : "pill-warn"}`}>{read.status}</span>}
+        {read && <StatusPill status={read.status} />}
       </div>
-      {error ? <p className="error-text">{error}</p> : read ? read.preview ? <JsonPreview value={read.preview} /> : <p className="muted">No stored preview for this read.</p> : <p className="muted">Loading data read...</p>}
+      {error ? <p className="text-sm font-semibold text-red-700">{error}</p> : read ? read.preview ? <JsonPreview value={read.preview} /> : <p className={mutedText}>No stored preview for this read.</p> : <p className={mutedText}>Loading data read...</p>}
     </div>
+  );
+}
+
+function StatusPill({ status }: { status: string }) {
+  return (
+    <span className={cx("inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide", status === "success" ? "bg-emerald-100 text-emerald-700" : status === "failed" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600")}>
+      {status}
+    </span>
   );
 }
 

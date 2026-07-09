@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Archive, Copy, Eye, Pencil, Play, RotateCcw, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { JsonPreview } from "../components/JsonPreview";
 import { Page } from "../components/Page";
@@ -10,10 +11,26 @@ import type { AddressBookEntry } from "../features/address-book/addressBookTypes
 import { listDataSources } from "../features/data-sources/dataSourcesApi";
 import type { DataSource } from "../features/data-sources/dataSourceTypes";
 import { getWalletStatus } from "../features/wallet/walletApi";
-import type { TokenBalance, WalletStatus } from "../features/wallet/walletTypes";
+import type { WalletStatus } from "../features/wallet/walletTypes";
+import { cx } from "../lib/cx";
 import { formatLocalTime } from "../lib/time";
 
 const intervals = [10, 30, 60, 300, 900, 3600];
+const mutedText = "text-sm text-slate-500";
+const errorText = "text-sm font-semibold text-red-700";
+const cardClass = "rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm";
+const softCardClass = "rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 shadow-sm";
+const statusRowClass = "flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between";
+const formGridClass = "grid gap-3 [&_label]:grid [&_label]:gap-2.5 [&_label]:font-bold [&_label]:text-slate-700";
+const inspectorClass = "grid content-start gap-3";
+const rowActionsClass = "flex flex-wrap items-center gap-2";
+const tableWrapClass = "overflow-x-auto rounded-2xl border border-slate-200 bg-white";
+const tableClass = "w-full min-w-[920px] border-collapse text-left text-sm";
+const tableHeadRowClass = "bg-slate-50 text-xs uppercase tracking-wide text-slate-500";
+const tableHeadCellClass = "px-4 py-3 font-black";
+const tableCellClass = "px-4 py-3 align-top";
+const iconActionClass = "inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-45";
+const dangerIconActionClass = "hover:border-red-300 hover:text-red-700";
 
 type AutomationPageFlow =
   | { mode: "list" }
@@ -36,11 +53,6 @@ export function AutomationPage() {
   const [walletStatus, setWalletStatus] = useState<WalletStatus | null>(null);
   const [workflows, setWorkflows] = useState<AutomationWorkflow[]>([]);
   const [name, setName] = useState("");
-  const [startType, setStartType] = useState<AutomationBlockType>("gpio_event_start");
-  const [startSourceId, setStartSourceId] = useState("");
-  const [initialAction, setInitialAction] = useState<"none" | "record_trigger_event" | "fetch_data_source">("record_trigger_event");
-  const [initialFetchSourceId, setInitialFetchSourceId] = useState("");
-  const [pollingIntervalSeconds, setPollingIntervalSeconds] = useState(60);
   const [enabled, setEnabled] = useState(true);
   const [workflowSearch, setWorkflowSearch] = useState("");
   const [workflowFilter, setWorkflowFilter] = useState<"active" | "all" | "enabled" | "paused" | "error" | "archived">("active");
@@ -93,8 +105,6 @@ export function AutomationPage() {
     setWorkflows(workflowResponse.items);
     setAddressBook(addressBookResponse);
     setWalletStatus(walletResponse);
-    if (!startSourceId) setStartSourceId(defaultSourceForStart(startType, sourceResponse.items)?.id ?? "");
-    if (!initialFetchSourceId) setInitialFetchSourceId(firstHttpSource(sourceResponse.items)?.id ?? "");
     const workflowId = "workflowId" in flow ? flow.workflowId : null;
     if (workflowId) {
       await refreshWorkspace(workflowId);
@@ -150,7 +160,6 @@ export function AutomationPage() {
     try {
       const response = await createAutomationWorkflow({ name, enabled, blocks });
       setName("");
-      setInitialAction(defaultInitialAction(startType));
       await refresh();
       navigateFlow({ mode: "edit", workflowId: response.item.id });
     } catch (err) {
@@ -160,9 +169,6 @@ export function AutomationPage() {
     }
   }
 
-  const selectedStartSource = sources.find((source) => source.id === startSourceId);
-  const startSources = sourcesForStart(startType, sources);
-  const httpSources = sources.filter((source) => source.type === "json-api" || source.type === "internal-json-api");
   const sourceById = (id: string) => sources.find((source) => source.id === id);
   const sourceName = (id: string) => sourceById(id)?.name ?? "Unknown source";
   const activeWorkflowId = "workflowId" in flow ? flow.workflowId : null;
@@ -177,18 +183,18 @@ export function AutomationPage() {
       desc={flow.mode === "build" ? "Assemble a starter workflow from blocks, then create it when the draft validates." : workspaceMode ? "Use the shared workflow canvas without opening a modal." : "Build workflows from small start, data, logic, and Integritas blocks."}
     >
       {flow.mode !== "list" && (
-        <section className="card">
-          <div className="status-row">
-            <div><strong>{flow.mode === "build" ? "Builder" : workspaceMode === "watch" ? "Watch canvas" : "Editor canvas"}</strong><p className="muted">This workspace is loaded directly from the Automation page URL.</p></div>
+        <section className={cardClass}>
+          <div className={statusRowClass}>
+            <div><strong>{flow.mode === "build" ? "Builder" : workspaceMode === "watch" ? "Watch canvas" : "Editor canvas"}</strong><p className={mutedText}>This workspace is loaded directly from the Automation page URL.</p></div>
             <button type="button" onClick={() => navigateFlow({ mode: "list" })}>Back to workflows</button>
           </div>
         </section>
       )}
 
       {flow.mode === "list" && (
-        <section className="card">
-          <div className="status-row">
-            <div><strong>Workflow builder</strong><p className="muted">Create a workflow from a start block, then connect action blocks in the workspace.</p></div>
+        <section className={cardClass}>
+          <div className={statusRowClass}>
+            <div><strong>Workflow builder</strong><p className={mutedText}>Create a workflow from a start block, then connect action blocks in the workspace.</p></div>
             <button type="button" onClick={() => navigateFlow({ mode: "build" })}>Create new workflow</button>
           </div>
         </section>
@@ -233,16 +239,16 @@ export function AutomationPage() {
         />
       )}
 
-      {workspaceMode && activeWorkflowId && !workspaceWorkflow && <section className="card"><p className="muted">Loading workflow...</p></section>}
+      {workspaceMode && activeWorkflowId && !workspaceWorkflow && <section className={cardClass}><p className={mutedText}>Loading workflow...</p></section>}
 
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className={errorText}>{error}</p>}
 
-      {flow.mode === "list" && <section className="card automation-list">
-        <div className="status-row">
-          <div><strong>Workflows</strong><p className="muted">Search, filter, duplicate, and archive workflows as your test list grows.</p></div>
-          <span className="pill pill-neutral">{filteredWorkflows.length}/{workflows.length} shown</span>
+      {flow.mode === "list" && <section className={cx(cardClass, "grid gap-4")}>
+        <div className={statusRowClass}>
+          <div><strong>Workflows</strong><p className={mutedText}>Search, filter, duplicate, and archive workflows as your test list grows.</p></div>
+          <StatusPill status="neutral">{filteredWorkflows.length}/{workflows.length} shown</StatusPill>
         </div>
-        <div className="automation-form">
+        <div className={cx(formGridClass, "md:grid-cols-2")}>
           <label>Search workflows<input value={workflowSearch} onChange={(event) => setWorkflowSearch(event.target.value)} placeholder="Name, block type, device, hash..." /></label>
           <label>Status filter<select value={workflowFilter} onChange={(event) => setWorkflowFilter(event.target.value as typeof workflowFilter)}>
             <option value="active">Active list (not archived)</option>
@@ -253,46 +259,75 @@ export function AutomationPage() {
             <option value="archived">Archived</option>
           </select></label>
         </div>
-        <div className="grid-list">
-          {filteredWorkflows.map((workflow) => {
-            return (
-              <article key={workflow.id} className="card soft-card">
-                <div className="status-row">
-                  <div>
-                    <strong>{workflow.name}</strong>
-                    <p className="muted">{sourceName(workflow.dataSourceId)} · {workflow.pollingIntervalSeconds > 0 ? formatInterval(workflow.pollingIntervalSeconds) : "Event driven"}</p>
-                  </div>
-                  <span className={`pill ${workflow.archived ? "pill-neutral" : workflow.lastError ? "pill-warn" : workflow.enabled ? "pill-good" : "pill-neutral"}`}>{workflow.archived ? "Archived" : workflow.lastError ? "Error" : workflow.enabled ? "Enabled" : "Paused"}</span>
-                </div>
-
-                {workflow.lastError && <p className="error-text">{workflow.lastError}</p>}
-
-                <div className="status-row">
-                  <div>
-                    <p className="muted">Blocks: {summarizeBlocks(workflow)}</p>
-                    <p className="muted">Last run: {workflow.lastRunAt ? formatLocalTime(workflow.lastRunAt) : "Never"}</p>
-                    <p className="muted">Last hash: {workflow.lastHash ? <code>{workflow.lastHash}</code> : "No hash yet"}</p>
-                    {workflow.archived && <p className="muted">Archived workflows do not run until restored.</p>}
-                  </div>
-                  <div className="row-actions">
-                    <button type="button" disabled={busy} onClick={() => navigateFlow({ mode: "edit", workflowId: workflow.id })}>Open and edit</button>
-                    <button type="button" disabled={busy} onClick={() => navigateFlow({ mode: "watch", workflowId: workflow.id })}>Watch</button>
-                    <button type="button" disabled={busy || workflow.archived} onClick={() => run(() => runAutomationWorkflow(workflow.id))}>Run now</button>
-                    <button type="button" disabled={busy || workflow.archived} onClick={() => run(() => updateAutomationWorkflow(workflow.id, { enabled: !workflow.enabled }))}>{workflow.enabled ? "Pause now" : "Enable now"}</button>
-                    <button type="button" disabled={busy} onClick={() => run(() => duplicateAutomationWorkflow(workflow.id))}>Duplicate</button>
-                    <button type="button" disabled={busy} onClick={() => run(() => updateAutomationWorkflow(workflow.id, { archived: !workflow.archived }))}>{workflow.archived ? "Restore" : "Archive"}</button>
-                    <button type="button" disabled={busy} onClick={() => run(() => deleteAutomationWorkflow(workflow.id))}>Delete</button>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
+        <div className={tableWrapClass}>
+          <table className={tableClass}>
+            <thead>
+              <tr className={tableHeadRowClass}>
+                <th className={tableHeadCellClass}>Name</th>
+                <th className={tableHeadCellClass}>Status</th>
+                <th className={tableHeadCellClass}>Trigger / source</th>
+                <th className={tableHeadCellClass}>Blocks</th>
+                <th className={tableHeadCellClass}>Last run</th>
+                <th className={tableHeadCellClass}>Last hash</th>
+                <th className={tableHeadCellClass}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredWorkflows.map((workflow) => (
+                <tr key={workflow.id} className="border-t border-slate-200">
+                  <td className={tableCellClass}><strong>{workflow.name}</strong>{workflow.lastError && <p className={errorText}>{workflow.lastError}</p>}{workflow.archived && <p className={mutedText}>Archived workflows do not run until restored.</p>}</td>
+                  <td className={tableCellClass}><WorkflowStatusPill workflow={workflow} /></td>
+                  <td className={tableCellClass}>{sourceName(workflow.dataSourceId)}<p className={mutedText}>{workflow.pollingIntervalSeconds > 0 ? formatInterval(workflow.pollingIntervalSeconds) : "Event driven"}</p></td>
+                  <td className={tableCellClass}><span>{workflow.blocks.length}</span><p className={mutedText}>{summarizeBlocks(workflow)}</p></td>
+                  <td className={tableCellClass}>{workflow.lastRunAt ? formatLocalTime(workflow.lastRunAt) : <span className={mutedText}>Never</span>}</td>
+                  <td className={tableCellClass}>{workflow.lastHash ? <code>{workflow.lastHash}</code> : <span className={mutedText}>No hash yet</span>}</td>
+                  <td className={tableCellClass}>
+                    <div className={rowActionsClass}>
+                      <IconAction disabled={busy} title="Open and edit" label={`Open and edit ${workflow.name}`} onClick={() => navigateFlow({ mode: "edit", workflowId: workflow.id })}><Pencil size={16} /></IconAction>
+                      <IconAction disabled={busy} title="Watch workflow" label={`Watch ${workflow.name}`} onClick={() => navigateFlow({ mode: "watch", workflowId: workflow.id })}><Eye size={16} /></IconAction>
+                      <IconAction disabled={busy || workflow.archived} title="Run now" label={`Run ${workflow.name} now`} onClick={() => run(() => runAutomationWorkflow(workflow.id))}><Play size={16} /></IconAction>
+                      <IconAction disabled={busy || workflow.archived} title={workflow.enabled ? "Pause workflow" : "Enable workflow"} label={`${workflow.enabled ? "Pause" : "Enable"} ${workflow.name}`} onClick={() => run(() => updateAutomationWorkflow(workflow.id, { enabled: !workflow.enabled }))}><RotateCcw size={16} /></IconAction>
+                      <IconAction disabled={busy} title="Duplicate workflow" label={`Duplicate ${workflow.name}`} onClick={() => run(() => duplicateAutomationWorkflow(workflow.id))}><Copy size={16} /></IconAction>
+                      <IconAction disabled={busy} title={workflow.archived ? "Restore workflow" : "Archive workflow"} label={`${workflow.archived ? "Restore" : "Archive"} ${workflow.name}`} onClick={() => run(() => updateAutomationWorkflow(workflow.id, { archived: !workflow.archived }))}><Archive size={16} /></IconAction>
+                      <IconAction danger disabled={busy} title="Delete workflow" label={`Delete workflow ${workflow.name}`} onClick={() => run(() => deleteAutomationWorkflow(workflow.id))}><Trash2 size={16} /></IconAction>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        {workflows.length === 0 && <p className="muted">No automation workflows yet.</p>}
-        {workflows.length > 0 && filteredWorkflows.length === 0 && <p className="muted">No workflows match this filter.</p>}
+        {workflows.length === 0 && <p className={mutedText}>No automation workflows yet.</p>}
+        {workflows.length > 0 && filteredWorkflows.length === 0 && <p className={mutedText}>No workflows match this filter.</p>}
       </section>}
     </Page>
   );
+}
+
+function StatusPill({ status, children }: { status: "good" | "warn" | "neutral"; children: ReactNode }) {
+  return (
+    <span className={cx("inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide", status === "good" ? "bg-emerald-100 text-emerald-700" : status === "warn" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600")}>
+      {children}
+    </span>
+  );
+}
+
+function WorkflowStatusPill({ workflow }: { workflow: AutomationWorkflow }) {
+  const label = workflow.archived ? "Archived" : workflow.lastError ? "Error" : workflow.enabled ? "Enabled" : "Paused";
+  const status = workflow.archived ? "neutral" : workflow.lastError ? "warn" : workflow.enabled ? "good" : "neutral";
+  return <StatusPill status={status}>{label}</StatusPill>;
+}
+
+function IconAction({ children, title, label, disabled, danger, onClick }: { children: ReactNode; title: string; label: string; disabled?: boolean; danger?: boolean; onClick: () => void }) {
+  return (
+    <button className={cx(iconActionClass, danger && dangerIconActionClass)} type="button" disabled={disabled} title={title} aria-label={label} onClick={onClick}>
+      {children}
+    </button>
+  );
+}
+
+function Panel({ children, soft = true, className }: { children: ReactNode; soft?: boolean; className?: string }) {
+  return <section className={cx(soft ? softCardClass : cardClass, className)}>{children}</section>;
 }
 
 function CreateWorkflowWorkspace({ name, enabled, sources, addressBook, walletStatus, busy, onNameChange, onEnabledChange, onCancel, onCreate }: { name: string; enabled: boolean; sources: DataSource[]; addressBook: AddressBookEntry[]; walletStatus: WalletStatus | null; busy: boolean; onNameChange: (value: string) => void; onEnabledChange: (value: boolean) => void; onCancel: () => void; onCreate: (blocks: { type: AutomationBlockType; config: AutomationBlock["config"]; enabled?: boolean; parentBlockId?: string | null; clientId?: string | null }[]) => void }) {
@@ -396,23 +431,23 @@ function CreateWorkflowWorkspace({ name, enabled, sources, addressBook, walletSt
       left={<WorkflowBlockLibrary hasStartBlock={hasStartBlock} selectedBlock={selectedBlock} onSelectStartBlock={selectStartBlock} onAddBlock={addDraftBlock} onAttachStamp={attachStampBlock} />}
       center={<WorkflowCanvas mode="build" blocks={draftBlocks} sources={sources} statusLabel={enabled ? "Enabled on create" : "Paused on create"} statusGood={enabled} selectedBlockId={selectedBlock?.id ?? ""} validationByBlockId={draftValidationByBlockId} onSelectBlock={setSelectedBlockId} onMoveBlock={moveDraftBlock} onRemoveBlock={removeDraftBlock} />}
       right={
-        <aside className="workflow-create-inspector automation-form">
-          <div className="card soft-card">
+        <aside className={cx(inspectorClass, formGridClass)}>
+          <Panel>
             <strong>Workflow setup</strong>
             <label>Workflow name<input value={name} onChange={(event) => onNameChange(event.target.value)} placeholder="Button fetches weather API" /></label>
             <label className="check-row"><input type="checkbox" checked={enabled} onChange={(event) => onEnabledChange(event.target.checked)} /> Enabled after create</label>
             <strong>Validation</strong>
-            {localErrors.map((issue) => <p key={issue} className="error-text">{issue}</p>)}
-            {backendErrors.map((issue) => <p key={issue} className="error-text">{issue}</p>)}
-            {backendWarnings.map((issue) => <p key={issue} className="muted">{issue}</p>)}
-            {backendValidationError && <p className="error-text">{backendValidationError}</p>}
-            {!backendValidation && !backendValidationError && <p className="muted">Checking draft workflow...</p>}
-            {canCreate && <p className="muted">No blocking draft errors. Review any warnings before creating.</p>}
-          </div>
-          <div className="card soft-card">
+            {localErrors.map((issue) => <p key={issue} className={errorText}>{issue}</p>)}
+            {backendErrors.map((issue) => <p key={issue} className={errorText}>{issue}</p>)}
+            {backendWarnings.map((issue) => <p key={issue} className={mutedText}>{issue}</p>)}
+            {backendValidationError && <p className={errorText}>{backendValidationError}</p>}
+            {!backendValidation && !backendValidationError && <p className={mutedText}>Checking draft workflow...</p>}
+            {canCreate && <p className={mutedText}>No blocking draft errors. Review any warnings before creating.</p>}
+          </Panel>
+          <Panel>
             <strong>Selected block</strong>
-            {selectedBlock ? <DraftBlockInspector block={selectedBlock} sources={sources} addressBook={addressBook} walletStatus={walletStatus} onChange={(config) => updateBlock(selectedBlock.id, { config })} onAttachedChange={(attachedId, config) => updateAttachedBlock(selectedBlock.id, attachedId, config)} onAttachedRemove={(attachedId) => removeAttachedBlock(selectedBlock.id, attachedId)} /> : <p className="muted">Choose a start block on the left or select a block on the canvas to configure it.</p>}
-          </div>
+            {selectedBlock ? <DraftBlockInspector block={selectedBlock} sources={sources} addressBook={addressBook} walletStatus={walletStatus} onChange={(config) => updateBlock(selectedBlock.id, { config })} onAttachedChange={(attachedId, config) => updateAttachedBlock(selectedBlock.id, attachedId, config)} onAttachedRemove={(attachedId) => removeAttachedBlock(selectedBlock.id, attachedId)} /> : <p className={mutedText}>Choose a start block on the left or select a block on the canvas to configure it.</p>}
+          </Panel>
           <button type="button" disabled={busy || !canCreate} onClick={() => onCreate(flattenDraftBlocks(draftBlocks))}>Create workflow</button>
         </aside>
       }
@@ -428,82 +463,82 @@ function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChan
 
   if (block.type.endsWith("_start")) {
     return (
-      <section className="card soft-card automation-form">
+      <Panel className={formGridClass}>
         <strong>Selected start block</strong>
-        <p className="muted">{draftBlockTitle(block)}. To choose a different start block, reset the canvas.</p>
-        {block.type === "schedule_start" ? <label>Interval<select value={block.config.intervalSeconds ?? 60} onChange={(event) => onChange({ intervalSeconds: Number(event.target.value) })}>{intervals.map((interval) => <option key={interval} value={interval}>{formatInterval(interval)}</option>)}</select></label> : block.type === "manual_start" ? <p className="muted">Manual workflows run only when you click Run now.</p> : <label>Start source<select value={block.config.sourceId ?? ""} onChange={(event) => onChange({ sourceId: event.target.value })}><option value="">Select source...</option>{startSources.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>}
-      </section>
+        <p className={mutedText}>{draftBlockTitle(block)}. To choose a different start block, reset the canvas.</p>
+        {block.type === "schedule_start" ? <label>Interval<select value={block.config.intervalSeconds ?? 60} onChange={(event) => onChange({ intervalSeconds: Number(event.target.value) })}>{intervals.map((interval) => <option key={interval} value={interval}>{formatInterval(interval)}</option>)}</select></label> : block.type === "manual_start" ? <p className={mutedText}>Manual workflows run only when you click Run now.</p> : <label>Start source<select value={block.config.sourceId ?? ""} onChange={(event) => onChange({ sourceId: event.target.value })}><option value="">Select source...</option>{startSources.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>}
+      </Panel>
     );
   }
 
   if (block.type === "fetch_data_source") {
     return (
-      <section className="card soft-card automation-form">
+      <Panel className={formGridClass}>
         <strong>Selected block</strong>
-        <p className="muted">Fetch JSON from an HTTP device/source.</p>
+        <p className={mutedText}>Fetch JSON from an HTTP device/source.</p>
         <label>HTTP source<select value={block.config.sourceId ?? ""} onChange={(event) => onChange({ sourceId: event.target.value })}><option value="">Select HTTP source...</option>{httpSources.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>
         <AttachedStampSettings block={block} onAttachedChange={onAttachedChange} onAttachedRemove={onAttachedRemove} />
-      </section>
+      </Panel>
     );
   }
 
   if (block.type === "if_payload_field_equals") {
     return (
-      <section className="card soft-card automation-form">
+      <Panel className={formGridClass}>
         <strong>Selected block</strong>
         <label>Condition source<select value={block.config.source ?? "trigger"} onChange={(event) => onChange({ ...block.config, source: event.target.value as "trigger" | "data" })}><option value="trigger">Trigger event</option><option value="data">Latest data</option></select></label>
         <label>Field path<input value={block.config.fieldPath ?? "active"} onChange={(event) => onChange({ ...block.config, fieldPath: event.target.value })} /></label>
         <label>Operator<select value={block.config.operator ?? "equals"} onChange={(event) => onChange({ ...block.config, operator: event.target.value as ConditionOperator })}>{conditionOperatorOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
         {!operatorHasNoValue(block.config.operator ?? "equals") && <label>Compare value<input value={compareValueInputText(block.config.value ?? true)} onChange={(event) => onChange({ ...block.config, value: parseCompareValueInput(event.target.value) })} /></label>}
-      </section>
+      </Panel>
     );
   }
 
   if (block.type === "wait") {
     return (
-      <section className="card soft-card automation-form">
+      <Panel className={formGridClass}>
         <strong>Selected block</strong>
         <label>Wait duration ms<input value={String(block.config.durationMs ?? 1000)} inputMode="numeric" onChange={(event) => onChange({ durationMs: Number(event.target.value) })} /></label>
-      </section>
+      </Panel>
     );
   }
 
   if (block.type === "control_output") {
     const selectedOutput = outputTargets.find((source) => source.id === block.config.targetId);
     return (
-      <section className="card soft-card automation-form">
+      <Panel className={formGridClass}>
         <strong>Selected block</strong>
         <label>Output target<select value={block.config.targetId ?? ""} onChange={(event) => onChange({ targetId: event.target.value, action: "pulse", durationMs: block.config.durationMs ?? 500 })}><option value="">Select GPIO output...</option>{outputTargets.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>
         <label>Pulse duration ms<input value={String(block.config.durationMs ?? 500)} inputMode="numeric" onChange={(event) => onChange({ ...block.config, action: "pulse", durationMs: Number(event.target.value) })} /></label>
-        {selectedOutput && <p className="muted">Selected device active state: <strong>{selectedOutput.config.activeState ?? "high"}</strong>. Use High for common GPIO to resistor to LED to GND wiring. Change this from Devices by editing the GPIO Output target.</p>}
-        <p className="muted">LED output only. Verify resistor wiring and test pulse before enabling.</p>
-      </section>
+        {selectedOutput && <p className={mutedText}>Selected device active state: <strong>{selectedOutput.config.activeState ?? "high"}</strong>. Use High for common GPIO to resistor to LED to GND wiring. Change this from Devices by editing the GPIO Output target.</p>}
+        <p className={mutedText}>LED output only. Verify resistor wiring and test pulse before enabling.</p>
+      </Panel>
     );
   }
 
   if (block.type === "send_transaction") {
     return (
-      <section className="card soft-card automation-form">
+      <Panel className={formGridClass}>
         <strong>Selected block</strong>
         <label>Recipient<select value={block.config.recipientAddressBookId ?? ""} onChange={(event) => onChange({ ...block.config, recipientAddressBookId: event.target.value, tokenId: "0x00" })}><option value="">Select address book recipient...</option>{addressBook.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select></label>
         <label>Token<select value={block.config.tokenId ?? "0x00"} onChange={() => onChange({ ...block.config, tokenId: "0x00" })}>{nativeTokens.length > 0 ? nativeTokens.map((token) => <option key={token.tokenId} value="0x00">Minima (native) - {token.sendable} sendable</option>) : <option value="0x00">Minima (native)</option>}</select></label>
         <label>Amount<input value={block.config.amount ?? ""} inputMode="decimal" onChange={(event) => onChange({ ...block.config, tokenId: "0x00", amount: event.target.value })} /></label>
-        <p className="muted">This spends wallet funds automatically when the workflow runs. Consider creating paused until you are ready to test.</p>
-      </section>
+        <p className={mutedText}>This spends wallet funds automatically when the workflow runs. Consider creating paused until you are ready to test.</p>
+      </Panel>
     );
   }
 
   if (isDataBlock(block.type) && block.attachedBlocks?.some((attached) => attached.type === "stamp_integritas")) {
     return (
-      <section className="card soft-card automation-form">
+      <Panel className={formGridClass}>
         <strong>Selected data block</strong>
-        <p className="muted">{draftBlockDescription(block, sources)}</p>
+        <p className={mutedText}>{draftBlockDescription(block, sources)}</p>
         <AttachedStampSettings block={block} onAttachedChange={onAttachedChange} onAttachedRemove={onAttachedRemove} />
-      </section>
+      </Panel>
     );
   }
 
-  return <section className="card soft-card"><strong>Selected block</strong><p className="muted">{draftBlockDescription(block, sources)}</p></section>;
+  return <Panel><strong>Selected block</strong><p className={mutedText}>{draftBlockDescription(block, sources)}</p></Panel>;
 }
 
 function AttachedStampSettings({ block, onAttachedChange, onAttachedRemove }: { block: DraftWorkflowBlock; onAttachedChange: (attachedId: string, config: AutomationBlock["config"]) => void; onAttachedRemove: (attachedId: string) => void }) {
@@ -513,11 +548,11 @@ function AttachedStampSettings({ block, onAttachedChange, onAttachedRemove }: { 
   const conditionObject = condition && typeof condition === "object" && !Array.isArray(condition) ? condition as NonNullable<AutomationBlock["config"]["condition"]> : null;
 
   return (
-    <div className="card soft-card automation-form">
+    <div className={cx(softCardClass, formGridClass)}>
       <strong>+ Stamp with Integritas attached</strong>
       <label className="check-row"><input type="checkbox" checked={Boolean(conditionObject)} onChange={(event) => onAttachedChange(stamp.id, { condition: event.target.checked ? { source: "data", fieldPath: "active", operator: "equals", value: true } : null })} /> Only stamp when this block's data matches</label>
       {conditionObject && <>
-        <p className="muted">The condition checks the data produced by the Record/Fetch block this stamp is attached to.</p>
+        <p className={mutedText}>The condition checks the data produced by the Record/Fetch block this stamp is attached to.</p>
         <label>This block's data field path<input value={conditionObject.fieldPath ?? "active"} onChange={(event) => onAttachedChange(stamp.id, { condition: { ...conditionObject, source: "data", fieldPath: event.target.value } })} /></label>
         <label>Operator<select value={conditionObject.operator ?? "equals"} onChange={(event) => onAttachedChange(stamp.id, { condition: { ...conditionObject, source: "data", operator: event.target.value as ConditionOperator } })}>{conditionOperatorOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
         {!operatorHasNoValue(conditionObject.operator ?? "equals") && <label>Compare value<input value={compareValueInputText(conditionObject.value ?? true)} onChange={(event) => onAttachedChange(stamp.id, { condition: { ...conditionObject, source: "data", value: parseCompareValueInput(event.target.value) } })} /></label>}
@@ -605,21 +640,21 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
       eyebrow={mode === "watch" ? "Watch workflow" : "Edit workflow"}
       title={workflow.name}
       description={<>
-        <p className="muted">{source?.name ?? "Unknown source"} · {workflow.pollingIntervalSeconds > 0 ? formatInterval(workflow.pollingIntervalSeconds) : "Event driven"}</p>
-        <p className="muted">{mode === "watch" ? "Run and inspect this workflow from the shared canvas shell." : "Changes are saved per block. Edit fields, then click that block's save button; add/remove/move/pause/enable actions apply immediately."}</p>
-        {mode === "watch" && selectedRun && <p className="muted">Canvas showing run from {formatLocalTime(selectedRun.startedAt)} · {selectedRun.status} · {formatDuration(selectedRun.durationMs)}</p>}
+        <p className={mutedText}>{source?.name ?? "Unknown source"} · {workflow.pollingIntervalSeconds > 0 ? formatInterval(workflow.pollingIntervalSeconds) : "Event driven"}</p>
+        <p className={mutedText}>{mode === "watch" ? "Run and inspect this workflow from the shared canvas shell." : "Changes are saved per block. Edit fields, then click that block's save button; add/remove/move/pause/enable actions apply immediately."}</p>
+        {mode === "watch" && selectedRun && <p className={mutedText}>Canvas showing run from {formatLocalTime(selectedRun.startedAt)} · {selectedRun.status} · {formatDuration(selectedRun.durationMs)}</p>}
       </>}
       actions={<>
         <button type="button" disabled={busy} onClick={() => onNavigateMode(mode === "watch" ? "edit" : "watch")}>{mode === "watch" ? "Open in edit" : "Open in watch"}</button>
-        <span className={`pill ${workflow.archived ? "pill-neutral" : workflow.lastError ? "pill-warn" : workflow.enabled ? "pill-good" : "pill-neutral"}`}>{workflow.archived ? "Archived" : workflow.lastError ? "Error" : workflow.enabled ? "Enabled" : "Paused"}</span>
-        {mode === "watch" && <span className={`pill ${selectedRun?.status === "running" ? "pill-good" : "pill-neutral"}`}>{watchRunStatusLabel}</span>}
-        <span className="pill pill-neutral">Blocks {workflow.blocks.length}</span>
-        <span className="pill pill-neutral">Last run {workflow.lastRunAt ? formatLocalTime(workflow.lastRunAt) : "Never"}</span>
-        <span className="pill pill-neutral">Next {workflow.nextRunAt ? formatLocalTime(workflow.nextRunAt) : workflow.pollingIntervalSeconds > 0 ? "Paused" : "On incoming data"}</span>
+        <WorkflowStatusPill workflow={workflow} />
+        {mode === "watch" && <StatusPill status={selectedRun?.status === "running" ? "good" : "neutral"}>{watchRunStatusLabel}</StatusPill>}
+        <StatusPill status="neutral">Blocks {workflow.blocks.length}</StatusPill>
+        <StatusPill status="neutral">Last run {workflow.lastRunAt ? formatLocalTime(workflow.lastRunAt) : "Never"}</StatusPill>
+        <StatusPill status="neutral">Next {workflow.nextRunAt ? formatLocalTime(workflow.nextRunAt) : workflow.pollingIntervalSeconds > 0 ? "Paused" : "On incoming data"}</StatusPill>
       </>}
       notices={<>
-        {workflow.archived && <p className="muted">Archived workflows do not run automatically or manually until restored.</p>}
-        {workflow.lastError && <p className="error-text">{workflow.lastError}</p>}
+        {workflow.archived && <p className={mutedText}>Archived workflows do not run automatically or manually until restored.</p>}
+        {workflow.lastError && <p className={errorText}>{workflow.lastError}</p>}
       </>}
       left={mode === "edit" ? <WorkflowBlockLibrary mode="edit" hasStartBlock={Boolean(startBlock)} selectedBlock={selectedDraftBlock} canAddRecordTriggerEvent={canAddRecordTriggerEvent} onSelectStartBlock={() => undefined} onAddBlock={addBlockFromLibrary} onAttachStamp={(parentId) => onAddBlock({ type: "stamp_integritas", config: {}, parentBlockId: parentId })} /> : <WatchRunControls workflow={workflow} busy={busy} hasValidationErrors={hasValidationErrors} payloadText={payloadText} payloadError={payloadError} onPayloadTextChange={(value) => {
           setPayloadText(value);
@@ -635,16 +670,16 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
           const block = mainBlocks.find((item) => item.id === blockId);
           if (block && !block.type.endsWith("_start")) onDeleteBlock(block.id);
         }} />}
-      right={<aside className="workflow-create-inspector">
+      right={<aside className={inspectorClass}>
           {mode === "edit" ? <>
-            <div className="card soft-card automation-form">
+            <div className={cx(softCardClass, formGridClass)}>
               <strong>Workflow setup</strong>
               <label>Workflow name<input value={workflowName} onChange={(event) => setWorkflowName(event.target.value)} placeholder="Button fetches weather API" /></label>
               <SaveState dirty={workflowName.trim() !== workflow.name} saved={false} />
               <button type="button" disabled={busy || !workflowName.trim() || workflowName.trim() === workflow.name} onClick={() => onUpdateWorkflow({ name: workflowName.trim() })}>Save workflow name</button>
             </div>
             <WorkflowValidationPanel validation={validation} />
-            <div className="card soft-card">
+            <div className={softCardClass}>
               <strong>Selected block</strong>
               {selectedBlock ? <PersistedBlockInspector
                 key={selectedBlock.id}
@@ -669,7 +704,7 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
                 onUpdateAttached={(blockId, input) => onUpdateBlock(blockId, input)}
                 onDelete={() => selectedBlock.type.endsWith("_start") ? undefined : onDeleteBlock(selectedBlock.id)}
                 onDeleteAttached={onDeleteBlock}
-              /> : <p className="muted">Select a block on the canvas to edit it.</p>}
+              /> : <p className={mutedText}>Select a block on the canvas to edit it.</p>}
             </div>
           </> : <WatchRuntimeInspector selectedBlock={selectedBlock} latestBlockRun={blockRunForBlock(selectedRun, selectedBlock?.id ?? null)} selectedRun={selectedRun} validation={validation} />}
         </aside>}
@@ -682,24 +717,35 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
 }
 
 function WorkflowValidationPanel({ validation }: { validation: AutomationValidationResult | null }) {
-  if (!validation) return <section className="card soft-card"><p className="muted">Checking workflow validation...</p></section>;
+  if (!validation) return <Panel><p className={mutedText}>Checking workflow validation...</p></Panel>;
   if (validation.errors.length === 0 && validation.warnings.length === 0) {
-    return <section className="card soft-card"><span className="pill pill-good">Workflow validation passed</span></section>;
+    return <Panel><StatusPill status="good">Workflow validation passed</StatusPill></Panel>;
   }
+  const groupedIssues = groupValidationIssues([...validation.errors, ...validation.warnings]);
 
   return (
-    <section className="card soft-card">
-      <div className="status-row">
+    <Panel>
+      <div className={statusRowClass}>
         <div>
           <strong>Workflow validation</strong>
-          <p className="muted">Fix errors before running. Warnings are allowed, but should be reviewed before enabling hardware or wallet actions.</p>
+          <p className={mutedText}>Fix errors before running. Warnings are allowed, but should be reviewed before enabling hardware or wallet actions.</p>
         </div>
-        <span className={`pill ${validation.errors.length > 0 ? "pill-warn" : "pill-neutral"}`}>{validation.errors.length} error(s), {validation.warnings.length} warning(s)</span>
+        <StatusPill status={validation.errors.length > 0 ? "warn" : "neutral"}>{validation.errors.length} error(s), {validation.warnings.length} warning(s)</StatusPill>
       </div>
-      {validation.errors.map((issue) => <ValidationIssueRow key={`${issue.code}-${issue.blockId ?? "workflow"}`} issue={issue} />)}
-      {validation.warnings.map((issue) => <ValidationIssueRow key={`${issue.code}-${issue.blockId ?? "workflow"}`} issue={issue} />)}
-    </section>
+      {groupedIssues.map((issue) => <ValidationIssueRow key={`${issue.issue.level}-${issue.issue.code}-${issue.issue.message}-${issue.issue.blockType ?? "workflow"}`} issue={issue.issue} count={issue.count} />)}
+    </Panel>
   );
+}
+
+function groupValidationIssues(issues: AutomationValidationResult["errors"]): { issue: AutomationValidationResult["errors"][number]; count: number }[] {
+  const grouped = new Map<string, { issue: AutomationValidationResult["errors"][number]; count: number }>();
+  for (const issue of issues) {
+    const key = [issue.level, issue.code, issue.message, issue.blockType ?? ""].join("|");
+    const existing = grouped.get(key);
+    if (existing) existing.count += 1;
+    else grouped.set(key, { issue, count: 1 });
+  }
+  return [...grouped.values()];
 }
 
 function validationIssuesByBlockId(validation: AutomationValidationResult | null): Record<string, WorkflowCanvasValidationIssue[]> {
@@ -736,14 +782,14 @@ function PersistedBlockInspector({ block, attachedBlocks, sources, addressBook, 
   }, [block.id, block.config]);
 
   return (
-    <div className="automation-form">
+    <div className={formGridClass}>
       <DraftBlockInspector block={draftBlock} sources={sources} addressBook={addressBook} walletStatus={walletStatus} onChange={(nextConfig) => {
         setConfig(nextConfig);
         setSaveNotice(null);
       }} onAttachedChange={(attachedId, nextConfig) => onUpdateAttached(attachedId, { config: nextConfig })} onAttachedRemove={onDeleteAttached} />
-      {block.lastError && <p className="error-text">{block.lastError}</p>}
+      {block.lastError && <p className={errorText}>{block.lastError}</p>}
       <SaveState dirty={dirty} saved={saveNotice === "Block saved"} />
-      <div className="row-actions">
+      <div className={rowActionsClass}>
         <button type="button" disabled={busy || !dirty} onClick={() => {
           onUpdate({ config });
           setSaveNotice("Block saved");
@@ -760,17 +806,17 @@ function PersistedBlockInspector({ block, attachedBlocks, sources, addressBook, 
 
 function WatchRunControls({ workflow, busy, hasValidationErrors, payloadText, payloadError, onPayloadTextChange, onPayloadError, onResetPayload, onRunNow, onRunWithPayload }: { workflow: AutomationWorkflow; busy: boolean; hasValidationErrors: boolean; payloadText: string; payloadError: string | null; onPayloadTextChange: (value: string) => void; onPayloadError: (value: string | null) => void; onResetPayload: () => void; onRunNow: () => void; onRunWithPayload: (payload: unknown) => void }) {
   return (
-    <aside className="workflow-block-library automation-form">
+    <aside className={cx("grid content-start gap-3 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4", formGridClass)}>
       <strong>Run controls</strong>
-      <p className="muted">Run this workflow or test it with a manual trigger payload.</p>
-      {workflow.archived && <p className="muted">Archived workflows cannot run until restored from the workflow list.</p>}
-      {hasValidationErrors && <p className="error-text">Fix validation errors before running.</p>}
+      <p className={mutedText}>Run this workflow or test it with a manual trigger payload.</p>
+      {workflow.archived && <p className={mutedText}>Archived workflows cannot run until restored from the workflow list.</p>}
+      {hasValidationErrors && <p className={errorText}>Fix validation errors before running.</p>}
       <button type="button" disabled={busy || hasValidationErrors || workflow.archived} onClick={onRunNow}>Run now</button>
       <strong>Test payload</strong>
-      <p className="muted">This payload is used only for a manual test run.</p>
+      <p className={mutedText}>This payload is used only for a manual test run.</p>
       <label>Trigger payload<textarea rows={12} value={payloadText} onChange={(event) => onPayloadTextChange(event.target.value)} /></label>
-      {payloadError && <p className="error-text">{payloadError}</p>}
-      <div className="row-actions">
+      {payloadError && <p className={errorText}>{payloadError}</p>}
+      <div className={rowActionsClass}>
         <button type="button" disabled={busy} onClick={onResetPayload}>Reset example</button>
         <button type="button" disabled={busy || hasValidationErrors || workflow.archived} onClick={() => {
           try {
@@ -791,72 +837,82 @@ function WatchRuntimeInspector({ selectedBlock, latestBlockRun, selectedRun, val
   return (
     <>
       <WorkflowValidationPanel validation={validation} />
-      <section className="card soft-card">
+      <Panel>
         <strong>Selected run</strong>
-        {selectedRun ? <div className="metric-grid">
+        {selectedRun ? <div className="grid gap-3 sm:grid-cols-3">
           <RulePart title="Started" value={formatLocalTime(selectedRun.startedAt)} />
           <RulePart title="Status" value={selectedRun.status} />
           <RulePart title="Duration" value={formatDuration(selectedRun.durationMs)} />
-        </div> : <p className="muted">No run selected yet. Run the workflow or choose a historic run below.</p>}
-        {selectedRun?.error && <p className="error-text">{selectedRun.error}</p>}
-      </section>
-      <section className="card soft-card">
+        </div> : <p className={mutedText}>No run selected yet. Run the workflow or choose a historic run below.</p>}
+        {selectedRun?.error && <p className={errorText}>{selectedRun.error}</p>}
+      </Panel>
+      <Panel>
         <strong>Selected block runtime</strong>
-        {!selectedBlock && <p className="muted">Select a block on the canvas to inspect its latest run output.</p>}
+        {!selectedBlock && <p className={mutedText}>Select a block on the canvas to inspect its latest run output.</p>}
         {selectedBlock && <>
-          <div className="metric-grid">
+          <div className="grid gap-3 sm:grid-cols-3">
             <RulePart title="Block" value={blockLabel(selectedBlock)} />
             <RulePart title="Last block run" value={latestBlockRun ? latestBlockRun.status : selectedBlock.lastRunAt ? "No run details loaded" : "Not run yet"} />
             <RulePart title="Duration" value={latestBlockRun ? formatDuration(latestBlockRun.durationMs) : "No timing"} />
           </div>
-          {selectedBlock.lastError && <p className="error-text">{selectedBlock.lastError}</p>}
-          {latestBlockRun?.error && <p className="error-text">{latestBlockRun.error}</p>}
-          {latestBlockRun?.output !== null && latestBlockRun?.output !== undefined ? <JsonPreview value={latestBlockRun.output} /> : <p className="muted">No output recorded for the latest selected-block run.</p>}
-          {readId && <p className="muted"><Link to={diagnosticsLink("reads", readId)}>Open read in Diagnostics</Link></p>}
-          {proofId && <p className="muted"><Link to={diagnosticsLink("proofs", proofId)}>Open proof in Diagnostics</Link></p>}
+          {selectedBlock.lastError && <p className={errorText}>{selectedBlock.lastError}</p>}
+          {latestBlockRun?.error && <p className={errorText}>{latestBlockRun.error}</p>}
+          {latestBlockRun?.output !== null && latestBlockRun?.output !== undefined ? <JsonPreview value={latestBlockRun.output} /> : <p className={mutedText}>No output recorded for the latest selected-block run.</p>}
+          {readId && <p className={mutedText}><Link to={diagnosticsLink("reads", readId)}>Open read in Diagnostics</Link></p>}
+          {proofId && <p className={mutedText}><Link to={diagnosticsLink("proofs", proofId)}>Open proof in Diagnostics</Link></p>}
         </>}
-      </section>
+      </Panel>
     </>
   );
 }
 
 function WatchRunHistory({ runs, selectedRunId, onSelectRun }: { runs: AutomationRun[]; selectedRunId: string | null; onSelectRun: (runId: string) => void }) {
+  const [rawRunId, setRawRunId] = useState<string | null>(null);
+  const rawRun = runs.find((run) => run.id === rawRunId);
+
   return (
-    <section className="card soft-card">
-      <div className="status-row">
+    <Panel>
+      <div className={statusRowClass}>
         <div>
           <strong>Historic runs</strong>
-          <p className="muted">Choose a run to visualize on the canvas. Full raw details remain available in Diagnostics.</p>
+          <p className={mutedText}>Choose a run to visualize on the canvas, or expand raw JSON for diagnostics.</p>
         </div>
-        <span className="pill pill-neutral">{runs.length} run(s)</span>
+        <StatusPill status="neutral">{runs.length} run(s)</StatusPill>
       </div>
-      {runs.length === 0 ? <p className="muted">No workflow runs recorded yet.</p> : <div className="table-wrap">
-        <table>
+      {runs.length === 0 ? <p className={mutedText}>No workflow runs recorded yet.</p> : <div className={tableWrapClass}>
+        <table className="w-full min-w-[760px] border-collapse text-left text-sm">
           <thead>
-            <tr>
-              <th>Started</th>
-              <th>Trigger</th>
-              <th>Status</th>
-              <th>Duration</th>
-              <th>Blocks</th>
-              <th>Canvas</th>
+            <tr className={tableHeadRowClass}>
+              <th className={tableHeadCellClass}>Started</th>
+              <th className={tableHeadCellClass}>Trigger</th>
+              <th className={tableHeadCellClass}>Status</th>
+              <th className={tableHeadCellClass}>Duration</th>
+              <th className={tableHeadCellClass}>Blocks</th>
+              <th className={tableHeadCellClass}>Details</th>
             </tr>
           </thead>
           <tbody>
             {runs.map((run) => (
-              <tr key={run.id}>
-                <td>{formatLocalTime(run.startedAt)}</td>
-                <td>{run.triggerType}</td>
-                <td><span className={`pill ${run.status === "success" ? "pill-good" : run.status === "failed" ? "pill-warn" : "pill-neutral"}`}>{run.status}</span></td>
-                <td>{formatDuration(run.durationMs)}</td>
-                <td>{run.blocks.filter((block) => block.status === "success").length}/{run.blockCount}</td>
-                <td><button type="button" disabled={selectedRunId === run.id} onClick={() => onSelectRun(run.id)}>{selectedRunId === run.id ? "Showing" : "Show on canvas"}</button></td>
+              <tr key={run.id} className="border-t border-slate-200">
+                <td className={tableCellClass}>{formatLocalTime(run.startedAt)}</td>
+                <td className={tableCellClass}>{run.triggerType}</td>
+                <td className={tableCellClass}><StatusPill status={run.status === "success" ? "good" : run.status === "failed" ? "warn" : "neutral"}>{run.status}</StatusPill></td>
+                <td className={tableCellClass}>{formatDuration(run.durationMs)}</td>
+                <td className={tableCellClass}>{run.blocks.filter((block) => block.status === "success").length}/{run.blockCount}</td>
+                <td className={tableCellClass}><div className={rowActionsClass}><button type="button" disabled={selectedRunId === run.id} onClick={() => onSelectRun(run.id)}>{selectedRunId === run.id ? "Showing" : "Show on canvas"}</button><button type="button" onClick={() => setRawRunId(rawRunId === run.id ? null : run.id)}>{rawRunId === run.id ? "Hide raw" : "Raw details"}</button></div></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>}
-    </section>
+      {rawRun && <Panel>
+        <div className={statusRowClass}>
+          <div><strong>Raw workflow run JSON</strong><p className={mutedText}>Full stored run payload for diagnostics.</p></div>
+          <StatusPill status={rawRun.status === "success" ? "good" : rawRun.status === "failed" ? "warn" : "neutral"}>{rawRun.status}</StatusPill>
+        </div>
+        <JsonPreview value={rawRun} />
+      </Panel>}
+    </Panel>
   );
 }
 
@@ -911,185 +967,18 @@ function workflowMatchesFilter(workflow: AutomationWorkflow, search: string, fil
   return haystack.includes(query);
 }
 
-function ValidationIssueRow({ issue }: { issue: AutomationValidationResult["errors"][number] }) {
+function ValidationIssueRow({ issue, count = 1 }: { issue: AutomationValidationResult["errors"][number]; count?: number }) {
   return (
-    <p className={issue.level === "error" ? "error-text" : "muted"}>
-      <span className={`pill ${issue.level === "error" ? "pill-warn" : "pill-neutral"}`}>{issue.level}</span> {issue.message}{issue.blockType ? ` (${issue.blockType})` : ""}
+    <p className={issue.level === "error" ? errorText : mutedText}>
+      <StatusPill status={issue.level === "error" ? "warn" : "neutral"}>{issue.level}</StatusPill> {issue.message}{issue.blockType ? ` (${issue.blockType})` : ""}{count > 1 ? ` · ${count} blocks` : ""}
     </p>
   );
 }
 
-function BlockCard({ block, attachedBlocks, sources, addressBook, nativeTokens, busy, canMoveUp, canMoveDown, onMoveUp, onMoveDown, onAttachStamp, onUpdate, onUpdateAttached, onDelete, onDeleteAttached }: { block: AutomationBlock; attachedBlocks: AutomationBlock[]; sources: DataSource[]; addressBook: AddressBookEntry[]; nativeTokens: TokenBalance[]; busy: boolean; canMoveUp: boolean; canMoveDown: boolean; onMoveUp: () => void; onMoveDown: () => void; onAttachStamp: () => void; onUpdate: (input: Parameters<typeof updateAutomationBlock>[2]) => void; onUpdateAttached: (blockId: string, input: Parameters<typeof updateAutomationBlock>[2]) => void; onDelete: () => void; onDeleteAttached: (blockId: string) => void }) {
-  const [fetchSourceId, setFetchSourceId] = useState(block.config.sourceId ?? "");
-  const [outputTargetId, setOutputTargetId] = useState(block.config.targetId ?? "");
-  const [outputDurationMs, setOutputDurationMs] = useState(String(block.config.durationMs ?? 500));
-  const [transactionRecipientId, setTransactionRecipientId] = useState(block.config.recipientAddressBookId ?? "");
-  const [transactionTokenId, setTransactionTokenId] = useState<string>(block.config.tokenId ?? "0x00");
-  const [transactionAmount, setTransactionAmount] = useState(block.config.amount ?? "");
-  const [durationMs, setDurationMs] = useState(String(block.config.durationMs ?? 1000));
-  const [conditionSource, setConditionSource] = useState<"trigger" | "data">(block.config.source ?? "trigger");
-  const [conditionFieldPath, setConditionFieldPath] = useState(block.config.fieldPath ?? "active");
-  const [conditionOperator, setConditionOperator] = useState<ConditionOperator>(block.config.operator ?? "equals");
-  const [conditionValue, setConditionValue] = useState(JSON.stringify(block.config.value ?? true));
-  const [conditionError, setConditionError] = useState<string | null>(null);
-  const removable = !block.type.endsWith("_start");
-  const canAttachStamp = block.type === "record_trigger_event" || block.type === "fetch_data_source";
-  const stampBlock = attachedBlocks.find((item) => item.type === "stamp_integritas");
-  const [stampConditionSource, setStampConditionSource] = useState<"trigger" | "data">(stampBlock?.config.condition?.source ?? "data");
-  const [stampConditionFieldPath, setStampConditionFieldPath] = useState(stampBlock?.config.condition?.fieldPath ?? "sensor.temperature");
-  const [stampConditionOperator, setStampConditionOperator] = useState<ConditionOperator>(stampBlock?.config.condition?.operator ?? "equals");
-  const [stampConditionValue, setStampConditionValue] = useState(JSON.stringify(stampBlock?.config.condition?.value ?? 15));
-  const [stampConditionError, setStampConditionError] = useState<string | null>(null);
-  const [saveNotice, setSaveNotice] = useState<string | null>(null);
-  const fetchSources = sources.filter((item) => item.type === "json-api" || item.type === "internal-json-api");
-  const outputTargets = sources.filter((item) => item.type === "gpio-output");
-  const fetchDirty = fetchSourceId !== (block.config.sourceId ?? "");
-  const waitDirty = Number(durationMs) !== block.config.durationMs;
-  const conditionDirty = conditionSource !== (block.config.source ?? "trigger") || conditionFieldPath !== (block.config.fieldPath ?? "active") || conditionOperator !== (block.config.operator ?? "equals") || (!operatorHasNoValue(conditionOperator) && conditionValue !== JSON.stringify(block.config.value ?? true));
-  const outputDirty = outputTargetId !== (block.config.targetId ?? "") || Number(outputDurationMs) !== block.config.durationMs;
-  const transactionDirty = transactionRecipientId !== (block.config.recipientAddressBookId ?? "") || transactionTokenId !== (block.config.tokenId ?? "0x00") || transactionAmount !== (block.config.amount ?? "");
-  const stampConditionDirty = Boolean(stampBlock) && (stampConditionSource !== (stampBlock?.config.condition?.source ?? "data") || stampConditionFieldPath !== (stampBlock?.config.condition?.fieldPath ?? "sensor.temperature") || stampConditionOperator !== (stampBlock?.config.condition?.operator ?? "equals") || (!operatorHasNoValue(stampConditionOperator) && stampConditionValue !== JSON.stringify(stampBlock?.config.condition?.value ?? 15)));
-
-  function saveBlock(input: Parameters<typeof updateAutomationBlock>[2], message: string) {
-    setSaveNotice(message);
-    onUpdate(input);
-  }
-
-  function saveAttachedBlock(blockId: string, input: Parameters<typeof updateAutomationBlock>[2], message: string) {
-    setSaveNotice(message);
-    onUpdateAttached(blockId, input);
-  }
-
-  return (
-    <div className="card">
-      <div className="status-row">
-        <div><strong>{block.order}. {blockLabel(block)}</strong><p className="muted">{blockDescription(block, sources, addressBook)}</p></div>
-        <span className="pill pill-neutral">Block</span>
-      </div>
-      <div className="metric-grid">
-        <RulePart title="Type" value={block.type} />
-        <RulePart title="Status" value={block.lastError ? "Error" : block.lastRunAt ? `Ran ${formatLocalTime(block.lastRunAt)}` : "Not run yet"} />
-        <RulePart title="Output" value={blockOutput(block)} />
-      </div>
-      {block.lastError && <p className="error-text">{block.lastError}</p>}
-      {block.type === "fetch_data_source" && (
-        <div className="automation-form">
-          <label>Fetch source<select value={fetchSourceId} onChange={(event) => setFetchSourceId(event.target.value)}>{fetchSources.map((item) => <option key={item.id} value={item.id}>{item.name} - {sourceLabel(item)}</option>)}</select></label>
-          <SaveState dirty={fetchDirty} saved={saveNotice === "Fetch source saved"} />
-          <button type="button" disabled={busy || !fetchSourceId || !fetchDirty} onClick={() => saveBlock({ config: { sourceId: fetchSourceId } }, "Fetch source saved")}>Save fetch source</button>
-        </div>
-      )}
-      {block.type === "wait" && (
-        <div className="automation-form">
-          <label>Wait duration ms<input value={durationMs} onChange={(event) => setDurationMs(event.target.value)} inputMode="numeric" /></label>
-          <SaveState dirty={waitDirty} saved={saveNotice === "Wait duration saved"} />
-          <button type="button" disabled={busy || !Number.isFinite(Number(durationMs)) || !waitDirty} onClick={() => saveBlock({ config: { durationMs: Number(durationMs) } }, "Wait duration saved")}>Save wait duration</button>
-        </div>
-      )}
-      {block.type === "if_payload_field_equals" && (
-        <div className="automation-form">
-          <label>Condition source<select value={conditionSource} onChange={(event) => setConditionSource(event.target.value as "trigger" | "data")}><option value="trigger">Trigger event</option><option value="data">Latest data</option></select></label>
-          <label>{conditionSource === "trigger" ? "Trigger field path" : "Data field path"}<input value={conditionFieldPath} onChange={(event) => setConditionFieldPath(event.target.value)} placeholder="active" /></label>
-          <label>Operator<select value={conditionOperator} onChange={(event) => setConditionOperator(event.target.value as ConditionOperator)}>{conditionOperatorOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-          {!operatorHasNoValue(conditionOperator) && <label>Compare value JSON<input value={conditionValue} onChange={(event) => {
-            setConditionValue(event.target.value);
-            setConditionError(null);
-          }} placeholder="true" /></label>}
-          {conditionError && <p className="error-text">{conditionError}</p>}
-          <SaveState dirty={conditionDirty} saved={saveNotice === "Condition saved"} />
-          <button type="button" disabled={busy || !conditionFieldPath.trim() || !conditionDirty} onClick={() => {
-            try {
-              saveBlock({ config: conditionConfig(conditionSource, conditionFieldPath, conditionOperator, conditionValue) }, "Condition saved");
-            } catch (error) {
-              setConditionError(error instanceof Error ? error.message : "Compare value must be valid JSON");
-            }
-          }}>Save condition</button>
-        </div>
-      )}
-      {block.type === "control_output" && (
-        <div className="automation-form">
-          <label>Output target<select value={outputTargetId} onChange={(event) => setOutputTargetId(event.target.value)}>{outputTargets.map((item) => <option key={item.id} value={item.id}>{item.name} - {sourceLabel(item)}</option>)}</select></label>
-          <label>Pulse duration ms<input value={outputDurationMs} onChange={(event) => setOutputDurationMs(event.target.value)} inputMode="numeric" /></label>
-          <SaveState dirty={outputDirty} saved={saveNotice === "Output pulse saved"} />
-          <button type="button" disabled={busy || !outputTargetId || !Number.isFinite(Number(outputDurationMs)) || !outputDirty} onClick={() => saveBlock({ config: { targetId: outputTargetId, action: "pulse", durationMs: Number(outputDurationMs) } }, "Output pulse saved")}>Save output pulse</button>
-        </div>
-      )}
-      {block.type === "send_transaction" && (
-        <div className="automation-form">
-          <label>Recipient<select value={transactionRecipientId} onChange={(event) => setTransactionRecipientId(event.target.value)}><option value="">Select address book recipient...</option>{addressBook.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select></label>
-          <label>Token<select value={transactionTokenId} onChange={(event) => setTransactionTokenId(event.target.value)}>{nativeTokens.length > 0 ? nativeTokens.map((token) => <option key={token.tokenId} value="0x00">Minima (native) - {token.sendable} sendable</option>) : <option value="0x00">Minima (native)</option>}</select></label>
-          <label>Amount<input value={transactionAmount} onChange={(event) => setTransactionAmount(event.target.value)} inputMode="decimal" /></label>
-          <SaveState dirty={transactionDirty} saved={saveNotice === "Transaction saved"} />
-          <button type="button" disabled={busy || !transactionRecipientId || transactionTokenId !== "0x00" || !isPositiveDecimal(transactionAmount) || !transactionDirty} onClick={() => saveBlock({ config: { recipientAddressBookId: transactionRecipientId, tokenId: "0x00", amount: transactionAmount.trim() } }, "Transaction saved")}>Save transaction</button>
-        </div>
-      )}
-      {stampBlock && (
-        <div className="card soft-card">
-          <div className="status-row">
-            <div><strong>+ Stamp with Integritas</strong><p className="muted">Side block attached to this data block. It stamps this block's hash immediately after data is recorded.</p></div>
-            <span className={`pill ${stampBlock.lastError ? "pill-warn" : stampBlock.enabled ? "pill-good" : "pill-neutral"}`}>{stampStatus(stampBlock)}</span>
-          </div>
-          <div className="metric-grid">
-            <RulePart title="Status" value={stampBlock.lastError ? "Error" : stampBlock.enabled ? "Enabled" : "Disabled"} />
-            <RulePart title="Last stamped" value={stampBlock.lastRunAt ? formatLocalTime(stampBlock.lastRunAt) : "Not run yet"} />
-            <RulePart title="Condition" value={stampConditionSummary(stampBlock)} />
-          </div>
-          {stampBlock.lastError && <p className="error-text">{stampBlock.lastError}</p>}
-          <div className="automation-form">
-            <label>Stamp condition source<select value={stampConditionSource} onChange={(event) => setStampConditionSource(event.target.value as "trigger" | "data")}><option value="data">Latest data</option><option value="trigger">Trigger event</option></select></label>
-            <label>{stampConditionSource === "trigger" ? "Stamp only if trigger field path" : "Stamp only if data field path"}<input value={stampConditionFieldPath} onChange={(event) => setStampConditionFieldPath(event.target.value)} placeholder="sensor.temperature" /></label>
-            <label>Operator<select value={stampConditionOperator} onChange={(event) => setStampConditionOperator(event.target.value as ConditionOperator)}>{conditionOperatorOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-            {!operatorHasNoValue(stampConditionOperator) && <label>Compare value JSON<input value={stampConditionValue} onChange={(event) => {
-              setStampConditionValue(event.target.value);
-              setStampConditionError(null);
-            }} placeholder="15" /></label>}
-            {stampConditionError && <p className="error-text">{stampConditionError}</p>}
-            <SaveState dirty={stampConditionDirty} saved={saveNotice === "Stamp condition saved"} />
-            <div className="row-actions">
-              <button type="button" disabled={busy || !stampConditionFieldPath.trim() || !stampConditionDirty} onClick={() => {
-                try {
-                  saveAttachedBlock(stampBlock.id, { config: { condition: conditionConfig(stampConditionSource, stampConditionFieldPath, stampConditionOperator, stampConditionValue) } }, "Stamp condition saved");
-                } catch (error) {
-                  setStampConditionError(error instanceof Error ? error.message : "Compare value must be valid JSON");
-                }
-              }}>Save stamp condition</button>
-              <button type="button" disabled={busy || !stampBlock.config.condition} onClick={() => saveAttachedBlock(stampBlock.id, { config: { condition: null } }, "Stamp condition cleared")}>Clear stamp condition now</button>
-            </div>
-          </div>
-          <div className="row-actions">
-            <button type="button" disabled={busy} onClick={() => onUpdateAttached(stampBlock.id, { enabled: !stampBlock.enabled })}>{stampBlock.enabled ? "Disable stamp now" : "Enable stamp now"}</button>
-            <button type="button" disabled={busy} onClick={() => onDeleteAttached(stampBlock.id)}>Remove stamp now</button>
-          </div>
-        </div>
-      )}
-      {removable && <div className="row-actions">
-        <button type="button" disabled={busy || !canMoveUp} onClick={onMoveUp}>Move up now</button>
-        <button type="button" disabled={busy || !canMoveDown} onClick={onMoveDown}>Move down now</button>
-        {canAttachStamp && !stampBlock && <button type="button" disabled={busy} onClick={onAttachStamp}>Attach Integritas now</button>}
-        <button type="button" disabled={busy} onClick={() => onUpdate({ enabled: !block.enabled })}>{block.enabled ? "Disable now" : "Enable now"}</button>
-        <button type="button" disabled={busy} onClick={onDelete}>Remove block now</button>
-      </div>}
-    </div>
-  );
-}
-
 function SaveState({ dirty, saved }: { dirty: boolean; saved: boolean }) {
-  if (dirty) return <p className="muted"><span className="pill pill-warn">Unsaved changes</span> Use this block's save button to apply edits.</p>;
-  if (saved) return <p className="muted"><span className="pill pill-good">Saved</span></p>;
-  return <p className="muted"><span className="pill pill-neutral">No unsaved changes</span></p>;
-}
-
-function stampConditionSummary(block: AutomationBlock) {
-  const condition = block.config.condition;
-  if (!condition) return "Always stamp";
-  return conditionSummary(condition.source ?? "data", condition.fieldPath, condition.operator, condition.value);
-}
-
-function stampStatus(block: AutomationBlock) {
-  if (!block.enabled) return "Disabled";
-  if (block.lastError) return "Error";
-  if (block.lastRunAt) return "Last stamped";
-  return "Not run yet";
+  if (dirty) return <p className={mutedText}><StatusPill status="warn">Unsaved changes</StatusPill> Use this block's save button to apply edits.</p>;
+  if (saved) return <p className={mutedText}><StatusPill status="good">Saved</StatusPill></p>;
+  return <p className={mutedText}><StatusPill status="neutral">No unsaved changes</StatusPill></p>;
 }
 
 function moveBlock(blocks: AutomationBlock[], from: number, to: number) {
@@ -1100,7 +989,7 @@ function moveBlock(blocks: AutomationBlock[], from: number, to: number) {
 }
 
 function RulePart({ title, value }: { title: string; value: string }) {
-  return <div><span className="muted">{title}</span><strong>{value}</strong></div>;
+  return <div><span className={mutedText}>{title}</span><strong>{value}</strong></div>;
 }
 
 function summarizeBlocks(workflow: AutomationWorkflow) {
@@ -1140,35 +1029,6 @@ function blockShortLabel(block: AutomationBlock) {
   return block.type;
 }
 
-function blockDescription(block: AutomationBlock, sources: DataSource[], addressBook: AddressBookEntry[]) {
-  const source = block.config.sourceId || block.config.targetId ? sources.find((item) => item.id === (block.config.sourceId ?? block.config.targetId)) : undefined;
-  const recipient = block.config.recipientAddressBookId ? addressBook.find((entry) => entry.id === block.config.recipientAddressBookId) : undefined;
-  if (block.type === "schedule_start") return `Every ${formatInterval(Number(block.config.intervalSeconds ?? 0)).replace("Every ", "")}`;
-  if (block.type === "gpio_event_start") return source ? `${source.name} - GPIO${source.config.pin ?? "?"}` : "GPIO input event";
-  if (block.type === "webhook_event_start") return source ? `${source.name} webhook payload` : "Webhook payload";
-  if (block.type === "mqtt_event_start") return source ? `${source.name} MQTT message` : "MQTT message";
-  if (block.type === "record_trigger_event") return "Store the incoming trigger payload as a data read";
-  if (block.type === "fetch_data_source") return source ? `Fetch ${source.name}` : "Fetch configured HTTP JSON source";
-  if (block.type === "if_payload_field_equals") return `Continue only if ${conditionSummary(block.config.source ?? "trigger", block.config.fieldPath ?? "field", block.config.operator, block.config.value)}`;
-  if (block.type === "wait") return `Pause for ${block.config.durationMs ?? 0} ms`;
-  if (block.type === "stamp_integritas") return "Stamp the latest collected hash";
-  if (block.type === "control_output") return source ? `Pulse ${source.name} for ${block.config.durationMs ?? 0} ms` : "Pulse configured output target";
-  if (block.type === "send_transaction") return recipient ? `Send ${block.config.amount ?? "?"} MINIMA to ${recipient.label}` : "Send native MINIMA to an address book recipient";
-  return "Workflow block";
-}
-
-function blockOutput(block: AutomationBlock) {
-  if (block.type.endsWith("_start")) return "Trigger context";
-  if (block.type === "record_trigger_event") return "Hash + read";
-  if (block.type === "fetch_data_source") return "Fetched JSON + hash";
-  if (block.type === "if_payload_field_equals") return "Continue or stop";
-  if (block.type === "wait") return "Same context";
-  if (block.type === "stamp_integritas") return "Proof UID";
-  if (block.type === "control_output") return "Output action result";
-  if (block.type === "send_transaction") return "Transaction result";
-  return "Context";
-}
-
 function conditionSourceLabel(source: "trigger" | "data") {
   return source === "data" ? "data" : "trigger";
 }
@@ -1200,20 +1060,6 @@ function parseCompareValueInput(value: string) {
   }
 }
 
-function conditionConfig(source: "trigger" | "data", fieldPath: string, operator: ConditionOperator, valueText: string) {
-  return {
-    source,
-    fieldPath: fieldPath.trim(),
-    operator,
-    ...(operatorHasNoValue(operator) ? {} : { value: JSON.parse(valueText) as unknown })
-  };
-}
-
-function conditionSummary(source: "trigger" | "data", fieldPath: string, operator?: ConditionOperator, value?: unknown) {
-  const label = conditionOperatorOptions.find((option) => option.value === operator)?.label ?? "matches";
-  return operatorHasNoValue(operator ?? "exists") ? `${conditionSourceLabel(source)} ${fieldPath} ${label}` : `${conditionSourceLabel(source)} ${fieldPath} ${label} ${JSON.stringify(value)}`;
-}
-
 function sourcesForStart(type: AutomationBlockType, sources: DataSource[]) {
   if (type === "gpio_event_start") return sources.filter((source) => source.type === "gpio-input");
   if (type === "webhook_event_start") return sources.filter((source) => source.type === "webhook");
@@ -1231,33 +1077,6 @@ function firstHttpSource(sources: DataSource[]) {
 
 function nativeMinimaTokens(walletStatus: WalletStatus | null) {
   return (walletStatus?.tokens ?? []).filter((token) => token.isNative || token.tokenId.toLowerCase() === "0x00");
-}
-
-function isPositiveDecimal(value: string) {
-  const trimmed = value.trim();
-  return /^\d+(\.\d+)?$/.test(trimmed) && Number(trimmed) > 0;
-}
-
-function defaultInitialAction(type: AutomationBlockType): "none" | "record_trigger_event" | "fetch_data_source" {
-  if (type === "schedule_start" || type === "manual_start") return "fetch_data_source";
-  return "record_trigger_event";
-}
-
-function canCreateWorkflow(startType: AutomationBlockType, startSourceId: string, initialAction: "none" | "record_trigger_event" | "fetch_data_source", initialFetchSourceId: string) {
-  if (startType !== "manual_start" && startType !== "schedule_start" && !startSourceId) return false;
-  if (initialAction === "fetch_data_source" && !initialFetchSourceId) return false;
-  return true;
-}
-
-function buildInitialBlocks(input: { startType: AutomationBlockType; startSourceId: string; initialAction: "none" | "record_trigger_event" | "fetch_data_source"; initialFetchSourceId: string; pollingIntervalSeconds: number }) {
-  const blocks: { type: AutomationBlockType; config: AutomationBlock["config"] }[] = [];
-  if (input.startType === "schedule_start") blocks.push({ type: "schedule_start", config: { intervalSeconds: input.pollingIntervalSeconds } });
-  else if (input.startType === "manual_start") blocks.push({ type: "manual_start", config: {} });
-  else blocks.push({ type: input.startType, config: { sourceId: input.startSourceId } });
-
-  if (input.initialAction === "record_trigger_event") blocks.push({ type: "record_trigger_event", config: {} });
-  if (input.initialAction === "fetch_data_source") blocks.push({ type: "fetch_data_source", config: { sourceId: input.initialFetchSourceId } });
-  return blocks;
 }
 
 function examplePayload(workflow: AutomationWorkflow) {
