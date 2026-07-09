@@ -1,6 +1,6 @@
-# Update Service Launch Checklist
+# Update Service Launch Plan
 
-**Status:** Not started
+**Status:** In progress
 **Created:** 2026-07-08
 **Goal:** Everything left before the update service (`update-agent`) can be trusted on a real Pi. This is testing and audit work, not new features — all code-level items from `update-agent-review-fixes.md` are done.
 
@@ -16,28 +16,31 @@
 
 Fix: CI now pushes the signed manifest to a small **private GitHub repo** (`integritas-manifests`) over HTTPS instead of SSH. A cron job on the VPS pulls that repo periodically and nginx serves the manifest folder directly from the clone. Signature verification in `update-agent` is still the real trust boundary regardless of transport, so this isn't a security downgrade — the trade-off is a pull failure is silent unless the cron job's own logging is checked (no CI-visible failure signal like a failed Actions run).
 
-- [x] Create the dedicated low-privilege QA VPS deploy user (`qa-manifest-deploy`) with SSH access.
-- [x] Register initial GH repo secrets (`MANIFEST_SIGNING_KEY`; the SSH-push secrets `QA_VPS_DEPLOY_HOST`/`USER`/`KEY`/`PATH` were also registered but are now superseded by this transport change — see below).
-- [ ] Create the private `integritas-manifests` repo (`qa/manifest.json`+`.sig`, `prod/manifest.json`+`.sig`).
-- [ ] Register `MANIFEST_REPO_DEPLOY_KEY` GH secret — write-scoped deploy key (or fine-grained PAT) CI uses to push to `integritas-manifests`.
-- [ ] Retire `QA_VPS_DEPLOY_HOST`/`QA_VPS_DEPLOY_USER`/`QA_VPS_DEPLOY_KEY`/`QA_VPS_DEPLOY_PATH` GH secrets once the new deploy step is confirmed working (no longer used).
-- [ ] On the QA VPS: clone `integritas-manifests` to `/srv/update-manifests/repo/` (outside the Next.js app's project directory — not `next build`/PM2-managed, so redeploys can't wipe it) using a **read-only** deploy key, separate from CI's write key.
-- [ ] Add a small pull script (`git -C /srv/update-manifests/repo pull --ff-only`), logged (journald/syslog) so pull failures are locally visible.
-- [ ] Add a cron job under `qa-manifest-deploy` running that script every 5–15 min.
-- [ ] Add an nginx `location /update-manifest/` block aliasing to `/srv/update-manifests/repo/qa/` (the leaf subfolder — never the repo root, so `.git/` stays unreachable over HTTP; same trailing-slash-on-both-sides rule as before).
-- [ ] Replace the `release.yml` "Deploy manifest" step with the private-repo push step (done in code — see `release.yml`; this item is about confirming it runs clean against real secrets).
-- [ ] Set QA `update-agent`'s `MANIFEST_URL` to the QA manifest endpoint.
-- [ ] Verify via a disposable-tag dry run (§3): manifest lands in `integritas-manifests` (commit shows up), VPS cron pulls it, nginx serves it, and a traversal attempt (`.git/config` etc.) fails.
-- [ ] **Repeat for prod** once QA is verified end-to-end: `prod/` folder in the manifest repo, prod-scoped VPS clone/cron/nginx, confirm the production `MANIFEST_URL`.
-- [ ] **`manifest.source.json`'s `minima-node` digest is currently a placeholder** (`sha256:000...000`, added just to unblock `build-manifest.mjs`'s validation during the QA dry run) — replace with the real digest of the trusted `minimaglobal/minima` image/tag before this nears `main`/prod. Ties into the open question below.
+**Done:**
+- Create the dedicated low-privilege QA VPS deploy user (`qa-manifest-deploy`) with SSH access.
+- Register initial GH repo secrets (`MANIFEST_SIGNING_KEY`; the SSH-push secrets `QA_VPS_DEPLOY_HOST`/`USER`/`KEY`/`PATH` were also registered but are now superseded by this transport change — see below).
+
+**Not done** (full detail and rationale in [manifest-deploy-pull-model.md](./manifest-deploy-pull-model.md)):
+- Create the private `integritas-manifests` repo (`qa/manifest.json`+`.sig`, `prod/manifest.json`+`.sig`).
+- Register `MANIFEST_REPO_DEPLOY_KEY` GH secret — write-scoped deploy key (or fine-grained PAT) CI uses to push to `integritas-manifests`.
+- Retire `QA_VPS_DEPLOY_HOST`/`QA_VPS_DEPLOY_USER`/`QA_VPS_DEPLOY_KEY`/`QA_VPS_DEPLOY_PATH` GH secrets once the new deploy step is confirmed working (no longer used).
+- On the QA VPS: clone `integritas-manifests` to `/srv/update-manifests/repo/` (outside the Next.js app's project directory — not `next build`/PM2-managed, so redeploys can't wipe it) using a read-only deploy key, separate from CI's write key.
+- Add a small pull script (`git -C /srv/update-manifests/repo pull --ff-only`), logged (journald/syslog) so pull failures are locally visible.
+- Add a cron job under `qa-manifest-deploy` running that script every 5–15 min.
+- Add an nginx `location /update-manifest/` block aliasing to `/srv/update-manifests/repo/qa/` (the leaf subfolder — never the repo root, so `.git/` stays unreachable over HTTP; same trailing-slash-on-both-sides rule as before).
+- Replace the `release.yml` "Deploy manifest" step with the private-repo push step (done in code — see `release.yml`; this item is about confirming it runs clean against real secrets).
+- Set QA `update-agent`'s `MANIFEST_URL` to the QA manifest endpoint.
+- Verify via a disposable-tag dry run (§3): manifest lands in `integritas-manifests` (commit shows up), VPS cron pulls it, nginx serves it, and a traversal attempt (`.git/config` etc.) fails.
+- Repeat for prod once QA is verified end-to-end: `prod/` folder in the manifest repo, prod-scoped VPS clone/cron/nginx, confirm the production `MANIFEST_URL`.
+- `manifest.source.json`'s `minima-node` digest is currently a placeholder (`sha256:000...000`, added just to unblock `build-manifest.mjs`'s validation during the QA dry run) — replace with the real digest of the trusted `minimaglobal/minima` image/tag before this nears `main`/prod. Ties into the open question below.
 
 ## 2. Signing key generation (one-time, real)
 
-- [ ] Generate the real Ed25519 signing keypair via `npm run release:generate-signing-key` (`scripts/release/generate-signing-key.mjs`, not a throwaway test key). Writes the public key to `update-agent/manifest-public-key.pem` and prints the private key to stdout only.
-- [ ] Register the printed private key as GH secret `MANIFEST_SIGNING_KEY`.
-- [ ] Commit `update-agent/manifest-public-key.pem`.
-- [ ] **Code change:** update `update-agent` to read the public key from the committed `manifest-public-key.pem` file (`readFileSync` at a fixed path, baked into the Dockerfile via `COPY`) instead of `process.env.MANIFEST_PUBLIC_KEY` — remove `manifestPublicKey` from `update-agent/src/config/env.ts:5` and drop `MANIFEST_PUBLIC_KEY` from `docker-compose.yml`/`.env.example`. Do this **before** generating the real key above, so the real key is registered against the final code path, not the old env-var one.
-- [ ] Decide `manifest.source.json`'s real location/shape if it should differ from the current repo-root placeholder (tracked as an open question in `update-service.md`).
+- Generate the real Ed25519 signing keypair via `npm run release:generate-signing-key` (`scripts/release/generate-signing-key.mjs`, not a throwaway test key). Writes the public key to `update-agent/manifest-public-key.pem` and prints the private key to stdout only.
+- Register the printed private key as GH secret `MANIFEST_SIGNING_KEY`.
+- Commit `update-agent/manifest-public-key.pem`.
+- **Code change:** update `update-agent` to read the public key from the committed `manifest-public-key.pem` file (`readFileSync` at a fixed path, baked into the Dockerfile via `COPY`) instead of `process.env.MANIFEST_PUBLIC_KEY` — remove `manifestPublicKey` from `update-agent/src/config/env.ts:5` and drop `MANIFEST_PUBLIC_KEY` from `docker-compose.yml`/`.env.example`. Do this **before** generating the real key above, so the real key is registered against the final code path, not the old env-var one.
+- Decide `manifest.source.json`'s real location/shape if it should differ from the current repo-root placeholder (tracked as an open question in `update-service.md`).
 
 ### Config sourcing decision: `MANIFEST_URL` vs `MANIFEST_PUBLIC_KEY`
 
@@ -49,21 +52,21 @@ Fix: CI now pushes the signed manifest to a small **private GitHub repo** (`inte
 
 See "Branch testing strategy" below for the approach. Goal: exercise the exact CI + update-agent logic end-to-end without touching `main` or the production manifest.
 
-- [ ] Cut a disposable branch + `vtest*` tag, confirm `release.yml` builds/pushes `frontend`/`backend` to GHCR and produces a signed `manifest.json`/`manifest.json.sig` artifact.
-- [ ] Point a local/dev `update-agent` at that manifest (via the uploaded artifact or a throwaway static file server) and confirm the update UI shows "Update available" and applies it against a real compose stack.
-- [ ] Force a failing health check (bad digest / broken `CMD`) and confirm rollback behavior for both a stateless swap (frontend/backend) and Minima's backup/restore path.
-- [ ] Delete the test images from GHCR and the test tag when done (see cleanup note below).
+- Cut a disposable branch + `vtest*` tag, confirm `release.yml` builds/pushes `frontend`/`backend` to GHCR and produces a signed `manifest.json`/`manifest.json.sig` artifact.
+- Point a local/dev `update-agent` at that manifest (via the uploaded artifact or a throwaway static file server) and confirm the update UI shows "Update available" and applies it against a real compose stack.
+- Force a failing health check (bad digest / broken `CMD`) and confirm rollback behavior for both a stateless swap (frontend/backend) and Minima's backup/restore path.
+- Delete the test images from GHCR and the test tag when done (see cleanup note below).
 
 ## 4. Real-Pi hardware verification
 
-- [ ] **Minima data-dir ownership** (review item #7): confirm whether the real `minimaglobal/minima` image writes its data as root; if so, `update-agent` (uid 1000) can't back it up and the safety net silently never engages. Check via `docker exec minima ls -la /data` (or equivalent) on a real Pi.
-- [ ] **End-to-end real update**: trigger a real update through the `/update` UI on a real (or spare/test) Pi, confirm the swap and health-check gating behave as designed outside of a dev machine.
-- [ ] **Rollback on real hardware**: intentionally point at a broken image/digest, confirm the old container is restored and the Pi is left in a working state.
+- **Minima data-dir ownership** (review item #7): confirm whether the real `minimaglobal/minima` image writes its data as root; if so, `update-agent` (uid 1000) can't back it up and the safety net silently never engages. Check via `docker exec minima ls -la /data` (or equivalent) on a real Pi.
+- **End-to-end real update**: trigger a real update through the `/update` UI on a real (or spare/test) Pi, confirm the swap and health-check gating behave as designed outside of a dev machine.
+- **Rollback on real hardware**: intentionally point at a broken image/digest, confirm the old container is restored and the Pi is left in a working state.
 
 ## 5. Housekeeping / governance
 
-- [ ] Branch protection on `main` (required reviews, required status checks, no direct pushes) — deferred until a `dev` branch exists and the team's PR flow is actually in use.
-- [ ] Re-verify `docs/qa/gaps.md`'s "Last verified" note once the above lands — it predates the update-agent work and doesn't yet list any update-agent-specific gaps.
+- Branch protection on `main` (required reviews, required status checks, no direct pushes) — deferred until a `dev` branch exists and the team's PR flow is actually in use.
+- Re-verify `docs/qa/gaps.md`'s "Last verified" note once the above lands — it predates the update-agent work and doesn't yet list any update-agent-specific gaps.
 
 ---
 
