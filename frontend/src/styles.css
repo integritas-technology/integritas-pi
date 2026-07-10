@@ -712,79 +712,13 @@ code {
   color: #64748b;
 }
 
-.data-source-template button,
-.data-source-list button {
+.data-source-template button {
   width: fit-content;
   padding: 10px 14px;
   color: #fff;
   border: 0;
   border-radius: 14px;
   background: #020617;
-}
-
-.data-source-list button.icon-action-button {
-  display: inline-grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  padding: 0;
-  color: #020617;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  background: #ffffff;
-}
-
-.data-source-list button.icon-action-button:hover {
-  background: #f8fafc;
-}
-
-.data-source-list button.icon-action-button.danger {
-  color: #b91c1c;
-}
-
-.data-source-list {
-  display: grid;
-  gap: 16px;
-}
-
-.data-source-list .json-preview {
-  max-width: 380px;
-  max-height: 180px;
-  margin: 0;
-}
-
-.health-cell {
-  display: grid;
-  gap: 8px;
-}
-
-.health-status {
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  color: #475569;
-  font-size: 0.86rem;
-  font-weight: 800;
-}
-
-.health-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: #94a3b8;
-}
-
-.health-dot.ok {
-  background: #16a34a;
-}
-
-.health-dot.error {
-  background: #dc2626;
-}
-
-.health-dot.pending {
-  background: #f59e0b;
 }
 
 .subtabs {
@@ -901,29 +835,6 @@ textarea {
 
 .data-source-form {
   min-width: 0;
-}
-
-.table-wrap {
-  width: 100%;
-  overflow-x: auto;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.92rem;
-}
-
-th,
-td {
-  padding: 12px;
-  text-align: left;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-th {
-  color: #475569;
-  background: #f8fafc;
 }
 
 .error-text {

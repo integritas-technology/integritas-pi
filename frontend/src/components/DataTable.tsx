@@ -1,4 +1,4 @@
-import type { ReactNode, TableHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, ReactNode, TableHTMLAttributes } from "react";
 import { Card } from "./Card";
 import { StatusRow } from "./StatusRow";
 import { MutedText } from "./Text";
@@ -49,6 +49,28 @@ export function EmptyTableState({ children, className }: { children: ReactNode; 
 
 export function RowActions({ children, className }: { children: ReactNode; className?: string }) {
   return <div className={cx("flex flex-wrap items-center gap-2", className)}>{children}</div>;
+}
+
+export function TableIconButton({
+  children,
+  className,
+  danger,
+  type = "button",
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode; danger?: boolean }) {
+  return (
+    <button
+      type={type}
+      className={cx(
+        "inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-45",
+        danger && "text-red-700 hover:border-red-300 hover:text-red-800",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  );
 }
 
 export const tableHeadRowClass = "bg-slate-50 text-xs uppercase tracking-wide text-slate-500";
