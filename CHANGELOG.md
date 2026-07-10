@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Removed the unused frontend file explorer panel and its orphaned file-list CSS selectors.
 - Device form and template cards now use Tailwind/shared UI helpers instead of data-source-specific global CSS selectors.
 - Wallet page actions, tabs, hero balance card, and empty/error text now use Tailwind/shared UI helpers instead of wallet-specific global CSS selectors.
+- Dashboard hero, build-flow, activity, and status sections now use Tailwind/shared UI helpers instead of dashboard-specific global CSS selectors.
 
 ## [0.14.1] - 2026-07-10
 
