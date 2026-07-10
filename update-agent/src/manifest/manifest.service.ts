@@ -5,11 +5,14 @@ import { getLastAppliedManifestTimestamp } from "./manifest-state.js";
 export type Manifest = {
   frontend: string;
   backend: string;
-  "minima-node": string;
   createdAt: string;
 };
 
-export const MANIFEST_SERVICE_KEYS = ["frontend", "backend", "minima-node"] as const;
+// minima-node is intentionally excluded: minimaglobal/minima:dev is a
+// multi-arch image with a different digest per CPU architecture, so a single
+// pinned digest can't correctly represent "up to date" across the Pi fleet.
+// Tracked as a separate follow-up; until then, minima is not update-managed.
+export const MANIFEST_SERVICE_KEYS = ["frontend", "backend"] as const;
 
 /**
  * Appends ".sig" to the manifest URL's path, not the raw string — a plain
@@ -28,7 +31,6 @@ function isManifest(value: unknown): value is Manifest {
   return (
     typeof record.frontend === "string" &&
     typeof record.backend === "string" &&
-    typeof record["minima-node"] === "string" &&
     typeof record.createdAt === "string" &&
     !Number.isNaN(Date.parse(record.createdAt))
   );

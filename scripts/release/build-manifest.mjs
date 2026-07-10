@@ -14,8 +14,15 @@ const manifest = {
   createdAt: new Date().toISOString()
 };
 
+// minima-node is not yet update-managed (minimaglobal/minima:dev is
+// multi-arch with a different digest per CPU architecture — no single pinned
+// digest works across the Pi fleet). `false` marks it unconfigured on
+// purpose; update-agent doesn't read this key, so it's excluded from the
+// "must be a real digest" check below.
+const UNVALIDATED_KEYS = new Set(["createdAt", "minima-node"]);
+
 for (const [service, digest] of Object.entries(manifest)) {
-  if (service === "createdAt") continue;
+  if (UNVALIDATED_KEYS.has(service)) continue;
   if (!digest) {
     throw new Error(`manifest missing digest for "${service}"`);
   }

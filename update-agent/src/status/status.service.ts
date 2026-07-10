@@ -10,8 +10,7 @@ export type ServiceStatus = {
 
 const MANIFEST_TO_COMPOSE_SERVICE: Record<(typeof MANIFEST_SERVICE_KEYS)[number], string> = {
   frontend: "frontend",
-  backend: "backend",
-  "minima-node": "minima"
+  backend: "backend"
 };
 
 export async function getUpdateStatus(): Promise<{ manifest: Manifest; services: ServiceStatus[] }> {
