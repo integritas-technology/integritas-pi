@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-07-10
+
+### Changed
+
+- Updated agent documentation.
+
 ## [0.14.0] - 2026-07-09
 
 ### Added
