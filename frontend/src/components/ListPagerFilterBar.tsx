@@ -77,12 +77,12 @@ export function ListPagerFilterBar({
         </label>
       </div>
       <div className='flex flex-wrap items-center justify-between gap-3'>
-        <p className='muted text-sm'>
+        <p className='text-sm text-slate-500'>
           {listRangeLabel(currentPage, pageSize, total)}
         </p>
         <div className='flex flex-wrap items-center gap-2'>
           <label className='flex items-center gap-2 text-sm'>
-            <span className='muted'>Rows</span>
+            <span className='text-slate-500'>Rows</span>
             <select
               className='rounded-md border border-slate-200 bg-white px-2 py-1'
               value={pageSize}
@@ -97,6 +97,7 @@ export function ListPagerFilterBar({
           </label>
           <button
             type='button'
+            className='w-fit rounded-xl border-0 bg-slate-950 px-3 py-2 text-sm font-bold text-white disabled:opacity-55'
             disabled={currentPage <= 1}
             onClick={() => onPageChange(currentPage - 1)}
           >
@@ -108,6 +109,7 @@ export function ListPagerFilterBar({
           </span>
           <button
             type='button'
+            className='w-fit rounded-xl border-0 bg-slate-950 px-3 py-2 text-sm font-bold text-white disabled:opacity-55'
             disabled={totalPages === 0 || currentPage >= totalPages}
             onClick={() => onPageChange(currentPage + 1)}
           >

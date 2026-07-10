@@ -212,7 +212,7 @@ Plain `npm run dev` stays on HTTP for fast iteration.
 
 The backend loads the repo-root `.env` automatically in dev. `DATABASE_PATH`, `DATA_DIR`, and `HOST_FILES_DIR` are resolved relative to the repo root.
 
-Frontend styling direction: component and page styling should use Tailwind utilities going forward. Plain CSS should be limited to root/body/base global rules, with existing component-level CSS migrated incrementally as frontend files are touched.
+Frontend styling direction: component and page styling should use Tailwind utilities. Existing component-level CSS is being migrated to Tailwind as a dedicated cleanup effort; after migration, plain CSS should be limited to root/body/base global rules only.
 
 Transient frontend errors should use the shared toast system (`ToastProvider` / `useToast`) instead of duplicating inline messages across modals and pages. Keep inline errors for form validation, row-level status, and persistent context-specific details.
 
