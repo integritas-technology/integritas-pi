@@ -1,5 +1,7 @@
 import { Cpu, Globe2, Lightbulb, Radio, Webhook } from "lucide-react";
+import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
+import { MutedText } from "../../components/Text";
 import type { DataSourceCapabilities, DataSourceTemplate } from "./dataSourceTypes";
 
 export const inputTemplates: DataSourceTemplate[] = [
@@ -11,22 +13,22 @@ export const inputTemplates: DataSourceTemplate[] = [
 
 export function DataSourceTemplates({ capabilities, onSelect }: { capabilities: DataSourceCapabilities | null; onSelect: (template: DataSourceTemplate) => void }) {
   return (
-    <section className="card">
+    <Card className="grid gap-6">
       <div>
         <strong>Input sources</strong>
-        <p className="muted">Inputs produce JSON, messages, or hardware events that workflows can record or use as triggers.</p>
+        <MutedText className="m-0 mt-1">Inputs produce JSON, messages, or hardware events that workflows can record or use as triggers.</MutedText>
       </div>
-      <div className="data-source-template-grid">
+      <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
         {inputTemplates.map((template) => {
           const Icon = template.type === "json-api" ? Globe2 : template.type === "webhook" ? Webhook : template.type === "mqtt" ? Radio : Cpu;
           const disabled = template.type === "gpio-input" && capabilities?.gpioInput.available === false;
           return (
-            <Card className="data-source-template" key={template.title}>
+            <Card className="grid gap-3 transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]" key={template.title}>
               <Icon size={24} />
-              <h3>{template.title}</h3>
-              <p>{template.description}</p>
-              {disabled && <p className="muted">{capabilities?.gpioInput.reason}</p>}
-              <button type="button" disabled={disabled} onClick={() => onSelect(template)}>Add input</button>
+              <h3 className="m-0">{template.title}</h3>
+              <MutedText className="m-0">{template.description}</MutedText>
+              {disabled && <MutedText className="m-0">{capabilities?.gpioInput.reason}</MutedText>}
+              <Button type="button" disabled={disabled} onClick={() => onSelect(template)}>Add input</Button>
             </Card>
           );
         })}
@@ -34,17 +36,17 @@ export function DataSourceTemplates({ capabilities, onSelect }: { capabilities: 
 
       <div>
         <strong>Output targets</strong>
-        <p className="muted">Outputs are devices the app can control from automation action blocks.</p>
+        <MutedText className="m-0 mt-1">Outputs are devices the app can control from automation action blocks.</MutedText>
       </div>
-      <div className="data-source-template-grid">
-        <Card className="data-source-template">
+      <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
+        <Card className="grid gap-3 transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]">
           <Lightbulb size={24} />
-          <h3>GPIO Output</h3>
-          <p>Define an LED output target that workflow blocks can pulse safely.</p>
-          <p className="muted">LED profile only. Use a 220-330 ohm resistor in series with the LED.</p>
-          <button type="button" disabled={capabilities?.gpioInput.available === false} onClick={() => onSelect({ title: "GPIO Output", description: "LED output target controlled by automation workflows", type: "gpio-output", config: { chip: "gpiochip0", pin: 18, profile: "led", activeState: "high", initialState: "inactive" } })}>Add output</button>
+          <h3 className="m-0">GPIO Output</h3>
+          <MutedText className="m-0">Define an LED output target that workflow blocks can pulse safely.</MutedText>
+          <MutedText className="m-0">LED profile only. Use a 220-330 ohm resistor in series with the LED.</MutedText>
+          <Button type="button" disabled={capabilities?.gpioInput.available === false} onClick={() => onSelect({ title: "GPIO Output", description: "LED output target controlled by automation workflows", type: "gpio-output", config: { chip: "gpiochip0", pin: 18, profile: "led", activeState: "high", initialState: "inactive" } })}>Add output</Button>
         </Card>
       </div>
-    </section>
+    </Card>
   );
 }

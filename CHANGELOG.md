@@ -13,6 +13,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Proof history and read history now share the workflow-style table shell and row styling, moving history/list tables toward reusable Tailwind primitives.
 - Devices list now uses the shared workflow-style table and row action primitives, removing the old data-source table/action/health CSS selectors.
 - Automation workflow and run-history tables now use the shared table primitives while preserving the workflow list/log visual style.
+- Removed the unused frontend file explorer panel and its orphaned file-list CSS selectors.
+- Device form and template cards now use Tailwind/shared UI helpers instead of data-source-specific global CSS selectors.
 
 ## [0.14.1] - 2026-07-10
 
