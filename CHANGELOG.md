@@ -13,7 +13,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Real Docker `HEALTHCHECK`s for `frontend`/`backend` so update-agent's health-gated swap has real health data to act on, not just "is the container running".
 - Manifest replay/downgrade protection: manifests carry a signed `createdAt` timestamp; `update-agent` persists the last-applied timestamp (`UPDATE_AGENT_STATE_DIR`) and rejects any manifest strictly older than it.
 - `/apply` is now asynchronous: `POST /apply` starts a background job and returns immediately, `GET /apply` polls job status — needed since a successful frontend update kills its own in-flight request.
-- New `MANIFEST_URL`, `MANIFEST_PUBLIC_KEY`, `RELEASE_CHANNEL`, `UPDATE_HEALTH_CHECK_TIMEOUT_MS`, `UPDATE_HEALTH_CHECK_INTERVAL_MS`, `UPDATE_PULL_TIMEOUT_MS`, `MINIMA_BACKUP_DIR`, `UPDATE_AGENT_STATE_DIR` environment variables (see README Configuration section).
+- New `MANIFEST_URL`, `RELEASE_CHANNEL`, `UPDATE_HEALTH_CHECK_TIMEOUT_MS`, `UPDATE_HEALTH_CHECK_INTERVAL_MS`, `UPDATE_PULL_TIMEOUT_MS`, `MINIMA_BACKUP_DIR`, `UPDATE_AGENT_STATE_DIR` environment variables (see README Configuration section).
+- **Background update check + navbar notice**: `update-agent` now polls the manifest on its own schedule (`STATUS_POLL_INTERVAL_MS`, default once a day) instead of only checking on request, and caches the result. The product frontend polls this cache (`GET /status/summary`) and shows an "Update" item with a badge in the sidebar when `frontend`, `backend`, or `minima` is out of date, linking to the existing `/update` page.
 
 ### Changed
 
@@ -31,6 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Update-agent retry after a crash**: a stale `<service>-update-candidate` container left behind by a crash mid-update (e.g. a power cut) no longer blocks every subsequent retry with a Docker name-conflict `409`.
 - **Update-agent auth check**: the forwarded `GET /api/auth/me` check now times out after 5s instead of hanging indefinitely if `backend` never responds.
 - **Update-agent `.sig` URL building**: signature URL is now built by parsing `MANIFEST_URL` and appending `.sig` to the pathname, instead of raw string concatenation (which broke when the manifest URL had a query string).
+- **Update-agent manifest public key**: `update-agent` now reads the signing public key from the committed `manifest-public-key.pem` (baked into its image) instead of a duplicate `MANIFEST_PUBLIC_KEY` env var, matching what `install.sh` already used — one source of truth instead of two copies that could drift on key rotation.
 
 ### Security
 
