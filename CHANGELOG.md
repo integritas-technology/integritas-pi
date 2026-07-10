@@ -4,6 +4,43 @@ All notable changes to `integritas-pi` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html) at the package level.
 
+## [Unreleased]
+
+## [0.14.0] - 2026-07-09
+
+### Added
+
+- Automation workflows now have a validation endpoint and workspace validation panel that flags missing devices, invalid block order/data dependencies, hardware-output warnings, Integritas key warnings, and wallet transaction balance/configuration issues before manual runs.
+- Workflow block-run details now link directly to matching Diagnostics read/proof history filters when a block output contains a read id or Integritas proof id.
+- Automation workflows can now be searched, filtered by status, duplicated, archived, and restored from the Automation workspace.
+- Create workflow now uses a Scratch-inspired full-page draft workspace with a clean Start/Data/Logic block library, a visual block-chain canvas, setup inspector, and inline validation before creating the workflow.
+- The create workflow draft now starts empty, requires choosing one start block first, hides start blocks after selection, and includes Reset canvas to choose a different start block.
+- The create workflow draft block library now includes Pulse output and Send transaction action blocks plus attached Integritas stamps on Record/Fetch data blocks.
+- Draft workflow validation now uses a backend `POST /api/automation/workflows/validate-draft` endpoint backed by the same block-graph validation as created workflows.
+- The create workflow draft canvas now has its own editable block model: operators can add, remove, move, select, and configure draft blocks before the workflow is created.
+- Workflow canvas presentation has been extracted into reusable automation components as the first step toward using the same canvas for create, edit, and watch modes.
+- Existing workflow editing now uses the shared full-page canvas layout with add-block controls on the left, the saved workflow canvas in the center, and selected-block configuration on the right.
+- Workflow create, edit, and watch entry points are now URL-driven (`/automation?flow=build`, `/automation?flow=edit&id=...`, `/automation?flow=watch&id=...`) so workflow workspaces render in the page instead of opening edit in a modal.
+- Existing workflow validation now appears in the edit workspace right inspector beside selected-block configuration, matching the create workspace layout.
+- Workflow-level lifecycle actions remain in the workflow list, while run controls, test payloads, and recent runs now live in Watch mode.
+- The edit workspace now shares the builder shell, categorized block library, and selected-block inspector patterns from the create workspace, and operators can rename workflows from the edit setup panel.
+- Watch mode now uses the shared canvas with run/test controls on the left, selected-block runtime output/status/timing and Diagnostics links on the right, and recent run history below the canvas.
+- Build, Edit, and Watch now share a reusable workflow workspace shell and a unified canvas renderer, reducing duplicated UI paths before adding validation and runtime overlays.
+- The workflow canvas is now exposed as one mode-aware component for Build, Edit, and Watch, with persisted workflow blocks normalized before rendering.
+- Workflow canvas blocks now show validation error/warning badges in Build and Edit, plus latest run status/duration badges and highlighting in Watch.
+- Watch mode now lets operators choose a historic run to visualize on the canvas; the previous expandable recent-runs log table is replaced by a `Show on canvas` run picker.
+- Workflow log rows now link to `Show on canvas`, opening Watch mode for the selected workflow run via the `run` URL parameter.
+- Watch mode now live-refreshes while the selected or latest run is running, selects the newest run after manual/test execution, and shows whether the canvas is live-updating or viewing a historic run.
+- Watch historic runs and Diagnostics workflow logs now provide `Raw details` alongside `Show on canvas` for full workflow run JSON diagnostics.
+- Automation workflow list now uses the same table-style layout as Devices, with compact icon actions for edit, watch, run, pause/enable, duplicate, archive/restore, and delete.
+- GPIO LED output pulses now explicitly drive the inactive level before and after each pulse, return active/inactive GPIO values in the result, and clarify active-high vs active-low LED wiring in the Devices form.
+
+### Changed
+
+- Automation workspace styling now uses Tailwind utilities for the canvas, workflow list, run history, and inspectors, removing the old Automation-specific global CSS selectors.
+- Manual workflow runs are now blocked when workflow validation reports errors; warnings remain visible for operator review.
+- Archived automation workflows are excluded from automatic/event execution and cannot be manually run until restored.
+
 ## [0.13.0] - 2026-07-07
 
 ### Added
@@ -21,9 +58,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Workflow run details now load the stored data-read preview for fetch/record blocks, making it clear which JSON a data condition evaluated.
 - Automation workflows can now include a Send transaction block that sends native MINIMA (`0x00`) to an address book recipient with a fixed operator-defined amount.
 - GPIO device settings guide documenting tested GPIO17 button input and GPIO18 LED output setups plus suggested untested device profiles.
-- Automation workflows now have a validation endpoint and workspace validation panel that flags missing devices, invalid block order/data dependencies, hardware-output warnings, Integritas key warnings, and wallet transaction balance/configuration issues before manual runs.
-- Workflow block-run details now link directly to matching Diagnostics read/proof history filters when a block output contains a read id or Integritas proof id.
-- Automation workflows can now be searched, filtered by status, duplicated, archived, and restored from the Automation workspace.
 
 ### Changed
 
@@ -41,8 +75,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Workflow block editing now shows per-block unsaved/saved feedback, disables unchanged save buttons, and labels immediate actions such as move/remove/enable as applying now.
 - Workflow run details now separate the trigger payload from the fetched/recorded data preview so manual test runs are easier to interpret.
 - Automation create/save buttons now use the same styled primary action treatment as the rest of the workspace.
-- Manual workflow runs are now blocked when workflow validation reports errors; warnings remain visible for operator review.
-- Archived automation workflows are excluded from automatic/event execution and cannot be manually run until restored.
 
 ### Fixed
 

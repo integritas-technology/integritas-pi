@@ -86,6 +86,8 @@ Pulse ends: GPIO18 returns inactive and LED turns off.
 
 Use the Devices page `Test pulse` action before adding the LED to an automation workflow.
 
+If the LED turns on after a pulse and stays on, check the output target's active-state setting. The wiring above must use `Active state: high`. `Active state: low` is only for wiring where the LED/resistor is tied to 3.3V and the GPIO pin turns the LED on by sinking current.
+
 ## Untested
 
 These settings are suggested starting points only. Verify the module's voltage, output type, and wiring before connecting it to the Pi.

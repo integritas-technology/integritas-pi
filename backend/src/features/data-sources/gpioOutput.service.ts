@@ -19,8 +19,10 @@ export async function pulseGpioOutput(input: { targetId: string; durationMs: num
 
   stopInactiveHolder(key);
   try {
+    await runGpioset(["--mode=time", "--usec=1000", config.chip, `${config.pin}=${inactiveValue}`]);
     await runGpioset(["--mode=time", `--usec=${durationUs}`, config.chip, `${config.pin}=${activeValue}`]);
   } finally {
+    await driveInactiveOnce(config.chip, config.pin, inactiveValue);
     startInactiveHolder(key, config.chip, config.pin, inactiveValue);
   }
 
@@ -32,8 +34,18 @@ export async function pulseGpioOutput(input: { targetId: string; durationMs: num
     pin: config.pin,
     action: "pulse",
     durationMs: input.durationMs,
-    activeState: config.activeState
+    activeState: config.activeState,
+    activeValue,
+    inactiveValue
   };
+}
+
+async function driveInactiveOnce(chip: string, pin: number, value: number) {
+  try {
+    await runGpioset(["--mode=time", "--usec=1000", chip, `${pin}=${value}`]);
+  } catch (error) {
+    console.error(`GPIO output could not drive inactive state: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 function startInactiveHolder(key: string, chip: string, pin: number, value: number) {

@@ -469,16 +469,60 @@ The block workspace is usable for the current prototype: workflows can be create
 
 Recommended development order:
 
-1. Workflow templates.
-2. Run log filtering and deeper run links.
-3. Better workflow organization.
-4. Configure-block modal refinement.
-5. Full draft workspace save model.
-6. Branching / else flow.
+1. Complete basic create-workflow block library.
+2. Workflow templates.
+3. Run log filtering and deeper run links.
+4. Better workflow organization.
+5. Configure-block modal refinement.
+6. Full draft workspace save model.
+7. Branching / else flow.
 
-### 1. Workflow Templates
+### 1. Complete Basic Create-Workflow Block Library
+
+The create workflow workspace should prioritize clear building blocks before templates. Templates are useful as guides later, but the V1 base should first make it obvious that a valid workflow starts with exactly one start block and then appends data, logic, and action blocks.
+
+Current implementation:
+
+- Create workflow is now a full-page Scratch-inspired draft workspace instead of a modal.
+- The block library is split into Start, Data, Logic, Action, and Attached actions sections.
+- The draft canvas starts empty and prompts the operator to choose one start block first.
+- Start blocks hide after selection; Reset canvas clears the draft and shows start blocks again.
+- The selected start block inspector configures source/interval only and does not change start type.
+- Data and Logic blocks append after the start block.
+- Action blocks currently include Pulse output and Send transaction.
+- Integritas stamping attaches as a side block on Record/Fetch data blocks and is created with `parentBlockId` mapping from draft IDs.
+- Draft validation calls `POST /api/automation/workflows/validate-draft`, which reuses the backend block-graph validator used by created workflows.
+- The canvas presentation layer is now extracted into reusable automation components (`WorkflowCanvas.tsx`) so create, edit, and future watch modes can share the same visual blocks.
+- Existing workflows now use the same full-page canvas layout: add-block library on the left, saved workflow canvas in the center, and selected-block editor on the right.
+- The current per-block save model remains in the edit inspector while add/remove/move actions apply immediately.
+- Workflow workspace entry points are URL-driven: `/automation?flow=build`, `/automation?flow=edit&id=<workflowId>`, and `/automation?flow=watch&id=<workflowId>`.
+- Opening an existing workflow no longer uses a modal; the shared canvas is loaded directly inside the Automation page.
+- Edit mode keeps validation in the right inspector above selected-block configuration, matching the create workspace placement.
+- Workflow-level lifecycle actions stay in the workflow list. Run controls, test payload execution, and recent runs live in Watch mode.
+- Edit mode now uses the same outer builder shell, categorized block library, and selected-block inspector pattern as create mode, with persisted block changes still applied through explicit per-block saves.
+- Workflow names are editable from the edit workspace setup panel.
+- Watch mode now replaces edit controls with run/test controls, selected-block runtime details, latest output/error/timing, read/proof Diagnostics links, and recent run history.
+- Build, Edit, and Watch now use a shared workflow workspace shell and one normalized canvas renderer for draft and persisted blocks.
+- The public canvas API is now mode-aware (`build`, `edit`, `watch`) and accepts normalized canvas blocks.
+- Canvas blocks now accept validation and runtime overlays so Build/Edit can mark affected blocks and Watch can show latest block status/duration directly on the canvas.
+- Watch mode now treats recent runs as a run picker: selecting `Show on canvas` drives the canvas overlays and selected-block runtime inspector for that historic run.
+- Workflow log tables now use `Show on canvas` links to `/automation?flow=watch&id=<workflowId>&run=<runId>` instead of expanding raw logs inline.
+- Watch mode polls while a selected/latest run is active, selects the newest run after manual/test execution, and marks the canvas as live-updating vs historic review.
+- Watch historic runs and Diagnostics workflow logs keep canvas viewing as the primary action while exposing full raw run JSON through a secondary `Raw details` action.
+- The center canvas previews the generated block chain before creation.
+- The right inspector configures workflow name and selected-block settings.
+- The draft canvas owns an editable draft block list and supports add/remove/move controls for supported draft blocks.
+
+Remaining basic block-library work:
+
+- Add clearer draft validation on affected blocks.
+- Add Watch mode on the shared canvas, including a test-run payload editor, live block status, outputs, and read/proof links.
+
+### 2. Workflow Templates
 
 Add beginner-friendly templates that create known-good starter workflows.
+
+Templates are intentionally deferred until the basic block library is complete, so they can act as user guides rather than hiding the underlying block model.
 
 Good first templates:
 
@@ -501,6 +545,8 @@ Implementation notes:
 - Templates should still create normal blocks through the existing backend API.
 - Avoid hidden production mock data. Use operator-selected devices/sources where possible.
 - Validate required devices before enabling a template, for example HTTP source required for fetch templates and GPIO Output target required for LED templates.
+
+Template expansion should happen after draft support exists for all V1 block types.
 
 ### 2. Pre-Run Validation
 
@@ -768,6 +814,7 @@ Button -> fetch API -> blink LED.
 - [x] Add direct links to related read/proof details.
 - [ ] Add run-log filters.
 - [x] Add workflow archive/filter/duplicate organization tools.
+- [x] Add first-pass full-page workflow creation workspace with clean Start/Data/Logic block library.
 - [ ] Evaluate branching/else blocks after the simpler linear workflow UX is stable.
 
 ## Progress Log

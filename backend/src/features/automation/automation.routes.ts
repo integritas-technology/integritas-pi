@@ -7,7 +7,7 @@ import { syncGpioDataSources } from "../data-sources/gpioIngestion.service.js";
 import { syncMqttDataSources } from "../data-sources/mqttIngestion.service.js";
 import { createAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, duplicateAutomationWorkflow, getAutomationWorkflow, listAutomationBlocks, listAutomationWorkflows, reorderAutomationBlocks, updateAutomationBlock, updateAutomationWorkflow, type AutomationBlockType } from "./automation.repository.js";
 import { getSerializedAutomationRun, listSerializedAutomationRuns, listSerializedAutomationRunsForWorkflow, runAutomationWorkflow, serializeAutomationBlock, serializeAutomationWorkflow } from "./automation.service.js";
-import { validateAutomationWorkflow } from "./automation.validation.js";
+import { validateAutomationDraft, validateAutomationWorkflow, type AutomationDraftValidationBlock } from "./automation.validation.js";
 
 export const automationRouter = Router();
 
@@ -37,6 +37,11 @@ automationRouter.get("/workflows/:id/validation", async (req, res) => {
   const workflow = getAutomationWorkflow(req.params.id);
   if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
   res.json({ item: await validateAutomationWorkflow(workflow.id) });
+});
+
+automationRouter.post("/workflows/validate-draft", async (req, res) => {
+  const blocks = parseDraftValidationBlocks(req.body?.blocks);
+  res.json({ item: await validateAutomationDraft(blocks) });
 });
 
 automationRouter.post("/workflows", requireRole("admin"), (req, res) => {
@@ -276,17 +281,42 @@ function legacyBlocksForWorkflow(sourceId: string, sourceType: string, pollingIn
 function parseWorkflowBlocks(value: unknown[]) {
   if (value.length === 0) throw new Error("At least one block is required");
   const blocks = value.map((item) => {
-    const block = item as { type?: unknown; config?: unknown; enabled?: unknown };
+    const block = item as { type?: unknown; config?: unknown; enabled?: unknown; parentBlockId?: unknown; clientId?: unknown };
     const type = typeof block.type === "string" ? block.type : "";
     if (!isAutomationBlockType(type)) throw new Error(`Invalid block type: ${type || "missing"}`);
     const config = block.config && typeof block.config === "object" && !Array.isArray(block.config) ? block.config as Record<string, unknown> : {};
     validateBlockConfig(type, config);
-    return { type, config, enabled: block.enabled === false ? false : true };
+    const parentBlockId = typeof block.parentBlockId === "string" ? block.parentBlockId : null;
+    const clientId = typeof block.clientId === "string" ? block.clientId : null;
+    return { type, config, enabled: block.enabled === false ? false : true, parentBlockId, clientId };
   });
 
-  if (!blocks[0].type.endsWith("_start")) throw new Error("The first workflow block must be a start block");
-  if (blocks.slice(1).some((block) => block.type.endsWith("_start"))) throw new Error("Only the first workflow block can be a start block");
+  const mainBlocks = blocks.filter((block) => !block.parentBlockId);
+  if (!mainBlocks[0]?.type.endsWith("_start")) throw new Error("The first workflow block must be a start block");
+  if (mainBlocks.slice(1).some((block) => block.type.endsWith("_start"))) throw new Error("Only the first workflow block can be a start block");
+  for (const block of blocks.filter((item) => item.parentBlockId)) {
+    if (block.type !== "stamp_integritas") throw new Error("Only Integritas stamp blocks can be attached to another block");
+    const parent = blocks.find((item) => item.clientId && item.clientId === block.parentBlockId);
+    if (!parent || (parent.type !== "record_trigger_event" && parent.type !== "fetch_data_source")) throw new Error("Integritas stamp blocks must be attached to a record or fetch block");
+  }
   return blocks;
+}
+
+function parseDraftValidationBlocks(value: unknown): AutomationDraftValidationBlock[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    const block = item as { type?: unknown; config?: unknown; enabled?: unknown; parentBlockId?: unknown; clientId?: unknown };
+    const type = typeof block.type === "string" ? block.type : "";
+    if (!isAutomationBlockType(type)) return [];
+    const config = block.config && typeof block.config === "object" && !Array.isArray(block.config) ? block.config as Record<string, unknown> : {};
+    return [{
+      type,
+      config,
+      enabled: block.enabled === false ? false : true,
+      parentBlockId: typeof block.parentBlockId === "string" ? block.parentBlockId : null,
+      clientId: typeof block.clientId === "string" ? block.clientId : null
+    }];
+  });
 }
 
 function validateBlockConfig(type: AutomationBlockType, config: Record<string, unknown>) {
