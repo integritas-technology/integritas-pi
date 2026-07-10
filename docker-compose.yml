@@ -74,7 +74,6 @@ services:
       PORT: 8081
       DOCKER_SOCKET_PATH: /var/run/docker.sock
       MANIFEST_URL: ${MANIFEST_URL:-}
-      MANIFEST_PUBLIC_KEY: ${MANIFEST_PUBLIC_KEY:-}
       RELEASE_CHANNEL: ${RELEASE_CHANNEL:-stable}
       BACKEND_INTERNAL_URL: http://backend:3000
       MINIMA_STATUS_URL: http://minima:9005/status

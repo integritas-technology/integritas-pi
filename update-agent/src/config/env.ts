@@ -1,8 +1,21 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+function readManifestPublicKey(): string {
+  const keyPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../manifest-public-key.pem");
+  try {
+    return readFileSync(keyPath, "utf8");
+  } catch {
+    return "";
+  }
+}
+
 export const env = {
   port: Number(process.env.PORT ?? 8081),
   dockerSocketPath: process.env.DOCKER_SOCKET_PATH ?? "/var/run/docker.sock",
   manifestUrl: process.env.MANIFEST_URL ?? "",
-  manifestPublicKey: process.env.MANIFEST_PUBLIC_KEY ?? "",
+  manifestPublicKey: readManifestPublicKey(),
   releaseChannel: process.env.RELEASE_CHANNEL ?? "stable",
   backendInternalUrl: process.env.BACKEND_INTERNAL_URL ?? "http://backend:3000",
   minimaStatusUrl: process.env.MINIMA_STATUS_URL ?? "http://minima:9005/status",
