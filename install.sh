@@ -34,7 +34,7 @@ MINIMA_RPC_PORT="${MINIMA_RPC_PORT:-9005}"
 INTEGRITAS_BASE_URL="${INTEGRITAS_BASE_URL:-https://integritas.technology/core}"
 INTEGRITAS_API_KEY="${INTEGRITAS_API_KEY:-}"
 INTEGRITAS_REQUEST_ID="${INTEGRITAS_REQUEST_ID:-integritas-pi}"
-MANIFEST_URL="${MANIFEST_URL:-}"
+MANIFEST_URL="${MANIFEST_URL:-https://integritas.technology/update-manifest/manifest.json}"
 
 APT_PACKAGES=(
   curl
@@ -158,7 +158,7 @@ load_existing_config() {
   INTEGRITAS_BASE_URL="${INTEGRITAS_BASE_URL_INPUT:-${INTEGRITAS_BASE_URL:-https://integritas.technology/core}}"
   INTEGRITAS_API_KEY="${INTEGRITAS_API_KEY_INPUT:-${INTEGRITAS_API_KEY:-}}"
   INTEGRITAS_REQUEST_ID="${INTEGRITAS_REQUEST_ID_INPUT:-${INTEGRITAS_REQUEST_ID:-integritas-pi}}"
-  MANIFEST_URL="${MANIFEST_URL_INPUT:-${MANIFEST_URL:-}}"
+  MANIFEST_URL="${MANIFEST_URL_INPUT:-${MANIFEST_URL:-https://integritas.technology/update-manifest/manifest.json}}"
 }
 
 ensure_app_secret() {
