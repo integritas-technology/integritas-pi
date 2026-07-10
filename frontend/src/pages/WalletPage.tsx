@@ -102,6 +102,9 @@ function TokenGlyph({ isNative }: { isNative: boolean }) {
   return <FilledHexTokenIcon size={13} className='text-slate-400 shrink-0' />;
 }
 
+const walletListClass = 'grid gap-2';
+const walletListRowClass = 'w-full rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-slate-400 hover:bg-slate-50';
+
 export function WalletPage() {
   const { showToast } = useToast();
   const [walletStatus, setWalletStatus] = useState<WalletStatus | null>(null);
@@ -291,28 +294,30 @@ export function WalletPage() {
                   : 'No assets found.'}
               </MutedText>
             )}
-            <div className='divide-y divide-slate-100'>
+            <div className={walletListClass}>
               {visibleAssets.map((token) => (
                 <button
                   key={token.tokenId}
                   type='button'
                   onClick={() => setSelectedAsset(token)}
-                  className='w-full flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 text-left hover:bg-slate-50 -mx-1 px-1 rounded-lg transition-colors'
+                  className={walletListRowClass}
                 >
-                  <div className='min-w-0'>
-                    <p className='text-sm font-semibold text-slate-900 truncate'>
-                      {token.name}
-                    </p>
-                    <p className='text-xs text-slate-400 font-mono truncate'>
-                      {token.tokenId}
-                    </p>
-                  </div>
-                  <div className='shrink-0 text-right'>
-                    <p className='text-sm font-bold text-slate-900 tabular-nums inline-flex items-center gap-1.5'>
-                      <TokenGlyph isNative={token.isNative} />
-                      {formatAmountThreshold(token.sendable)}
-                    </p>
-                    <p className='text-xs text-slate-400'>sendable</p>
+                  <div className='flex items-start justify-between gap-3'>
+                    <div className='min-w-0'>
+                      <p className='truncate text-sm font-semibold text-slate-900'>
+                        {token.name}
+                      </p>
+                      <p className='truncate font-mono text-xs text-slate-400'>
+                        {token.tokenId}
+                      </p>
+                    </div>
+                    <div className='shrink-0 text-right'>
+                      <p className='inline-flex items-center gap-1.5 text-sm font-bold tabular-nums text-slate-900'>
+                        <TokenGlyph isNative={token.isNative} />
+                        {formatAmountThreshold(token.sendable)}
+                      </p>
+                      <p className='text-xs text-slate-400'>sendable</p>
+                    </div>
                   </div>
                 </button>
               ))}
@@ -340,13 +345,13 @@ export function WalletPage() {
             {!loading && !error && sendHistory.length === 0 && (
               <MutedText>No send activity yet.</MutedText>
             )}
-            <div className='grid gap-2'>
+            <div className={walletListClass}>
               {sendHistory.map((entry) => (
                 <button
                   key={entry.id}
                   type='button'
                   onClick={() => setSelectedHistoryItem(entry)}
-                  className='w-full text-left rounded-xl border border-slate-200 bg-white p-3 hover:border-slate-400 transition'
+                  className={walletListRowClass}
                 >
                   <div className='flex items-start justify-between gap-3'>
                     <div>
