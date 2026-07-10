@@ -19,6 +19,7 @@ MINIMA_RPC_PORT_INPUT="${MINIMA_RPC_PORT-}"
 INTEGRITAS_BASE_URL_INPUT="${INTEGRITAS_BASE_URL-}"
 INTEGRITAS_API_KEY_INPUT="${INTEGRITAS_API_KEY-}"
 INTEGRITAS_REQUEST_ID_INPUT="${INTEGRITAS_REQUEST_ID-}"
+MANIFEST_URL_INPUT="${MANIFEST_URL-}"
 HOST_FILES_DIR="${HOST_FILES_DIR:-/home/pi}"
 FRONTEND_PORT="${FRONTEND_PORT:-8080}"
 DATA_DIR="${DATA_DIR:-./data}"
@@ -33,6 +34,7 @@ MINIMA_RPC_PORT="${MINIMA_RPC_PORT:-9005}"
 INTEGRITAS_BASE_URL="${INTEGRITAS_BASE_URL:-https://integritas.technology/core}"
 INTEGRITAS_API_KEY="${INTEGRITAS_API_KEY:-}"
 INTEGRITAS_REQUEST_ID="${INTEGRITAS_REQUEST_ID:-integritas-pi}"
+MANIFEST_URL="${MANIFEST_URL:-}"
 
 APT_PACKAGES=(
   curl
@@ -156,6 +158,7 @@ load_existing_config() {
   INTEGRITAS_BASE_URL="${INTEGRITAS_BASE_URL_INPUT:-${INTEGRITAS_BASE_URL:-https://integritas.technology/core}}"
   INTEGRITAS_API_KEY="${INTEGRITAS_API_KEY_INPUT:-${INTEGRITAS_API_KEY:-}}"
   INTEGRITAS_REQUEST_ID="${INTEGRITAS_REQUEST_ID_INPUT:-${INTEGRITAS_REQUEST_ID:-integritas-pi}}"
+  MANIFEST_URL="${MANIFEST_URL_INPUT:-${MANIFEST_URL:-}}"
 }
 
 ensure_app_secret() {
@@ -254,6 +257,56 @@ download_app() {
   rm -rf "$tmp_dir"
 }
 
+fetch_manifest_field() {
+  local manifest_file="$1"
+  local field="$2"
+  grep -o "\"${field}\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$manifest_file" \
+    | head -n1 \
+    | sed -E 's/.*:[[:space:]]*"([^"]*)"$/\1/'
+}
+
+fetch_and_verify_manifest() {
+  if [ -z "$MANIFEST_URL" ]; then
+    echo "MANIFEST_URL is not set. Set it in .env or pass MANIFEST_URL=<url> to this installer."
+    exit 1
+  fi
+
+  local public_key_file="$APP_DIR/update-agent/manifest-public-key.pem"
+  if [ ! -f "$public_key_file" ]; then
+    echo "Manifest public key not found at $public_key_file"
+    exit 1
+  fi
+
+  log "Fetching update manifest from $MANIFEST_URL"
+
+  local manifest_file="$APP_DIR/.manifest.json"
+  local signature_file="$APP_DIR/.manifest.json.sig"
+  local signature_bin="$APP_DIR/.manifest.json.sig.bin"
+
+  curl -fsSL "$MANIFEST_URL" -o "$manifest_file"
+  curl -fsSL "${MANIFEST_URL}.sig" -o "$signature_file"
+
+  base64 -d "$signature_file" > "$signature_bin"
+
+  if ! openssl pkeyutl -verify -pubin -inkey "$public_key_file" -rawin -in "$manifest_file" -sigfile "$signature_bin" >/dev/null 2>&1; then
+    echo "Manifest signature verification failed. Refusing to install untrusted images."
+    rm -f "$manifest_file" "$signature_file" "$signature_bin"
+    exit 1
+  fi
+
+  FRONTEND_IMAGE="$(fetch_manifest_field "$manifest_file" frontend)"
+  BACKEND_IMAGE="$(fetch_manifest_field "$manifest_file" backend)"
+
+  rm -f "$manifest_file" "$signature_file" "$signature_bin"
+
+  if [ -z "$FRONTEND_IMAGE" ] || [ -z "$BACKEND_IMAGE" ]; then
+    echo "Manifest is missing frontend or backend image digest."
+    exit 1
+  fi
+
+  log "Manifest verified. frontend=$FRONTEND_IMAGE backend=$BACKEND_IMAGE"
+}
+
 write_env_file() {
   log "Writing runtime configuration"
   cat > "$APP_DIR/.env" <<EOF
@@ -272,6 +325,9 @@ INTEGRITAS_BASE_URL=$INTEGRITAS_BASE_URL
 INTEGRITAS_API_KEY=$INTEGRITAS_API_KEY
 INTEGRITAS_REQUEST_ID=$INTEGRITAS_REQUEST_ID
 COOKIE_SECURE=true
+MANIFEST_URL=$MANIFEST_URL
+FRONTEND_IMAGE=$FRONTEND_IMAGE
+BACKEND_IMAGE=$BACKEND_IMAGE
 EOF
 }
 
@@ -319,7 +375,8 @@ generate_tls_cert() {
 start_app() {
   log "Starting Docker services"
   cd "$APP_DIR"
-  docker compose up -d --build
+  docker compose pull frontend backend
+  docker compose up -d
 }
 
 install_cli() {
@@ -367,6 +424,7 @@ main() {
   detect_docker_gid
   detect_gpio_gid
   download_app
+  fetch_and_verify_manifest
   prepare_runtime_directories
   write_env_file
   write_compose_override
