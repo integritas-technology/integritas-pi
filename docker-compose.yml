@@ -84,6 +84,7 @@ services:
       HEALTH_CHECK_TIMEOUT_MS: ${UPDATE_HEALTH_CHECK_TIMEOUT_MS:-60000}
       HEALTH_CHECK_INTERVAL_MS: ${UPDATE_HEALTH_CHECK_INTERVAL_MS:-2000}
       PULL_TIMEOUT_MS: ${UPDATE_PULL_TIMEOUT_MS:-300000}
+      STATUS_POLL_INTERVAL_MS: ${STATUS_POLL_INTERVAL_MS:-86400000}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${MINIMA_DATA_DIR:-./minima}:/minima-data
