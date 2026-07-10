@@ -22,6 +22,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **False "Update Now" on first install**: `install.sh` built `frontend`/`backend` from source, so a fresh install's image could never match the manifest's registry digest and always showed an update as available. It now fetches and verifies the signed manifest and pulls the exact pinned images instead.
+- **Release workflow Pi architecture support**: `frontend`/`backend` images were only built for the CI runner's native `amd64`, invisible while installs built from source on-device. Now that installs pull pre-built images, added QEMU + multi-platform build (`linux/arm64`, `linux/arm/v7`) so Pi installs can actually pull them.
 - **Release workflow "previous release tag" lookup**: no longer considers pre-release/test-shaped tags (e.g. `v0.0.0-test.1`) as a candidate "previous release," preventing a leftover test tag from hiding real `frontend`/`backend` changes from the release diff.
 
 - **Update-agent frontend/backend swap**: updates to services publishing a host port no longer fail on a port-binding conflict between the old and new container; the candidate is created and health-checked without port bindings first, and only swapped in (old stopped/removed, candidate recreated with its ports, started) once healthy.

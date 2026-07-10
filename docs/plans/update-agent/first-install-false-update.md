@@ -1,6 +1,6 @@
 # Fix: false "Update Now" on first install
 
-**Status:** Planned, not started.
+**Status:** Done. Verified end-to-end on real Pi hardware via QA manifest (v0.0.0-test.2).
 **Created:** 2026-07-10
 **Related:** [update-service.md](./update-service.md)
 
@@ -16,19 +16,19 @@ Stop building `frontend`/`backend` from source in `install.sh`. Pull the exact i
 
 `minima` is unaffected — it's already a fixed external image (`minimaglobal/minima:dev` in `docker-compose.yml`), not built from source, so it's out of scope here.
 
-### Steps
+### Steps (all done)
 
-1. `install.sh`: fetch the signed manifest using the existing `MANIFEST_URL` / `MANIFEST_PUBLIC_KEY` env vars (same ones `update-agent` already uses) and verify its signature.
-2. Extract the `frontend` and `backend` digests from the verified manifest.
-3. Write them into `$APP_DIR/.env` as image refs, e.g.:
-   ```
-   FRONTEND_IMAGE=ghcr.io/<org>/integritas-pi-frontend@sha256:...
-   BACKEND_IMAGE=ghcr.io/<org>/integritas-pi-backend@sha256:...
-   ```
-4. `docker-compose.yml`: replace `frontend`/`backend`'s `build:` blocks with `image: ${FRONTEND_IMAGE}` / `image: ${BACKEND_IMAGE}`.
-5. `install.sh`'s `start_app()`: `docker compose pull && docker compose up -d` (drop `--build`).
+1. `install.sh`: fetch the signed manifest via `MANIFEST_URL` (new default: `https://integritas.technology/update-manifest/manifest.json`, overridable), verify with `openssl pkeyutl` against the committed `update-agent/manifest-public-key.pem` — no new host dependency, `openssl` was already installed.
+2. Extract `frontend`/`backend` digests from the verified manifest with `grep`/`sed` (no `jq` added, per "no new tools").
+3. Written into `$APP_DIR/.env` as `FRONTEND_IMAGE`/`BACKEND_IMAGE`.
+4. `docker-compose.yml`: `frontend`/`backend` `build:` blocks replaced with `image: ${FRONTEND_IMAGE}` / `image: ${BACKEND_IMAGE}`.
+5. `install.sh`'s `start_app()`: `docker compose pull frontend backend && docker compose up -d` (dropped `--build`).
 
-No change needed in `update-agent` itself — it already compares live container digest vs. manifest digest on every check; once the installed digest matches, it reports "up to date" with no extra state to write or maintain.
+No change needed in `update-agent` itself — confirmed correct as-is; it already compares live container digest vs. manifest digest on every check.
+
+### Unplanned fix found during testing
+
+CI (`release.yml`) built `frontend`/`backend` only for the runner's native `linux/amd64` — invisible previously because `install.sh` built from source on-device. Once install pulled pre-built images, a real Pi (`aarch64`) failed with "no matching manifest for linux/arm64/v8". Fixed by adding `docker/setup-qemu-action` + `platforms: linux/arm64,linux/arm/v7` to both build steps, covering all Pi variants `install.sh` already claims to support (64-bit and 32-bit).
 
 ## Dev/test builds
 
