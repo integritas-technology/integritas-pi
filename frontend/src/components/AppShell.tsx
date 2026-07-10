@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Layers3, ShieldCheck } from "lucide-react";
+import { Layers3, ShieldCheck, Sparkles } from "lucide-react";
 import { nav } from "../app/nav";
 import type { StatusOverview } from "../app/types";
 import { SidebarUserBox } from "../features/auth/SidebarUserBox";
 import type { AuthUser } from "../features/auth/types";
+import { useUpdateStatusRefresh } from "../features/update/useUpdateStatusRefresh";
 import { cx } from "../lib/cx";
 import { Card } from "./Card";
 import { Clock } from "./Clock";
@@ -41,6 +42,11 @@ export function AppShell({
 
   const serviceIsOk = (name: string) => Boolean(overview?.services.find((service) => service.name === name)?.ok);
 
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  useUpdateStatusRefresh((status) => {
+    setUpdateAvailable(Boolean(status?.services.some((service) => !service.upToDate)));
+  });
+
   return (
     <div className="app-root">
       <div className="workbench">
@@ -63,6 +69,12 @@ export function AppShell({
                 {badge && <span className="nav-badge">{badge}</span>}
               </NavLink>
             ))}
+            {updateAvailable && (
+              <a href="/update" className="nav-item">
+                <span><Sparkles size={19} />Update</span>
+                <span className="nav-badge">New</span>
+              </a>
+            )}
           </nav>
 
           <Card className="sidebar-note">
@@ -96,6 +108,7 @@ export function AppShell({
                 {label}
               </NavLink>
             ))}
+            {updateAvailable && <a href="/update">Update</a>}
           </div>
 
           {children}

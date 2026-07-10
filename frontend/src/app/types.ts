@@ -4,6 +4,17 @@ export type Tone = "neutral" | "good" | "warn" | "future";
 export type NavId = "dashboard" | "setup" | "node" | "wallet" | "integritas" | "data" | "automation" | "diagnostics" | "settings";
 export type NavItem = { id: NavId; label: string; icon: LucideIcon; badge?: string };
 
+export type UpdateServiceStatus = {
+  service: string;
+  currentImage: string | null;
+  targetImage: string;
+  upToDate: boolean;
+};
+export type UpdateStatusSummary = {
+  checkedAt: string;
+  services: UpdateServiceStatus[];
+} | null;
+
 export type Health = { status: string; service: string };
 export type FileItem = { name: string; type: "file" | "directory" | "other"; size?: number };
 export type FilesResponse = { path: string; items: FileItem[] };
