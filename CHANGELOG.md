@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Shared frontend button, text, tab, status-row, and table helpers now use Tailwind utilities, with setup, diagnostics, runtime config, and read-history surfaces migrated off their old global CSS selectors.
 - Proof history and read history now share the workflow-style table shell and row styling, moving history/list tables toward reusable Tailwind primitives.
 - Devices list now uses the shared workflow-style table and row action primitives, removing the old data-source table/action/health CSS selectors.
+- Automation workflow and run-history tables now use the shared table primitives while preserving the workflow list/log visual style.
 
 ## [0.14.1] - 2026-07-10
 
