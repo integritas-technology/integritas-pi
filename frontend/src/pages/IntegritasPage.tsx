@@ -3,6 +3,7 @@ import type { IntegritasConfig } from '../app/types';
 import { JsonPreview } from '../components/JsonPreview';
 import { Modal } from '../components/Modal';
 import { Page } from '../components/Page';
+import { IconButton } from '../components/Button';
 import { useToast } from '../components/ToastProvider';
 import { deleteJson, getJson, postJson } from '../lib/api';
 import {
@@ -109,13 +110,12 @@ export function IntegritasPage() {
       title='Prove local data'
       desc='Generate timestamp proofs from local files, poll proof status, export proof payloads, and verify JSON proof files.'
       action={
-        <button
-          type='button'
-          className='section-action-button'
+        <IconButton
+          variant='primary'
           onClick={() => setConfigOpen(true)}
         >
           <SettingsIcon size={20} />
-        </button>
+        </IconButton>
       }
     >
       {configOpen && (

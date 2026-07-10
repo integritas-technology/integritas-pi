@@ -1,5 +1,7 @@
 import { ExternalLink } from 'lucide-react';
 import type { IntegritasConfig } from '../../app/types';
+import { Button } from '../../components/Button';
+import { ButtonRow } from '../../components/ButtonRow';
 import { StatusBadge } from '../../components/StatusBadge';
 import type { IntegritasApiKeyCheck } from './integritasTypes';
 
@@ -116,29 +118,30 @@ export function IntegritasRuntimeConfig({
           type='password'
           autoComplete='off'
         />
-        <div className='button-row'>
-          <button
+        <ButtonRow>
+          <Button
             type='button'
             disabled={busy || keyCheckBusy || !hasApiKey}
             onClick={onCheckKey}
           >
             Check key
-          </button>
-          <button
+          </Button>
+          <Button
             type='button'
             disabled={busy || !apiKeyInput}
             onClick={onSave}
           >
             Save API key
-          </button>
-          <button
+          </Button>
+          <Button
             type='button'
+            variant='secondary'
             disabled={busy || !hasApiKey}
             onClick={onClear}
           >
             Clear stored key
-          </button>
-        </div>
+          </Button>
+        </ButtonRow>
       </div>
     </section>
   );

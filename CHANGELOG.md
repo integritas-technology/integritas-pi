@@ -9,6 +9,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - Frontend styling guidance now targets Tailwind-only component and page styling after the dedicated migration, with plain CSS reserved for root/body/base global rules.
+- Shared frontend button, text, tab, status-row, and table helpers now use Tailwind utilities, with setup, diagnostics, runtime config, and read-history surfaces migrated off their old global CSS selectors.
+- Proof history and read history now share the workflow-style table shell and row styling, moving history/list tables toward reusable Tailwind primitives.
 
 ## [0.14.1] - 2026-07-10
 

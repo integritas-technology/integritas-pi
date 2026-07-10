@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Check, CheckCircle2, Copy, Eye, EyeOff, RotateCcw, ShieldAlert } from "lucide-react";
+import { Button } from "../components/Button";
+import { ButtonRow } from "../components/ButtonRow";
 import { Card } from "../components/Card";
 import { Page } from "../components/Page";
+import { ErrorText } from "../components/Text";
 import { changePassword, initTotpReset, verifyTotpReset } from "../features/auth/api";
 
 type TotpResetPhase = "idle" | "scan" | "done";
@@ -162,15 +165,15 @@ export function AuthSettingsPage() {
               maxLength={6}
             />
           </label>
-          {pwError && <p className="error-text" style={{ margin: 0 }}>{pwError}</p>}
-          <div className="button-row">
-            <button
+          {pwError && <ErrorText className="m-0">{pwError}</ErrorText>}
+          <ButtonRow>
+            <Button
               type="submit"
               disabled={pwSubmitting || !currentPassword || newPassword.length < 8 || pwTotpToken.length !== 6}
             >
               {pwSubmitting ? "Updating…" : "Change password"}
-            </button>
-          </div>
+            </Button>
+          </ButtonRow>
         </form>
       </Card>
 
@@ -211,15 +214,15 @@ export function AuthSettingsPage() {
                 maxLength={6}
               />
             </label>
-            {resetError && <p className="error-text" style={{ margin: 0 }}>{resetError}</p>}
-            <div className="button-row">
-              <button
+            {resetError && <ErrorText className="m-0">{resetError}</ErrorText>}
+            <ButtonRow>
+              <Button
                 type="submit"
                 disabled={resetSubmitting || !resetCurrentPassword || resetCurrentToken.length !== 6}
               >
                 {resetSubmitting ? "Verifying…" : "Start 2FA reset"}
-              </button>
-            </div>
+              </Button>
+            </ButtonRow>
           </form>
         )}
 
@@ -280,12 +283,12 @@ export function AuthSettingsPage() {
                   maxLength={6}
                 />
               </label>
-              {verifyError && <p className="error-text" style={{ margin: 0 }}>{verifyError}</p>}
-              <div className="button-row">
-                <button type="submit" disabled={verifySubmitting || verifyCode.length !== 6}>
+              {verifyError && <ErrorText className="m-0">{verifyError}</ErrorText>}
+              <ButtonRow>
+                <Button type="submit" disabled={verifySubmitting || verifyCode.length !== 6}>
                   {verifySubmitting ? "Verifying…" : "Confirm new 2FA"}
-                </button>
-              </div>
+                </Button>
+              </ButtonRow>
             </form>
           </div>
         )}
@@ -298,11 +301,11 @@ export function AuthSettingsPage() {
                 Two-factor authentication has been reset. Your authenticator app is now linked to the new secret.
               </p>
             </div>
-            <div className="button-row">
-              <button type="button" onClick={resetTotpFlow} className="flex items-center gap-1.5">
+            <ButtonRow>
+              <Button type="button" onClick={resetTotpFlow}>
                 <RotateCcw size={14} /> Reset again
-              </button>
-            </div>
+              </Button>
+            </ButtonRow>
           </div>
         )}
       </Card>

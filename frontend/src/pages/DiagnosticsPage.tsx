@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Button } from '../components/Button';
+import { Card } from '../components/Card';
 import { ListPagerFilterBar } from '../components/ListPagerFilterBar';
 import { Page } from '../components/Page';
+import { StatusRow } from '../components/StatusRow';
+import { SubTabs } from '../components/SubTabs';
+import { ErrorText, MutedText } from '../components/Text';
 import { useToast } from '../components/ToastProvider';
 import { listAutomationRuns } from '../features/automation/automationApi';
 import { AutomationRunsTable } from '../features/automation/AutomationRunsTable';
@@ -204,35 +209,16 @@ export function DiagnosticsPage() {
       title="Operational history"
       desc="Inspect stored proof requests and data-source read logs from one diagnostics workspace."
     >
-      <div className="subtabs" role="tablist" aria-label="Diagnostics history">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'proofs'}
-          className={activeTab === 'proofs' ? 'active' : ''}
-          onClick={() => selectTab('proofs')}
-        >
-          Proof history
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'reads'}
-          className={activeTab === 'reads' ? 'active' : ''}
-          onClick={() => selectTab('reads')}
-        >
-          Read history
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'workflow-runs'}
-          className={activeTab === 'workflow-runs' ? 'active' : ''}
-          onClick={() => selectTab('workflow-runs')}
-        >
-          Workflow logs
-        </button>
-      </div>
+      <SubTabs
+        label="Diagnostics history"
+        value={activeTab}
+        options={[
+          { value: 'proofs', label: 'Proof history' },
+          { value: 'reads', label: 'Read history' },
+          { value: 'workflow-runs', label: 'Workflow logs' },
+        ]}
+        onChange={selectTab}
+      />
 
       {activeTab !== 'workflow-runs' && (
         <ListPagerFilterBar
@@ -271,21 +257,21 @@ export function DiagnosticsPage() {
       ) : activeTab === 'reads' ? (
         <DataReadsHistoryTable items={readsPage.items} filtered={listFiltered} />
       ) : (
-        <section className="card">
-          <div className="status-row">
+        <Card>
+          <StatusRow>
             <div>
               <strong>Workflow logs</strong>
-              <p className="muted">Recent automated and manual workflow runs across all workflows.</p>
+              <MutedText className="m-0 mt-1">Recent automated and manual workflow runs across all workflows.</MutedText>
             </div>
-            <button type="button" disabled={busy} onClick={() => void handleRefreshWorkflowRuns()}>
+            <Button type="button" disabled={busy} onClick={() => void handleRefreshWorkflowRuns()}>
               Refresh
-            </button>
-          </div>
+            </Button>
+          </StatusRow>
           <AutomationRunsTable runs={workflowRuns} />
-        </section>
+        </Card>
       )}
 
-      {error && <p className="error-text">{error}</p>}
+      {error && <ErrorText>{error}</ErrorText>}
     </Page>
   );
 }

@@ -1,4 +1,6 @@
 import type { MinimaConfig, MinimaPeersResponse } from "../../app/types";
+import { Button } from "../../components/Button";
+import { ButtonRow } from "../../components/ButtonRow";
 
 const sectionTitleClass = "m-0 text-sm font-semibold text-slate-900";
 
@@ -60,11 +62,11 @@ export function MinimaRuntimeConfig({
           placeholder="megammr.minima.global:9001"
           aria-label="Megammr host"
         />
-        <div className="button-row">
-          <button type="button" disabled={busy || !megammrHostInput.trim()} onClick={onSave}>
+        <ButtonRow>
+          <Button type="button" disabled={busy || !megammrHostInput.trim()} onClick={onSave}>
             Save configuration
-          </button>
-        </div>
+          </Button>
+        </ButtonRow>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -80,11 +82,11 @@ export function MinimaRuntimeConfig({
             placeholder="host:port or host:port,host:port"
             aria-label="Peer address"
           />
-          <div className="button-row">
-            <button type="button" disabled={busy || !peerslistInput.trim()} onClick={onAddPeers}>
+          <ButtonRow>
+            <Button type="button" disabled={busy || !peerslistInput.trim()} onClick={onAddPeers}>
               Add peers
-            </button>
-          </div>
+            </Button>
+          </ButtonRow>
         </div>
 
         {peerItems.length > 0 ? (

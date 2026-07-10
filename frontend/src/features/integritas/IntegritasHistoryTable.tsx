@@ -1,5 +1,19 @@
 import { RefreshCcwIcon } from 'lucide-react';
+import { Button } from '../../components/Button';
+import { ButtonRow } from '../../components/ButtonRow';
+import {
+  DataTable,
+  EmptyTableState,
+  RowActions,
+  TableCard,
+  TableWrap,
+  tableCellClass,
+  tableHeaderCellClass,
+  tableHeadRowClass,
+  tableRowClass,
+} from '../../components/DataTable';
 import { JsonPreview } from '../../components/JsonPreview';
+import { Pill } from '../../components/Pill';
 import type { IntegritasProofRecord } from './integritasTypes';
 
 export function IntegritasHistoryTable({
@@ -26,99 +40,102 @@ export function IntegritasHistoryTable({
   busy: boolean;
 }) {
   return (
-    <section className='card history-card'>
-      <div className='status-row'>
-        <div>
-          <strong>Proof history</strong>
-          <p className='muted'>
-            Stored timestamp proof requests and status responses. Pending rows
-            update automatically; use refresh to check Integritas now.
-          </p>
-        </div>
-        <div className='button-row'>
-          <button
-            className='flex items-center gap-2'
+    <TableCard
+      title='Proof history'
+      description='Stored timestamp proof requests and status responses. Pending rows update automatically; use refresh to check Integritas now.'
+      actions={
+        <ButtonRow>
+          <Button
             type='button'
             disabled={busy || pendingTotal === 0}
             onClick={onRefreshPending}
           >
             <RefreshCcwIcon size={20} />
             <span className='text-sm font-medium'>({pendingTotal})</span>
-          </button>
+          </Button>
           {selectedIds.length > 0 && (
             <>
-              <button
+              <Button
                 type='button'
                 disabled={busy}
                 onClick={onDownloadSelected}
               >
                 Download all selected
-              </button>
-              <button type='button' disabled={busy} onClick={onDeleteSelected}>
+              </Button>
+              <Button type='button' variant='danger' disabled={busy} onClick={onDeleteSelected}>
                 Delete all selected
-              </button>
+              </Button>
             </>
           )}
-        </div>
-      </div>
-      <div className='table-wrap'>
-        <table>
+        </ButtonRow>
+      }
+    >
+      <TableWrap>
+        <DataTable>
           <thead>
-            <tr>
-              <th>Select</th>
-              <th>Timestamp</th>
-              <th>UID</th>
-              <th>Data hash</th>
-              <th>Status</th>
-              <th>Proof payload JSON</th>
-              <th>Actions</th>
+            <tr className={tableHeadRowClass}>
+              <th className={tableHeaderCellClass}>Select</th>
+              <th className={tableHeaderCellClass}>Timestamp</th>
+              <th className={tableHeaderCellClass}>UID</th>
+              <th className={tableHeaderCellClass}>Data hash</th>
+              <th className={tableHeaderCellClass}>Status</th>
+              <th className={tableHeaderCellClass}>Proof payload JSON</th>
+              <th className={tableHeaderCellClass}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {records.map((record) => {
               const hasPayload = Boolean(record.proof_payload);
               return (
-                <tr key={record.id}>
-                  <td>
+                <tr key={record.id} className={tableRowClass}>
+                  <td className={tableCellClass}>
                     <input
+                      className='size-4 rounded border-slate-300'
                       type='checkbox'
                       checked={selectedIds.includes(record.id)}
                       onChange={() => onToggle(record.id)}
                     />
                   </td>
-                  <td>{record.created_at}</td>
-                  <td>{record.proof_uid ?? ''}</td>
-                  <td>
+                  <td className={tableCellClass}>{record.created_at}</td>
+                  <td className={tableCellClass}>{record.proof_uid ?? ''}</td>
+                  <td className={tableCellClass}>
                     <code>{record.hash}</code>
                   </td>
-                  <td>{record.proof_status}</td>
-                  <td>
+                  <td className={tableCellClass}><ProofStatusPill status={record.proof_status} /></td>
+                  <td className={tableCellClass}>
                     {hasPayload ? (
                       <JsonPreview value={JSON.parse(record.proof_payload!)} />
                     ) : (
-                      <span className='muted'>Not ready</span>
+                      <span className='text-slate-500'>Not ready</span>
                     )}
                   </td>
-                  <td>
-                    <div className='row-actions'>
-                      <button
+                  <td className={tableCellClass}>
+                    <RowActions>
+                      <Button
                         type='button'
+                        variant='secondary'
                         disabled={busy || !hasPayload}
                         onClick={() => onVerify(record)}
                       >
                         Verify
-                      </button>
-                    </div>
+                      </Button>
+                    </RowActions>
                   </td>
                 </tr>
               );
             })}
           </tbody>
-        </table>
-      </div>
+        </DataTable>
+      </TableWrap>
       {records.length === 0 && (
-        <p className='muted'>{filtered ? 'No matching proof history.' : 'No proof history yet.'}</p>
+        <EmptyTableState>{filtered ? 'No matching proof history.' : 'No proof history yet.'}</EmptyTableState>
       )}
-    </section>
+    </TableCard>
   );
+}
+
+function ProofStatusPill({ status }: { status: string | null }) {
+  const normalized = status ?? 'unknown';
+  const tone = normalized === 'completed' || normalized === 'confirmed' || normalized === 'success' || normalized === 'on-chain' ? 'good' : normalized === 'failed' || normalized === 'error' ? 'warn' : 'neutral';
+  return <Pill tone={tone}>{normalized}</Pill>;
 }

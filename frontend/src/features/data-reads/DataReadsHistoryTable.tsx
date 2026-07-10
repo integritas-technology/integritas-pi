@@ -1,4 +1,7 @@
+import { DataTable, EmptyTableState, TableCard, TableWrap, tableCellClass, tableHeaderCellClass, tableHeadRowClass, tableRowClass } from "../../components/DataTable";
 import { JsonPreview } from "../../components/JsonPreview";
+import { Pill } from "../../components/Pill";
+import { ErrorText, MutedText } from "../../components/Text";
 import { formatLocalTime, formatUtcTime } from "../../lib/time";
 import type { DataSourceRead } from "./dataReadTypes";
 
@@ -10,38 +13,37 @@ export function DataReadsHistoryTable({
   filtered?: boolean;
 }) {
   return (
-    <section className="card data-read-list">
-      <div><strong>Read history</strong></div>
-      <div className="table-wrap">
-        <table>
-          <thead><tr><th>Read time</th><th>Source</th><th>Trigger</th><th>Status</th><th>Hash</th><th>Integritas proof</th><th>Preview / error</th></tr></thead>
+    <TableCard title="Read history">
+      <TableWrap>
+        <DataTable>
+          <thead><tr className={tableHeadRowClass}><th className={tableHeaderCellClass}>Read time</th><th className={tableHeaderCellClass}>Source</th><th className={tableHeaderCellClass}>Trigger</th><th className={tableHeaderCellClass}>Status</th><th className={tableHeaderCellClass}>Hash</th><th className={tableHeaderCellClass}>Integritas proof</th><th className={tableHeaderCellClass}>Preview / error</th></tr></thead>
           <tbody>
             {items.map((item) => (
-              <tr key={item.id}>
-                <td><TimeStack value={item.createdAt} /></td>
-                <td><strong>{item.sourceName}</strong><p className="muted"><code>{item.sourceUrl}</code></p></td>
-                <td><span className="pill pill-neutral">{item.triggerType}</span></td>
-                <td>{item.status === "success" ? <span className="pill pill-good">Success</span> : <span className="pill pill-warn">Failed</span>}</td>
-                <td>{item.hash ? <code>{item.hash}</code> : <span className="muted">No hash</span>}</td>
-                <td>{item.integritasProofId ? <code>{item.integritasProofId}</code> : <span className="muted">No proof</span>}</td>
-                <td>{item.preview ? <JsonPreview value={item.preview} /> : item.error ? <p className="error-text">{item.error}</p> : <span className="muted">No data</span>}</td>
+              <tr key={item.id} className={tableRowClass}>
+                <td className={tableCellClass}><TimeStack value={item.createdAt} /></td>
+                <td className={tableCellClass}><strong>{item.sourceName}</strong><MutedText className="m-0"><code>{item.sourceUrl}</code></MutedText></td>
+                <td className={tableCellClass}><Pill>{item.triggerType}</Pill></td>
+                <td className={tableCellClass}>{item.status === "success" ? <Pill tone="good">Success</Pill> : <Pill tone="warn">Failed</Pill>}</td>
+                <td className={tableCellClass}>{item.hash ? <code>{item.hash}</code> : <span className="text-slate-500">No hash</span>}</td>
+                <td className={tableCellClass}>{item.integritasProofId ? <code>{item.integritasProofId}</code> : <span className="text-slate-500">No proof</span>}</td>
+                <td className={tableCellClass}>{item.preview ? <JsonPreview value={item.preview} /> : item.error ? <ErrorText className="m-0">{item.error}</ErrorText> : <span className="text-slate-500">No data</span>}</td>
               </tr>
             ))}
           </tbody>
-        </table>
-      </div>
+        </DataTable>
+      </TableWrap>
       {items.length === 0 && (
-        <p className="muted">{filtered ? 'No matching read history.' : 'No reads recorded yet.'}</p>
+        <EmptyTableState>{filtered ? 'No matching read history.' : 'No reads recorded yet.'}</EmptyTableState>
       )}
-    </section>
+    </TableCard>
   );
 }
 
 function TimeStack({ value }: { value: string }) {
   return (
-    <div className="time-stack">
-      <strong>{formatLocalTime(value)} local</strong>
-      <span>UTC: {formatUtcTime(value)}</span>
+    <div className="grid gap-0.5">
+      <strong className="font-mono text-sm text-slate-950">{formatLocalTime(value)} local</strong>
+      <span className="text-xs font-bold uppercase tracking-wide text-slate-500">UTC: {formatUtcTime(value)}</span>
     </div>
   );
 }
