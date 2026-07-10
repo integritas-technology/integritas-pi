@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { BookUser, ChevronLeft, ChevronRight, Settings } from 'lucide-react';
+import { Button, IconButton } from '../components/Button';
 import { Card } from '../components/Card';
 import { CopyableCode } from '../components/CopyableCode';
 import { MinimaIcon } from '../components/MinimaIcon';
 import { Modal } from '../components/Modal';
 import { Page } from '../components/Page';
+import { SubTabs } from '../components/SubTabs';
+import { ErrorText, Eyebrow, MutedText } from '../components/Text';
 import { useToast } from '../components/ToastProvider';
 import {
   createToken as createTokenApi,
@@ -185,63 +188,64 @@ export function WalletPage() {
       desc='Node wallet balance and transaction history.'
       action={
         <div className='flex items-center gap-1'>
-          <button
-            type='button'
-            className='section-action-button'
+          <IconButton
+            variant='primary'
             onClick={() => setAddressBookOpen(true)}
             aria-label='Address book'
           >
             <BookUser size={20} />
-          </button>
-          <button
-            type='button'
-            className='section-action-button'
+          </IconButton>
+          <IconButton
+            variant='primary'
             onClick={() => setSettingsOpen(true)}
             aria-label='Wallet settings'
           >
             <Settings size={20} />
-          </button>
+          </IconButton>
         </div>
       }
     >
-      <div className='hero-card wallet-balance-card'>
-        <div className='wallet-hero-top'>
-          <div className='wallet-hero-header'>
-            <div className='wallet-hero-icon'>
+      <div className='relative grid gap-6 overflow-hidden rounded-[28px] border border-slate-800 bg-slate-950 p-6 text-white before:absolute before:-right-10 before:-top-20 before:size-[260px] before:rounded-full before:bg-cyan-400 before:opacity-30 before:blur-[64px] after:absolute after:-bottom-28 after:right-40 after:size-[260px] after:rounded-full after:bg-violet-400 after:opacity-30 after:blur-[64px] lg:p-8'>
+        <div className='relative z-10 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
+          <div className='flex items-center gap-3'>
+            <div className='grid size-[38px] place-items-center rounded-[14px] bg-white/10'>
               <MinimaIcon size={18} />
             </div>
-            <p className='eyebrow'>Node wallet</p>
+            <Eyebrow className='text-slate-400'>Node wallet</Eyebrow>
           </div>
-          <div className='wallet-hero-actions'>
-            <button
+          <div className='flex flex-wrap justify-start gap-2 sm:justify-end'>
+            <Button
               type='button'
-              className='wallet-action-btn wallet-action-btn-ghost'
+              variant='secondary'
+              className='border-transparent bg-white/10 text-slate-200 hover:bg-white/20'
               onClick={() => setReceiveOpen(true)}
             >
               Receive payment
-            </button>
-            <button
+            </Button>
+            <Button
               type='button'
-              className='wallet-action-btn wallet-action-btn-ghost'
+              variant='secondary'
+              className='border-transparent bg-white/10 text-slate-200 hover:bg-white/20'
               onClick={() => setSendOpen(true)}
             >
               Send payment
-            </button>
-            <button
+            </Button>
+            <Button
               type='button'
-              className='wallet-action-btn wallet-action-btn-ghost'
+              variant='secondary'
+              className='border-transparent bg-white/10 text-slate-200 hover:bg-white/20'
               onClick={() => setCreateTokenOpen(true)}
             >
               Create token
-            </button>
+            </Button>
           </div>
         </div>
-        <div>
-          <p className='wallet-amount-label'>Total sendable MINIMA</p>
-          <div className='wallet-amount-row'>
-            <MinimaIcon size={36} className='wallet-amount-icon' />
+        <div className='relative z-10'>
+          <p className='m-0 text-xs font-extrabold uppercase tracking-[0.12em] text-slate-400'>Total sendable MINIMA</p>
+          <div className='mt-2 flex min-w-0 items-start gap-4 text-[clamp(2.5rem,6vw,3.5rem)]'>
+            <MinimaIcon size={36} className='mt-[calc((1.1em-36px)/2)] shrink-0 opacity-55' />
             <span
-              className='wallet-amount-number'
+              className='min-w-0 break-all text-[clamp(2.5rem,6vw,3.5rem)] font-bold leading-[1.1] tracking-[-0.04em]'
               title={loading ? undefined : totalMinima}
             >
               {loading ? '…' : formatAmountThreshold(totalMinima)}
@@ -250,32 +254,18 @@ export function WalletPage() {
         </div>
       </div>
 
-      <div className='subtabs' role='tablist' aria-label='Wallet sections'>
-        <button
-          type='button'
-          role='tab'
-          aria-selected={mainTab === 'assets'}
-          className={mainTab === 'assets' ? 'active' : ''}
-          onClick={() => setMainTab('assets')}
-        >
-          Assets
-        </button>
-        <button
-          type='button'
-          role='tab'
-          aria-selected={mainTab === 'history'}
-          className={mainTab === 'history' ? 'active' : ''}
-          onClick={() => setMainTab('history')}
-        >
-          History
-        </button>
-      </div>
+      <SubTabs
+        label='Wallet sections'
+        value={mainTab}
+        options={[{ value: 'assets', label: 'Assets' }, { value: 'history', label: 'History' }]}
+        onChange={setMainTab}
+      />
 
       <Card>
         {mainTab === 'assets' ? (
           <>
             <div className='flex items-center justify-between gap-3 mb-4'>
-              <p className='eyebrow'>Assets</p>
+              <Eyebrow>Assets</Eyebrow>
               <div className='flex gap-1 rounded-lg bg-slate-100 p-0.5'>
                 {(['all', 'minima', 'tokens'] as const).map((tab) => (
                   <button
@@ -293,13 +283,13 @@ export function WalletPage() {
                 ))}
               </div>
             </div>
-            {loading && <p className='muted'>Loading…</p>}
+            {loading && <MutedText>Loading…</MutedText>}
             {!loading && visibleAssets.length === 0 && (
-              <p className='muted'>
+              <MutedText>
                 {assetTab === 'tokens'
                   ? 'No custom tokens in wallet.'
                   : 'No assets found.'}
-              </p>
+              </MutedText>
             )}
             <div className='divide-y divide-slate-100'>
               {visibleAssets.map((token) => (
@@ -331,23 +321,24 @@ export function WalletPage() {
         ) : (
           <>
             <div className='flex items-center justify-between gap-3 mb-4'>
-              <p className='eyebrow'>History</p>
+              <Eyebrow>History</Eyebrow>
               <div className='flex items-center gap-3'>
                 <p className='text-xs text-slate-500'>Sent</p>
-                <button
+                <Button
                   type='button'
-                  className='btn btn-secondary'
+                  variant='secondary'
+                  className='rounded-xl px-3 py-2 text-xs'
                   onClick={refresh}
                   disabled={loading}
                 >
                   Refresh
-                </button>
+                </Button>
               </div>
             </div>
-            {loading && <p className='muted'>Loading…</p>}
-            {error && <p className='error-text'>{error}</p>}
+            {loading && <MutedText>Loading…</MutedText>}
+            {error && <ErrorText>{error}</ErrorText>}
             {!loading && !error && sendHistory.length === 0 && (
-              <p className='muted'>No send activity yet.</p>
+              <MutedText>No send activity yet.</MutedText>
             )}
             <div className='grid gap-2'>
               {sendHistory.map((entry) => (
@@ -379,15 +370,15 @@ export function WalletPage() {
             </div>
             {isDev && (
               <div className='mt-4 flex justify-start'>
-                <button
+                <Button
                   type='button'
-                  className='btn btn-secondary'
+                  variant='secondary'
                   onClick={handleDebugClearWalletHistory}
                   disabled={debugClearingHistory}
                   title='Dev-only: clears wallet_send_history table'
                 >
                   {debugClearingHistory ? 'Clearing…' : 'Debug: clear history'}
-                </button>
+                </Button>
               </div>
             )}
           </>
@@ -637,7 +628,7 @@ function ReceiveAddressModal({ onClose }: { onClose: () => void }) {
           Share an address below to receive MINIMA or tokens. All addresses
           belong to this wallet.
         </p>
-        {loading && <p className='muted'>Fetching address…</p>}
+        {loading && <MutedText>Fetching address…</MutedText>}
         {error && (
           <div className='rounded-xl bg-red-50 border border-red-200 p-3'>
             <p className='text-sm text-red-700'>{error}</p>

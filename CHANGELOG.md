@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Automation workflow and run-history tables now use the shared table primitives while preserving the workflow list/log visual style.
 - Removed the unused frontend file explorer panel and its orphaned file-list CSS selectors.
 - Device form and template cards now use Tailwind/shared UI helpers instead of data-source-specific global CSS selectors.
+- Wallet page actions, tabs, hero balance card, and empty/error text now use Tailwind/shared UI helpers instead of wallet-specific global CSS selectors.
 
 ## [0.14.1] - 2026-07-10
 
