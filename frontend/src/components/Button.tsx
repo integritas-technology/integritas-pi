@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cx } from "../lib/cx";
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "onDark";
 type ButtonSize = "md" | "sm" | "xs";
 type IconButtonSize = "md" | "sm" | "xs";
 
@@ -10,6 +10,7 @@ const variantClass: Record<ButtonVariant, string> = {
   secondary: "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
   ghost: "border-transparent bg-slate-100 text-slate-700 hover:bg-slate-200",
   danger: "border-transparent bg-red-600 text-white hover:bg-red-700",
+  onDark: "border-white/10 bg-white/15 text-white hover:bg-white/25",
 };
 
 const sizeClass: Record<ButtonSize, string> = {

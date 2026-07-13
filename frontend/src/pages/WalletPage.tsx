@@ -3,6 +3,7 @@ import { BookUser, ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import { Button, IconButton } from '../components/Button';
 import { Card } from '../components/Card';
 import { CopyableCode } from '../components/CopyableCode';
+import { DarkHeroCard } from '../components/DarkHeroCard';
 import { MinimaIcon } from '../components/MinimaIcon';
 import { Modal } from '../components/Modal';
 import { Page } from '../components/Page';
@@ -104,6 +105,56 @@ function TokenGlyph({ isNative }: { isNative: boolean }) {
 
 const walletListClass = 'grid gap-2';
 const walletListRowClass = 'w-full rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-slate-400 hover:bg-slate-50';
+
+function WalletHero({
+  loading,
+  totalMinima,
+  onReceive,
+  onSend,
+  onCreateToken,
+}: {
+  loading: boolean;
+  totalMinima: string;
+  onReceive: () => void;
+  onSend: () => void;
+  onCreateToken: () => void;
+}) {
+  return (
+    <DarkHeroCard>
+      <div className='relative z-10 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
+        <div className='flex items-center gap-3'>
+          <div className='grid size-[38px] place-items-center rounded-[14px] bg-white/10'>
+            <MinimaIcon size={18} />
+          </div>
+          <Eyebrow className='text-slate-400'>Node wallet</Eyebrow>
+        </div>
+        <div className='flex flex-wrap justify-start gap-2 sm:justify-end'>
+          <Button type='button' variant='onDark' onClick={onReceive}>
+            Receive payment
+          </Button>
+          <Button type='button' variant='onDark' onClick={onSend}>
+            Send payment
+          </Button>
+          <Button type='button' variant='onDark' onClick={onCreateToken}>
+            Create token
+          </Button>
+        </div>
+      </div>
+      <div className='relative z-10'>
+        <p className='m-0 text-xs font-extrabold uppercase tracking-[0.12em] text-slate-400'>Total sendable MINIMA</p>
+        <div className='mt-2 flex min-w-0 items-start gap-4 text-[clamp(2.5rem,6vw,3.5rem)]'>
+          <MinimaIcon size={36} className='mt-[calc((1.1em-36px)/2)] shrink-0 opacity-55' />
+          <span
+            className='min-w-0 break-all text-[clamp(2.5rem,6vw,3.5rem)] font-bold leading-[1.1] tracking-[-0.04em]'
+            title={loading ? undefined : totalMinima}
+          >
+            {loading ? '…' : formatAmountThreshold(totalMinima)}
+          </span>
+        </div>
+      </div>
+    </DarkHeroCard>
+  );
+}
 
 export function WalletPage() {
   const { showToast } = useToast();
@@ -208,54 +259,13 @@ export function WalletPage() {
         </div>
       }
     >
-      <div className='relative grid gap-6 overflow-hidden rounded-[28px] border border-slate-800 bg-slate-950 p-6 text-white before:absolute before:-right-10 before:-top-20 before:size-[260px] before:rounded-full before:bg-cyan-400 before:opacity-30 before:blur-[64px] after:absolute after:-bottom-28 after:right-40 after:size-[260px] after:rounded-full after:bg-violet-400 after:opacity-30 after:blur-[64px] lg:p-8'>
-        <div className='relative z-10 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
-          <div className='flex items-center gap-3'>
-            <div className='grid size-[38px] place-items-center rounded-[14px] bg-white/10'>
-              <MinimaIcon size={18} />
-            </div>
-            <Eyebrow className='text-slate-400'>Node wallet</Eyebrow>
-          </div>
-          <div className='flex flex-wrap justify-start gap-2 sm:justify-end'>
-            <Button
-              type='button'
-              variant='secondary'
-              className='border-transparent bg-white/10 text-slate-200 hover:bg-white/20'
-              onClick={() => setReceiveOpen(true)}
-            >
-              Receive payment
-            </Button>
-            <Button
-              type='button'
-              variant='secondary'
-              className='border-transparent bg-white/10 text-slate-200 hover:bg-white/20'
-              onClick={() => setSendOpen(true)}
-            >
-              Send payment
-            </Button>
-            <Button
-              type='button'
-              variant='secondary'
-              className='border-transparent bg-white/10 text-slate-200 hover:bg-white/20'
-              onClick={() => setCreateTokenOpen(true)}
-            >
-              Create token
-            </Button>
-          </div>
-        </div>
-        <div className='relative z-10'>
-          <p className='m-0 text-xs font-extrabold uppercase tracking-[0.12em] text-slate-400'>Total sendable MINIMA</p>
-          <div className='mt-2 flex min-w-0 items-start gap-4 text-[clamp(2.5rem,6vw,3.5rem)]'>
-            <MinimaIcon size={36} className='mt-[calc((1.1em-36px)/2)] shrink-0 opacity-55' />
-            <span
-              className='min-w-0 break-all text-[clamp(2.5rem,6vw,3.5rem)] font-bold leading-[1.1] tracking-[-0.04em]'
-              title={loading ? undefined : totalMinima}
-            >
-              {loading ? '…' : formatAmountThreshold(totalMinima)}
-            </span>
-          </div>
-        </div>
-      </div>
+      <WalletHero
+        loading={loading}
+        totalMinima={totalMinima}
+        onReceive={() => setReceiveOpen(true)}
+        onSend={() => setSendOpen(true)}
+        onCreateToken={() => setCreateTokenOpen(true)}
+      />
 
       <SubTabs
         label='Wallet sections'

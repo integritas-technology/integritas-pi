@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { DarkHeroCard } from '../components/DarkHeroCard';
 import { Page } from '../components/Page';
 import { Pill } from '../components/Pill';
 import { ErrorText, Eyebrow, MutedText } from '../components/Text';
@@ -149,7 +150,7 @@ export function DashboardPage() {
       title='Minima Edge Workbench'
       desc='A browser-first workspace for trusted data, proofs, automation, and value flows at the edge.'
     >
-      <section className='relative grid items-start gap-6 overflow-hidden rounded-[28px] border border-slate-800 bg-slate-950 p-6 text-white before:absolute before:-right-10 before:-top-20 before:size-[260px] before:rounded-full before:bg-cyan-400 before:opacity-30 before:blur-[64px] after:absolute after:-bottom-28 after:right-40 after:size-[260px] after:rounded-full after:bg-violet-400 after:opacity-30 after:blur-[64px] lg:grid-cols-[1.35fr_0.65fr] lg:p-8'>
+      <DarkHeroCard className='items-start lg:grid-cols-[1.35fr_0.65fr]'>
         <div className='relative z-10 grid content-start gap-[18px]'>
           <div className='flex flex-wrap gap-2'>
             <Pill>Pi Edition</Pill>
@@ -186,7 +187,7 @@ export function DashboardPage() {
             </article>
           ))}
         </div>
-      </section>
+      </DarkHeroCard>
 
       {deviceStatus && (
         <DeviceStatusCard status={deviceStatus} walletBalance={walletBalance} />
