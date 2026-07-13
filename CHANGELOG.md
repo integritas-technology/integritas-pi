@@ -19,6 +19,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Dashboard hero, build-flow, activity, and status sections now use Tailwind/shared UI helpers instead of dashboard-specific global CSS selectors.
 - Integritas upload panels, file drop zones, runtime key panel, and stamp-result modal now use Tailwind/shared UI helpers instead of Integritas-specific global CSS selectors.
 - Minima runtime/health panels and Automation checkbox rows now use Tailwind/shared UI helpers instead of the old `api-key-box`, `check-row`, and `error-text` hooks.
+- Address book modal copy, empty/error, and inline form actions now use Tailwind/shared UI helpers instead of legacy global text/button hooks.
+- Account settings forms now use Tailwind utilities instead of the legacy `form-card` global selector.
+- Minima stat panels now use the shared card component, allowing old shared global selectors like `card`, `row-actions`, `selected-row`, and `json-preview` to be removed.
+- Login screen styling now uses Tailwind utilities directly, removing the standalone `login.css` component layer.
+- First-time onboarding styling now uses Tailwind utilities directly, removing the standalone `onboarding.css` component layer and final `error-text` global hook.
+- Frontend design-system conventions are now documented with styling boundaries, shared component guidance, and when to use local Tailwind class constants.
+- Shared buttons now support compact sizes, and Automation workspace actions now use the shared button variants instead of raw browser buttons.
 
 ## [0.14.1] - 2026-07-10
 

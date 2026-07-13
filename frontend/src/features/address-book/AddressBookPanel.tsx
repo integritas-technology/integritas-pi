@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Check, Copy, Pencil, Trash2 } from 'lucide-react';
+import { Button } from '../../components/Button';
 import { Modal } from '../../components/Modal';
+import { ErrorText, MutedText } from '../../components/Text';
 import { useToast } from '../../components/ToastProvider';
 import {
   createAddressBookEntry,
@@ -76,8 +78,8 @@ export function AddressBookModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal title='Address book' onClose={onClose}>
-      {loading && <p className='muted'>Loading…</p>}
-      {error && <p className='error-text'>{error}</p>}
+      {loading && <MutedText>Loading…</MutedText>}
+      {error && <ErrorText>{error}</ErrorText>}
 
       {addOpen && (
         <AddContactForm
@@ -92,7 +94,7 @@ export function AddressBookModal({ onClose }: { onClose: () => void }) {
       )}
 
       {!loading && !error && entries.length === 0 && !addOpen && (
-        <p className='muted'>No contacts saved yet.</p>
+        <MutedText>No contacts saved yet.</MutedText>
       )}
 
       {entries.length > 0 && (
@@ -150,9 +152,10 @@ export function AddressBookModal({ onClose }: { onClose: () => void }) {
 
       {!addOpen && (
         <div className='mt-4'>
-          <button
+          <Button
             type='button'
-            className='btn btn-secondary w-full'
+            variant='secondary'
+            className='w-full'
             onClick={() => {
               setAddOpen(true);
               setEditingId(null);
@@ -160,7 +163,7 @@ export function AddressBookModal({ onClose }: { onClose: () => void }) {
             }}
           >
             Add contact
-          </button>
+          </Button>
         </div>
       )}
     </Modal>
@@ -327,21 +330,20 @@ function AddContactForm({
         </div>
       )}
       <div className='flex gap-2 justify-end'>
-        <button
+        <Button
           type='button'
-          className='btn btn-secondary'
+          variant='secondary'
           onClick={onCancel}
           disabled={submitting}
         >
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
           type='submit'
           disabled={submitting}
-          className='rounded-xl border-0 bg-slate-950 px-4 py-2 text-sm font-bold text-white disabled:opacity-50'
         >
           {submitting ? 'Saving…' : 'Add contact'}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -423,21 +425,20 @@ function EditContactForm({
         </div>
       )}
       <div className='flex gap-2 justify-end'>
-        <button
+        <Button
           type='button'
-          className='btn btn-secondary'
+          variant='secondary'
           onClick={onCancel}
           disabled={submitting}
         >
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
           type='submit'
           disabled={submitting}
-          className='rounded-xl border-0 bg-slate-950 px-4 py-2 text-sm font-bold text-white disabled:opacity-50'
         >
           {submitting ? 'Saving…' : 'Save changes'}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -458,16 +459,16 @@ function DeleteConfirm({
         Delete <span className='font-semibold'>{entry.label}</span>?
       </p>
       <div className='flex gap-2 shrink-0'>
-        <button type='button' className='btn btn-secondary' onClick={onCancel}>
+        <Button type='button' variant='secondary' onClick={onCancel}>
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
           type='button'
-          className='rounded-xl border-0 bg-red-600 px-3 py-1.5 text-sm font-bold text-white hover:bg-red-700 transition-colors'
+          variant='danger'
           onClick={onConfirm}
         >
           Delete
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -2,6 +2,8 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cx } from "../lib/cx";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+type ButtonSize = "md" | "sm" | "xs";
+type IconButtonSize = "md" | "sm" | "xs";
 
 const variantClass: Record<ButtonVariant, string> = {
   primary: "border-transparent bg-slate-950 text-white hover:bg-slate-800",
@@ -10,19 +12,33 @@ const variantClass: Record<ButtonVariant, string> = {
   danger: "border-transparent bg-red-600 text-white hover:bg-red-700",
 };
 
+const sizeClass: Record<ButtonSize, string> = {
+  md: "rounded-2xl px-4 py-3 text-sm",
+  sm: "rounded-xl px-3 py-2 text-sm",
+  xs: "rounded-full px-3 py-1.5 text-xs",
+};
+
+const iconSizeClass: Record<IconButtonSize, string> = {
+  md: "size-10 rounded-[14px]",
+  sm: "size-9 rounded-xl",
+  xs: "size-8 rounded-lg",
+};
+
 export function Button({
   children,
   className,
+  size = "md",
   variant = "primary",
   type = "button",
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode; variant?: ButtonVariant }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode; size?: ButtonSize; variant?: ButtonVariant }) {
   return (
     <button
       type={type}
       className={cx(
-        "inline-flex w-fit items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-bold transition-colors disabled:opacity-55",
+        "inline-flex w-fit items-center justify-center gap-2 border font-bold transition-colors disabled:opacity-55",
         variantClass[variant],
+        sizeClass[size],
         className,
       )}
       {...props}
@@ -35,16 +51,18 @@ export function Button({
 export function IconButton({
   children,
   className,
+  size = "md",
   variant = "secondary",
   type = "button",
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode; variant?: ButtonVariant }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode; size?: IconButtonSize; variant?: ButtonVariant }) {
   return (
     <button
       type={type}
       className={cx(
-        "inline-grid size-10 place-items-center rounded-[14px] border text-sm transition-colors disabled:opacity-55",
+        "inline-grid place-items-center border text-sm transition-colors disabled:opacity-55",
         variantClass[variant],
+        iconSizeClass[size],
         className,
       )}
       {...props}

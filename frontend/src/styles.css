@@ -36,76 +36,11 @@ button:disabled {
   opacity: 0.55;
 }
 
-.muted {
-  color: #64748b;
-}
-
-.button-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.card {
-  padding: 24px;
-  border: 1px solid #e2e8f0;
-  border-radius: 24px;
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-}
-
-.status-card {
-  padding: 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 20px;
-  background: #f8fafc;
-}
-
-.config-card {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  justify-content: space-between;
-}
-
-.runtime-config-panel {
-  min-width: 0;
-}
-
 code {
   display: block;
   margin-top: 6px;
   color: #475569;
   word-break: break-all;
-}
-
-.form-card,
-.form-card label {
-  display: grid;
-  gap: 12px;
-}
-
-.row-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.row-actions button {
-  padding: 8px 10px;
-  color: #fff;
-  border: 0;
-  border-radius: 12px;
-  background: #020617;
-}
-
-.selected-row {
-  background: #f8fafc;
-}
-
-.form-card label {
-  color: #334155;
-  font-weight: 700;
 }
 
 input,
@@ -123,37 +58,5 @@ textarea {
   resize: vertical;
   font-family:
     ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
-}
-
-.form-card > button {
-  width: fit-content;
-  padding: 12px 16px;
-  color: #ffffff;
-  font-weight: 700;
-  border: 0;
-  border-radius: 16px;
-  background: #020617;
-}
-
-.json-preview {
-  max-height: 320px;
-  overflow: auto;
-  padding: 14px;
-  margin: 16px 0 0;
-  color: #dbeafe;
-  background: #0f172a;
-  border-radius: 16px;
-  font-size: 0.84rem;
-}
-
-.error-text {
-  color: #b91c1c;
-}
-
-@media (min-width: 1024px) {
-  .config-card {
-    flex-direction: row;
-    align-items: center;
-  }
 }
 

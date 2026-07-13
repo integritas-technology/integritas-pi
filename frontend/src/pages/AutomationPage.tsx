@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Archive, Copy, Eye, Pencil, Play, RotateCcw, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Button } from "../components/Button";
 import { DataTable, RowActions, TableIconButton, TableWrap, tableCellClass, tableHeaderCellClass, tableHeadRowClass, tableRowClass } from "../components/DataTable";
 import { JsonPreview } from "../components/JsonPreview";
 import { Page } from "../components/Page";
@@ -179,7 +180,7 @@ export function AutomationPage() {
         <section className={cardClass}>
           <div className={statusRowClass}>
             <div><strong>{flow.mode === "build" ? "Builder" : workspaceMode === "watch" ? "Watch canvas" : "Editor canvas"}</strong><p className={mutedText}>This workspace is loaded directly from the Automation page URL.</p></div>
-            <button type="button" onClick={() => navigateFlow({ mode: "list" })}>Back to workflows</button>
+            <Button type="button" variant="secondary" size="sm" onClick={() => navigateFlow({ mode: "list" })}>Back to workflows</Button>
           </div>
         </section>
       )}
@@ -188,7 +189,7 @@ export function AutomationPage() {
         <section className={cardClass}>
           <div className={statusRowClass}>
             <div><strong>Workflow builder</strong><p className={mutedText}>Create a workflow from a start block, then connect action blocks in the workspace.</p></div>
-            <button type="button" onClick={() => navigateFlow({ mode: "build" })}>Create new workflow</button>
+            <Button type="button" size="sm" onClick={() => navigateFlow({ mode: "build" })}>Create new workflow</Button>
           </div>
         </section>
       )}
@@ -417,9 +418,9 @@ function CreateWorkflowWorkspace({ name, enabled, sources, addressBook, walletSt
       title="Create a new block workflow"
       description="Choose one start block, then add data and logic blocks to build the first draft chain."
       actions={<>
-        <button type="button" disabled={busy} onClick={onCancel}>Cancel</button>
-        <button type="button" disabled={busy || draftBlocks.length === 0} onClick={resetCanvas}>Reset canvas</button>
-        <button type="button" disabled={busy || !canCreate} onClick={() => onCreate(flattenDraftBlocks(draftBlocks))}>Create workflow</button>
+        <Button type="button" variant="secondary" size="sm" disabled={busy} onClick={onCancel}>Cancel</Button>
+        <Button type="button" variant="secondary" size="sm" disabled={busy || draftBlocks.length === 0} onClick={resetCanvas}>Reset canvas</Button>
+        <Button type="button" size="sm" disabled={busy || !canCreate} onClick={() => onCreate(flattenDraftBlocks(draftBlocks))}>Create workflow</Button>
       </>}
       left={<WorkflowBlockLibrary hasStartBlock={hasStartBlock} selectedBlock={selectedBlock} onSelectStartBlock={selectStartBlock} onAddBlock={addDraftBlock} onAttachStamp={attachStampBlock} />}
       center={<WorkflowCanvas mode="build" blocks={draftBlocks} sources={sources} statusLabel={enabled ? "Enabled on create" : "Paused on create"} statusGood={enabled} selectedBlockId={selectedBlock?.id ?? ""} validationByBlockId={draftValidationByBlockId} onSelectBlock={setSelectedBlockId} onMoveBlock={moveDraftBlock} onRemoveBlock={removeDraftBlock} />}
@@ -441,7 +442,7 @@ function CreateWorkflowWorkspace({ name, enabled, sources, addressBook, walletSt
             <strong>Selected block</strong>
             {selectedBlock ? <DraftBlockInspector block={selectedBlock} sources={sources} addressBook={addressBook} walletStatus={walletStatus} onChange={(config) => updateBlock(selectedBlock.id, { config })} onAttachedChange={(attachedId, config) => updateAttachedBlock(selectedBlock.id, attachedId, config)} onAttachedRemove={(attachedId) => removeAttachedBlock(selectedBlock.id, attachedId)} /> : <p className={mutedText}>Choose a start block on the left or select a block on the canvas to configure it.</p>}
           </Panel>
-          <button type="button" disabled={busy || !canCreate} onClick={() => onCreate(flattenDraftBlocks(draftBlocks))}>Create workflow</button>
+          <Button type="button" size="sm" disabled={busy || !canCreate} onClick={() => onCreate(flattenDraftBlocks(draftBlocks))}>Create workflow</Button>
         </aside>
       }
     />
@@ -550,7 +551,7 @@ function AttachedStampSettings({ block, onAttachedChange, onAttachedRemove }: { 
         <label>Operator<select value={conditionObject.operator ?? "equals"} onChange={(event) => onAttachedChange(stamp.id, { condition: { ...conditionObject, source: "data", operator: event.target.value as ConditionOperator } })}>{conditionOperatorOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
         {!operatorHasNoValue(conditionObject.operator ?? "equals") && <label>Compare value<input value={compareValueInputText(conditionObject.value ?? true)} onChange={(event) => onAttachedChange(stamp.id, { condition: { ...conditionObject, source: "data", value: parseCompareValueInput(event.target.value) } })} /></label>}
       </>}
-      <button type="button" onClick={() => onAttachedRemove(stamp.id)}>Remove attached stamp</button>
+      <Button type="button" variant="danger" size="sm" onClick={() => onAttachedRemove(stamp.id)}>Remove attached stamp</Button>
     </div>
   );
 }
@@ -638,7 +639,7 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
         {mode === "watch" && selectedRun && <p className={mutedText}>Canvas showing run from {formatLocalTime(selectedRun.startedAt)} · {selectedRun.status} · {formatDuration(selectedRun.durationMs)}</p>}
       </>}
       actions={<>
-        <button type="button" disabled={busy} onClick={() => onNavigateMode(mode === "watch" ? "edit" : "watch")}>{mode === "watch" ? "Open in edit" : "Open in watch"}</button>
+        <Button type="button" variant="secondary" size="sm" disabled={busy} onClick={() => onNavigateMode(mode === "watch" ? "edit" : "watch")}>{mode === "watch" ? "Open in edit" : "Open in watch"}</Button>
         <WorkflowStatusPill workflow={workflow} />
         {mode === "watch" && <StatusPill status={selectedRun?.status === "running" ? "good" : "neutral"}>{watchRunStatusLabel}</StatusPill>}
         <StatusPill status="neutral">Blocks {workflow.blocks.length}</StatusPill>
@@ -669,7 +670,7 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
               <strong>Workflow setup</strong>
               <label>Workflow name<input value={workflowName} onChange={(event) => setWorkflowName(event.target.value)} placeholder="Button fetches weather API" /></label>
               <SaveState dirty={workflowName.trim() !== workflow.name} saved={false} />
-              <button type="button" disabled={busy || !workflowName.trim() || workflowName.trim() === workflow.name} onClick={() => onUpdateWorkflow({ name: workflowName.trim() })}>Save workflow name</button>
+              <Button type="button" size="sm" disabled={busy || !workflowName.trim() || workflowName.trim() === workflow.name} onClick={() => onUpdateWorkflow({ name: workflowName.trim() })}>Save workflow name</Button>
             </div>
             <WorkflowValidationPanel validation={validation} />
             <div className={softCardClass}>
@@ -783,15 +784,15 @@ function PersistedBlockInspector({ block, attachedBlocks, sources, addressBook, 
       {block.lastError && <p className={errorText}>{block.lastError}</p>}
       <SaveState dirty={dirty} saved={saveNotice === "Block saved"} />
       <RowActions>
-        <button type="button" disabled={busy || !dirty} onClick={() => {
+        <Button type="button" size="xs" disabled={busy || !dirty} onClick={() => {
           onUpdate({ config });
           setSaveNotice("Block saved");
-        }}>Save selected block</button>
-        {removable && <button type="button" disabled={busy || !canMoveUp} onClick={onMoveUp}>Move up now</button>}
-        {removable && <button type="button" disabled={busy || !canMoveDown} onClick={onMoveDown}>Move down now</button>}
-        {removable && canAttachStamp && <button type="button" disabled={busy} onClick={onAttachStamp}>Attach Integritas now</button>}
-        {removable && <button type="button" disabled={busy} onClick={() => onUpdate({ enabled: !block.enabled })}>{block.enabled ? "Disable now" : "Enable now"}</button>}
-        {removable && <button type="button" disabled={busy} onClick={onDelete}>Remove block now</button>}
+        }}>Save selected block</Button>
+        {removable && <Button type="button" variant="secondary" size="xs" disabled={busy || !canMoveUp} onClick={onMoveUp}>Move up now</Button>}
+        {removable && <Button type="button" variant="secondary" size="xs" disabled={busy || !canMoveDown} onClick={onMoveDown}>Move down now</Button>}
+        {removable && canAttachStamp && <Button type="button" variant="secondary" size="xs" disabled={busy} onClick={onAttachStamp}>Attach Integritas now</Button>}
+        {removable && <Button type="button" variant="secondary" size="xs" disabled={busy} onClick={() => onUpdate({ enabled: !block.enabled })}>{block.enabled ? "Disable now" : "Enable now"}</Button>}
+        {removable && <Button type="button" variant="danger" size="xs" disabled={busy} onClick={onDelete}>Remove block now</Button>}
       </RowActions>
     </div>
   );
@@ -804,20 +805,20 @@ function WatchRunControls({ workflow, busy, hasValidationErrors, payloadText, pa
       <p className={mutedText}>Run this workflow or test it with a manual trigger payload.</p>
       {workflow.archived && <p className={mutedText}>Archived workflows cannot run until restored from the workflow list.</p>}
       {hasValidationErrors && <p className={errorText}>Fix validation errors before running.</p>}
-      <button type="button" disabled={busy || hasValidationErrors || workflow.archived} onClick={onRunNow}>Run now</button>
+      <Button type="button" size="sm" disabled={busy || hasValidationErrors || workflow.archived} onClick={onRunNow}>Run now</Button>
       <strong>Test payload</strong>
       <p className={mutedText}>This payload is used only for a manual test run.</p>
       <label>Trigger payload<textarea rows={12} value={payloadText} onChange={(event) => onPayloadTextChange(event.target.value)} /></label>
       {payloadError && <p className={errorText}>{payloadError}</p>}
       <RowActions>
-        <button type="button" disabled={busy} onClick={onResetPayload}>Reset example</button>
-        <button type="button" disabled={busy || hasValidationErrors || workflow.archived} onClick={() => {
+        <Button type="button" variant="secondary" size="xs" disabled={busy} onClick={onResetPayload}>Reset example</Button>
+        <Button type="button" size="xs" disabled={busy || hasValidationErrors || workflow.archived} onClick={() => {
           try {
             onRunWithPayload(JSON.parse(payloadText) as unknown);
           } catch (error) {
             onPayloadError(error instanceof Error ? error.message : "Payload must be valid JSON");
           }
-        }}>Run with payload</button>
+        }}>Run with payload</Button>
       </RowActions>
     </aside>
   );
@@ -892,7 +893,7 @@ function WatchRunHistory({ runs, selectedRunId, onSelectRun }: { runs: Automatio
                 <td className={tableCellClass}><StatusPill status={run.status === "success" ? "good" : run.status === "failed" ? "warn" : "neutral"}>{run.status}</StatusPill></td>
                 <td className={tableCellClass}>{formatDuration(run.durationMs)}</td>
                 <td className={tableCellClass}>{run.blocks.filter((block) => block.status === "success").length}/{run.blockCount}</td>
-                <td className={tableCellClass}><RowActions><button type="button" disabled={selectedRunId === run.id} onClick={() => onSelectRun(run.id)}>{selectedRunId === run.id ? "Showing" : "Show on canvas"}</button><button type="button" onClick={() => setRawRunId(rawRunId === run.id ? null : run.id)}>{rawRunId === run.id ? "Hide raw" : "Raw details"}</button></RowActions></td>
+                <td className={tableCellClass}><RowActions><Button type="button" variant="secondary" size="xs" disabled={selectedRunId === run.id} onClick={() => onSelectRun(run.id)}>{selectedRunId === run.id ? "Showing" : "Show on canvas"}</Button><Button type="button" variant="secondary" size="xs" onClick={() => setRawRunId(rawRunId === run.id ? null : run.id)}>{rawRunId === run.id ? "Hide raw" : "Raw details"}</Button></RowActions></td>
               </tr>
             ))}
           </tbody>

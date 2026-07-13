@@ -10,6 +10,9 @@ import { changePassword, initTotpReset, verifyTotpReset } from "../features/auth
 
 type TotpResetPhase = "idle" | "scan" | "done";
 
+const formClass = "grid gap-3";
+const labelClass = "grid gap-3 font-bold text-slate-700";
+
 export function AuthSettingsPage() {
   const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState("");
@@ -133,8 +136,8 @@ export function AuthSettingsPage() {
           </div>
         )}
 
-        <form onSubmit={(e) => void handleChangePassword(e)} className="form-card">
-          <label>
+        <form onSubmit={(e) => void handleChangePassword(e)} className={formClass}>
+          <label className={labelClass}>
             Current password
             <input
               type="password"
@@ -144,7 +147,7 @@ export function AuthSettingsPage() {
               autoComplete="current-password"
             />
           </label>
-          <label>
+          <label className={labelClass}>
             New password
             <input
               type="password"
@@ -154,7 +157,7 @@ export function AuthSettingsPage() {
               autoComplete="new-password"
             />
           </label>
-          <label>
+          <label className={labelClass}>
             2FA code
             <input
               value={pwTotpToken}
@@ -186,14 +189,14 @@ export function AuthSettingsPage() {
         </div>
 
         {totpPhase === "idle" && (
-          <form onSubmit={(e) => void handleInitTotpReset(e)} className="form-card">
+          <form onSubmit={(e) => void handleInitTotpReset(e)} className={formClass}>
             <div className="rounded-xl bg-amber-50 border border-amber-200 p-3">
               <p className="flex items-center gap-2" style={{ margin: 0, fontSize: "0.875rem", color: "#92400e" }}>
                 <ShieldAlert size={14} />
                 Your current 2FA secret will be replaced. Make sure your authenticator app is available before continuing.
               </p>
             </div>
-            <label>
+            <label className={labelClass}>
               Current password
               <input
                 type="password"
@@ -203,7 +206,7 @@ export function AuthSettingsPage() {
                 autoComplete="current-password"
               />
             </label>
-            <label>
+            <label className={labelClass}>
               Current 2FA code
               <input
                 value={resetCurrentToken}
@@ -271,8 +274,8 @@ export function AuthSettingsPage() {
               )}
             </div>
 
-            <form onSubmit={(e) => void handleVerifyTotpReset(e)} className="form-card">
-              <label>
+            <form onSubmit={(e) => void handleVerifyTotpReset(e)} className={formClass}>
+              <label className={labelClass}>
                 Confirmation code
                 <input
                   value={verifyCode}
