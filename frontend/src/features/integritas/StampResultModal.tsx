@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { JsonPreview } from "../../components/JsonPreview";
 import { Modal } from "../../components/Modal";
 import { StatusBadge } from "../../components/StatusBadge";
+import { MutedText } from "../../components/Text";
 import { useToast } from "../../components/ToastProvider";
 import { getHistoryRecord } from "./integritasApi";
 import { integritasErrorToast } from "./integritasErrors";
@@ -93,22 +94,22 @@ export function StampResultModal({
 
   return (
     <Modal title="Timestamp proof submitted" onClose={onClose}>
-      <div className="stamp-result-modal">
+      <div className="grid gap-4">
         {statusBadge(record)}
-        <p className="stamp-result-message">{statusMessage(record)}</p>
-        <dl className="stamp-result-meta">
+        <p className="m-0 leading-relaxed text-slate-700">{statusMessage(record)}</p>
+        <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2">
           {record.file_name && (
             <>
-              <dt>File</dt>
-              <dd>{record.file_name}</dd>
+              <dt className="m-0 font-semibold text-slate-500">File</dt>
+              <dd className="m-0 break-all">{record.file_name}</dd>
             </>
           )}
-          <dt>Proof UID</dt>
-          <dd><code>{record.proof_uid ?? "—"}</code></dd>
-          <dt>Data hash</dt>
-          <dd><code>{record.hash}</code></dd>
+          <dt className="m-0 font-semibold text-slate-500">Proof UID</dt>
+          <dd className="m-0 break-all"><code>{record.proof_uid ?? "—"}</code></dd>
+          <dt className="m-0 font-semibold text-slate-500">Data hash</dt>
+          <dd className="m-0 break-all"><code>{record.hash}</code></dd>
         </dl>
-        {polling && <p className="muted">Checking on-chain status…</p>}
+        {polling && <MutedText>Checking on-chain status…</MutedText>}
         {technicalDetails !== undefined && (
           <JsonPreview value={technicalDetails} label="View technical details" />
         )}

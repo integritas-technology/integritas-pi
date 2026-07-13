@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className="app-loading-root">
+      <div className="grid min-h-screen place-items-center text-slate-600">
         <p>Loading…</p>
       </div>
     );

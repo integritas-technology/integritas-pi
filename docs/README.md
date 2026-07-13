@@ -3,6 +3,7 @@
 ```
 docs/
 ├── PROJECT.md   goal, audience, constraints, success criteria
+├── frontend-design-system.md   frontend styling/component conventions
 ├── TASKS.md     current work items (read every session)
 ├── SESSION.md   scratch log for the session in progress
 ├── security/    detailed security risk register (see SECURITY.md for the policy)
@@ -20,6 +21,7 @@ Project-specific agent rules live outside `docs/`, in `.agents/rules/` at the re
 | Doc | Purpose |
 |---|---|
 | [PROJECT.md](./PROJECT.md) | Goals, audience, non-goals, constraints, success criteria |
+| [frontend-design-system.md](./frontend-design-system.md) | Frontend styling/component conventions |
 | [TASKS.md](./TASKS.md) | Current focus / in progress / next / done |
 | [SESSION.md](./SESSION.md) | Scratch notes for the session in progress — reset per session |
 

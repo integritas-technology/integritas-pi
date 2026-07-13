@@ -1,4 +1,6 @@
 import type { MinimaConfig, MinimaPeersResponse } from "../../app/types";
+import { Button } from "../../components/Button";
+import { ButtonRow } from "../../components/ButtonRow";
 
 const sectionTitleClass = "m-0 text-sm font-semibold text-slate-900";
 
@@ -52,7 +54,7 @@ export function MinimaRuntimeConfig({
         </dl>
       </div>
 
-      <div className="api-key-box rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="grid min-w-[min(100%,360px)] gap-2.5 rounded-2xl border border-slate-200 bg-white p-4">
         <h4 className={`${sectionTitleClass} mb-3`}>Megammr host</h4>
         <input
           value={megammrHostInput}
@@ -60,11 +62,11 @@ export function MinimaRuntimeConfig({
           placeholder="megammr.minima.global:9001"
           aria-label="Megammr host"
         />
-        <div className="button-row">
-          <button type="button" disabled={busy || !megammrHostInput.trim()} onClick={onSave}>
+        <ButtonRow>
+          <Button type="button" disabled={busy || !megammrHostInput.trim()} onClick={onSave}>
             Save configuration
-          </button>
-        </div>
+          </Button>
+        </ButtonRow>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -73,18 +75,18 @@ export function MinimaRuntimeConfig({
           <p className="m-0 text-sm text-slate-500">{peersSummary}</p>
         </div>
 
-        <div className="api-key-box border-0 bg-transparent p-0">
+        <div className="grid min-w-[min(100%,360px)] gap-2.5 border-0 bg-transparent p-0">
           <input
             value={peerslistInput}
             onChange={(event) => setPeerslistInput(event.target.value)}
             placeholder="host:port or host:port,host:port"
             aria-label="Peer address"
           />
-          <div className="button-row">
-            <button type="button" disabled={busy || !peerslistInput.trim()} onClick={onAddPeers}>
+          <ButtonRow>
+            <Button type="button" disabled={busy || !peerslistInput.trim()} onClick={onAddPeers}>
               Add peers
-            </button>
-          </div>
+            </Button>
+          </ButtonRow>
         </div>
 
         {peerItems.length > 0 ? (

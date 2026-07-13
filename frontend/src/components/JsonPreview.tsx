@@ -6,10 +6,10 @@ export function JsonPreview({ value, label = "View JSON" }: { value: unknown; la
 
   return (
     <>
-      <button type="button" className="json-link" onClick={() => setOpen(true)}>{label}</button>
+      <button type="button" className="border-0 bg-transparent p-0 font-extrabold text-blue-600 underline" onClick={() => setOpen(true)}>{label}</button>
       {open && (
         <Modal title="JSON preview" onClose={() => setOpen(false)}>
-          <pre className="json-preview !m-0 !max-h-none !max-w-none !overflow-visible !whitespace-pre-wrap [overflow-wrap:anywhere]">{JSON.stringify(value, null, 2)}</pre>
+          <pre className="m-0 overflow-visible whitespace-pre-wrap rounded-2xl bg-slate-900 p-3.5 text-[0.84rem] text-blue-100 [overflow-wrap:anywhere]">{JSON.stringify(value, null, 2)}</pre>
         </Modal>
       )}
     </>

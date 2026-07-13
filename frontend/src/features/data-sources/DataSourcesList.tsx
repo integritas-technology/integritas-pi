@@ -1,5 +1,18 @@
 import { Pencil, Play, Trash2, Zap } from "lucide-react";
+import {
+  DataTable,
+  EmptyTableState,
+  RowActions,
+  TableCard,
+  TableIconButton,
+  TableWrap,
+  tableCellClass,
+  tableHeaderCellClass,
+  tableHeadRowClass,
+  tableRowClass,
+} from "../../components/DataTable";
 import { JsonPreview } from "../../components/JsonPreview";
+import { MutedText } from "../../components/Text";
 import type { DataSource, DataSourceHealthStatus } from "./dataSourceTypes";
 
 export function DataSourcesList({
@@ -20,60 +33,55 @@ export function DataSourcesList({
   onDelete: (source: DataSource) => void;
 }) {
   return (
-    <section className="card data-source-list">
-      <div>
-        <strong>Configured devices</strong>
-        <p className="muted">Input sources and future output targets saved in SQLite.</p>
-      </div>
-      <div className="table-wrap">
-        <table>
+    <TableCard title="Configured devices" description="Input sources and future output targets saved in SQLite.">
+      <TableWrap>
+        <DataTable className="min-w-[980px]">
           <thead>
-            <tr>
-              <th>Name</th>
-            <th>Direction</th>
-            <th>Type</th>
-              <th>Endpoint</th>
-              <th>Health</th>
-              <th>Last hash</th>
-              <th>Last preview</th>
-              <th>Actions</th>
+            <tr className={tableHeadRowClass}>
+              <th className={tableHeaderCellClass}>Name</th>
+              <th className={tableHeaderCellClass}>Direction</th>
+              <th className={tableHeaderCellClass}>Type</th>
+              <th className={tableHeaderCellClass}>Endpoint</th>
+              <th className={tableHeaderCellClass}>Health</th>
+              <th className={tableHeaderCellClass}>Last hash</th>
+              <th className={tableHeaderCellClass}>Last preview</th>
+              <th className={tableHeaderCellClass}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {items.map((source) => (
-              <tr key={source.id}>
-                <td>
+              <tr key={source.id} className={tableRowClass}>
+                <td className={tableCellClass}>
                   <strong>{source.name}</strong>
-                  <p className="muted">{source.description}</p>
+                  <MutedText className="m-0 mt-1">{source.description}</MutedText>
                 </td>
-                <td>{source.type === "json-api" || source.type === "internal-json-api" || source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" ? "Input" : "Output"}</td>
-                <td>{source.type}</td>
-                <td>
+                <td className={tableCellClass}>{source.type === "json-api" || source.type === "internal-json-api" || source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" ? "Input" : "Output"}</td>
+                <td className={tableCellClass}>{source.type}</td>
+                <td className={tableCellClass}>
                   <code>{source.type === "webhook" ? webhookUrl(source) : source.type === "mqtt" ? mqttEndpoint(source) : source.type === "gpio-input" ? gpioEndpoint(source) : source.type === "gpio-output" ? gpioOutputEndpoint(source) : source.config.url}</code>
                 </td>
-                <td>
+                <td className={tableCellClass}>
                   <HealthCell source={source} status={healthStatuses[source.id]} />
                 </td>
-                <td>
+                <td className={tableCellClass}>
                   {source.lastHash ? (
                     <code>{source.lastHash}</code>
                   ) : (
-                    <span className="muted">Not read yet</span>
+                    <span className="text-slate-500">Not read yet</span>
                   )}
                 </td>
-                <td>
+                <td className={tableCellClass}>
                   {source.lastPreview ? (
                     <JsonPreview value={source.lastPreview} />
                   ) : source.lastError ? (
-                    <span className="health-cell"><span className="health-status"><span className="health-dot error" />Read failed</span><JsonPreview value={{ error: source.lastError }} label="View error" /></span>
+                    <span className="grid gap-2"><HealthStatus ok={false}>Read failed</HealthStatus><JsonPreview value={{ error: source.lastError }} label="View error" /></span>
                   ) : (
-                    <span className="muted">No preview</span>
+                    <span className="text-slate-500">No preview</span>
                   )}
                 </td>
-                <td>
-                  <div className="row-actions">
-                    <button
-                      className="icon-action-button"
+                <td className={tableCellClass}>
+                  <RowActions>
+                    <TableIconButton
                       type="button"
                       disabled={busy || source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output"}
                       title="Trigger manually"
@@ -81,10 +89,9 @@ export function DataSourcesList({
                       onClick={() => onRead(source)}
                     >
                       <Play size={16} />
-                    </button>
+                    </TableIconButton>
                     {source.type === "gpio-output" && (
-                      <button
-                        className="icon-action-button"
+                      <TableIconButton
                         type="button"
                         disabled={busy}
                         title="Test pulse"
@@ -92,10 +99,9 @@ export function DataSourcesList({
                         onClick={() => onTestOutput(source)}
                       >
                         <Zap size={16} />
-                      </button>
+                      </TableIconButton>
                     )}
-                    <button
-                      className="icon-action-button"
+                    <TableIconButton
                       type="button"
                       disabled={busy}
                       title="Edit device"
@@ -103,9 +109,9 @@ export function DataSourcesList({
                       onClick={() => onEdit(source)}
                     >
                       <Pencil size={16} />
-                    </button>
-                    <button
-                      className="icon-action-button danger"
+                    </TableIconButton>
+                    <TableIconButton
+                      danger
                       type="button"
                       disabled={busy}
                       title="Delete source"
@@ -113,18 +119,18 @@ export function DataSourcesList({
                       onClick={() => onDelete(source)}
                     >
                       <Trash2 size={16} />
-                    </button>
-                  </div>
+                    </TableIconButton>
+                  </RowActions>
                 </td>
               </tr>
             ))}
           </tbody>
-        </table>
-      </div>
+        </DataTable>
+      </TableWrap>
       {items.length === 0 && (
-        <p className="muted">No devices added yet.</p>
+        <EmptyTableState>No devices added yet.</EmptyTableState>
       )}
-    </section>
+    </TableCard>
   );
 }
 
@@ -145,14 +151,19 @@ function gpioOutputEndpoint(source: DataSource) {
 }
 
 function HealthCell({ source, status }: { source: DataSource; status?: DataSourceHealthStatus }) {
-  if (source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output") return <span className="muted">Automation controlled</span>;
-  if (!source.config.healthStatusUrl) return <span className="muted">Not configured</span>;
-  if (!status) return <span className="health-status"><span className="health-dot pending" />Checking</span>;
+  if (source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output") return <span className="text-slate-500">Automation controlled</span>;
+  if (!source.config.healthStatusUrl) return <span className="text-slate-500">Not configured</span>;
+  if (!status) return <HealthStatus pending>Checking</HealthStatus>;
 
   return (
-    <div className="health-cell">
-      <span className="health-status"><span className={`health-dot ${status.ok ? "ok" : "error"}`} />{status.ok ? "Online" : "Error"}{status.status ? ` HTTP ${status.status}` : ""}</span>
+    <div className="grid gap-2">
+      <HealthStatus ok={status.ok}>{status.ok ? "Online" : "Error"}{status.status ? ` HTTP ${status.status}` : ""}</HealthStatus>
       {status.body !== undefined ? <JsonPreview value={status.body} label="View response" /> : status.error ? <JsonPreview value={{ error: status.error }} label="View error" /> : null}
     </div>
   );
+}
+
+function HealthStatus({ children, ok, pending }: { children: React.ReactNode; ok?: boolean; pending?: boolean }) {
+  const dotClass = pending ? "bg-amber-500" : ok ? "bg-emerald-600" : "bg-red-600";
+  return <span className="inline-flex items-center gap-2 text-[0.86rem] font-extrabold text-slate-600"><span className={`inline-block size-2.5 rounded-full ${dotClass}`} />{children}</span>;
 }

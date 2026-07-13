@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { Button } from "../../components/Button";
+import { DataTable, RowActions, TableWrap, tableCellClass, tableHeaderCellClass, tableHeadRowClass, tableRowClass } from "../../components/DataTable";
 import { JsonPreview } from "../../components/JsonPreview";
 import { getDataSourceRead } from "../data-reads/dataReadsApi";
 import type { DataSourceRead } from "../data-reads/dataReadTypes";
@@ -12,8 +14,6 @@ const cardClass = "rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm
 const softCardClass = "rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 shadow-sm";
 const statusRowClass = "flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between";
 const gridListClass = "grid gap-4 md:grid-cols-2";
-const rowActionsClass = "flex flex-wrap items-center gap-2";
-const actionButtonClass = "rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-slate-700 transition hover:border-blue-300 hover:text-blue-700";
 
 export function AutomationRunsTable({ runs, compact = false }: { runs: AutomationRun[]; compact?: boolean }) {
   const [rawRunId, setRawRunId] = useState<string | null>(null);
@@ -21,35 +21,35 @@ export function AutomationRunsTable({ runs, compact = false }: { runs: Automatio
   if (runs.length === 0) return <p className={mutedText}>No workflow runs recorded yet.</p>;
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-      <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+    <TableWrap>
+      <DataTable>
         <thead>
-          <tr className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-            <th className="px-4 py-3 font-black">Started</th>
-            {!compact && <th className="px-4 py-3 font-black">Workflow</th>}
-            <th className="px-4 py-3 font-black">Trigger</th>
-            <th className="px-4 py-3 font-black">Status</th>
-            <th className="px-4 py-3 font-black">Duration</th>
-            <th className="px-4 py-3 font-black">Blocks</th>
-            <th className="px-4 py-3 font-black">Details</th>
+          <tr className={tableHeadRowClass}>
+            <th className={tableHeaderCellClass}>Started</th>
+            {!compact && <th className={tableHeaderCellClass}>Workflow</th>}
+            <th className={tableHeaderCellClass}>Trigger</th>
+            <th className={tableHeaderCellClass}>Status</th>
+            <th className={tableHeaderCellClass}>Duration</th>
+            <th className={tableHeaderCellClass}>Blocks</th>
+            <th className={tableHeaderCellClass}>Details</th>
           </tr>
         </thead>
         <tbody>
           {runs.map((run) => (
-            <tr key={run.id} className="border-t border-slate-200 align-top">
-              <td className="px-4 py-3">{formatLocalTime(run.startedAt)}</td>
-              {!compact && <td className="px-4 py-3">{run.workflowName}</td>}
-              <td className="px-4 py-3">{run.triggerType}</td>
-              <td className="px-4 py-3"><StatusPill status={run.status} /></td>
-              <td className="px-4 py-3">{formatDuration(run.durationMs)}</td>
-              <td className="px-4 py-3">{run.blocks.filter((block) => block.status === "success").length}/{run.blockCount}</td>
-              <td className="px-4 py-3"><div className={rowActionsClass}><Link className="font-bold text-blue-700 hover:text-blue-900" to={`/automation?flow=watch&id=${encodeURIComponent(run.workflowId)}&run=${encodeURIComponent(run.id)}`}>Show on canvas</Link><button type="button" className={actionButtonClass} onClick={() => setRawRunId(rawRunId === run.id ? null : run.id)}>{rawRunId === run.id ? "Hide raw" : "Raw details"}</button></div></td>
+            <tr key={run.id} className={tableRowClass}>
+              <td className={tableCellClass}>{formatLocalTime(run.startedAt)}</td>
+              {!compact && <td className={tableCellClass}>{run.workflowName}</td>}
+              <td className={tableCellClass}>{run.triggerType}</td>
+              <td className={tableCellClass}><StatusPill status={run.status} /></td>
+              <td className={tableCellClass}>{formatDuration(run.durationMs)}</td>
+              <td className={tableCellClass}>{run.blocks.filter((block) => block.status === "success").length}/{run.blockCount}</td>
+              <td className={tableCellClass}><RowActions><Link className="font-bold text-blue-700 hover:text-blue-900" to={`/automation?flow=watch&id=${encodeURIComponent(run.workflowId)}&run=${encodeURIComponent(run.id)}`}>Show on canvas</Link><Button type="button" variant="secondary" className="rounded-full px-3 py-1.5" onClick={() => setRawRunId(rawRunId === run.id ? null : run.id)}>{rawRunId === run.id ? "Hide raw" : "Raw details"}</Button></RowActions></td>
             </tr>
           ))}
         </tbody>
-      </table>
+      </DataTable>
       {runs.map((run) => rawRunId === run.id ? <RawRunDetails key={`${run.id}-raw`} run={run} /> : null)}
-    </div>
+    </TableWrap>
   );
 }
 

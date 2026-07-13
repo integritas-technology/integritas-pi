@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ArrowLeft, ArrowRight, Layers3, LogIn } from "lucide-react";
+import { ErrorText } from "../../components/Text";
 import { login } from "./api";
-import "./login.css";
 
 type LoginPhase = "credentials" | "twofa";
 
@@ -49,31 +49,31 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
   };
 
   return (
-    <div className="mock-login-root">
-      <div className="mock-login-card" role="main" aria-label="Sign in">
-        <div className="mock-login-brand">
-          <div className="mock-login-brand-icon" aria-hidden="true">
+    <div className="fixed inset-0 z-50 flex min-h-0 items-center justify-center overflow-auto overscroll-contain bg-slate-50 p-4 sm:p-6">
+      <div className="grid w-full max-w-[420px] gap-5 rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-900/10 sm:p-8" role="main" aria-label="Sign in">
+        <div className="grid justify-items-center gap-3 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white" aria-hidden="true">
             <Layers3 size={24} />
           </div>
           <div>
-            <p>Minima Edge Stack</p>
-            <h1>Edge Workbench</h1>
+            <p className="m-0 text-sm text-slate-500">Minima Edge Stack</p>
+            <h1 className="m-0 text-xl text-slate-950">Edge Workbench</h1>
           </div>
         </div>
 
         {phase === "credentials" ? (
-          <div className="mock-login-panel">
-            <p className="mock-login-eyebrow">Sign in</p>
-            <h2>Welcome back</h2>
-            <p className="mock-login-lead">
+          <div className="grid gap-3">
+            <p className="m-0 text-xs font-extrabold uppercase tracking-[0.18em] text-slate-500">Sign in</p>
+            <h2 className="m-0 text-xl leading-tight text-slate-950">Welcome back</h2>
+            <p className="m-0 text-sm leading-relaxed text-slate-600">
               Enter your admin password to continue.
             </p>
 
-            <div className="mock-login-form">
-              <label className="mock-login-label">
+            <div className="grid gap-2.5">
+              <label className="grid gap-2 font-bold text-slate-700">
                 Password
                 <input
-                  className="mock-login-input"
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-950"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   type="password"
@@ -83,10 +83,10 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
               </label>
             </div>
 
-            <div className="mock-login-actions">
+            <div className="grid gap-2.5 pt-1">
               <button
                 type="button"
-                className="mock-login-btn-primary"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-slate-950 px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-45"
                 disabled={!credentialsValid}
                 onClick={continueToTwoFactor}
               >
@@ -95,27 +95,27 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
             </div>
           </div>
         ) : (
-          <div className="mock-login-panel">
+          <div className="grid gap-3">
             <button
               type="button"
-              className="mock-login-back"
+              className="inline-flex items-center gap-1.5 self-start border-0 bg-transparent p-0 text-sm font-bold text-slate-600"
               onClick={backToCredentials}
             >
               <ArrowLeft size={16} /> Back
             </button>
 
-            <p className="mock-login-eyebrow">Two-factor auth</p>
-            <h2>Enter your code</h2>
-            <p className="mock-login-lead">
+            <p className="m-0 text-xs font-extrabold uppercase tracking-[0.18em] text-slate-500">Two-factor auth</p>
+            <h2 className="m-0 text-xl leading-tight text-slate-950">Enter your code</h2>
+            <p className="m-0 text-sm leading-relaxed text-slate-600">
               Open your authenticator app and enter the 6-digit code for{" "}
               <strong>{TOTP_ACCOUNT_LABEL}</strong>.
             </p>
 
-            <div className="mock-login-form">
-              <label className="mock-login-label">
+            <div className="grid gap-2.5">
+              <label className="grid gap-2 font-bold text-slate-700">
                 Authentication code
                 <input
-                  className="mock-login-code-input"
+                  className="w-full max-w-none rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-center text-lg font-semibold tracking-[0.35em] text-slate-950"
                   value={twoFactorCode}
                   onChange={(event) =>
                     setTwoFactorCode(
@@ -131,12 +131,12 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
               </label>
             </div>
 
-            {error ? <p className="error-text">{error}</p> : null}
+            {error ? <ErrorText>{error}</ErrorText> : null}
 
-            <div className="mock-login-actions">
+            <div className="grid gap-2.5 pt-1">
               <button
                 type="button"
-                className="mock-login-btn-primary"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-slate-950 px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-45"
                 disabled={!twoFactorValid || signingIn}
                 onClick={signIn}
               >

@@ -17,12 +17,12 @@ import {
   Stamp,
   UserRound,
 } from "lucide-react";
+import { ErrorText } from "../../components/Text";
 import { cx } from "../../lib/cx";
 import { completeSetup, initTotp, verifyIntegritasKey, verifyTotp } from "./api";
 import { INTEGRITAS_STEP_REQUIRED } from "./config";
 import { onboardingSteps } from "./steps";
 import type { CheckState, OnboardingFormState, OnboardingStepId } from "./types";
-import "./onboarding.css";
 
 const TOTP_ACCOUNT_LABEL = "Edge Workbench";
 
@@ -35,6 +35,33 @@ const initialForm: OnboardingFormState = {
 
 type PillTone = "neutral" | "good" | "warn" | "future";
 
+const panelClass = "grid content-start gap-3 max-[700px]:gap-2";
+const eyebrowClass = "m-0 text-xs font-extrabold uppercase tracking-[0.18em] text-slate-500";
+const headingClass = "m-0 text-[clamp(1.4rem,2.2vw,1.85rem)] leading-tight text-slate-950";
+const leadClass = "m-0 max-w-3xl text-sm leading-relaxed text-slate-600";
+const formGridClass = "grid max-w-[520px] gap-2.5";
+const labelClass = "grid gap-2 font-bold text-slate-700";
+const inputClass = "w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-950";
+const mutedClass = "text-sm font-medium text-slate-500";
+const goodHintClass = "text-sm font-medium text-emerald-700";
+const warnHintClass = "text-sm font-medium text-amber-700";
+const statusCardClass = "grid max-w-2xl gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 p-3";
+const statusRowClass = "flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between";
+const statusTextClass = "mt-1 mb-0 text-slate-500";
+const successResultClass = "flex items-start gap-2.5 rounded-xl bg-emerald-50 p-2.5 text-sm text-emerald-700";
+const infoCalloutClass = "flex max-w-2xl items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-3";
+const primaryButtonClass = "inline-flex items-center gap-2 rounded-xl border-0 bg-slate-950 px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-45";
+const secondaryButtonClass = "inline-flex items-center gap-2 rounded-xl border-0 bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-700";
+const compactButtonClass = "inline-flex items-center gap-1.5 rounded-xl border-0 bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700";
+const actionRowClass = "flex flex-wrap items-center gap-2.5";
+
+const pillToneClass: Record<PillTone, string> = {
+  neutral: "bg-slate-100 text-slate-700",
+  good: "bg-emerald-100 text-emerald-700",
+  warn: "bg-amber-100 text-amber-700",
+  future: "bg-violet-100 text-violet-700",
+};
+
 function Pill({
   children,
   tone = "neutral",
@@ -43,7 +70,7 @@ function Pill({
   tone?: PillTone;
 }) {
   return (
-    <span className={cx("mock-onboarding-pill", `mock-onboarding-pill-${tone}`)}>
+    <span className={cx("inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-bold", pillToneClass[tone])}>
       {children}
     </span>
   );
@@ -80,9 +107,9 @@ function StepIcon({
   return (
     <div
       className={cx(
-        "mock-onboarding-step-icon",
-        active && "mock-onboarding-step-icon-active",
-        complete && "mock-onboarding-step-icon-complete",
+        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 [&_svg]:pointer-events-none",
+        active && "bg-white text-slate-950",
+        complete && "bg-green-600 text-white",
       )}
       aria-hidden="true"
     >
@@ -93,36 +120,36 @@ function StepIcon({
 
 function WelcomeStep() {
   return (
-    <div className="mock-onboarding-panel">
-      <p className="mock-onboarding-eyebrow">First-time setup</p>
-      <h2>Welcome to Edge Workbench</h2>
-      <p className="mock-onboarding-lead">
+    <div className={panelClass}>
+      <p className={eyebrowClass}>First-time setup</p>
+      <h2 className={headingClass}>Welcome to Edge Workbench</h2>
+      <p className={leadClass}>
         Edge Workbench runs on your Raspberry Pi to stamp data proofs, monitor
         local services, and automate integrity checks — all from one dashboard on
         your network.
       </p>
 
-      <div className="mock-onboarding-feature-grid">
-        <article className="mock-onboarding-feature-card">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+        <article className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
           <LockKeyhole size={22} />
-          <h3>Secure access</h3>
-          <p>
+          <h3 className="m-0 text-sm">Secure access</h3>
+          <p className="m-0 text-xs leading-relaxed text-slate-500">
             Sign in with a local admin account and two-factor authentication to
             protect configuration on your LAN.
           </p>
         </article>
-        <article className="mock-onboarding-feature-card">
+        <article className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
           <Stamp size={22} />
-          <h3>Stamp proofs</h3>
-          <p>
+          <h3 className="m-0 text-sm">Stamp proofs</h3>
+          <p className="m-0 text-xs leading-relaxed text-slate-500">
             Hash files and API responses, then anchor them on your embedded
             Minima node through Integritas.
           </p>
         </article>
-        <article className="mock-onboarding-feature-card">
+        <article className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
           <ShieldCheck size={22} />
-          <h3>Run at the edge</h3>
-          <p>
+          <h3 className="m-0 text-sm">Run at the edge</h3>
+          <p className="m-0 text-xs leading-relaxed text-slate-500">
             Poll input sources, track stamp history, and keep services healthy
             without leaving your Pi.
           </p>
@@ -144,18 +171,18 @@ function AccountStep({
     !form.confirmPassword || form.password === form.confirmPassword;
 
   return (
-    <div className="mock-onboarding-panel">
-      <p className="mock-onboarding-eyebrow">Step 1 of 3</p>
-      <h2>Set your admin password</h2>
-      <p className="mock-onboarding-lead">
+    <div className={panelClass}>
+      <p className={eyebrowClass}>Step 1 of 3</p>
+      <h2 className={headingClass}>Set your admin password</h2>
+      <p className={leadClass}>
         Choose the password used to sign in to Edge Workbench.
       </p>
 
-      <div className="mock-onboarding-form-grid">
-        <label className="mock-onboarding-label">
+      <div className={formGridClass}>
+        <label className={labelClass}>
           Password
           <input
-            className="mock-onboarding-input"
+            className={inputClass}
             value={form.password}
             onChange={(event) => setForm({ password: event.target.value })}
             type="password"
@@ -164,19 +191,19 @@ function AccountStep({
           />
           <span
             className={cx(
-              strength.tone === "good" && "mock-onboarding-hint-good",
-              strength.tone === "warn" && "mock-onboarding-hint-warn",
-              strength.tone === "neutral" && "mock-onboarding-muted",
+              strength.tone === "good" && goodHintClass,
+              strength.tone === "warn" && warnHintClass,
+              strength.tone === "neutral" && mutedClass,
             )}
           >
             {strength.label}
           </span>
         </label>
 
-        <label className="mock-onboarding-label">
+        <label className={labelClass}>
           Confirm password
           <input
-            className="mock-onboarding-input"
+            className={inputClass}
             value={form.confirmPassword}
             onChange={(event) =>
               setForm({ confirmPassword: event.target.value })
@@ -186,7 +213,7 @@ function AccountStep({
             autoComplete="new-password"
           />
           {!passwordsMatch && (
-            <span className="mock-onboarding-hint-warn">
+            <span className={warnHintClass}>
               Passwords do not match
             </span>
           )}
@@ -230,38 +257,38 @@ function TwoFactorStep({
   };
 
   return (
-    <div className="mock-onboarding-panel">
-      <p className="mock-onboarding-eyebrow">Step 2 of 3</p>
-      <h2>Set up two-factor authentication</h2>
-      <p className="mock-onboarding-lead">
+    <div className={panelClass}>
+      <p className={eyebrowClass}>Step 2 of 3</p>
+      <h2 className={headingClass}>Set up two-factor authentication</h2>
+      <p className={leadClass}>
         Scan the QR code with your authenticator app, or enter the setup key
         manually if scanning fails. Then enter the current 6-digit code to
         confirm it is working.
       </p>
 
-      <div className="mock-onboarding-2fa-layout">
+      <div className="grid max-w-2xl gap-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-start">
         {loadingQr ? (
-          <p className="mock-onboarding-muted">Generating QR code…</p>
+          <p className={mutedClass}>Generating QR code…</p>
         ) : qrError ? (
-          <p className="error-text">{qrError}</p>
+          <ErrorText>{qrError}</ErrorText>
         ) : qrCode ? (
           <img
             src={qrCode}
             alt="TOTP QR code"
-            className="mock-onboarding-qr-image"
+            className="h-48 w-48 rounded-xl border border-slate-200 bg-white p-2"
           />
         ) : null}
 
-        <div className="mock-onboarding-form-grid">
+        <div className={formGridClass}>
           {totpSecret ? (
-            <div className="mock-onboarding-manual-key">
-              <div className="mock-onboarding-manual-key-header">
-                <label className="mock-onboarding-label m-0" htmlFor="setup-manual-key">
+            <div className="grid gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label className={cx(labelClass, "m-0")} htmlFor="setup-manual-key">
                   Manual setup key
                 </label>
                 <button
                   type="button"
-                  className="mock-onboarding-btn-secondary mock-onboarding-btn-compact"
+                  className={compactButtonClass}
                   onClick={() => setShowManualKey((visible) => !visible)}
                   aria-pressed={showManualKey}
                 >
@@ -269,21 +296,21 @@ function TwoFactorStep({
                   {showManualKey ? "Hide key" : "Show key"}
                 </button>
               </div>
-              <p className="mock-onboarding-muted text-sm">
+              <p className={cx(mutedClass, "text-sm")}>
                 Use issuer <strong>Integritas Pi</strong> and account{" "}
                 <strong>{TOTP_ACCOUNT_LABEL}</strong> if your app asks for them.
               </p>
-              <div className="mock-onboarding-manual-key-row">
+              <div className="flex flex-wrap items-stretch gap-2">
                 <input
                   id="setup-manual-key"
-                  className="mock-onboarding-input mock-onboarding-manual-key-input"
+                  className={cx(inputClass, "min-w-0 flex-1 font-mono text-sm tracking-wide")}
                   readOnly
                   value={showManualKey ? totpSecret : "•".repeat(Math.min(totpSecret.length, 32))}
                   aria-label="Authenticator setup key"
                 />
                 <button
                   type="button"
-                  className="mock-onboarding-btn-secondary mock-onboarding-btn-compact"
+                  className={compactButtonClass}
                   onClick={() => void copyManualKey()}
                   title="Copy setup key"
                 >
@@ -294,10 +321,10 @@ function TwoFactorStep({
             </div>
           ) : null}
 
-          <label className="mock-onboarding-label">
+          <label className={labelClass}>
             Confirmation code
             <input
-              className="mock-onboarding-code-input"
+              className="w-full max-w-[12rem] rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-center text-lg font-semibold tracking-[0.35em] text-slate-950"
               value={form.twoFactorCode}
               onChange={(event) =>
                 setForm({
@@ -315,11 +342,11 @@ function TwoFactorStep({
         </div>
       </div>
 
-      <div className="mock-onboarding-status-card">
-        <div className="mock-onboarding-status-row">
+      <div className={statusCardClass}>
+        <div className={statusRowClass}>
           <div>
             <strong>Authenticator check</strong>
-            <p>Confirms your app is generating valid codes.</p>
+            <p className={statusTextClass}>Confirms your app is generating valid codes.</p>
           </div>
           <Pill
             tone={
@@ -342,18 +369,18 @@ function TwoFactorStep({
           </Pill>
         </div>
         {checkState === "ok" && (
-          <div className="mock-onboarding-mock-result">
+          <div className={successResultClass}>
             <CheckCircle2 size={18} />
             <div>
               <strong>Authenticator linked</strong>
-              <p>You can continue with the rest of setup.</p>
+              <p className="mt-1 mb-0 text-slate-500">You can continue with the rest of setup.</p>
             </div>
           </div>
         )}
-        <div className="mock-onboarding-action-row">
+        <div className={actionRowClass}>
           <button
             type="button"
-            className="mock-onboarding-btn-primary"
+            className={primaryButtonClass}
             onClick={onVerifyCode}
             disabled={form.twoFactorCode.length !== 6 || checkState === "checking" || !qrCode}
           >
@@ -381,25 +408,26 @@ function IntegritasStep({
   onSkip: () => void;
 }) {
   return (
-    <div className="mock-onboarding-panel">
-      <p className="mock-onboarding-eyebrow">Step 3 of 3</p>
-      <h2>Connect Integritas</h2>
-      <p className="mock-onboarding-lead">
+    <div className={panelClass}>
+      <p className={eyebrowClass}>Step 3 of 3</p>
+      <h2 className={headingClass}>Connect Integritas</h2>
+      <p className={leadClass}>
         {INTEGRITAS_STEP_REQUIRED
           ? "Paste your Integritas API key and verify it before continuing."
           : "Paste your Integritas API key now, or skip and configure it later from the Integritas page."}
       </p>
 
-      <div className="mock-onboarding-info-callout">
+      <div className={infoCalloutClass}>
         <KeyRound size={20} />
         <div>
           <strong>Get an API key</strong>
-          <p className="mock-onboarding-muted">
+          <p className={mutedClass}>
             Sign up at{" "}
             <a
               href="https://integritas.technology/"
               target="_blank"
               rel="noreferrer"
+              className="inline-flex items-center gap-1 font-bold text-blue-700 no-underline hover:underline"
             >
               integritas.technology <ExternalLink size={14} />
             </a>{" "}
@@ -408,11 +436,11 @@ function IntegritasStep({
         </div>
       </div>
 
-      <div className="mock-onboarding-form-grid">
-        <label className="mock-onboarding-label">
+      <div className={formGridClass}>
+        <label className={labelClass}>
           Integritas API key
           <input
-            className="mock-onboarding-input"
+            className={inputClass}
             value={form.integritasApiKey}
             onChange={(event) =>
               setForm({ integritasApiKey: event.target.value })
@@ -424,11 +452,11 @@ function IntegritasStep({
         </label>
       </div>
 
-      <div className="mock-onboarding-status-card">
-        <div className="mock-onboarding-status-row">
+      <div className={statusCardClass}>
+        <div className={statusRowClass}>
           <div>
             <strong>API key check</strong>
-            <p>Validates the key with Integritas.</p>
+            <p className={statusTextClass}>Validates the key with Integritas.</p>
           </div>
           <Pill
             tone={
@@ -451,18 +479,18 @@ function IntegritasStep({
           </Pill>
         </div>
         {checkState === "ok" && !integritasSkipped && (
-          <div className="mock-onboarding-mock-result">
+          <div className={successResultClass}>
             <CheckCircle2 size={18} />
             <div>
               <strong>API key verified</strong>
-              <p>Your key will be saved when you finish setup.</p>
+              <p className="mt-1 mb-0 text-slate-500">Your key will be saved when you finish setup.</p>
             </div>
           </div>
         )}
-        <div className="mock-onboarding-action-row">
+        <div className={actionRowClass}>
           <button
             type="button"
-            className="mock-onboarding-btn-primary"
+            className={primaryButtonClass}
             onClick={onVerifyKey}
             disabled={!form.integritasApiKey || checkState === "checking" || integritasSkipped}
           >
@@ -471,7 +499,7 @@ function IntegritasStep({
           {!INTEGRITAS_STEP_REQUIRED ? (
             <button
               type="button"
-              className="mock-onboarding-btn-secondary"
+              className={secondaryButtonClass}
               onClick={onSkip}
               disabled={integritasSkipped}
             >
@@ -521,36 +549,36 @@ function CompleteStep({
   ];
 
   return (
-    <div className="mock-onboarding-panel">
-      <p className="mock-onboarding-eyebrow">All done</p>
-      <h2>Your edge gateway is ready</h2>
-      <p className="mock-onboarding-lead">
+    <div className={panelClass}>
+      <p className={eyebrowClass}>All done</p>
+      <h2 className={headingClass}>Your edge gateway is ready</h2>
+      <p className={leadClass}>
         You have finished the required setup. Edge Workbench will initialise
         everything else silently when you continue.
       </p>
 
-      <ul className="mock-onboarding-summary-list">
+      <ul className="m-0 grid max-w-xl list-none gap-2 p-0">
         {configured.map((item) => (
           <li
             key={item.label}
-            className="mock-onboarding-summary-item mock-onboarding-summary-item-ok"
+            className="flex items-start gap-2.5 rounded-xl border border-green-200 bg-green-50 p-3"
           >
-            <span className="mock-onboarding-summary-icon mock-onboarding-summary-icon-ok">
+            <span className="grid h-7 w-7 place-items-center rounded-full bg-green-600 text-white">
               <Check size={16} />
             </span>
             <div>
               <strong>{item.label}</strong>
-              <p>{item.detail}</p>
+              <p className="mt-1 mb-0 text-slate-500">{item.detail}</p>
             </div>
           </li>
         ))}
       </ul>
 
-      <div className="mock-onboarding-info-callout">
+      <div className={infoCalloutClass}>
         <Sparkles size={20} />
         <div>
           <strong>Configures automatically</strong>
-          <ul className="mock-onboarding-muted m-0 mt-2 pl-4 text-sm leading-relaxed">
+          <ul className={cx(mutedClass, "m-0 mt-2 pl-4 text-sm leading-relaxed")}>
             {automatic.map((item) => (
               <li key={item}>{item}</li>
             ))}
@@ -680,35 +708,35 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   };
 
   return (
-    <div className="mock-onboarding-root">
+    <div className="fixed inset-0 z-50 flex min-h-0 flex-col overflow-hidden overscroll-contain bg-white">
       <div
-        className="mock-onboarding-shell"
+        className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-white"
         role="main"
         aria-label="First-time setup"
       >
-        <header className="mock-onboarding-header">
-          <div className="mock-onboarding-brand">
-            <div className="mock-onboarding-brand-icon">
+        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white">
               <Layers3 size={24} />
             </div>
             <div>
-              <p>Minima Edge Stack</p>
-              <h1>First-time setup</h1>
+              <p className="m-0 text-sm text-slate-500">Minima Edge Stack</p>
+              <h1 className="m-0 mt-0.5 text-lg">First-time setup</h1>
             </div>
           </div>
         </header>
 
-        <div className="mock-onboarding-progress-track">
+        <div className="h-1 shrink-0 bg-slate-200">
           <span
-            className="mock-onboarding-progress-bar"
+            className="block h-full bg-violet-600 transition-[width] duration-200"
             style={{ width: `${progress}%` }}
           />
         </div>
 
-        <div className="mock-onboarding-body">
-          <aside className="mock-onboarding-sidebar">
-            <p className="mock-onboarding-sidebar-title">Setup steps</p>
-            <ol className="mock-onboarding-step-list">
+        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)]">
+          <aside className="flex min-h-0 flex-col overflow-hidden bg-slate-900 p-4 text-slate-200 max-[900px]:px-4 max-[900px]:py-3">
+            <p className="m-0 mb-3 shrink-0 text-[0.72rem] font-extrabold uppercase tracking-widest text-slate-400">Setup steps</p>
+            <ol className="m-0 grid min-h-0 list-none gap-2 overflow-y-auto p-0 [scrollbar-color:rgb(148_163_184_/_0.55)_transparent] [scrollbar-width:thin] max-[900px]:grid-flow-col max-[900px]:auto-cols-[minmax(140px,1fr)] max-[900px]:overflow-x-auto max-[900px]:overflow-y-hidden max-[900px]:pb-1">
               {onboardingSteps.map((step, index) => {
                 const complete = index < stepIndex;
                 const active = index === stepIndex;
@@ -716,9 +744,9 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   <li
                     key={step.id}
                     className={cx(
-                      "mock-onboarding-step-item",
-                      active && "mock-onboarding-step-item-active",
-                      complete && "mock-onboarding-step-item-complete",
+                      "flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-slate-400",
+                      active && "bg-white/10 text-white",
+                      complete && "text-slate-300",
                     )}
                   >
                     <StepIcon
@@ -726,9 +754,9 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                       active={active}
                       complete={complete}
                     />
-                    <div className="mock-onboarding-step-copy">
-                      <span>{step.shortLabel}</span>
-                      <strong>{step.label}</strong>
+                    <div>
+                      <span className="block text-[0.72rem] font-bold uppercase tracking-wide">{step.shortLabel}</span>
+                      <strong className="mt-0.5 block text-[0.88rem] leading-snug">{step.label}</strong>
                     </div>
                   </li>
                 );
@@ -736,8 +764,8 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             </ol>
           </aside>
 
-          <div className="mock-onboarding-main">
-            <div className="mock-onboarding-scroll">
+          <div className="flex min-h-0 min-w-0 flex-col bg-white">
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5 [scrollbar-color:#cbd5e1_transparent] [scrollbar-width:thin] max-[700px]:py-3 lg:px-10 lg:py-6">
               {currentStep.id === "welcome" && <WelcomeStep />}
               {currentStep.id === "account" && (
                 <AccountStep form={form} setForm={setForm} />
@@ -777,14 +805,14 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
               )}
             </div>
 
-            {submitError ? <p className="error-text px-6">{submitError}</p> : null}
+            {submitError ? <ErrorText className="px-6">{submitError}</ErrorText> : null}
 
-            <footer className="mock-onboarding-footer">
+            <footer className="flex shrink-0 flex-col items-stretch gap-3 border-t border-slate-200 bg-white px-6 py-3 max-[900px]:gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 {stepIndex > 0 ? (
                   <button
                     type="button"
-                    className="mock-onboarding-btn-secondary"
+                    className={secondaryButtonClass}
                     onClick={goBack}
                     disabled={submitting}
                   >
@@ -794,13 +822,13 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   <span />
                 )}
               </div>
-              <div className="mock-onboarding-footer-right">
-                <span className="mock-onboarding-muted">
+              <div className="flex items-center justify-between gap-3.5 max-[900px]:justify-between">
+                <span className={mutedClass}>
                   Step {stepIndex + 1} of {onboardingSteps.length}
                 </span>
                 <button
                   type="button"
-                  className="mock-onboarding-btn-primary"
+                  className={primaryButtonClass}
                   disabled={!canContinue || submitting}
                   onClick={() => void goNext()}
                 >

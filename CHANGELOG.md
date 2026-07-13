@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- Frontend styling guidance now targets Tailwind-only component and page styling after the dedicated migration, with plain CSS reserved for root/body/base global rules.
+- Shared frontend button, text, tab, status-row, and table helpers now use Tailwind utilities, with setup, diagnostics, runtime config, and read-history surfaces migrated off their old global CSS selectors.
+- Proof history and read history now share the workflow-style table shell and row styling, moving history/list tables toward reusable Tailwind primitives.
+- Devices list now uses the shared workflow-style table and row action primitives, removing the old data-source table/action/health CSS selectors.
+- Automation workflow and run-history tables now use the shared table primitives while preserving the workflow list/log visual style.
+- Removed the unused frontend file explorer panel and its orphaned file-list CSS selectors.
+- Device form and template cards now use Tailwind/shared UI helpers instead of data-source-specific global CSS selectors.
+- Wallet page actions, tabs, hero balance card, and empty/error text now use Tailwind/shared UI helpers instead of wallet-specific global CSS selectors.
+- Dashboard hero, build-flow, activity, and status sections now use Tailwind/shared UI helpers instead of dashboard-specific global CSS selectors.
+- Integritas upload panels, file drop zones, runtime key panel, and stamp-result modal now use Tailwind/shared UI helpers instead of Integritas-specific global CSS selectors.
+- Minima runtime/health panels and Automation checkbox rows now use Tailwind/shared UI helpers instead of the old `api-key-box`, `check-row`, and `error-text` hooks.
+- Address book modal copy, empty/error, and inline form actions now use Tailwind/shared UI helpers instead of legacy global text/button hooks.
+- Account settings forms now use Tailwind utilities instead of the legacy `form-card` global selector.
+- Minima stat panels now use the shared card component, allowing old shared global selectors like `card`, `row-actions`, `selected-row`, and `json-preview` to be removed.
+- Login screen styling now uses Tailwind utilities directly, removing the standalone `login.css` component layer.
+- First-time onboarding styling now uses Tailwind utilities directly, removing the standalone `onboarding.css` component layer and final `error-text` global hook.
+- Frontend design-system conventions are now documented with styling boundaries, shared component guidance, and when to use local Tailwind class constants.
+- Shared buttons now support compact sizes, and Automation workspace actions now use the shared button variants instead of raw browser buttons.
+- Wallet and Diagnostics subtabs now have clearer active/inactive styling with reliable active-tab contrast.
+- Dashboard and Wallet now share the dark hero card surface, and wallet hero actions use a dedicated dark-surface button variant for reliable contrast.
+
 ## [0.14.1] - 2026-07-10
 
 ### Changed
