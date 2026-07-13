@@ -17,6 +17,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Device form and template cards now use Tailwind/shared UI helpers instead of data-source-specific global CSS selectors.
 - Wallet page actions, tabs, hero balance card, and empty/error text now use Tailwind/shared UI helpers instead of wallet-specific global CSS selectors.
 - Dashboard hero, build-flow, activity, and status sections now use Tailwind/shared UI helpers instead of dashboard-specific global CSS selectors.
+- Integritas upload panels, file drop zones, runtime key panel, and stamp-result modal now use Tailwind/shared UI helpers instead of Integritas-specific global CSS selectors.
+- Minima runtime/health panels and Automation checkbox rows now use Tailwind/shared UI helpers instead of the old `api-key-box`, `check-row`, and `error-text` hooks.
 
 ## [0.14.1] - 2026-07-10
 

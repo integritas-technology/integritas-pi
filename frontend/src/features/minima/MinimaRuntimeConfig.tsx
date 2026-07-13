@@ -54,7 +54,7 @@ export function MinimaRuntimeConfig({
         </dl>
       </div>
 
-      <div className="api-key-box rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="grid min-w-[min(100%,360px)] gap-2.5 rounded-2xl border border-slate-200 bg-white p-4">
         <h4 className={`${sectionTitleClass} mb-3`}>Megammr host</h4>
         <input
           value={megammrHostInput}
@@ -75,7 +75,7 @@ export function MinimaRuntimeConfig({
           <p className="m-0 text-sm text-slate-500">{peersSummary}</p>
         </div>
 
-        <div className="api-key-box border-0 bg-transparent p-0">
+        <div className="grid min-w-[min(100%,360px)] gap-2.5 border-0 bg-transparent p-0">
           <input
             value={peerslistInput}
             onChange={(event) => setPeerslistInput(event.target.value)}

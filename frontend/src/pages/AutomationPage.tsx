@@ -428,7 +428,7 @@ function CreateWorkflowWorkspace({ name, enabled, sources, addressBook, walletSt
           <Panel>
             <strong>Workflow setup</strong>
             <label>Workflow name<input value={name} onChange={(event) => onNameChange(event.target.value)} placeholder="Button fetches weather API" /></label>
-            <label className="check-row"><input type="checkbox" checked={enabled} onChange={(event) => onEnabledChange(event.target.checked)} /> Enabled after create</label>
+            <label className="grid grid-cols-[auto_minmax(0,1fr)] items-center justify-start gap-2.5"><input className="w-auto" type="checkbox" checked={enabled} onChange={(event) => onEnabledChange(event.target.checked)} /> Enabled after create</label>
             <strong>Validation</strong>
             {localErrors.map((issue) => <p key={issue} className={errorText}>{issue}</p>)}
             {backendErrors.map((issue) => <p key={issue} className={errorText}>{issue}</p>)}
@@ -543,7 +543,7 @@ function AttachedStampSettings({ block, onAttachedChange, onAttachedRemove }: { 
   return (
     <div className={cx(softCardClass, formGridClass)}>
       <strong>+ Stamp with Integritas attached</strong>
-      <label className="check-row"><input type="checkbox" checked={Boolean(conditionObject)} onChange={(event) => onAttachedChange(stamp.id, { condition: event.target.checked ? { source: "data", fieldPath: "active", operator: "equals", value: true } : null })} /> Only stamp when this block's data matches</label>
+      <label className="grid grid-cols-[auto_minmax(0,1fr)] items-center justify-start gap-2.5"><input className="w-auto" type="checkbox" checked={Boolean(conditionObject)} onChange={(event) => onAttachedChange(stamp.id, { condition: event.target.checked ? { source: "data", fieldPath: "active", operator: "equals", value: true } : null })} /> Only stamp when this block's data matches</label>
       {conditionObject && <>
         <p className={mutedText}>The condition checks the data produced by the Record/Fetch block this stamp is attached to.</p>
         <label>This block's data field path<input value={conditionObject.fieldPath ?? "active"} onChange={(event) => onAttachedChange(stamp.id, { condition: { ...conditionObject, source: "data", fieldPath: event.target.value } })} /></label>

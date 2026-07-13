@@ -82,7 +82,7 @@ export function IntegritasRuntimeConfig({
         </div>
       )}
 
-      <div className='api-key-box rounded-2xl border border-slate-200 bg-white p-4'>
+      <div className='grid min-w-[min(100%,360px)] gap-2.5 rounded-2xl border border-slate-200 bg-white p-4'>
         <div className='flex flex-wrap items-center justify-between gap-x-4 gap-y-2'>
           <div className='flex flex-wrap gap-2'>
             <StatusBadge ok={hasApiKey}>

@@ -85,103 +85,6 @@ code {
   gap: 12px;
 }
 
-.integritas-upload-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 24px;
-}
-
-.integritas-action-card {
-  display: grid;
-  gap: 16px;
-}
-
-.integritas-action-card h3 {
-  margin: 0;
-}
-
-.drop-box {
-  display: grid;
-  min-height: 220px;
-  place-items: center;
-  gap: 10px;
-  padding: 24px;
-  color: #475569;
-  text-align: center;
-  border: 2px dashed #cbd5e1;
-  border-radius: 24px;
-  background: #f8fafc;
-}
-
-.drop-box.dragging {
-  border-color: #020617;
-  background: #f1f5f9;
-}
-
-.drop-box input {
-  display: none;
-}
-
-.drop-box-file-label {
-  display: grid;
-  gap: 10px;
-  cursor: pointer;
-}
-
-.portal-link-row {
-  margin-top: 12px;
-}
-
-.portal-link-row a {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: #0f172a;
-  font-weight: 600;
-}
-
-.stamp-result-modal {
-  display: grid;
-  gap: 16px;
-}
-
-.stamp-result-message {
-  margin: 0;
-  color: #334155;
-  line-height: 1.5;
-}
-
-.stamp-result-meta {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 8px 16px;
-  margin: 0;
-}
-
-.stamp-result-meta dt {
-  margin: 0;
-  color: #64748b;
-  font-weight: 600;
-}
-
-.stamp-result-meta dd {
-  margin: 0;
-  word-break: break-all;
-}
-
-.api-key-box {
-  display: grid;
-  gap: 10px;
-  min-width: min(100%, 360px);
-}
-
-.api-key-box label {
-  display: grid;
-  gap: 10px;
-  color: #334155;
-  font-weight: 700;
-}
-
 .row-actions {
   display: flex;
   flex-wrap: wrap;
@@ -198,16 +101,6 @@ code {
 
 .selected-row {
   background: #f8fafc;
-}
-
-.check-row {
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  justify-content: start;
-}
-
-.check-row input {
-  width: auto;
 }
 
 .form-card label {

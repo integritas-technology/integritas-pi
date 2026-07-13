@@ -179,7 +179,7 @@ export function IntegritasPage() {
         />
       )}
 
-      <div className='integritas-upload-grid'>
+      <div className='grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(320px,1fr))]'>
         <StampFilePanel
           file={stampUpload}
           setFile={setStampUpload}

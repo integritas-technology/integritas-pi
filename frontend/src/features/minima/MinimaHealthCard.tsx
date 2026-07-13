@@ -1,5 +1,6 @@
 import type { MinimaNodeStatus } from "../../app/types";
 import { JsonPreview } from "../../components/JsonPreview";
+import { ErrorText } from "../../components/Text";
 import { formatBlockAge } from "./minimaFormat";
 import { shouldShowMinimaRpcError } from "./minimaStatusDisplay";
 import { MinimaStatCell, MinimaStatGrid } from "./MinimaStatCell";
@@ -37,7 +38,7 @@ export function MinimaHealthCard({
     <>
       {error && <p className="mb-2 text-sm text-amber-800">{error}</p>}
       {shouldShowMinimaRpcError(status) && (
-        <p className="error-text mb-2">{status?.rpc.error}</p>
+        <ErrorText className="mb-2">{status?.rpc.error}</ErrorText>
       )}
       {status?.rpc.raw !== undefined ? (
         <JsonPreview value={status.rpc.raw} label="View RPC debug" />
