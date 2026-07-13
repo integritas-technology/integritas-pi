@@ -26,6 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - First-time onboarding styling now uses Tailwind utilities directly, removing the standalone `onboarding.css` component layer and final `error-text` global hook.
 - Frontend design-system conventions are now documented with styling boundaries, shared component guidance, and when to use local Tailwind class constants.
 - Shared buttons now support compact sizes, and Automation workspace actions now use the shared button variants instead of raw browser buttons.
+- Wallet and Diagnostics subtabs now have clearer active/inactive styling with reliable active-tab contrast.
 
 ## [0.14.1] - 2026-07-10
 
