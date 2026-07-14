@@ -10,7 +10,8 @@ Read these first:
 Feature folders:
 
 - Auth: `backend/src/features/auth/`
-- Integritas: `backend/src/features/integritas/`
+- Integritas (proof stamping): `backend/src/features/integritas/`
+- Integritas Connect auth: `backend/src/features/integritas-auth/`
 - Data sources: `backend/src/features/data-sources/`
 - Automation: `backend/src/features/automation/`
 - Minima: `backend/src/features/minima/`

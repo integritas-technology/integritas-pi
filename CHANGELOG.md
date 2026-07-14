@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- SQLite tables for Integritas Connect device linking: `integritas_device`, `integritas_activation`, `integritas_auth`, and `integritas_account_cache` (separate from local `users` / `sessions`).
+- Backend `integritas-auth` helpers: Connect token encrypt/decrypt at rest (AES-256-GCM via `APP_SECRET`), and `getOrCreateDevice()` that reuses `settings.device_id` with name/type from device info.
+- Env/config for Connect device activation: `INTEGRITAS_CONNECT_BASE_URL` and `INTEGRITAS_DEVICE_POLL_INTERVAL_SECONDS` (wired through `.env.example`, installer, Docker Compose, and README).
+
+### Changed
+
+- Clarified that losing or changing `APP_SECRET` makes encrypted local secrets (API key, TOTP, and future Connect tokens) unrecoverable; keep `.env` preserved across upgrades.
+
 ## [0.15.0] - 2026-07-13
 
 ### Changed

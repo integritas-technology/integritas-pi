@@ -54,11 +54,13 @@ export const env = {
   port: Number(process.env.PORT ?? 3000),
   hostFilesRoot: resolveHostFilesRoot(),
   minimaStatusUrl: resolveMinimaStatusUrl(),
+  integritasConnectBaseUrl: process.env.INTEGRITAS_CONNECT_BASE_URL ?? "https://integritas.technology",
   integritasBaseUrl: process.env.INTEGRITAS_BASE_URL ?? "https://integritas.technology/core",
   integritasRequestId: process.env.INTEGRITAS_REQUEST_ID ?? "integritas-pi",
   integritasRequestTimeoutMs: Number(process.env.INTEGRITAS_REQUEST_TIMEOUT_MS ?? 15000),
   integritasPollIntervalSeconds: Number(process.env.INTEGRITAS_POLL_INTERVAL_SECONDS ?? 30),
   integritasProofPollTimeoutMinutes: Number(process.env.INTEGRITAS_PROOF_POLL_TIMEOUT_MINUTES ?? 5),
+  integritasDevicePollIntervalSeconds: Number(process.env.INTEGRITAS_DEVICE_POLL_INTERVAL_SECONDS ?? 5),
   integritasPortalUrl: process.env.INTEGRITAS_PORTAL_URL ?? "",
   integritasApiKeyFallback: process.env.INTEGRITAS_API_KEY ?? "",
   databasePath,
@@ -73,5 +75,5 @@ export const env = {
   minimaHealthPollIntervalSeconds: Number(process.env.MINIMA_HEALTH_POLL_INTERVAL_SECONDS ?? 60),
   minimaStallBlockAgeSeconds: Number(process.env.MINIMA_STALL_BLOCK_AGE_SECONDS ?? 300),
   minimaAutoResync: process.env.MINIMA_AUTO_RESYNC === "true",
-  minimaAutoResyncCooldownMinutes: Number(process.env.MINIMA_AUTO_RESYNC_COOLDOWN_MINUTES ?? 30)
+  minimaAutoResyncCooldownMinutes: Number(process.env.MINIMA_AUTO_RESYNC_COOLDOWN_MINUTES ?? 30),
 };

@@ -84,12 +84,14 @@ MINIMA_HEALTH_POLL_INTERVAL_SECONDS=60
 MINIMA_STALL_BLOCK_AGE_SECONDS=300
 MINIMA_AUTO_RESYNC=false
 MINIMA_AUTO_RESYNC_COOLDOWN_MINUTES=30
+INTEGRITAS_CONNECT_BASE_URL=https://integritas.technology
 INTEGRITAS_BASE_URL=https://integritas.technology/core
 INTEGRITAS_API_KEY=
 INTEGRITAS_REQUEST_ID=integritas-pi
 INTEGRITAS_REQUEST_TIMEOUT_MS=15000
 INTEGRITAS_POLL_INTERVAL_SECONDS=30
 INTEGRITAS_PROOF_POLL_TIMEOUT_MINUTES=5
+INTEGRITAS_DEVICE_POLL_INTERVAL_SECONDS=5
 INTEGRITAS_PORTAL_URL=
 COOKIE_SECURE=true
 SESSION_MAX_AGE_DAYS=7
@@ -118,7 +120,13 @@ When GPIO is not enabled or `/dev/gpiochip0` is unavailable in the backend conta
 
 GPIO input/output settings for tested button and LED wiring, plus suggested untested device profiles, are documented in [`docs/gpio-device-settings.md`](./docs/gpio-device-settings.md).
 
+`INTEGRITAS_CONNECT_BASE_URL` is the Integritas Connect host used for device activation and account linking (default `https://integritas.technology`).
+
+`INTEGRITAS_BASE_URL` is the Integritas core host used for proof stamping (default `https://integritas.technology/core`).
+
 `INTEGRITAS_API_KEY` is optional. You can leave it empty and save the API key from the Integritas page in the UI. The key is sent to the backend once, encrypted, and stored in SQLite. It is never exposed in the frontend bundle.
+
+`INTEGRITAS_DEVICE_POLL_INTERVAL_SECONDS` is how often the Pi polls Connect while device activation is pending (default `5`).
 
 The backend polls Integritas for pending proof UIDs in the background (`INTEGRITAS_POLL_INTERVAL_SECONDS`, default 30). Pending proofs that never reach on-chain status are marked failed after `INTEGRITAS_PROOF_POLL_TIMEOUT_MINUTES` (default 5). Automation workflows retry Integritas stamps on the next run after transient upstream errors. Manual poll in Diagnostics still works and uses the same refresh logic.
 
@@ -468,7 +476,11 @@ Example fields:
   "state": "running",
   "sync": { "status": "active", "block": 932067, "blockAgeSeconds": 45 },
   "health": { "peerCount": 12 },
-  "container": { "state": "running", "cpuPercent": 2.5, "memory": { "usage": "512 MB", "limit": "4 GB" } },
+  "container": {
+    "state": "running",
+    "cpuPercent": 2.5,
+    "memory": { "usage": "512 MB", "limit": "4 GB" }
+  },
   "monitoring": { "stallDetected": false, "autoResyncEnabled": false }
 }
 ```

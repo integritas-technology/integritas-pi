@@ -52,9 +52,9 @@ Status: Mitigated.
 
 ## `APP_SECRET` Dependency
 
-Risk: The encrypted Integritas API key can only be decrypted with the same `APP_SECRET`. If `APP_SECRET` is lost or changed, stored secrets are unrecoverable. If `APP_SECRET` leaks, encrypted database secrets can be decrypted.
+Risk: Encrypted local secrets (Integritas API key, TOTP, Connect tokens) can only be decrypted with the same `APP_SECRET` from `.env`. If `APP_SECRET` is lost or changed, stored secrets are unrecoverable. If `.env` leaks together with the database, encrypted secrets can be decrypted.
 
-Impact: Loss of access to saved API key or compromise of stored secrets.
+Impact: Loss of access to saved secrets or compromise when both `.env` and SQLite are obtained.
 
 Plan:
 

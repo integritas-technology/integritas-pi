@@ -272,6 +272,52 @@ export function runMigrations() {
     )
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS integritas_device (
+      id TEXT PRIMARY KEY DEFAULT 'default',
+      device_id TEXT NOT NULL UNIQUE,
+      device_name TEXT NOT NULL,
+      device_type TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS integritas_activation (
+      id TEXT PRIMARY KEY DEFAULT 'current',
+      activation_id TEXT,
+      user_code TEXT,
+      verification_url TEXT,
+      status TEXT NOT NULL,
+      expires_at TEXT,
+      started_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS integritas_auth (
+      id TEXT PRIMARY KEY DEFAULT 'default',
+      connected_device_id TEXT,
+      integritas_user_id TEXT,
+      access_token_enc TEXT NOT NULL,
+      refresh_token_enc TEXT NOT NULL,
+      api_key_enc TEXT,
+      token_expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS integritas_account_cache (
+      id TEXT PRIMARY KEY DEFAULT 'default',
+      payload_json TEXT NOT NULL,
+      fetched_at TEXT NOT NULL
+    )
+  `);
+
   db.exec(`DROP TABLE IF EXISTS wallet_accounts`);
 }
 
