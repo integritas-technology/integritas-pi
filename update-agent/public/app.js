@@ -26,7 +26,7 @@ function renderServiceList(listEl, services) {
 async function loadStatus() {
   showView("loading");
   try {
-    const response = await fetch("status", { credentials: "include" });
+    const response = await fetch("/update/status", { credentials: "include" });
     if (!response.ok) {
       throw new Error(`Status check failed (HTTP ${response.status})`);
     }
@@ -67,7 +67,7 @@ function finishWithSuccess() {
 async function pollApplyStatus(consecutiveFailures = 0) {
   let data;
   try {
-    const response = await fetch("apply", { credentials: "include" });
+    const response = await fetch("/update/apply", { credentials: "include" });
     if (!response.ok) {
       throw new Error(`Status check failed (HTTP ${response.status})`);
     }
@@ -107,7 +107,7 @@ async function pollApplyStatus(consecutiveFailures = 0) {
 async function applyUpdate() {
   showView("updating");
   try {
-    const response = await fetch("apply", { method: "POST", credentials: "include" });
+    const response = await fetch("/update/apply", { method: "POST", credentials: "include" });
     if (response.status !== 202 && response.status !== 409) {
       const data = await response.json().catch(() => ({}));
       throw new Error(data.error || `Failed to start update (HTTP ${response.status})`);
