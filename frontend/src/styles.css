@@ -273,6 +273,33 @@ button:disabled {
   background: #f8fafc;
 }
 
+.update-available-card-link {
+  display: block;
+  margin-top: 16px;
+  text-decoration: none;
+}
+
+.update-available-card {
+  color: #ffffff;
+  background: #6d28d9;
+  transition: background 150ms ease;
+}
+
+.update-available-card-link:hover .update-available-card {
+  background: #5b21b6;
+}
+
+.update-available-card div {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-weight: 700;
+}
+
+.update-available-card p {
+  color: rgba(255, 255, 255, 0.85);
+}
+
 .sidebar-note div {
   display: flex;
   gap: 8px;

@@ -69,13 +69,16 @@ export function AppShell({
                 {badge && <span className="nav-badge">{badge}</span>}
               </NavLink>
             ))}
-            {updateAvailable && (
-              <a href="/update" className="nav-item">
-                <span><Sparkles size={19} />Update</span>
-                <span className="nav-badge">New</span>
-              </a>
-            )}
           </nav>
+
+          {updateAvailable && (
+            <a href="/update" className="update-available-card-link">
+              <Card className="update-available-card">
+                <div><Sparkles size={18} /> Update available</div>
+                <p>A new version is ready to install. Click to view details and update.</p>
+              </Card>
+            </a>
+          )}
 
           <Card className="sidebar-note">
             <div><ShieldCheck size={18} /> Edge gateway prototype</div>
