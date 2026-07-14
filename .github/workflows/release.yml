@@ -121,17 +121,6 @@ jobs:
         with:
           node-version: 22
 
-      - name: Build manifest
-        env:
-          FRONTEND_DIGEST: ${{ needs.build.outputs.frontend-digest }}
-          BACKEND_DIGEST: ${{ needs.build.outputs.backend-digest }}
-        run: node scripts/release/build-manifest.mjs manifest.source.json manifest.json
-
-      - name: Sign manifest
-        env:
-          MANIFEST_SIGNING_KEY: ${{ secrets.MANIFEST_SIGNING_KEY }}
-        run: node scripts/release/sign-manifest.mjs manifest.json manifest.json.sig
-
       - name: Generate manifest repo access token
         id: manifest-repo-token
         uses: actions/create-github-app-token@v3
@@ -163,6 +152,29 @@ jobs:
           ref: ${{ steps.manifest-repo-branch.outputs.branch }}
           token: ${{ steps.manifest-repo-token.outputs.token }}
           path: manifest-repo
+
+      - name: Read previously deployed digests as fallback
+        id: previous-manifest
+        run: |
+          prev_manifest="manifest-repo/integritas-pi/qa/manifest.json"
+          if [ -f "$prev_manifest" ]; then
+            echo "frontend=$(node -pe "require('./$prev_manifest').frontend ?? ''")" >> "$GITHUB_OUTPUT"
+            echo "backend=$(node -pe "require('./$prev_manifest').backend ?? ''")" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend=" >> "$GITHUB_OUTPUT"
+            echo "backend=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build manifest
+        env:
+          FRONTEND_DIGEST: ${{ needs.build.outputs.frontend-digest || steps.previous-manifest.outputs.frontend }}
+          BACKEND_DIGEST: ${{ needs.build.outputs.backend-digest || steps.previous-manifest.outputs.backend }}
+        run: node scripts/release/build-manifest.mjs manifest.json
+
+      - name: Sign manifest
+        env:
+          MANIFEST_SIGNING_KEY: ${{ secrets.MANIFEST_SIGNING_KEY }}
+        run: node scripts/release/sign-manifest.mjs manifest.json manifest.json.sig
 
       - name: Deploy manifest (push to private manifest repo)
         run: |
