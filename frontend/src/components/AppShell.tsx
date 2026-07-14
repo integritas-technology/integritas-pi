@@ -75,7 +75,7 @@ export function AppShell({
             <a href="/update" className="update-available-card-link">
               <Card className="update-available-card">
                 <div><Sparkles size={18} /> Update available</div>
-                <p>A new version is ready to install. Click to view details and update.</p>
+                <p>A new version is ready. Click to view details and update.</p>
               </Card>
             </a>
           )}
