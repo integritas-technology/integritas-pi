@@ -15,6 +15,40 @@ const feedbackTypes = [
   { value: "other", label: "Other" }
 ];
 
+const feedbackAreas = [
+  { value: "current_page", label: "Current page" },
+  { value: "dashboard", label: "Dashboard" },
+  { value: "node", label: "Minima Core" },
+  { value: "wallet", label: "Wallet" },
+  { value: "integritas", label: "Integritas" },
+  { value: "data", label: "Devices" },
+  { value: "automation", label: "Automation" },
+  { value: "diagnostics", label: "Diagnostics" },
+  { value: "setup_login", label: "Setup / Login" },
+  { value: "install_update", label: "Install / Update" },
+  { value: "other", label: "Other" }
+];
+
+const bugSeverities = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "blocking", label: "Blocking" }
+];
+
+const bugReproducibilities = [
+  { value: "always", label: "Always" },
+  { value: "sometimes", label: "Sometimes" },
+  { value: "once", label: "Once" },
+  { value: "not_sure", label: "Not sure" }
+];
+
+const featurePriorities = [
+  { value: "nice_to_have", label: "Nice to have" },
+  { value: "important", label: "Important" },
+  { value: "blocking_workflow", label: "Blocking workflow" }
+];
+
 type FeedbackSubmitResponse = {
   id: string;
   fileName: string;
@@ -24,6 +58,13 @@ type FeedbackSubmitResponse = {
 export function FeedbackModal({ pagePath, pageLabel, onClose }: { pagePath: string; pageLabel: string; onClose: () => void }) {
   const { showToast } = useToast();
   const [type, setType] = useState("bug");
+  const [area, setArea] = useState("current_page");
+  const [bugSeverity, setBugSeverity] = useState("medium");
+  const [bugReproducibility, setBugReproducibility] = useState("not_sure");
+  const [expectedBehavior, setExpectedBehavior] = useState("");
+  const [actualBehavior, setActualBehavior] = useState("");
+  const [featurePriority, setFeaturePriority] = useState("nice_to_have");
+  const [desiredOutcome, setDesiredOutcome] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -42,8 +83,24 @@ export function FeedbackModal({ pagePath, pageLabel, onClose }: { pagePath: stri
     try {
       const result = await postJson<FeedbackSubmitResponse>("/api/feedback", {
         type,
+        area: { id: area, label: feedbackAreas.find((item) => item.value === area)?.label ?? area },
         description: trimmedDescription,
-        page: { path: pagePath, label: pageLabel }
+        page: { path: pagePath, label: pageLabel },
+        ...(type === "bug" ? {
+          bug: {
+            severity: bugSeverity,
+            reproducibility: bugReproducibility,
+            expectedBehavior,
+            actualBehavior
+          }
+        } : {}),
+        ...(type === "feature_request" ? {
+          featureRequest: {
+            priority: featurePriority,
+            desiredOutcome
+          }
+        } : {}),
+        browser: getBrowserContext()
       });
       setSaved(result);
       showToast({ tone: "success", title: "Feedback saved locally", message: "Download the JSON file when you are ready to share it." });
@@ -89,6 +146,55 @@ export function FeedbackModal({ pagePath, pageLabel, onClose }: { pagePath: stri
           </label>
 
           <label className="grid gap-2 font-bold text-slate-700">
+            What is this about?
+            <select value={area} onChange={(event) => setArea(event.target.value)}>
+              {feedbackAreas.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+          </label>
+
+          {type === "bug" && (
+            <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="grid gap-2 font-bold text-slate-700">
+                  Severity
+                  <select value={bugSeverity} onChange={(event) => setBugSeverity(event.target.value)}>
+                    {bugSeverities.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                  </select>
+                </label>
+                <label className="grid gap-2 font-bold text-slate-700">
+                  Reproducibility
+                  <select value={bugReproducibility} onChange={(event) => setBugReproducibility(event.target.value)}>
+                    {bugReproducibilities.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                  </select>
+                </label>
+              </div>
+              <label className="grid gap-2 font-bold text-slate-700">
+                Expected behavior
+                <input maxLength={1000} value={expectedBehavior} onChange={(event) => setExpectedBehavior(event.target.value)} placeholder="What did you expect to happen?" />
+              </label>
+              <label className="grid gap-2 font-bold text-slate-700">
+                Actual behavior
+                <input maxLength={1000} value={actualBehavior} onChange={(event) => setActualBehavior(event.target.value)} placeholder="What happened instead?" />
+              </label>
+            </div>
+          )}
+
+          {type === "feature_request" && (
+            <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+              <label className="grid gap-2 font-bold text-slate-700">
+                Priority
+                <select value={featurePriority} onChange={(event) => setFeaturePriority(event.target.value)}>
+                  {featurePriorities.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                </select>
+              </label>
+              <label className="grid gap-2 font-bold text-slate-700">
+                Desired outcome
+                <input maxLength={1000} value={desiredOutcome} onChange={(event) => setDesiredOutcome(event.target.value)} placeholder="What should this help you do?" />
+              </label>
+            </div>
+          )}
+
+          <label className="grid gap-2 font-bold text-slate-700">
             Description
             <textarea
               className="min-h-40 resize-y"
@@ -113,4 +219,18 @@ export function FeedbackModal({ pagePath, pageLabel, onClose }: { pagePath: stri
       )}
     </Modal>
   );
+}
+
+function getBrowserContext() {
+  return {
+    userAgent: navigator.userAgent,
+    language: navigator.language,
+    languages: navigator.languages,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    viewport: {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      devicePixelRatio: window.devicePixelRatio
+    }
+  };
 }

@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Feedback modal in the app shell saves authenticated user feedback to one local aggregate JSON file and offers a browser download for manual sharing.
+- Feedback modal in the app shell saves authenticated user feedback to one local aggregate JSON file, captures feedback area, bug/feature-specific fields, browser context, and offers a browser download for manual sharing.
 
 ## [0.15.0] - 2026-07-13
 

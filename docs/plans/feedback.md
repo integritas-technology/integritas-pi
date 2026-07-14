@@ -87,8 +87,29 @@ The backend should create the `feedback` directory when needed.
         "path": "/automation",
         "label": "Automation"
       },
+      "area": {
+        "id": "automation",
+        "label": "Automation"
+      },
       "type": "bug",
       "description": "Describe the issue here.",
+      "bug": {
+        "severity": "medium",
+        "reproducibility": "sometimes",
+        "expectedBehavior": "Workflow should save.",
+        "actualBehavior": "Save button stays disabled."
+      },
+      "browser": {
+        "userAgent": "Mozilla/5.0 ...",
+        "language": "en-US",
+        "languages": ["en-US", "en"],
+        "timezone": "Europe/Stockholm",
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "devicePixelRatio": 1
+        }
+      },
       "stats": {
         "dataSources": 4,
         "dataReads": 120,
@@ -100,7 +121,7 @@ The backend should create the `feedback` directory when needed.
 }
 ```
 
-Top-level `metadata` is refreshed on every submit so the aggregate file reflects current app, user, and device context. Per-submission `stats` are kept on each submission because counts are time-sensitive and useful for later analysis.
+Top-level `metadata` is refreshed on every submit so the aggregate file reflects current app, user, and device context. Per-submission `stats` and `browser` context are kept on each submission because counts, viewport, browser, and locale are time-sensitive and useful for later analysis.
 
 Do not store or export secrets:
 
@@ -134,12 +155,13 @@ GET  /api/feedback/export
 2. Validate feedback type, page path, optional page label, and description.
 3. Collect current metadata from the authenticated session and existing device/status helpers.
 4. Collect lightweight app stats from SQLite.
-5. Load `feedback-submissions.json` if it exists.
-6. Initialize a new aggregate document if it does not exist.
-7. Append the new submission.
-8. Write through a temporary file, then rename it over the aggregate file to reduce corruption risk.
-9. Record an audit event such as `feedback.submit` without storing the description in the audit log.
-10. Return the submission id and export URL.
+5. Validate optional browser context and bug/feature-specific detail fields.
+6. Load `feedback-submissions.json` if it exists.
+7. Initialize a new aggregate document if it does not exist.
+8. Append the new submission.
+9. Write through a temporary file, then rename it over the aggregate file to reduce corruption risk.
+10. Record an audit event such as `feedback.submit` without storing the description in the audit log.
+11. Return the submission id and export URL.
 
 `GET /api/feedback/export` should:
 
@@ -165,6 +187,10 @@ The modal should:
 - Use `postJson` so credentials are included consistently.
 - Derive the page path from `useLocation()` or `window.location.pathname`.
 - Derive the page label from `frontend/src/app/nav.ts` when possible.
+- Let the user choose what app area the feedback is about, even when it differs from the current page.
+- Show bug-specific severity, reproducibility, expected behavior, and actual behavior fields for bug reports.
+- Show feature-request priority and desired outcome fields for feature requests.
+- Include non-secret browser context: user agent, language, timezone, viewport size, and device pixel ratio.
 - Keep validation inline for missing type or description.
 - Show transient submit failures through `useToast`.
 - Show a success state with a Download feedback JSON action linking to `/api/feedback/export`.
@@ -196,7 +222,8 @@ Manual checks:
 - Submit feedback from at least two routes and confirm both submissions appear in one aggregate JSON file.
 - Download the aggregate JSON from the browser.
 - Confirm metadata is present only once at the top level.
-- Confirm per-submission page, type, description, timestamp, id, and stats are present.
+- Confirm per-submission page, area, type, description, timestamp, id, browser context, and stats are present.
+- Confirm bug reports include bug detail fields and feature requests include feature request detail fields.
 - Confirm no secrets are included in the JSON export.
 
 ## Later Releases

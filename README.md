@@ -272,6 +272,18 @@ Public API routes (no session required):
 
 All other `/api/*` routes require a valid session cookie.
 
+## Feedback Export
+
+Authenticated users can open the Feedback modal from the app shell sidebar. Feedback is saved locally on the Pi as one aggregate JSON file:
+
+```txt
+DATA_DIR/feedback/feedback-submissions.json
+```
+
+In the default Docker deploy this is inside the backend container at `/data/feedback/feedback-submissions.json` and on the host under the configured `DATA_DIR`.
+
+After submitting feedback, the modal offers a download action for the same aggregate JSON file so the user can send it manually. The export includes the current page, feedback area, feedback type, optional bug/feature details, description, browser context, non-secret app/user/device metadata, and lightweight app stats. It must not include passwords, TOTP secrets, session cookies, Integritas API keys, wallet seed phrases, or raw encrypted secret values.
+
 The CLI does not send session cookies in V1. Operational CLI commands that call protected APIs return `401 Unauthorized` until a future CLI auth story is added. Use the browser UI for authenticated operations.
 
 ## CLI

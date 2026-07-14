@@ -11,7 +11,7 @@ feedbackRouter.post("/", (req, res) => {
     const result = appendFeedbackSubmission(req.body, req.user);
     recordAuditEvent("feedback.submit", {
       userId: req.user.id,
-      detail: JSON.stringify({ id: result.submission.id, type: result.submission.type, page: result.submission.page })
+      detail: JSON.stringify({ id: result.submission.id, type: result.submission.type, area: result.submission.area, page: result.submission.page })
     });
     return res.status(201).json({ id: result.submission.id, fileName: result.fileName, exportUrl: result.exportUrl });
   } catch (error) {
