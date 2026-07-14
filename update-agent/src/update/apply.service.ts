@@ -1,7 +1,6 @@
 import { recordAppliedManifest } from "../manifest/manifest-state.js";
 import { getUpdateStatus } from "../status/status.service.js";
 import { updateService } from "./service-update.js";
-import { updateMinimaNode } from "./minima-update.js";
 import type { ServiceUpdateResult } from "./update.types.js";
 
 export async function applyUpdates(): Promise<ServiceUpdateResult[]> {
@@ -16,10 +15,7 @@ export async function applyUpdates(): Promise<ServiceUpdateResult[]> {
 
     console.log(`[update-agent] ${status.service}: updating to ${status.targetImage}`);
 
-    const result =
-      status.service === "minima"
-        ? await updateMinimaNode(status.targetImage)
-        : await updateService(status.service, status.targetImage);
+    const result = await updateService(status.service, status.targetImage);
 
     console.log(`[update-agent] ${status.service}: ${result.updated ? "updated" : "not updated"} — ${result.reason}`);
 

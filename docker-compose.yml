@@ -76,9 +76,6 @@ services:
       MANIFEST_URL: ${MANIFEST_URL:-}
       RELEASE_CHANNEL: ${RELEASE_CHANNEL:-stable}
       BACKEND_INTERNAL_URL: http://backend:3000
-      MINIMA_STATUS_URL: http://minima:9005/status
-      MINIMA_DATA_DIR_IN_CONTAINER: /minima-data
-      MINIMA_BACKUP_DIR_IN_CONTAINER: /minima-backup
       STATE_DIR_IN_CONTAINER: /state
       HEALTH_CHECK_TIMEOUT_MS: ${UPDATE_HEALTH_CHECK_TIMEOUT_MS:-60000}
       HEALTH_CHECK_INTERVAL_MS: ${UPDATE_HEALTH_CHECK_INTERVAL_MS:-2000}
@@ -86,8 +83,6 @@ services:
       STATUS_POLL_INTERVAL_MS: ${STATUS_POLL_INTERVAL_MS:-86400000}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${MINIMA_DATA_DIR:-./minima}:/minima-data
-      - ${MINIMA_BACKUP_DIR:-./minima-backup}:/minima-backup
       - ${UPDATE_AGENT_STATE_DIR:-./update-agent-state}:/state
     group_add:
       - "${DOCKER_GID:-0}"
@@ -96,7 +91,6 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
-      - minima
     networks:
       - integritas
 

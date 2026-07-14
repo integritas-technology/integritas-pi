@@ -8,10 +8,7 @@ export type Manifest = {
   createdAt: string;
 };
 
-// minima-node is intentionally excluded: minimaglobal/minima:dev is a
-// multi-arch image with a different digest per CPU architecture, so a single
-// pinned digest can't correctly represent "up to date" across the Pi fleet.
-// Tracked as a separate follow-up; until then, minima is not update-managed.
+// minima-node isn't update-managed yet — see docs/notes/minima-node-update-support.md.
 export const MANIFEST_SERVICE_KEYS = ["frontend", "backend"] as const;
 
 /**
