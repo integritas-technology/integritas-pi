@@ -19,12 +19,31 @@ jobs:
       - name: Find previous release tag
         id: prev-tag
         run: |
-          prev=$(git tag --sort=-v:refname | grep -v "^${GITHUB_REF_NAME}$" | grep -v -- '-' | head -n1)
-          echo "tag=${prev}" >> "$GITHUB_OUTPUT"
+          case "${GITHUB_REF_NAME}" in
+            *-test.*)
+              echo "tag=" >> "$GITHUB_OUTPUT"
+              ;;
+            *-dev.*)
+              prev=$(git tag --sort=-v:refname | grep -v "^${GITHUB_REF_NAME}$" | grep -- '-dev\.' | head -n1)
+              echo "tag=${prev}" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              prev=$(git tag --sort=-v:refname | grep -v "^${GITHUB_REF_NAME}$" | grep -v -- '-' | head -n1)
+              echo "tag=${prev}" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
 
       - name: Detect changed service folders since previous release
         id: filter
         run: |
+          case "${GITHUB_REF_NAME}" in
+            *-test.*)
+              echo "frontend=true" >> "$GITHUB_OUTPUT"
+              echo "backend=true" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+
           prev="${{ steps.prev-tag.outputs.tag }}"
           if [ -z "$prev" ]; then
             echo "frontend=true" >> "$GITHUB_OUTPUT"
