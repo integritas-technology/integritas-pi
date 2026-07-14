@@ -144,11 +144,17 @@ jobs:
       - name: Pick manifest repo branch
         id: manifest-repo-branch
         run: |
-          if [[ "${{ github.ref_name }}" == *-test.* ]]; then
-            echo "branch=dev" >> "$GITHUB_OUTPUT"
-          else
-            echo "branch=main" >> "$GITHUB_OUTPUT"
-          fi
+          case "${{ github.ref_name }}" in
+            *-test.*)
+              echo "branch=test" >> "$GITHUB_OUTPUT"
+              ;;
+            *-dev.*)
+              echo "branch=dev" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "branch=main" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
 
       - name: Checkout manifest repo
         uses: actions/checkout@v4
