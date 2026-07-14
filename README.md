@@ -422,6 +422,15 @@ GET /api/health
 GET /api/status/overview
 ```
 
+Feedback:
+
+```http
+POST /api/feedback
+GET /api/feedback/export
+```
+
+`POST /api/feedback` appends a submission to the local aggregate JSON feedback export. `GET /api/feedback/export` downloads that file as `feedback-submissions.json`. Both routes require an authenticated browser session.
+
 `/api/status/overview` returns status for the frontend, backend, Minima node, and Integritas API, plus Docker container CPU/memory/image-size data when the Docker socket is available.
 
 Files:

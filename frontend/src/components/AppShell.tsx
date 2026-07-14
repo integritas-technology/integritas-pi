@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Layers3, ShieldCheck } from "lucide-react";
+import { Layers3, MessageSquare, ShieldCheck } from "lucide-react";
 import { nav } from "../app/nav";
 import type { StatusOverview } from "../app/types";
 import { SidebarUserBox } from "../features/auth/SidebarUserBox";
 import type { AuthUser } from "../features/auth/types";
+import { FeedbackModal } from "../features/feedback/FeedbackModal";
 import { cx } from "../lib/cx";
+import { Button } from "./Button";
 import { Card } from "./Card";
 import { Clock } from "./Clock";
 import { StatusBadge } from "./StatusBadge";
@@ -20,14 +22,17 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
 
-  const activeItem = useMemo(
-    () => nav.find((item) => pathname === `/${item.id}`) ?? nav[0],
-    [pathname]
-  );
+  const activeItem = useMemo(() => {
+    const item = nav.find((navItem) => pathname === `/${navItem.id}`);
+    if (item) return item;
+    if (pathname === "/settings") return { ...nav[0], id: "settings" as const, label: "Settings" };
+    return nav[0];
+  }, [pathname]);
 
   const [overview, setOverview] = useState<StatusOverview | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/status/overview")
@@ -72,6 +77,10 @@ export function AppShell({
             ))}
           </nav>
 
+          <Button className="mt-4 w-full" size="sm" variant="secondary" onClick={() => setFeedbackOpen(true)}>
+            <MessageSquare size={16} /> Feedback
+          </Button>
+
           <Card className="mt-6 bg-slate-50">
             <div className="flex items-center gap-2 font-bold"><ShieldCheck size={18} /> Edge gateway prototype</div>
             <p className="mt-3 text-slate-500">A browser-first workbench for node, wallet, verified data, and automation workflows at the edge.</p>
@@ -90,7 +99,12 @@ export function AppShell({
                 <StatusBadge ok={serviceIsOk("integritas")}>Integritas connected</StatusBadge>
               </div>
             </div>
-            <div className="flex justify-start lg:justify-end"><Clock /></div>
+            <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
+              <Button size="sm" variant="secondary" className="lg:hidden" onClick={() => setFeedbackOpen(true)}>
+                <MessageSquare size={16} /> Feedback
+              </Button>
+              <Clock />
+            </div>
           </header>
 
           <div className="my-4 flex gap-2 overflow-x-auto pb-2 lg:hidden">
@@ -111,6 +125,7 @@ export function AppShell({
           {children}
         </main>
       </div>
+      {feedbackOpen && <FeedbackModal pagePath={`${pathname}${search}`} pageLabel={activeItem.label} onClose={() => setFeedbackOpen(false)} />}
     </div>
   );
 }

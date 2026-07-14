@@ -1,6 +1,6 @@
 # Feedback Feature Plan
 
-**Status:** Planned  
+**Status:** V1 implemented; V2 hosted API planned  
 **Created:** 2026-07-14  
 **Goal:** Let authenticated operators send structured app feedback from anywhere in the browser UI, save it locally as AI-ingestible JSON, and make it easy to manually share with the Integritas team.
 
