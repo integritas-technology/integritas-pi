@@ -61,7 +61,7 @@ function finishWithFailure(message) {
 
 function finishWithSuccess() {
   showView("success");
-  setTimeout(() => window.location.reload(), 4000);
+  setTimeout(() => window.location.assign("/"), 4000);
 }
 
 async function pollApplyStatus(consecutiveFailures = 0) {
