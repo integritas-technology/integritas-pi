@@ -1,5 +1,4 @@
 import { env } from "../config/env.js";
-import { getLastAppliedVersion } from "../manifest/manifest-state.js";
 import { getUpdateStatus, type ServiceStatus } from "./status.service.js";
 
 export type StatusSnapshot = {
@@ -18,8 +17,7 @@ export function getCachedStatus(): StatusSnapshot {
 
 async function poll(): Promise<void> {
   try {
-    const { manifest, services } = await getUpdateStatus();
-    const currentVersion = await getLastAppliedVersion();
+    const { manifest, services, currentVersion } = await getUpdateStatus();
     snapshot = { checkedAt: new Date().toISOString(), services, currentVersion, availableVersion: manifest.version };
   } catch (error) {
     console.error("[update-agent] background status poll failed:", error);

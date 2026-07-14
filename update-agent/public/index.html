@@ -98,6 +98,11 @@
   .error-text {
     color: #b91c1c;
   }
+
+  .version-line {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
 </style>
 </head>
 <body>
@@ -109,12 +114,13 @@
 
     <div id="view-up-to-date" class="hidden">
       <h1>Up to date</h1>
-      <p>All services are running the latest approved version.</p>
+      <p id="up-to-date-version"></p>
       <ul id="up-to-date-list" class="service-list"></ul>
     </div>
 
     <div id="view-available" class="hidden">
       <h1>Update available</h1>
+      <p id="available-version" class="version-line"></p>
       <ul id="available-list" class="service-list"></ul>
       <button id="update-now-button" type="button">Update Now</button>
     </div>

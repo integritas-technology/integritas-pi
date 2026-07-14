@@ -1,4 +1,5 @@
 import { fetchVerifiedManifest, MANIFEST_SERVICE_KEYS, type Manifest } from "../manifest/manifest.service.js";
+import { getLastAppliedVersion } from "../manifest/manifest-state.js";
 import { getComposeServiceContainer } from "../docker/docker.service.js";
 
 export type ServiceStatus = {
@@ -13,7 +14,11 @@ const MANIFEST_TO_COMPOSE_SERVICE: Record<(typeof MANIFEST_SERVICE_KEYS)[number]
   backend: "backend"
 };
 
-export async function getUpdateStatus(): Promise<{ manifest: Manifest; services: ServiceStatus[] }> {
+export async function getUpdateStatus(): Promise<{
+  manifest: Manifest;
+  services: ServiceStatus[];
+  currentVersion: string | null;
+}> {
   const manifest = await fetchVerifiedManifest();
 
   const services = await Promise.all(
@@ -31,5 +36,7 @@ export async function getUpdateStatus(): Promise<{ manifest: Manifest; services:
     })
   );
 
-  return { manifest, services };
+  const currentVersion = await getLastAppliedVersion();
+
+  return { manifest, services, currentVersion };
 }

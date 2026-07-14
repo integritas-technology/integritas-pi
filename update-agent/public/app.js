@@ -33,11 +33,16 @@ async function loadStatus() {
 
     const data = await response.json();
     const outOfDate = data.services.filter((service) => !service.upToDate);
+    const availableVersion = data.manifest.version;
 
     if (outOfDate.length === 0) {
+      document.getElementById("up-to-date-version").textContent = data.currentVersion ?? availableVersion;
       renderServiceList(document.getElementById("up-to-date-list"), data.services);
       showView("upToDate");
     } else {
+      document.getElementById("available-version").textContent = data.currentVersion
+        ? `${data.currentVersion} → ${availableVersion}`
+        : availableVersion;
       renderServiceList(document.getElementById("available-list"), data.services);
       showView("available");
     }
