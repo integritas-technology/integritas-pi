@@ -5,6 +5,7 @@ import { getLastAppliedManifestTimestamp } from "./manifest-state.js";
 export type Manifest = {
   frontend: string;
   backend: string;
+  version: string;
   createdAt: string;
 };
 
@@ -28,6 +29,7 @@ function isManifest(value: unknown): value is Manifest {
   return (
     typeof record.frontend === "string" &&
     typeof record.backend === "string" &&
+    typeof record.version === "string" &&
     typeof record.createdAt === "string" &&
     !Number.isNaN(Date.parse(record.createdAt))
   );

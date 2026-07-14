@@ -44,10 +44,14 @@ export function AppShell({
     Boolean(overview?.services.find((service) => service.name === name)?.ok);
 
   const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [currentVersion, setCurrentVersion] = useState<string | null>(null);
+  const [availableVersion, setAvailableVersion] = useState<string | null>(null);
   useUpdateStatusRefresh((status) => {
     setUpdateAvailable(
       Boolean(status?.services.some((service) => !service.upToDate)),
     );
+    setCurrentVersion(status?.currentVersion ?? null);
+    setAvailableVersion(status?.availableVersion ?? null);
   });
 
   return (
@@ -94,6 +98,11 @@ export function AppShell({
                 <div>
                   <Sparkles size={18} /> Update available
                 </div>
+                {currentVersion && availableVersion && (
+                  <p className='update-version-line'>
+                    {currentVersion} &rarr; {availableVersion}
+                  </p>
+                )}
                 <p>
                   A new version is ready to be installed. Click to view details
                   and update.
@@ -110,6 +119,7 @@ export function AppShell({
               A browser-first workbench for node, wallet, verified data, and
               automation workflows at the edge.
             </p>
+            {currentVersion && <p className='sidebar-note-version'>{currentVersion}</p>}
           </Card>
         </aside>
 

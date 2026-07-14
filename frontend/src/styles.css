@@ -300,6 +300,16 @@ button:disabled {
   color: rgba(255, 255, 255, 0.85);
 }
 
+.update-version-line {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sidebar-note-version {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .sidebar-note div {
   display: flex;
   gap: 8px;

@@ -24,7 +24,18 @@ export async function getLastAppliedManifestTimestamp(): Promise<number | null> 
   }
 }
 
-export async function recordAppliedManifest(createdAt: string): Promise<void> {
+/** Returns the version of the last manifest whose update was successfully applied, or null. */
+export async function getLastAppliedVersion(): Promise<string | null> {
+  try {
+    const raw = await readFile(statePath(), "utf8");
+    const parsed = JSON.parse(raw) as { version?: string };
+    return parsed.version ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function recordAppliedManifest(createdAt: string, version: string): Promise<void> {
   await mkdir(env.stateDirInContainer, { recursive: true });
-  await writeFile(statePath(), JSON.stringify({ createdAt }, null, 2));
+  await writeFile(statePath(), JSON.stringify({ createdAt, version }, null, 2));
 }

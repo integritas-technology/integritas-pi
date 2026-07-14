@@ -169,6 +169,7 @@ jobs:
         env:
           FRONTEND_DIGEST: ${{ needs.build.outputs.frontend-digest || steps.previous-manifest.outputs.frontend }}
           BACKEND_DIGEST: ${{ needs.build.outputs.backend-digest || steps.previous-manifest.outputs.backend }}
+          VERSION: ${{ github.ref_name }}
         run: node scripts/release/build-manifest.mjs manifest.json
 
       - name: Sign manifest

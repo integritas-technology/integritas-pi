@@ -1,9 +1,12 @@
 import { env } from "../config/env.js";
+import { getLastAppliedVersion } from "../manifest/manifest-state.js";
 import { getUpdateStatus, type ServiceStatus } from "./status.service.js";
 
 export type StatusSnapshot = {
   checkedAt: string;
   services: ServiceStatus[];
+  currentVersion: string | null;
+  availableVersion: string;
 } | null;
 
 // Single-process in-memory cache — valid because update-agent always runs as exactly one container.
@@ -15,8 +18,9 @@ export function getCachedStatus(): StatusSnapshot {
 
 async function poll(): Promise<void> {
   try {
-    const { services } = await getUpdateStatus();
-    snapshot = { checkedAt: new Date().toISOString(), services };
+    const { manifest, services } = await getUpdateStatus();
+    const currentVersion = await getLastAppliedVersion();
+    snapshot = { checkedAt: new Date().toISOString(), services, currentVersion, availableVersion: manifest.version };
   } catch (error) {
     console.error("[update-agent] background status poll failed:", error);
   }

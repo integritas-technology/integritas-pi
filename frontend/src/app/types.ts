@@ -13,6 +13,8 @@ export type UpdateServiceStatus = {
 export type UpdateStatusSummary = {
   checkedAt: string;
   services: UpdateServiceStatus[];
+  currentVersion: string | null;
+  availableVersion: string;
 } | null;
 
 export type Health = { status: string; service: string };
