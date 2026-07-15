@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Layers3, ShieldCheck, Sparkles } from 'lucide-react';
+import { Bug, Layers3, ShieldCheck, Sparkles } from 'lucide-react';
 import { nav } from '../app/nav';
 import type { StatusOverview } from '../app/types';
 import { SidebarUserBox } from '../features/auth/SidebarUserBox';
 import type { AuthUser } from '../features/auth/types';
+import { getDebugPing } from '../features/debug/debugApi';
 import { useUpdateStatusRefresh } from '../features/update/useUpdateStatusRefresh';
 import { cx } from '../lib/cx';
 import { Card } from './Card';
@@ -53,6 +54,18 @@ export function AppShell({
     setCurrentVersion(status?.currentVersion ?? null);
     setAvailableVersion(status?.availableVersion ?? null);
   });
+
+  const [debugPinging, setDebugPinging] = useState(false);
+  const [debugMessage, setDebugMessage] = useState<string | null>(null);
+
+  function pingDebugEndpoint() {
+    setDebugPinging(true);
+    setDebugMessage(null);
+    getDebugPing()
+      .then((data) => setDebugMessage(data.message))
+      .catch((error) => setDebugMessage(`Error: ${error.message}`))
+      .finally(() => setDebugPinging(false));
+  }
 
   return (
     <div className='app-root'>
@@ -120,6 +133,24 @@ export function AppShell({
               automation workflows at the edge.
             </p>
             {currentVersion && <p className='sidebar-note-version'>{currentVersion}</p>}
+          </Card>
+
+          <Card className='sidebar-note debug-ping-card'>
+            <div>
+              <Bug size={18} /> Debug ping
+            </div>
+            <p>
+              Checks that the frontend and backend you're looking at were both
+              built from this change.
+            </p>
+            <button
+              type='button'
+              onClick={pingDebugEndpoint}
+              disabled={debugPinging}
+            >
+              {debugPinging ? 'Pinging…' : 'Ping backend'}
+            </button>
+            {debugMessage && <p className='debug-ping-message'>{debugMessage}</p>}
           </Card>
         </aside>
 

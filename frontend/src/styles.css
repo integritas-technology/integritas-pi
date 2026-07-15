@@ -310,6 +310,20 @@ button:disabled {
   font-variant-numeric: tabular-nums;
 }
 
+.debug-ping-card {
+  margin-top: 16px;
+}
+
+.debug-ping-card button {
+  width: 100%;
+}
+
+.debug-ping-message {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  word-break: break-word;
+}
+
 .sidebar-note div {
   display: flex;
   gap: 8px;
