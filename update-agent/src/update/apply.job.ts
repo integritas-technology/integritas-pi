@@ -1,16 +1,26 @@
+import { getPullProgress, type PullProgress } from "../docker/pull-progress.js";
 import { applyUpdates } from "./apply.service.js";
 import type { ServiceUpdateResult } from "./update.types.js";
 
-export type ApplyJobStatus =
+type JobState =
   | { state: "idle" }
   | { state: "running" }
   | { state: "succeeded"; results: ServiceUpdateResult[] }
   | { state: "failed"; error: string };
 
+export type ApplyJobStatus =
+  | { state: "idle" }
+  | { state: "running"; progress: PullProgress | null }
+  | { state: "succeeded"; results: ServiceUpdateResult[] }
+  | { state: "failed"; error: string };
+
 // Single-process in-memory job state — valid because update-agent always runs as exactly one container.
-let job: ApplyJobStatus = { state: "idle" };
+let job: JobState = { state: "idle" };
 
 export function getApplyJobStatus(): ApplyJobStatus {
+  if (job.state === "running") {
+    return { state: "running", progress: getPullProgress() };
+  }
   return job;
 }
 

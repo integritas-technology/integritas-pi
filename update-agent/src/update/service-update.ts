@@ -13,6 +13,7 @@ import {
   stopContainer,
   waitForHealthy
 } from "../docker/docker.service.js";
+import { clearPullProgress, recordPullProgress, startPullProgress } from "../docker/pull-progress.js";
 import type { ServiceUpdateResult } from "./update.types.js";
 
 const IMAGES_TO_KEEP = 2;
@@ -38,7 +39,12 @@ export async function updateService(serviceName: string, imageRef: string): Prom
   }
 
   const inspected = await inspectContainer(running.Id);
-  await pullImageByDigest(imageRef);
+  startPullProgress(serviceName);
+  try {
+    await pullImageByDigest(imageRef, recordPullProgress);
+  } finally {
+    clearPullProgress();
+  }
 
   const candidateName = `${serviceName}-update-candidate`;
   // Clear any candidate left behind by a crash mid-update (e.g. a power cut)

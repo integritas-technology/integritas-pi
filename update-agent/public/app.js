@@ -69,6 +69,32 @@ function finishWithSuccess() {
   setTimeout(() => window.location.assign("/"), 4000);
 }
 
+function formatBytes(bytes) {
+  const mb = bytes / (1024 * 1024);
+  return `${mb.toFixed(1)} MB`;
+}
+
+function renderPullProgress(progress) {
+  const bar = document.getElementById("pull-progress-bar");
+  const label = document.getElementById("pull-progress-label");
+  const spinner = document.getElementById("updating-spinner");
+
+  if (!progress || !progress.bytesTotal) {
+    bar.classList.add("hidden");
+    label.classList.add("hidden");
+    spinner.classList.remove("hidden");
+    return;
+  }
+
+  spinner.classList.add("hidden");
+  bar.classList.remove("hidden");
+  label.classList.remove("hidden");
+
+  const percent = Math.min(100, Math.round((progress.bytesDownloaded / progress.bytesTotal) * 100));
+  bar.value = percent;
+  label.textContent = `${progress.service}: ${formatBytes(progress.bytesDownloaded)} / ${formatBytes(progress.bytesTotal)} (${percent}%)`;
+}
+
 async function pollApplyStatus(consecutiveFailures = 0) {
   let data;
   try {
@@ -87,6 +113,7 @@ async function pollApplyStatus(consecutiveFailures = 0) {
   }
 
   if (data.state === "running") {
+    renderPullProgress(data.progress);
     setTimeout(() => pollApplyStatus(0), POLL_INTERVAL_MS);
     return;
   }
@@ -111,6 +138,7 @@ async function pollApplyStatus(consecutiveFailures = 0) {
 
 async function applyUpdate() {
   showView("updating");
+  renderPullProgress(null);
   try {
     const response = await fetch("/update/apply", { method: "POST", credentials: "include" });
     if (response.status !== 202 && response.status !== 409) {

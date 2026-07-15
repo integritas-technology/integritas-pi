@@ -1,5 +1,5 @@
 import { env } from "../config/env.js";
-import { dockerRequest, dockerRequestStream } from "./docker.client.js";
+import { dockerRequest, dockerRequestStream, type DockerProgressLine } from "./docker.client.js";
 import type { DockerContainerInspect, DockerContainerSummary, DockerImageSummary } from "./docker.types.js";
 
 const composeProject = "integritas-pi";
@@ -21,8 +21,12 @@ export function inspectContainer(containerId: string): Promise<DockerContainerIn
   return dockerRequest<DockerContainerInspect>("GET", `/containers/${containerId}/json`);
 }
 
-export function pullImageByDigest(imageRef: string): Promise<void> {
-  return dockerRequestStream(`/images/create?fromImage=${encodeURIComponent(imageRef)}`, env.pullTimeoutMs);
+export function pullImageByDigest(imageRef: string, onProgress?: (line: DockerProgressLine) => void): Promise<void> {
+  return dockerRequestStream(
+    `/images/create?fromImage=${encodeURIComponent(imageRef)}`,
+    env.pullTimeoutMs,
+    onProgress
+  );
 }
 
 export async function createContainer(
