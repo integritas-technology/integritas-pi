@@ -235,35 +235,22 @@ download_app() {
   local tmp_dir
   local protected_minima_dir
   local protected_sqlite_dir
+  local protected_update_agent_state_dir
+  local find_args=("$APP_DIR" -mindepth 1 -maxdepth 1 ! -name ".env")
   tmp_dir="$(mktemp -d)"
   protected_minima_dir="$(relative_top_level_dir "$MINIMA_DATA_DIR")"
   protected_sqlite_dir="$(relative_top_level_dir "$DATA_DIR")"
+  protected_update_agent_state_dir="$(relative_top_level_dir "$UPDATE_AGENT_STATE_DIR")"
 
   log "Downloading $APP_REPO_URL ($APP_BRANCH)"
   git clone --depth 1 --branch "$APP_BRANCH" "$APP_REPO_URL" "$tmp_dir"
 
   rm -rf "$APP_DIR/.git" "$APP_DIR/backend" "$APP_DIR/frontend"
-  if [ -n "$protected_minima_dir" ] && [ -n "$protected_sqlite_dir" ]; then
-    find "$APP_DIR" -mindepth 1 -maxdepth 1 \
-      ! -name ".env" \
-      ! -name "$protected_minima_dir" \
-      ! -name "$protected_sqlite_dir" \
-      -exec rm -rf {} +
-  elif [ -n "$protected_minima_dir" ]; then
-    find "$APP_DIR" -mindepth 1 -maxdepth 1 \
-      ! -name ".env" \
-      ! -name "$protected_minima_dir" \
-      -exec rm -rf {} +
-  elif [ -n "$protected_sqlite_dir" ]; then
-    find "$APP_DIR" -mindepth 1 -maxdepth 1 \
-      ! -name ".env" \
-      ! -name "$protected_sqlite_dir" \
-      -exec rm -rf {} +
-  else
-    find "$APP_DIR" -mindepth 1 -maxdepth 1 \
-      ! -name ".env" \
-      -exec rm -rf {} +
-  fi
+  [ -n "$protected_minima_dir" ] && find_args+=(! -name "$protected_minima_dir")
+  [ -n "$protected_sqlite_dir" ] && find_args+=(! -name "$protected_sqlite_dir")
+  [ -n "$protected_update_agent_state_dir" ] && find_args+=(! -name "$protected_update_agent_state_dir")
+  find_args+=(-exec rm -rf {} +)
+  find "${find_args[@]}"
 
   cp -a "$tmp_dir/." "$APP_DIR/"
   rm -rf "$tmp_dir"
