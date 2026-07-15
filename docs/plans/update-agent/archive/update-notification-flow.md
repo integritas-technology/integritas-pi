@@ -1,6 +1,6 @@
 # Update notification flow: polling, navbar badge, redirect
 
-**Status:** Not started.
+**Status:** Done. Polling, navbar badge, and redirect flow all implemented and confirmed working.
 **Created:** 2026-07-10
 **Related:** [manifest-public-key-unused-file.md](./manifest-public-key-unused-file.md), archived [update-service.md](./archive/update-service.md) (original design; `/status`, `/apply`, health-check/rollback, and the update-agent static UI + nginx `/update` proxy already exist and work standalone per that plan)
 

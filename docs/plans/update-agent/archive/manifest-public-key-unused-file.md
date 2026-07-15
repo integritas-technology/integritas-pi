@@ -1,6 +1,6 @@
 # Follow-up: update-agent doesn't read manifest-public-key.pem
 
-**Status:** Noted, not started. Fix after [first-install-false-update.md](./first-install-false-update.md) is done.
+**Status:** Done. `update-agent` now reads the key from `manifest-public-key.pem` directly; `MANIFEST_PUBLIC_KEY` env var removed.
 
 `update-agent/manifest-public-key.pem` is committed in the repo but nothing reads it. `update-agent` actually verifies signatures using the `MANIFEST_PUBLIC_KEY` env var (`update-agent/src/config/env.ts:5`, wired through `docker-compose.yml:79`), which must be a PEM string pasted into `.env`.
 

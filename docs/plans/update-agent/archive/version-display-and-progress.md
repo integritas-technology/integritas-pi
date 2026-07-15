@@ -1,6 +1,6 @@
 # Version display + pull progress bar
 
-**Status:** Not started.
+**Status:** Done. Version display shipped as designed. Progress bar shipped, then removed entirely (flashed once and disappeared on fast pulls, not useful) — updating view is now a plain spinner + static text.
 **Created:** 2026-07-14
 **Related:** [update-notification-flow.md](./update-notification-flow.md), [minima-node-update-support.md](../../notes/minima-node-update-support.md), [update-agent-self-update.md](../../notes/update-agent-self-update.md) (deferred, out of scope here)
 
