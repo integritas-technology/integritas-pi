@@ -2,18 +2,9 @@ import { db } from "../../db/database.js";
 import { getSetting, saveSetting } from "../settings/settings.repository.js";
 import { getDeviceInfo } from "../status/device.service.js";
 import crypto from "node:crypto";
+import type { IntegritasDevice, IntegritasDeviceType } from "./integritas-auth.types.js";
 
 const DEVICE_ID_KEY = "device_id";
-
-export type IntegritasDeviceType = "raspberry_pi" | "self_hosted";
-
-export type IntegritasDevice = {
-  deviceId: string;
-  deviceName: string;
-  deviceType: IntegritasDeviceType;
-  createdAt: string;
-  updatedAt: string;
-};
 
 type IntegritasDeviceRow = {
   device_id: string;
@@ -30,6 +21,15 @@ function ensureSettingsDeviceId(): string {
   const deviceId = crypto.randomUUID();
   saveSetting(DEVICE_ID_KEY, deviceId);
   return deviceId;
+}
+
+/**
+ * Sync settings.device_id with the device ID from the database.
+ * @param deviceId The device ID to sync with settings.device_id.
+ */
+function syncSettingsDeviceId(deviceId: string): void {
+  if (getSetting(DEVICE_ID_KEY).trim() === deviceId) return;
+  saveSetting(DEVICE_ID_KEY, deviceId);
 }
 
 function deviceTypeFromInfo(info: ReturnType<typeof getDeviceInfo>): IntegritasDeviceType {
@@ -57,7 +57,10 @@ export function getOrCreateDevice(): IntegritasDevice {
     )
     .get() as IntegritasDeviceRow | undefined;
 
-  if (existing) return mapDevice(existing);
+  if (existing) {
+    syncSettingsDeviceId(existing.device_id);
+    return mapDevice(existing);
+  }
 
   const deviceId = ensureSettingsDeviceId();
   const info = getDeviceInfo();
