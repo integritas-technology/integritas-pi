@@ -1,4 +1,5 @@
 import { getPullProgress, type PullProgress } from "../docker/pull-progress.js";
+import { refreshCachedStatus } from "../status/status-poller.js";
 import { applyUpdates } from "./apply.service.js";
 import type { ServiceUpdateResult } from "./update.types.js";
 
@@ -45,6 +46,9 @@ export function startApplyJob(): { started: boolean } {
     .catch((error) => {
       console.error("[update-agent] apply failed:", error);
       job = { state: "failed", error: "Update failed unexpectedly — check update-agent's logs for details" };
+    })
+    .finally(() => {
+      void refreshCachedStatus();
     });
 
   return { started: true };

@@ -24,6 +24,13 @@ async function poll(): Promise<void> {
   }
 }
 
+// Lets callers (e.g. a just-finished apply job) force the cached snapshot to
+// reflect reality immediately, instead of waiting up to statusPollIntervalMs
+// for the next scheduled tick.
+export function refreshCachedStatus(): Promise<void> {
+  return poll();
+}
+
 /**
  * Starts a background poll of the update manifest so the frontend can read a
  * cached "is an update available" snapshot without triggering a live

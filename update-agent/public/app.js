@@ -75,24 +75,20 @@ function formatBytes(bytes) {
 }
 
 function renderPullProgress(progress) {
-  const bar = document.getElementById("pull-progress-bar");
+  const percentEl = document.getElementById("pull-progress-percent");
   const label = document.getElementById("pull-progress-label");
-  const spinner = document.getElementById("updating-spinner");
 
   if (!progress || !progress.bytesTotal) {
-    bar.classList.add("hidden");
+    percentEl.textContent = "";
     label.classList.add("hidden");
-    spinner.classList.remove("hidden");
     return;
   }
 
-  spinner.classList.add("hidden");
-  bar.classList.remove("hidden");
   label.classList.remove("hidden");
 
   const percent = Math.min(100, Math.round((progress.bytesDownloaded / progress.bytesTotal) * 100));
-  bar.value = percent;
-  label.textContent = `${progress.service}: ${formatBytes(progress.bytesDownloaded)} / ${formatBytes(progress.bytesTotal)} (${percent}%)`;
+  percentEl.textContent = ` ${percent}%`;
+  label.textContent = `${progress.service}: ${formatBytes(progress.bytesDownloaded)} / ${formatBytes(progress.bytesTotal)}`;
 }
 
 async function pollApplyStatus(consecutiveFailures = 0) {

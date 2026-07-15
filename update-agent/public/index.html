@@ -104,35 +104,11 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .pull-progress {
-    width: 100%;
-    height: 8px;
-    margin: 0 0 8px;
-    border: 0;
-    border-radius: 999px;
-    overflow: hidden;
-  }
-
-  .pull-progress::-webkit-progress-bar {
-    background: #e2e8f0;
-    border-radius: 999px;
-  }
-
-  .pull-progress::-webkit-progress-value {
-    background: #020617;
-    border-radius: 999px;
-    transition: width 200ms ease;
-  }
-
-  .pull-progress::-moz-progress-bar {
-    background: #020617;
-    border-radius: 999px;
-  }
-
   .pull-progress-label {
     font-size: 13px;
     color: #475569;
     margin: 0 0 20px;
+    font-variant-numeric: tabular-nums;
   }
 </style>
 </head>
@@ -157,9 +133,8 @@
     </div>
 
     <div id="view-updating" class="hidden">
-      <div id="updating-spinner" class="spinner"></div>
-      <progress id="pull-progress-bar" class="pull-progress hidden" max="100" value="0"></progress>
-      <h1>Updating…</h1>
+      <div class="spinner"></div>
+      <h1>Updating<span id="pull-progress-percent"></span>…</h1>
       <p id="pull-progress-label" class="pull-progress-label hidden"></p>
       <p>Please wait, this may take a few minutes. Do not close this page.</p>
     </div>
