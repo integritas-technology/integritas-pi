@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowLeft, ArrowRight, Layers3, LogIn } from "lucide-react";
 import { ErrorText } from "../../components/Text";
 import { login } from "./api";
+import { TOTP_ENABLED } from "./totpEnabled";
 
 type LoginPhase = "credentials" | "twofa";
 
@@ -24,14 +25,15 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
     setTwoFactorCode("");
   };
 
-  const signIn = async () => {
-    if (!twoFactorValid || signingIn) return;
+  const signIn = async (totpToken = "") => {
+    if (signingIn) return;
+    if (TOTP_ENABLED && !twoFactorValid) return;
     setSigningIn(true);
     setError(null);
     try {
       await login({
         password,
-        totpToken: twoFactorCode,
+        ...(TOTP_ENABLED ? { totpToken } : {}),
       });
       onSuccess();
     } catch (err) {
@@ -83,15 +85,34 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
               </label>
             </div>
 
+            {error && !TOTP_ENABLED ? <ErrorText>{error}</ErrorText> : null}
+
             <div className="grid gap-2.5 pt-1">
-              <button
-                type="button"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-slate-950 px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-45"
-                disabled={!credentialsValid}
-                onClick={continueToTwoFactor}
-              >
-                Continue <ArrowRight size={16} />
-              </button>
+              {TOTP_ENABLED ? (
+                <button
+                  type="button"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-slate-950 px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-45"
+                  disabled={!credentialsValid}
+                  onClick={continueToTwoFactor}
+                >
+                  Continue <ArrowRight size={16} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-slate-950 px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-45"
+                  disabled={!credentialsValid || signingIn}
+                  onClick={() => void signIn()}
+                >
+                  {signingIn ? (
+                    "Signing in…"
+                  ) : (
+                    <>
+                      <LogIn size={16} /> Sign in
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -138,7 +159,7 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
                 type="button"
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-slate-950 px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-45"
                 disabled={!twoFactorValid || signingIn}
-                onClick={signIn}
+                onClick={() => void signIn(twoFactorCode)}
               >
                 {signingIn ? (
                   "Signing in…"

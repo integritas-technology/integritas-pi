@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import { LOCAL_ADMIN_DISPLAY_NAME, TOTP_ACCOUNT_LABEL } from "./auth.constants.js";
+import { LOCAL_ADMIN_DISPLAY_NAME, TOTP_ACCOUNT_LABEL, TOTP_ENABLED } from "./auth.constants.js";
 import { recordAuditEvent } from "./audit.service.js";
 import {
   clearSetupPending,
@@ -33,22 +33,25 @@ export class AuthSettingsError extends Error {
   }
 }
 
-export async function login(input: { password: string; totpToken: string }) {
+export async function login(input: { password: string; totpToken?: string }) {
   const password = input.password;
-  const totpToken = input.totpToken.trim();
+  const totpToken = (input.totpToken ?? "").trim();
 
   const user = findTheUser();
 
   const passwordHash = user?.password ?? DUMMY_HASH;
   const passwordValid = await verifyPassword(password, passwordHash);
 
-  let totpValid = false;
-  if (user && passwordValid && /^\d{6}$/.test(totpToken)) {
-    try {
-      const secret = decryptTotpSecret(user.totp_secret);
-      totpValid = verifyToken(secret, totpToken);
-    } catch {
-      totpValid = false;
+  let totpValid = !TOTP_ENABLED;
+  if (TOTP_ENABLED) {
+    totpValid = false;
+    if (user && passwordValid && /^\d{6}$/.test(totpToken)) {
+      try {
+        const secret = decryptTotpSecret(user.totp_secret);
+        totpValid = verifyToken(secret, totpToken);
+      } catch {
+        totpValid = false;
+      }
     }
   }
 
@@ -71,7 +74,7 @@ export async function login(input: { password: string; totpToken: string }) {
 export async function changePassword(userId: string, input: {
   currentPassword: string;
   newPassword: string;
-  totpToken: string;
+  totpToken?: string;
 }) {
   const user = findUserById(userId);
   if (!user) throw new AuthSettingsError("User not found", 404);
@@ -79,17 +82,19 @@ export async function changePassword(userId: string, input: {
   const passwordValid = await verifyPassword(input.currentPassword, user.password);
   if (!passwordValid) throw new AuthSettingsError("Invalid current password", 401);
 
-  const token = input.totpToken.trim();
-  if (!/^\d{6}$/.test(token)) throw new AuthSettingsError("totpToken must be a 6-digit code", 400);
+  if (TOTP_ENABLED) {
+    const token = (input.totpToken ?? "").trim();
+    if (!/^\d{6}$/.test(token)) throw new AuthSettingsError("totpToken must be a 6-digit code", 400);
 
-  let totpValid = false;
-  try {
-    const secret = decryptTotpSecret(user.totp_secret);
-    totpValid = verifyToken(secret, token);
-  } catch {
-    totpValid = false;
+    let totpValid = false;
+    try {
+      const secret = decryptTotpSecret(user.totp_secret);
+      totpValid = verifyToken(secret, token);
+    } catch {
+      totpValid = false;
+    }
+    if (!totpValid) throw new AuthSettingsError("Invalid TOTP code", 401);
   }
-  if (!totpValid) throw new AuthSettingsError("Invalid TOTP code", 401);
 
   if (input.newPassword.length < 8) throw new AuthSettingsError("New password must be at least 8 characters", 400);
 

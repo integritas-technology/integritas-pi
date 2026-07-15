@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { ErrorText } from "../../components/Text";
 import { cx } from "../../lib/cx";
+import { TOTP_ENABLED } from "../auth/totpEnabled";
 import { completeSetup, initTotp, verifyIntegritasKey, verifyTotp } from "./api";
 import { INTEGRITAS_STEP_REQUIRED } from "./config";
 import { onboardingSteps } from "./steps";
@@ -50,7 +51,8 @@ const statusRowClass = "flex flex-col gap-4 sm:flex-row sm:items-center sm:justi
 const statusTextClass = "mt-1 mb-0 text-slate-500";
 const successResultClass = "flex items-start gap-2.5 rounded-xl bg-emerald-50 p-2.5 text-sm text-emerald-700";
 const infoCalloutClass = "flex max-w-2xl items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-3";
-const primaryButtonClass = "inline-flex items-center gap-2 rounded-xl border-0 bg-slate-950 px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-45";
+const primaryButtonClass =
+  "inline-flex items-center gap-2 rounded-xl border-0 bg-slate-950 px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-45";
 const secondaryButtonClass = "inline-flex items-center gap-2 rounded-xl border-0 bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-700";
 const compactButtonClass = "inline-flex items-center gap-1.5 rounded-xl border-0 bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700";
 const actionRowClass = "flex flex-wrap items-center gap-2.5";
@@ -62,17 +64,9 @@ const pillToneClass: Record<PillTone, string> = {
   future: "bg-violet-100 text-violet-700",
 };
 
-function Pill({
-  children,
-  tone = "neutral",
-}: {
-  children: React.ReactNode;
-  tone?: PillTone;
-}) {
+function Pill({ children, tone = "neutral" }: { children: React.ReactNode; tone?: PillTone }) {
   return (
-    <span className={cx("inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-bold", pillToneClass[tone])}>
-      {children}
-    </span>
+    <span className={cx("inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-bold", pillToneClass[tone])}>{children}</span>
   );
 }
 
@@ -82,20 +76,11 @@ function passwordStrength(password: string): {
 } {
   if (!password) return { label: "Enter a password", tone: "neutral" };
   if (password.length < 8) return { label: "Too short", tone: "warn" };
-  if (!/[A-Z]/.test(password) || !/[0-9]/.test(password))
-    return { label: "Fair — add a number and capital letter", tone: "warn" };
+  if (!/[A-Z]/.test(password) || !/[0-9]/.test(password)) return { label: "Fair — add a number and capital letter", tone: "warn" };
   return { label: "Strong", tone: "good" };
 }
 
-function StepIcon({
-  id,
-  active,
-  complete,
-}: {
-  id: OnboardingStepId;
-  active: boolean;
-  complete: boolean;
-}) {
+function StepIcon({ id, active, complete }: { id: OnboardingStepId; active: boolean; complete: boolean }) {
   const icons = {
     welcome: Sparkles,
     account: UserRound,
@@ -124,9 +109,8 @@ function WelcomeStep() {
       <p className={eyebrowClass}>First-time setup</p>
       <h2 className={headingClass}>Welcome to Edge Workbench</h2>
       <p className={leadClass}>
-        Edge Workbench runs on your Raspberry Pi to stamp data proofs, monitor
-        local services, and automate integrity checks — all from one dashboard on
-        your network.
+        Edge Workbench runs on your Raspberry Pi to stamp data proofs, monitor local services, and automate integrity checks — all from one
+        dashboard on your network.
       </p>
 
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
@@ -134,24 +118,23 @@ function WelcomeStep() {
           <LockKeyhole size={22} />
           <h3 className="m-0 text-sm">Secure access</h3>
           <p className="m-0 text-xs leading-relaxed text-slate-500">
-            Sign in with a local admin account and two-factor authentication to
-            protect configuration on your LAN.
+            {TOTP_ENABLED
+              ? "Sign in with a local admin account and two-factor authentication to protect configuration on your LAN."
+              : "Sign in with a local admin password to protect configuration on your LAN."}
           </p>
         </article>
         <article className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
           <Stamp size={22} />
           <h3 className="m-0 text-sm">Stamp proofs</h3>
           <p className="m-0 text-xs leading-relaxed text-slate-500">
-            Hash files and API responses, then anchor them on your embedded
-            Minima node through Integritas.
+            Hash files and API responses, then anchor them on your embedded Minima node through Integritas.
           </p>
         </article>
         <article className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
           <ShieldCheck size={22} />
           <h3 className="m-0 text-sm">Run at the edge</h3>
           <p className="m-0 text-xs leading-relaxed text-slate-500">
-            Poll input sources, track stamp history, and keep services healthy
-            without leaving your Pi.
+            Poll input sources, track stamp history, and keep services healthy without leaving your Pi.
           </p>
         </article>
       </div>
@@ -159,24 +142,15 @@ function WelcomeStep() {
   );
 }
 
-function AccountStep({
-  form,
-  setForm,
-}: {
-  form: OnboardingFormState;
-  setForm: (patch: Partial<OnboardingFormState>) => void;
-}) {
+function AccountStep({ form, setForm }: { form: OnboardingFormState; setForm: (patch: Partial<OnboardingFormState>) => void }) {
   const strength = passwordStrength(form.password);
-  const passwordsMatch =
-    !form.confirmPassword || form.password === form.confirmPassword;
+  const passwordsMatch = !form.confirmPassword || form.password === form.confirmPassword;
 
   return (
     <div className={panelClass}>
       <p className={eyebrowClass}>Step 1 of 3</p>
       <h2 className={headingClass}>Set your admin password</h2>
-      <p className={leadClass}>
-        Choose the password used to sign in to Edge Workbench.
-      </p>
+      <p className={leadClass}>Choose the password used to sign in to Edge Workbench.</p>
 
       <div className={formGridClass}>
         <label className={labelClass}>
@@ -205,18 +179,12 @@ function AccountStep({
           <input
             className={inputClass}
             value={form.confirmPassword}
-            onChange={(event) =>
-              setForm({ confirmPassword: event.target.value })
-            }
+            onChange={(event) => setForm({ confirmPassword: event.target.value })}
             type="password"
             placeholder="Repeat password"
             autoComplete="new-password"
           />
-          {!passwordsMatch && (
-            <span className={warnHintClass}>
-              Passwords do not match
-            </span>
-          )}
+          {!passwordsMatch && <span className={warnHintClass}>Passwords do not match</span>}
         </label>
       </div>
     </div>
@@ -261,9 +229,8 @@ function TwoFactorStep({
       <p className={eyebrowClass}>Step 2 of 3</p>
       <h2 className={headingClass}>Set up two-factor authentication</h2>
       <p className={leadClass}>
-        Scan the QR code with your authenticator app, or enter the setup key
-        manually if scanning fails. Then enter the current 6-digit code to
-        confirm it is working.
+        Scan the QR code with your authenticator app, or enter the setup key manually if scanning fails. Then enter the current 6-digit code
+        to confirm it is working.
       </p>
 
       <div className="grid max-w-2xl gap-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-start">
@@ -272,11 +239,7 @@ function TwoFactorStep({
         ) : qrError ? (
           <ErrorText>{qrError}</ErrorText>
         ) : qrCode ? (
-          <img
-            src={qrCode}
-            alt="TOTP QR code"
-            className="h-48 w-48 rounded-xl border border-slate-200 bg-white p-2"
-          />
+          <img src={qrCode} alt="TOTP QR code" className="h-48 w-48 rounded-xl border border-slate-200 bg-white p-2" />
         ) : null}
 
         <div className={formGridClass}>
@@ -297,8 +260,7 @@ function TwoFactorStep({
                 </button>
               </div>
               <p className={cx(mutedClass, "text-sm")}>
-                Use issuer <strong>Integritas Pi</strong> and account{" "}
-                <strong>{TOTP_ACCOUNT_LABEL}</strong> if your app asks for them.
+                Use issuer <strong>Integritas Pi</strong> and account <strong>{TOTP_ACCOUNT_LABEL}</strong> if your app asks for them.
               </p>
               <div className="flex flex-wrap items-stretch gap-2">
                 <input
@@ -308,12 +270,7 @@ function TwoFactorStep({
                   value={showManualKey ? totpSecret : "•".repeat(Math.min(totpSecret.length, 32))}
                   aria-label="Authenticator setup key"
                 />
-                <button
-                  type="button"
-                  className={compactButtonClass}
-                  onClick={() => void copyManualKey()}
-                  title="Copy setup key"
-                >
+                <button type="button" className={compactButtonClass} onClick={() => void copyManualKey()} title="Copy setup key">
                   <Copy size={16} />
                   {copyState === "copied" ? "Copied" : "Copy"}
                 </button>
@@ -328,9 +285,7 @@ function TwoFactorStep({
               value={form.twoFactorCode}
               onChange={(event) =>
                 setForm({
-                  twoFactorCode: event.target.value
-                    .replace(/\D/g, "")
-                    .slice(0, 6),
+                  twoFactorCode: event.target.value.replace(/\D/g, "").slice(0, 6),
                 })
               }
               inputMode="numeric"
@@ -348,17 +303,7 @@ function TwoFactorStep({
             <strong>Authenticator check</strong>
             <p className={statusTextClass}>Confirms your app is generating valid codes.</p>
           </div>
-          <Pill
-            tone={
-              checkState === "ok"
-                ? "good"
-                : checkState === "checking"
-                  ? "warn"
-                  : checkState === "error"
-                    ? "warn"
-                    : "neutral"
-            }
-          >
+          <Pill tone={checkState === "ok" ? "good" : checkState === "checking" ? "warn" : checkState === "error" ? "warn" : "neutral"}>
             {checkState === "ok"
               ? "Verified"
               : checkState === "checking"
@@ -442,9 +387,7 @@ function IntegritasStep({
           <input
             className={inputClass}
             value={form.integritasApiKey}
-            onChange={(event) =>
-              setForm({ integritasApiKey: event.target.value })
-            }
+            onChange={(event) => setForm({ integritasApiKey: event.target.value })}
             type="password"
             placeholder="Paste API key"
             disabled={integritasSkipped}
@@ -458,24 +401,8 @@ function IntegritasStep({
             <strong>API key check</strong>
             <p className={statusTextClass}>Validates the key with Integritas.</p>
           </div>
-          <Pill
-            tone={
-              integritasSkipped
-                ? "neutral"
-                : checkState === "ok"
-                  ? "good"
-                  : checkState === "checking"
-                    ? "warn"
-                    : "neutral"
-            }
-          >
-            {integritasSkipped
-              ? "Skipped"
-              : checkState === "ok"
-                ? "Valid"
-                : checkState === "checking"
-                  ? "Verifying…"
-                  : "Not verified"}
+          <Pill tone={integritasSkipped ? "neutral" : checkState === "ok" ? "good" : checkState === "checking" ? "warn" : "neutral"}>
+            {integritasSkipped ? "Skipped" : checkState === "ok" ? "Valid" : checkState === "checking" ? "Verifying…" : "Not verified"}
           </Pill>
         </div>
         {checkState === "ok" && !integritasSkipped && (
@@ -497,12 +424,7 @@ function IntegritasStep({
             {checkState === "checking" ? "Verifying…" : "Verify API key"}
           </button>
           {!INTEGRITAS_STEP_REQUIRED ? (
-            <button
-              type="button"
-              className={secondaryButtonClass}
-              onClick={onSkip}
-              disabled={integritasSkipped}
-            >
+            <button type="button" className={secondaryButtonClass} onClick={onSkip} disabled={integritasSkipped}>
               Skip for now
             </button>
           ) : null}
@@ -528,17 +450,17 @@ function CompleteStep({
       label: "Admin password",
       detail: passwordSet ? "Configured" : "Not set",
     },
-    {
-      label: "Two-factor auth",
-      detail: totpVerified ? "Authenticator linked" : "Not verified",
-    },
+    ...(TOTP_ENABLED
+      ? [
+          {
+            label: "Two-factor auth",
+            detail: totpVerified ? "Authenticator linked" : "Not verified",
+          },
+        ]
+      : []),
     {
       label: "Integritas",
-      detail: integritasSkipped
-        ? "Skipped — configure later"
-        : integritasVerified
-          ? "API key verified"
-          : "Not configured",
+      detail: integritasSkipped ? "Skipped — configure later" : integritasVerified ? "API key verified" : "Not configured",
     },
   ];
 
@@ -553,16 +475,12 @@ function CompleteStep({
       <p className={eyebrowClass}>All done</p>
       <h2 className={headingClass}>Your edge gateway is ready</h2>
       <p className={leadClass}>
-        You have finished the required setup. Edge Workbench will initialise
-        everything else silently when you continue.
+        You have finished the required setup. Edge Workbench will initialise everything else silently when you continue.
       </p>
 
       <ul className="m-0 grid max-w-xl list-none gap-2 p-0">
         {configured.map((item) => (
-          <li
-            key={item.label}
-            className="flex items-start gap-2.5 rounded-xl border border-green-200 bg-green-50 p-3"
-          >
+          <li key={item.label} className="flex items-start gap-2.5 rounded-xl border border-green-200 bg-green-50 p-3">
             <span className="grid h-7 w-7 place-items-center rounded-full bg-green-600 text-white">
               <Check size={16} />
             </span>
@@ -644,10 +562,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
       case "welcome":
         return true;
       case "account":
-        return (
-          form.password.length >= 8 &&
-          form.password === form.confirmPassword
-        );
+        return form.password.length >= 8 && form.password === form.confirmPassword;
       case "twofa":
         return totpCheck === "ok" && Boolean(qrCode) && !qrError;
       case "integritas":
@@ -709,11 +624,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex min-h-0 flex-col overflow-hidden overscroll-contain bg-white">
-      <div
-        className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-white"
-        role="main"
-        aria-label="First-time setup"
-      >
+      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-white" role="main" aria-label="First-time setup">
         <header className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-3">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white">
@@ -727,10 +638,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
         </header>
 
         <div className="h-1 shrink-0 bg-slate-200">
-          <span
-            className="block h-full bg-violet-600 transition-[width] duration-200"
-            style={{ width: `${progress}%` }}
-          />
+          <span className="block h-full bg-violet-600 transition-[width] duration-200" style={{ width: `${progress}%` }} />
         </div>
 
         <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)]">
@@ -749,11 +657,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                       complete && "text-slate-300",
                     )}
                   >
-                    <StepIcon
-                      id={step.id}
-                      active={active}
-                      complete={complete}
-                    />
+                    <StepIcon id={step.id} active={active} complete={complete} />
                     <div>
                       <span className="block text-[0.72rem] font-bold uppercase tracking-wide">{step.shortLabel}</span>
                       <strong className="mt-0.5 block text-[0.88rem] leading-snug">{step.label}</strong>
@@ -767,9 +671,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
           <div className="flex min-h-0 min-w-0 flex-col bg-white">
             <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5 [scrollbar-color:#cbd5e1_transparent] [scrollbar-width:thin] max-[700px]:py-3 lg:px-10 lg:py-6">
               {currentStep.id === "welcome" && <WelcomeStep />}
-              {currentStep.id === "account" && (
-                <AccountStep form={form} setForm={setForm} />
-              )}
+              {currentStep.id === "account" && <AccountStep form={form} setForm={setForm} />}
               {currentStep.id === "twofa" && (
                 <TwoFactorStep
                   form={form}
@@ -810,12 +712,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             <footer className="flex shrink-0 flex-col items-stretch gap-3 border-t border-slate-200 bg-white px-6 py-3 max-[900px]:gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 {stepIndex > 0 ? (
-                  <button
-                    type="button"
-                    className={secondaryButtonClass}
-                    onClick={goBack}
-                    disabled={submitting}
-                  >
+                  <button type="button" className={secondaryButtonClass} onClick={goBack} disabled={submitting}>
                     <ArrowLeft size={16} /> Back
                   </button>
                 ) : (
@@ -826,20 +723,9 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                 <span className={mutedClass}>
                   Step {stepIndex + 1} of {onboardingSteps.length}
                 </span>
-                <button
-                  type="button"
-                  className={primaryButtonClass}
-                  disabled={!canContinue || submitting}
-                  onClick={() => void goNext()}
-                >
-                  {submitting
-                    ? "Finishing…"
-                    : currentStep.id === "complete"
-                      ? "Enter Edge Workbench"
-                      : "Continue"}
-                  {currentStep.id !== "complete" && !submitting && (
-                    <ArrowRight size={16} />
-                  )}
+                <button type="button" className={primaryButtonClass} disabled={!canContinue || submitting} onClick={() => void goNext()}>
+                  {submitting ? "Finishing…" : currentStep.id === "complete" ? "Enter Edge Workbench" : "Continue"}
+                  {currentStep.id !== "complete" && !submitting && <ArrowRight size={16} />}
                 </button>
               </div>
             </footer>
