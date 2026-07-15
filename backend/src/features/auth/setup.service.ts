@@ -1,6 +1,11 @@
 import { db } from "../../db/database.js";
 import { saveIntegritasApiKey } from "../settings/secrets.service.js";
-import { LOCAL_ADMIN_DISPLAY_NAME, LOCAL_ADMIN_USERNAME, TOTP_ACCOUNT_LABEL } from "./auth.constants.js";
+import {
+  LOCAL_ADMIN_DISPLAY_NAME,
+  LOCAL_ADMIN_USERNAME,
+  TOTP_ACCOUNT_LABEL,
+  TOTP_ENABLED
+} from "./auth.constants.js";
 import { recordAuditEvent } from "./audit.service.js";
 import {
   countUsers,
@@ -11,7 +16,7 @@ import {
   markSetupPendingVerified
 } from "./auth.repository.js";
 import { validateIntegritasApiKey } from "./integritas-validation.service.js";
-import { hashPassword } from "./password.service.js";
+import { adminPinValidationError, hashPassword, isValidAdminPin } from "./password.service.js";
 import { createSession } from "./session.service.js";
 import {
   decryptTotpSecret,
@@ -99,15 +104,20 @@ export async function completeSetup(input: {
 
   const password = input.password;
 
-  if (password.length < 8) throw new SetupError("password must be at least 8 characters", 400);
+  if (!isValidAdminPin(password)) throw new SetupError(adminPinValidationError(), 400);
 
-  const pending = getLatestSetupPending();
-  if (!pending) throw new SetupError("TOTP setup expired or not initialized", 400);
-  if (!pending.verified_at) {
-    throw new SetupError("TOTP must be verified before completing setup", 400);
+  let totpSecretEncrypted: string;
+  if (TOTP_ENABLED) {
+    const pending = getLatestSetupPending();
+    if (!pending) throw new SetupError("TOTP setup expired or not initialized", 400);
+    if (!pending.verified_at) {
+      throw new SetupError("TOTP must be verified before completing setup", 400);
+    }
+    totpSecretEncrypted = encryptTotpSecret(decryptTotpSecret(pending.totp_secret));
+  } else {
+    // Placeholder so users.totp_secret stays NOT NULL while TOTP is disabled.
+    totpSecretEncrypted = encryptTotpSecret(generateSecret());
   }
-
-  const totpSecret = decryptTotpSecret(pending.totp_secret);
 
   const integritasApiKey = input.integritasApiKey?.trim() ?? "";
   if (integritasApiKey) {
@@ -116,7 +126,6 @@ export async function completeSetup(input: {
   }
 
   const passwordHash = await hashPassword(password);
-  const totpSecretEncrypted = encryptTotpSecret(totpSecret);
 
   const complete = db.transaction(() => {
     if (countUsers() > 0) throw new SetupError("Setup is already complete", 403);

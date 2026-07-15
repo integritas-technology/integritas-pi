@@ -11,7 +11,7 @@ import {
   updateUserPassword,
   updateUserTotpSecret
 } from "./auth.repository.js";
-import { hashPassword, verifyPassword } from "./password.service.js";
+import { adminPinValidationError, hashPassword, isValidAdminPin, verifyPassword } from "./password.service.js";
 import { createSession } from "./session.service.js";
 import {
   decryptTotpSecret,
@@ -80,7 +80,7 @@ export async function changePassword(userId: string, input: {
   if (!user) throw new AuthSettingsError("User not found", 404);
 
   const passwordValid = await verifyPassword(input.currentPassword, user.password);
-  if (!passwordValid) throw new AuthSettingsError("Invalid current password", 401);
+  if (!passwordValid) throw new AuthSettingsError("Invalid current PIN", 401);
 
   if (TOTP_ENABLED) {
     const token = (input.totpToken ?? "").trim();
@@ -96,7 +96,7 @@ export async function changePassword(userId: string, input: {
     if (!totpValid) throw new AuthSettingsError("Invalid TOTP code", 401);
   }
 
-  if (input.newPassword.length < 8) throw new AuthSettingsError("New password must be at least 8 characters", 400);
+  if (!isValidAdminPin(input.newPassword)) throw new AuthSettingsError(adminPinValidationError(), 400);
 
   const newHash = await hashPassword(input.newPassword);
   updateUserPassword(userId, newHash);
@@ -111,7 +111,7 @@ export async function initTotpReset(userId: string, input: {
   if (!user) throw new AuthSettingsError("User not found", 404);
 
   const passwordValid = await verifyPassword(input.currentPassword, user.password);
-  if (!passwordValid) throw new AuthSettingsError("Invalid current password", 401);
+  if (!passwordValid) throw new AuthSettingsError("Invalid current PIN", 401);
 
   const token = input.totpToken.trim();
   if (!/^\d{6}$/.test(token)) throw new AuthSettingsError("totpToken must be a 6-digit code", 400);

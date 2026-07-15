@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { ErrorText } from "../../components/Text";
 import { cx } from "../../lib/cx";
+import { adminPinHint, isValidAdminPin, sanitizePinInput } from "../auth/pin";
 import { TOTP_ENABLED } from "../auth/totpEnabled";
 import { completeSetup, initTotp, verifyIntegritasKey, verifyTotp } from "./api";
 import { INTEGRITAS_STEP_REQUIRED } from "./config";
@@ -70,14 +71,14 @@ function Pill({ children, tone = "neutral" }: { children: React.ReactNode; tone?
   );
 }
 
-function passwordStrength(password: string): {
+function pinHint(pin: string): {
   label: string;
   tone: "warn" | "good" | "neutral";
 } {
-  if (!password) return { label: "Enter a password", tone: "neutral" };
-  if (password.length < 8) return { label: "Too short", tone: "warn" };
-  if (!/[A-Z]/.test(password) || !/[0-9]/.test(password)) return { label: "Fair — add a number and capital letter", tone: "warn" };
-  return { label: "Strong", tone: "good" };
+  if (!pin) return { label: `Enter a ${adminPinHint()}`, tone: "neutral" };
+  if (!/^\d+$/.test(pin)) return { label: "Numbers only", tone: "warn" };
+  if (!isValidAdminPin(pin)) return { label: `Must be a ${adminPinHint()}`, tone: "warn" };
+  return { label: "PIN looks good", tone: "good" };
 }
 
 function StepIcon({ id, active, complete }: { id: OnboardingStepId; active: boolean; complete: boolean }) {
@@ -119,8 +120,8 @@ function WelcomeStep() {
           <h3 className="m-0 text-sm">Secure access</h3>
           <p className="m-0 text-xs leading-relaxed text-slate-500">
             {TOTP_ENABLED
-              ? "Sign in with a local admin account and two-factor authentication to protect configuration on your LAN."
-              : "Sign in with a local admin password to protect configuration on your LAN."}
+              ? "Sign in with a local admin PIN and two-factor authentication to protect configuration on your LAN."
+              : "Sign in with a local admin PIN to protect configuration on your LAN."}
           </p>
         </article>
         <article className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
@@ -143,48 +144,52 @@ function WelcomeStep() {
 }
 
 function AccountStep({ form, setForm }: { form: OnboardingFormState; setForm: (patch: Partial<OnboardingFormState>) => void }) {
-  const strength = passwordStrength(form.password);
-  const passwordsMatch = !form.confirmPassword || form.password === form.confirmPassword;
+  const hint = pinHint(form.password);
+  const pinsMatch = !form.confirmPassword || form.password === form.confirmPassword;
 
   return (
     <div className={panelClass}>
       <p className={eyebrowClass}>Step 1 of 3</p>
-      <h2 className={headingClass}>Set your admin password</h2>
-      <p className={leadClass}>Choose the password used to sign in to Edge Workbench.</p>
+      <h2 className={headingClass}>Choose your admin PIN</h2>
+      <p className={leadClass}>Pick a numeric PIN code you will use to sign in to Edge Workbench.</p>
 
       <div className={formGridClass}>
         <label className={labelClass}>
-          Password
+          PIN code
           <input
             className={inputClass}
             value={form.password}
-            onChange={(event) => setForm({ password: event.target.value })}
+            onChange={(event) => setForm({ password: sanitizePinInput(event.target.value) })}
             type="password"
-            placeholder="Choose a strong password"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            placeholder="000000"
             autoComplete="new-password"
           />
           <span
             className={cx(
-              strength.tone === "good" && goodHintClass,
-              strength.tone === "warn" && warnHintClass,
-              strength.tone === "neutral" && mutedClass,
+              hint.tone === "good" && goodHintClass,
+              hint.tone === "warn" && warnHintClass,
+              hint.tone === "neutral" && mutedClass,
             )}
           >
-            {strength.label}
+            {hint.label}
           </span>
         </label>
 
         <label className={labelClass}>
-          Confirm password
+          Confirm PIN
           <input
             className={inputClass}
             value={form.confirmPassword}
-            onChange={(event) => setForm({ confirmPassword: event.target.value })}
+            onChange={(event) => setForm({ confirmPassword: sanitizePinInput(event.target.value) })}
             type="password"
-            placeholder="Repeat password"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            placeholder="Repeat PIN"
             autoComplete="new-password"
           />
-          {!passwordsMatch && <span className={warnHintClass}>Passwords do not match</span>}
+          {!pinsMatch && <span className={warnHintClass}>PINs do not match</span>}
         </label>
       </div>
     </div>
@@ -447,7 +452,7 @@ function CompleteStep({
 }) {
   const configured = [
     {
-      label: "Admin password",
+      label: "Admin PIN",
       detail: passwordSet ? "Configured" : "Not set",
     },
     ...(TOTP_ENABLED
@@ -562,7 +567,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
       case "welcome":
         return true;
       case "account":
-        return form.password.length >= 8 && form.password === form.confirmPassword;
+        return isValidAdminPin(form.password) && form.password === form.confirmPassword;
       case "twofa":
         return totpCheck === "ok" && Boolean(qrCode) && !qrError;
       case "integritas":
@@ -699,7 +704,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
               )}
               {currentStep.id === "complete" && (
                 <CompleteStep
-                  passwordSet={form.password.length >= 8}
+                  passwordSet={isValidAdminPin(form.password)}
                   totpVerified={totpCheck === "ok"}
                   integritasSkipped={integritasSkipped}
                   integritasVerified={integritasCheck === "ok"}

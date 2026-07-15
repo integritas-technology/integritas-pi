@@ -21,7 +21,7 @@ A Raspberry Pi Docker Compose prototype that lets an operator run a Minima node,
 - Automation workflows: collect data (poll/webhook/MQTT/GPIO) then optionally stamp it.
 - Minima node wallet, tokens, peers, and status monitoring.
 - Read-only host file browser.
-- First-run setup wizard, admin auth (password + TOTP), audit log.
+- First-run setup wizard, admin auth (PIN), audit log.
 
 ## Non-Goals
 

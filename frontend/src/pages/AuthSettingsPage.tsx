@@ -7,6 +7,7 @@ import { Card } from "../components/Card";
 import { Page } from "../components/Page";
 import { ErrorText } from "../components/Text";
 import { changePassword, initTotpReset, verifyTotpReset } from "../features/auth/api";
+import { isValidAdminPin, sanitizePinInput } from "../features/auth/pin";
 import { TOTP_ENABLED } from "../features/auth/totpEnabled";
 import { IntegritasConnectPanel } from "../features/integritas-auth/IntegritasConnectPanel";
 
@@ -53,7 +54,7 @@ export function AuthSettingsPage() {
       setNewPassword("");
       setPwTotpToken("");
     } catch (err) {
-      setPwError(err instanceof Error ? err.message : "Failed to change password");
+      setPwError(err instanceof Error ? err.message : "Failed to change PIN");
     } finally {
       setPwSubmitting(false);
     }
@@ -112,7 +113,8 @@ export function AuthSettingsPage() {
     setShowManualKey(false);
   };
 
-  const passwordFormReady = Boolean(currentPassword) && newPassword.length >= 8 && (!TOTP_ENABLED || pwTotpToken.length === 6);
+  const passwordFormReady =
+    isValidAdminPin(currentPassword) && isValidAdminPin(newPassword) && (!TOTP_ENABLED || pwTotpToken.length === 6);
 
   return (
     <Page
@@ -132,46 +134,52 @@ export function AuthSettingsPage() {
 
       <Card>
         <div className="grid gap-1" style={{ marginBottom: 16 }}>
-          <h3 style={{ margin: 0 }}>Change password</h3>
+          <h3 style={{ margin: 0 }}>Change PIN</h3>
           <p style={{ margin: 0, color: "#64748b", fontSize: "0.875rem" }}>
-            {TOTP_ENABLED ? "Requires your current password and a valid 2FA code." : "Requires your current password."}
+            {TOTP_ENABLED
+              ? "Requires your current PIN and a valid 2FA code."
+              : "Requires your current PIN. New PIN must be exactly 6 digits."}
           </p>
         </div>
 
         {pwSuccess && (
           <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3" style={{ marginBottom: 16 }}>
             <p className="text-sm text-emerald-700 flex items-center gap-2" style={{ margin: 0 }}>
-              <Check size={14} /> Password changed successfully.
+              <Check size={14} /> PIN changed successfully.
             </p>
           </div>
         )}
 
         <form onSubmit={(e) => void handleChangePassword(e)} className={formClass}>
           <label className={labelClass}>
-            Current password
+            Current PIN
             <input
               type="password"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={currentPassword}
               onChange={(e) => {
-                setCurrentPassword(e.target.value);
+                setCurrentPassword(sanitizePinInput(e.target.value));
                 setPwError(null);
                 setPwSuccess(false);
               }}
-              placeholder="Your current password"
+              placeholder="Your current PIN"
               autoComplete="current-password"
             />
           </label>
           <label className={labelClass}>
-            New password
+            New PIN
             <input
               type="password"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={newPassword}
               onChange={(e) => {
-                setNewPassword(e.target.value);
+                setNewPassword(sanitizePinInput(e.target.value));
                 setPwError(null);
                 setPwSuccess(false);
               }}
-              placeholder="At least 8 characters"
+              placeholder="000000"
               autoComplete="new-password"
             />
           </label>
@@ -195,7 +203,7 @@ export function AuthSettingsPage() {
           {pwError && <ErrorText className="m-0">{pwError}</ErrorText>}
           <ButtonRow>
             <Button type="submit" disabled={pwSubmitting || !passwordFormReady}>
-              {pwSubmitting ? "Updating…" : "Change password"}
+              {pwSubmitting ? "Updating…" : "Change PIN"}
             </Button>
           </ButtonRow>
         </form>
@@ -219,15 +227,17 @@ export function AuthSettingsPage() {
                 </p>
               </div>
               <label className={labelClass}>
-                Current password
+                Current PIN
                 <input
                   type="password"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={resetCurrentPassword}
                   onChange={(e) => {
-                    setResetCurrentPassword(e.target.value);
+                    setResetCurrentPassword(sanitizePinInput(e.target.value));
                     setResetError(null);
                   }}
-                  placeholder="Your current password"
+                  placeholder="Your current PIN"
                   autoComplete="current-password"
                 />
               </label>
@@ -247,7 +257,7 @@ export function AuthSettingsPage() {
               </label>
               {resetError && <ErrorText className="m-0">{resetError}</ErrorText>}
               <ButtonRow>
-                <Button type="submit" disabled={resetSubmitting || !resetCurrentPassword || resetCurrentToken.length !== 6}>
+                <Button type="submit" disabled={resetSubmitting || !isValidAdminPin(resetCurrentPassword) || resetCurrentToken.length !== 6}>
                   {resetSubmitting ? "Verifying…" : "Start 2FA reset"}
                 </Button>
               </ButtonRow>

@@ -3,7 +3,7 @@ import type { OnboardingStep } from "./types";
 
 export const onboardingSteps: OnboardingStep[] = [
   { id: "welcome", label: "Welcome", shortLabel: "Welcome" },
-  { id: "account", label: "Set password", shortLabel: "Password" },
+  { id: "account", label: "Set PIN", shortLabel: "PIN" },
   // TEMP: restore if we need TOTP or delete TOTP if not needed.
   ...(TOTP_ENABLED ? [{ id: "twofa" as const, label: "Two-factor auth", shortLabel: "2FA" }] : []),
   { id: "integritas", label: "Integritas API key", shortLabel: "Integritas" },
