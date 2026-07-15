@@ -137,11 +137,11 @@ export function AppShell({
 
           <Card className='sidebar-note debug-ping-card'>
             <div>
-              <Bug size={18} /> Debug ping v3
+              <Bug size={18} /> debug v1
             </div>
             <p>
               Checks that the frontend and backend you're looking at were both
-              built from the progress-UI-removed + status cache fix.
+              built from this change.
             </p>
             <button
               type='button'

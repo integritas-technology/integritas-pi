@@ -3,5 +3,5 @@ import { Router } from "express";
 export const debugRouter = Router();
 
 debugRouter.get("/ping", (_req, res) => {
-  res.json({ message: "Hello from the backend — build v3 (progress UI removed, status cache fix)" });
+  res.json({ message: "debug v1" });
 });
