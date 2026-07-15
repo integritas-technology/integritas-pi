@@ -36,6 +36,19 @@ export async function getUpdateStatus(): Promise<{
     })
   );
 
+  // update-agent isn't in MANIFEST_SERVICE_KEYS — that array drives the
+  // generic pull/health-check/swap loop, which assumes an external actor.
+  // update-agent updates itself via a separate self-update orchestrator, but
+  // is still shown here using the same upToDate comparison, so a self-update
+  // that never ran (or failed) is visible instead of silently stuck.
+  const updateAgentContainer = await getComposeServiceContainer("update-agent");
+  services.push({
+    service: "update-agent",
+    currentImage: updateAgentContainer?.Image ?? null,
+    targetImage: manifest.updateAgent,
+    upToDate: updateAgentContainer?.Image === manifest.updateAgent
+  });
+
   const currentVersion = await getLastAppliedVersion();
 
   return { manifest, services, currentVersion };

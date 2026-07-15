@@ -45,23 +45,40 @@ export async function createContainer(
  * alongside the still-running old one for health checking, and two containers
  * can't bind the same host port. Pass includePortBindings once the old
  * container has been stopped and the port is free.
+ *
+ * `extraEnv`/`cmd` let a caller start a variant of the same container with a
+ * different entrypoint (e.g. update-agent's self-update orchestrator, which
+ * runs from the same image/config but with a one-shot Cmd override instead of
+ * the normal server start). `oneShot` overrides the inherited restart policy
+ * (which would otherwise be "unless-stopped", causing Docker to relaunch a
+ * job container forever) and removes the container automatically once it exits.
+ * `stripComposeServiceLabel` drops the inherited `com.docker.compose.service`
+ * label — needed for one-shot helper containers (the self-update orchestrator)
+ * so they can't be mistaken for the real service container by
+ * getComposeServiceContainer() lookups while both are briefly running.
  */
 export function createBodyFromInspect(
   inspected: DockerContainerInspect,
   newImageRef: string,
-  includePortBindings = false
+  includePortBindings = false,
+  options?: { extraEnv?: string[]; cmd?: string[]; oneShot?: boolean; stripComposeServiceLabel?: boolean }
 ) {
   const networkNames = Object.keys(inspected.NetworkSettings.Networks);
+  const labels = options?.stripComposeServiceLabel
+    ? Object.fromEntries(Object.entries(inspected.Config.Labels ?? {}).filter(([key]) => key !== "com.docker.compose.service"))
+    : inspected.Config.Labels;
 
   return {
     Image: newImageRef,
-    Env: inspected.Config.Env,
-    Labels: inspected.Config.Labels,
+    Env: [...(inspected.Config.Env ?? []), ...(options?.extraEnv ?? [])],
+    Cmd: options?.cmd,
+    Labels: labels,
     ExposedPorts: inspected.Config.ExposedPorts,
     HostConfig: {
       Binds: inspected.HostConfig.Binds,
       GroupAdd: inspected.HostConfig.GroupAdd,
-      RestartPolicy: inspected.HostConfig.RestartPolicy,
+      RestartPolicy: options?.oneShot ? { Name: "no" } : inspected.HostConfig.RestartPolicy,
+      AutoRemove: options?.oneShot ? true : undefined,
       ExtraHosts: inspected.HostConfig.ExtraHosts,
       PortBindings: includePortBindings ? inspected.HostConfig.PortBindings : undefined
     },
