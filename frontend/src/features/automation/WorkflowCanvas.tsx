@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { DataSource } from "../data-sources/dataSourceTypes";
+import { DarkHeroCard } from "../../components/DarkHeroCard";
 import { cx } from "../../lib/cx";
 import type { AutomationBlock, AutomationBlockType } from "./automationTypes";
 
@@ -30,7 +31,7 @@ export type WorkflowCanvasRuntimeState = {
 
 const mutedText = "text-sm text-slate-500";
 const shellClass = "grid gap-5 rounded-[28px] border border-slate-200 bg-white/92 p-4 shadow-[0_24px_60px_rgba(15,23,42,0.12)] sm:p-5";
-const topbarClass = "flex flex-col gap-4 rounded-[22px] bg-slate-950 p-5 text-white lg:flex-row lg:items-start lg:justify-between";
+const topbarClass = "flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between";
 const gridClass = "grid gap-4 xl:grid-cols-[280px_minmax(360px,1fr)_360px]";
 const rowActionsClass = "flex flex-wrap items-center gap-2";
 const neutralPillClass = "inline-flex w-fit items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-slate-600";
@@ -47,14 +48,14 @@ const blockActionClass = "rounded-full border-0 bg-white/90 px-2 py-1 text-xs fo
 export function WorkflowWorkspaceShell({ eyebrow, title, description, actions, left, center, right, bottom, notices }: { eyebrow: string; title: string; description: ReactNode; actions?: ReactNode; left: ReactNode; center: ReactNode; right: ReactNode; bottom?: ReactNode; notices?: ReactNode }) {
   return (
     <section className={shellClass}>
-      <div className={topbarClass}>
-        <div>
+      <DarkHeroCard layout="none" className={topbarClass}>
+        <div className="relative z-10">
           <span className="inline-flex w-fit items-center rounded-full bg-white/10 px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-slate-200">{eyebrow}</span>
           <h2>{title}</h2>
           {typeof description === "string" ? <p className="text-sm text-slate-300">{description}</p> : description}
         </div>
-        {actions && <div className={rowActionsClass}>{actions}</div>}
-      </div>
+        {actions && <div className={cx("relative z-10", rowActionsClass)}>{actions}</div>}
+      </DarkHeroCard>
       {notices}
       <div className={gridClass}>
         {left}

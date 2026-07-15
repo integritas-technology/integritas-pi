@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- Deleting a device no longer deletes its historical read-history rows; preserved rows keep their recorded source name and URL.
+
 ## [0.16.0] - 2026-07-15
 
 ### Added
@@ -36,6 +40,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Shared buttons now support compact sizes, and Automation workspace actions now use the shared button variants instead of raw browser buttons.
 - Wallet and Diagnostics subtabs now have clearer active/inactive styling with reliable active-tab contrast.
 - Dashboard and Wallet now share the dark hero card surface, and wallet hero actions use a dedicated dark-surface button variant for reliable contrast.
+- Automation workspace headers now reuse the shared dark hero card surface instead of a flat black topbar.
 
 ## [0.14.1] - 2026-07-10
 

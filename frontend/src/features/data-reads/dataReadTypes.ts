@@ -1,7 +1,7 @@
 export type DataSourceRead = {
   id: string;
   createdAt: string;
-  dataSourceId: string;
+  dataSourceId: string | null;
   workflowId: string | null;
   integritasProofId: string | null;
   sourceName: string;
