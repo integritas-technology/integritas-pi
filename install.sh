@@ -295,15 +295,16 @@ fetch_and_verify_manifest() {
 
   FRONTEND_IMAGE="$(fetch_manifest_field "$manifest_file" frontend)"
   BACKEND_IMAGE="$(fetch_manifest_field "$manifest_file" backend)"
+  UPDATE_AGENT_IMAGE="$(fetch_manifest_field "$manifest_file" updateAgent)"
 
   rm -f "$manifest_file" "$signature_file" "$signature_bin"
 
-  if [ -z "$FRONTEND_IMAGE" ] || [ -z "$BACKEND_IMAGE" ]; then
-    echo "Manifest is missing frontend or backend image digest."
+  if [ -z "$FRONTEND_IMAGE" ] || [ -z "$BACKEND_IMAGE" ] || [ -z "$UPDATE_AGENT_IMAGE" ]; then
+    echo "Manifest is missing frontend, backend, or update-agent image digest."
     exit 1
   fi
 
-  log "Manifest verified. frontend=$FRONTEND_IMAGE backend=$BACKEND_IMAGE"
+  log "Manifest verified. frontend=$FRONTEND_IMAGE backend=$BACKEND_IMAGE update-agent=$UPDATE_AGENT_IMAGE"
 }
 
 write_env_file() {
@@ -328,6 +329,7 @@ COOKIE_SECURE=true
 MANIFEST_URL=$MANIFEST_URL
 FRONTEND_IMAGE=$FRONTEND_IMAGE
 BACKEND_IMAGE=$BACKEND_IMAGE
+UPDATE_AGENT_IMAGE=$UPDATE_AGENT_IMAGE
 EOF
 }
 

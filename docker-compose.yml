@@ -68,8 +68,7 @@ services:
       - integritas
 
   update-agent:
-    build:
-      context: ./update-agent
+    image: ${UPDATE_AGENT_IMAGE}
     environment:
       PORT: 8081
       DOCKER_SOCKET_PATH: /var/run/docker.sock
