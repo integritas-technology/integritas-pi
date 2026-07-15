@@ -296,6 +296,8 @@ fetch_and_verify_manifest() {
   FRONTEND_IMAGE="$(fetch_manifest_field "$manifest_file" frontend)"
   BACKEND_IMAGE="$(fetch_manifest_field "$manifest_file" backend)"
   UPDATE_AGENT_IMAGE="$(fetch_manifest_field "$manifest_file" updateAgent)"
+  MANIFEST_VERSION="$(fetch_manifest_field "$manifest_file" version)"
+  MANIFEST_CREATED_AT="$(fetch_manifest_field "$manifest_file" createdAt)"
 
   rm -f "$manifest_file" "$signature_file" "$signature_bin"
 
@@ -305,6 +307,30 @@ fetch_and_verify_manifest() {
   fi
 
   log "Manifest verified. frontend=$FRONTEND_IMAGE backend=$BACKEND_IMAGE update-agent=$UPDATE_AGENT_IMAGE"
+}
+
+record_applied_manifest() {
+  if [ -z "$MANIFEST_VERSION" ] || [ -z "$MANIFEST_CREATED_AT" ]; then
+    echo "Manifest is missing version or createdAt; skipping last-applied-manifest.json write."
+    return
+  fi
+
+  local resolved_update_agent_state_dir
+  case "$UPDATE_AGENT_STATE_DIR" in
+    /*) resolved_update_agent_state_dir="$UPDATE_AGENT_STATE_DIR" ;;
+    ./*) resolved_update_agent_state_dir="$APP_DIR/${UPDATE_AGENT_STATE_DIR#./}" ;;
+    *) resolved_update_agent_state_dir="$APP_DIR/$UPDATE_AGENT_STATE_DIR" ;;
+  esac
+
+  mkdir -p "$resolved_update_agent_state_dir"
+  cat > "$resolved_update_agent_state_dir/last-applied-manifest.json" <<EOF
+{
+  "createdAt": "$MANIFEST_CREATED_AT",
+  "version": "$MANIFEST_VERSION"
+}
+EOF
+  chown -R 1000:1000 "$resolved_update_agent_state_dir"
+  log "Recorded last-applied-manifest.json (version=$MANIFEST_VERSION)"
 }
 
 write_env_file() {
@@ -428,6 +454,7 @@ main() {
   download_app
   fetch_and_verify_manifest
   prepare_runtime_directories
+  record_applied_manifest
   write_env_file
   write_compose_override
   generate_tls_cert
