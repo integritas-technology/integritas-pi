@@ -550,7 +550,7 @@ function AttachedStampSettings({ block, onAttachedChange, onAttachedRemove }: { 
 
   return (
     <div className={cx(softCardClass, formGridClass)}>
-      <strong>+ Stamp with Integritas attached</strong>
+      <strong>+ Stamp data attached</strong>
       <label className="grid grid-cols-[auto_minmax(0,1fr)] items-center justify-start gap-2.5"><input className="w-auto" type="checkbox" checked={Boolean(conditionObject)} onChange={(event) => onAttachedChange(stamp.id, { condition: event.target.checked ? { source: "data", fieldPath: "active", operator: "equals", value: true } : null })} /> Only stamp when this block's data matches</label>
       {conditionObject && <>
         <p className={mutedText}>The condition checks the data produced by the Record/Fetch block this stamp is attached to.</p>
@@ -1015,9 +1015,9 @@ function blockLabel(block: AutomationBlock) {
   if (block.type === "fetch_data_source") return "Fetch data source";
   if (block.type === "if_payload_field_equals") return `If ${conditionSourceLabel(block.config.source ?? "trigger")} field matches`;
   if (block.type === "wait") return "Wait";
-  if (block.type === "stamp_integritas") return "Stamp with Integritas";
-  if (block.type === "control_output") return "Control output";
-  if (block.type === "send_transaction") return "Send transaction";
+  if (block.type === "stamp_integritas") return "Stamp data";
+  if (block.type === "control_output") return "Control device";
+  if (block.type === "send_transaction") return "Send payment";
   return block.type;
 }
 
@@ -1027,8 +1027,8 @@ function blockShortLabel(block: AutomationBlock) {
   if (block.type === "fetch_data_source") return "Fetch source";
   if (block.type === "if_payload_field_equals") return "If payload matches";
   if (block.type === "stamp_integritas") return "Stamp";
-  if (block.type === "control_output") return "Control output";
-  if (block.type === "send_transaction") return "Send transaction";
+  if (block.type === "control_output") return "Control device";
+  if (block.type === "send_transaction") return "Send payment";
   if (block.type === "wait") return "Wait";
   return block.type;
 }
