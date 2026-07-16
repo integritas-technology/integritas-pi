@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Check, CheckCircle2, Copy, Eye, EyeOff, RotateCcw, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Check, CheckCircle2, Copy, Eye, EyeOff, RotateCcw, ShieldAlert, Tag } from "lucide-react";
 import { Button } from "../components/Button";
 import { ButtonRow } from "../components/ButtonRow";
 import { Card } from "../components/Card";
 import { Page } from "../components/Page";
 import { ErrorText } from "../components/Text";
 import { changePassword, initTotpReset, verifyTotpReset } from "../features/auth/api";
+import { useUpdateStatusRefresh } from "../features/update/useUpdateStatusRefresh";
 
 type TotpResetPhase = "idle" | "scan" | "done";
 
@@ -34,6 +35,9 @@ export function AuthSettingsPage() {
   const [verifyCode, setVerifyCode] = useState("");
   const [verifySubmitting, setVerifySubmitting] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
+
+  const [currentVersion, setCurrentVersion] = useState<string | null>(null);
+  useUpdateStatusRefresh((status) => setCurrentVersion(status?.currentVersion ?? null));
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -311,6 +315,13 @@ export function AuthSettingsPage() {
             </ButtonRow>
           </div>
         )}
+      </Card>
+
+      <Card>
+        <div className="flex items-center gap-2 font-bold">
+          <Tag size={18} /> Version
+        </div>
+        <p className="mt-2 tabular-nums text-slate-500">{currentVersion ?? "Unknown"}</p>
       </Card>
     </Page>
   );

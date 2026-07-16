@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.17.2] - 2026-07-16
+
+### Changed
+
+- The sidebar "Update available" notice is now a plain colored button linking to `/update` instead of a card with version details; version numbers are no longer shown in the sidebar.
+- Account settings now shows the current app version in a dedicated card at the bottom of the page.
+
 ## [0.17.1] - 2026-07-16
 
 ### Changed

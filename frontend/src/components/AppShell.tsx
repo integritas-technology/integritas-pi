@@ -50,14 +50,10 @@ export function AppShell({
     Boolean(overview?.services.find((service) => service.name === name)?.ok);
 
   const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [currentVersion, setCurrentVersion] = useState<string | null>(null);
-  const [availableVersion, setAvailableVersion] = useState<string | null>(null);
   useUpdateStatusRefresh((status) => {
     setUpdateAvailable(
       Boolean(status?.services.some((service) => !service.upToDate)),
     );
-    setCurrentVersion(status?.currentVersion ?? null);
-    setAvailableVersion(status?.availableVersion ?? null);
   });
 
   const [debugPinging, setDebugPinging] = useState(false);
@@ -108,18 +104,11 @@ export function AppShell({
           </nav>
 
           {updateAvailable && (
-            <a href="/update" className="mt-4 block no-underline">
-              <Card className="bg-violet-700 text-white transition-colors hover:bg-violet-800">
-                <div className="flex items-center gap-2 font-bold"><Sparkles size={18} /> Update available</div>
-                {currentVersion && availableVersion && (
-                  <p className="mt-2 font-bold tabular-nums text-white/85">
-                    {currentVersion} &rarr; {availableVersion}
-                  </p>
-                )}
-                <p className="mt-2 text-white/85">
-                  A new version is ready to be installed. Click to view details and update.
-                </p>
-              </Card>
+            <a
+              href="/update"
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-violet-700 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-violet-800"
+            >
+              <Sparkles size={16} /> Update available
             </a>
           )}
 
@@ -130,7 +119,6 @@ export function AppShell({
           <Card className="mt-6 bg-slate-50">
             <div className="flex items-center gap-2 font-bold"><ShieldCheck size={18} /> Edge gateway prototype</div>
             <p className="mt-3 text-slate-500">A browser-first workbench for node, wallet, verified data, and automation workflows at the edge.</p>
-            {currentVersion && <p className="mt-2 text-xs tabular-nums text-slate-500">{currentVersion}</p>}
           </Card>
 
           <Card className="mt-4 bg-slate-50">
