@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-07-16
+
 ### Added
 
 - Planned the Devices page flow for direct input/output add actions, local services, API/MQTT output targets, and optional local MQTT broker support.
