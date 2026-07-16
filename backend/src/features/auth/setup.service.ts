@@ -1,11 +1,8 @@
 import { db } from "../../db/database.js";
+import { getIntegritasAuth } from "../integritas-auth/integritas-auth.repository.js";
 import { saveIntegritasApiKey } from "../settings/secrets.service.js";
-import {
-  LOCAL_ADMIN_DISPLAY_NAME,
-  LOCAL_ADMIN_USERNAME,
-  TOTP_ACCOUNT_LABEL,
-  TOTP_ENABLED
-} from "./auth.constants.js";
+import { getSetting, saveSetting } from "../settings/settings.repository.js";
+import { LOCAL_ADMIN_DISPLAY_NAME, LOCAL_ADMIN_USERNAME, TOTP_ACCOUNT_LABEL, TOTP_ENABLED } from "./auth.constants.js";
 import { recordAuditEvent } from "./audit.service.js";
 import {
   countUsers,
@@ -13,29 +10,34 @@ import {
   createUser,
   getLatestSetupPending,
   clearSetupPending,
-  markSetupPendingVerified
+  markSetupPendingVerified,
 } from "./auth.repository.js";
 import { validateIntegritasApiKey } from "./integritas-validation.service.js";
 import { adminPinValidationError, hashPassword, isValidAdminPin } from "./password.service.js";
 import { createSession } from "./session.service.js";
-import {
-  decryptTotpSecret,
-  encryptTotpSecret,
-  generateSecret,
-  getOtpAuthUrl,
-  renderQrPngBase64,
-  verifyToken
-} from "./totp.service.js";
+import { decryptTotpSecret, encryptTotpSecret, generateSecret, getOtpAuthUrl, renderQrPngBase64, verifyToken } from "./totp.service.js";
 
 const SETUP_PENDING_TTL_MS = 15 * 60 * 1000;
 const SETUP_PENDING_VERIFIED_TTL_MS = 30 * 60 * 1000;
+const SETUP_COMPLETED_SETTING_KEY = "setup.completed_at";
 
-export function isSetupComplete() {
+export function isLocalAdminCreated() {
   return countUsers() > 0;
 }
 
-export function assertSetupNotComplete() {
-  if (isSetupComplete()) {
+export function isSetupComplete() {
+  return isLocalAdminCreated() && Boolean(getSetting(SETUP_COMPLETED_SETTING_KEY));
+}
+
+export function markSetupComplete() {
+  if (!isLocalAdminCreated() || !getIntegritasAuth()) return;
+  if (!getSetting(SETUP_COMPLETED_SETTING_KEY)) {
+    saveSetting(SETUP_COMPLETED_SETTING_KEY, new Date().toISOString());
+  }
+}
+
+export function assertLocalAdminNotCreated() {
+  if (isLocalAdminCreated()) {
     throw new SetupError("Setup is already complete", 403);
   }
 }
@@ -49,7 +51,7 @@ export class SetupError extends Error {
 }
 
 export async function initSetupTotp() {
-  assertSetupNotComplete();
+  assertLocalAdminNotCreated();
 
   const secret = generateSecret();
   const encrypted = encryptTotpSecret(secret);
@@ -63,7 +65,7 @@ export async function initSetupTotp() {
 }
 
 export async function verifySetupTotp(totpToken: string) {
-  assertSetupNotComplete();
+  assertLocalAdminNotCreated();
 
   const token = totpToken.trim();
   if (!/^\d{6}$/.test(token)) {
@@ -88,7 +90,7 @@ export async function verifySetupTotp(totpToken: string) {
 }
 
 export async function verifySetupIntegritasKey(apiKey: string) {
-  assertSetupNotComplete();
+  assertLocalAdminNotCreated();
   const result = await validateIntegritasApiKey(apiKey);
   if (!result.ok) {
     throw new SetupError(result.error, 400);
@@ -96,11 +98,8 @@ export async function verifySetupIntegritasKey(apiKey: string) {
   return { valid: true };
 }
 
-export async function completeSetup(input: {
-  password: string;
-  integritasApiKey?: string;
-}) {
-  assertSetupNotComplete();
+export async function completeSetup(input: { password: string; integritasApiKey?: string }) {
+  assertLocalAdminNotCreated();
 
   const password = input.password;
 
@@ -133,7 +132,7 @@ export async function completeSetup(input: {
     const userId = createUser({
       username: LOCAL_ADMIN_USERNAME,
       passwordHash,
-      totpSecretEncrypted
+      totpSecretEncrypted,
     });
 
     if (integritasApiKey) {
@@ -152,6 +151,6 @@ export async function completeSetup(input: {
 
   return {
     sessionToken,
-    user: { displayName: LOCAL_ADMIN_DISPLAY_NAME, role: "admin" as const }
+    user: { displayName: LOCAL_ADMIN_DISPLAY_NAME, role: "admin" as const },
   };
 }

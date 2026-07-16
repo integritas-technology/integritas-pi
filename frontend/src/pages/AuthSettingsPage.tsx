@@ -113,8 +113,7 @@ export function AuthSettingsPage() {
     setShowManualKey(false);
   };
 
-  const passwordFormReady =
-    isValidAdminPin(currentPassword) && isValidAdminPin(newPassword) && (!TOTP_ENABLED || pwTotpToken.length === 6);
+  const passwordFormReady = isValidAdminPin(currentPassword) && isValidAdminPin(newPassword) && (!TOTP_ENABLED || pwTotpToken.length === 6);
 
   return (
     <Page
@@ -257,7 +256,10 @@ export function AuthSettingsPage() {
               </label>
               {resetError && <ErrorText className="m-0">{resetError}</ErrorText>}
               <ButtonRow>
-                <Button type="submit" disabled={resetSubmitting || !isValidAdminPin(resetCurrentPassword) || resetCurrentToken.length !== 6}>
+                <Button
+                  type="submit"
+                  disabled={resetSubmitting || !isValidAdminPin(resetCurrentPassword) || resetCurrentToken.length !== 6}
+                >
                   {resetSubmitting ? "Verifying…" : "Start 2FA reset"}
                 </Button>
               </ButtonRow>

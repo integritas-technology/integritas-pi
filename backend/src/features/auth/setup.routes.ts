@@ -4,17 +4,21 @@ import { authRateLimiter } from "./rate-limit.middleware.js";
 import {
   completeSetup,
   initSetupTotp,
+  isLocalAdminCreated,
   isSetupComplete,
   SetupError,
   verifySetupIntegritasKey,
-  verifySetupTotp
+  verifySetupTotp,
 } from "./setup.service.js";
 import { sessionCookieOptions } from "./session.service.js";
 
 export const setupRouter = Router();
 
 setupRouter.get("/status", (_req, res) => {
-  res.json({ setupComplete: isSetupComplete() });
+  res.json({
+    localAdminCreated: isLocalAdminCreated(),
+    setupComplete: isSetupComplete(),
+  });
 });
 
 setupRouter.post("/totp/init", authRateLimiter, async (_req, res) => {
@@ -58,8 +62,7 @@ setupRouter.post("/integritas/verify", authRateLimiter, async (req, res) => {
 setupRouter.post("/complete", authRateLimiter, async (req, res) => {
   try {
     const password = typeof req.body?.password === "string" ? req.body.password : "";
-    const integritasApiKey =
-      typeof req.body?.integritasApiKey === "string" ? req.body.integritasApiKey : undefined;
+    const integritasApiKey = typeof req.body?.integritasApiKey === "string" ? req.body.integritasApiKey : undefined;
 
     const result = await completeSetup({ password, integritasApiKey });
     res.cookie(env.sessionCookieName, result.sessionToken, sessionCookieOptions());

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -8,9 +8,10 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
-  KeyRound,
   Layers3,
+  Link2,
   LockKeyhole,
+  RefreshCw,
   ShieldCheck,
   Smartphone,
   Sparkles,
@@ -21,8 +22,9 @@ import { ErrorText } from "../../components/Text";
 import { cx } from "../../lib/cx";
 import { adminPinHint, isValidAdminPin, sanitizePinInput } from "../auth/pin";
 import { TOTP_ENABLED } from "../auth/totpEnabled";
-import { completeSetup, initTotp, verifyIntegritasKey, verifyTotp } from "./api";
-import { INTEGRITAS_STEP_REQUIRED } from "./config";
+import { hasConnectedProfile, type IntegritasAuthStatus } from "../integritas-auth/integritasAuthApi";
+import { useIntegritasAuth } from "../integritas-auth/useIntegritasAuth";
+import { completeSetup, initTotp, verifyTotp } from "./api";
 import { onboardingSteps } from "./steps";
 import type { CheckState, OnboardingFormState, OnboardingStepId } from "./types";
 
@@ -32,7 +34,6 @@ const initialForm: OnboardingFormState = {
   password: "",
   confirmPassword: "",
   twoFactorCode: "",
-  integritasApiKey: "",
 };
 
 type PillTone = "neutral" | "good" | "warn" | "future";
@@ -57,6 +58,7 @@ const primaryButtonClass =
 const secondaryButtonClass = "inline-flex items-center gap-2 rounded-xl border-0 bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-700";
 const compactButtonClass = "inline-flex items-center gap-1.5 rounded-xl border-0 bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700";
 const actionRowClass = "flex flex-wrap items-center gap-2.5";
+const connectAccountStepIndex = onboardingSteps.findIndex((step) => step.id === "connectAccount");
 
 const pillToneClass: Record<PillTone, string> = {
   neutral: "bg-slate-100 text-slate-700",
@@ -84,9 +86,9 @@ function pinHint(pin: string): {
 function StepIcon({ id, active, complete }: { id: OnboardingStepId; active: boolean; complete: boolean }) {
   const icons = {
     welcome: Sparkles,
-    account: UserRound,
+    account: LockKeyhole,
     twofa: Smartphone,
-    integritas: KeyRound,
+    connectAccount: UserRound,
     complete: CheckCircle2,
   };
   const Icon = complete ? Check : icons[id];
@@ -108,7 +110,7 @@ function WelcomeStep() {
   return (
     <div className={panelClass}>
       <p className={eyebrowClass}>First-time setup</p>
-      <h2 className={headingClass}>Welcome to Edge Workbench</h2>
+      <h2 className={headingClass}>Set up your Edge Workbench</h2>
       <p className={leadClass}>
         Edge Workbench runs on your Raspberry Pi to stamp data proofs, monitor local services, and automate integrity checks — all from one
         dashboard on your network.
@@ -117,11 +119,11 @@ function WelcomeStep() {
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
         <article className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
           <LockKeyhole size={22} />
-          <h3 className="m-0 text-sm">Secure access</h3>
+          <h3 className="m-0 text-sm">Secure this device</h3>
           <p className="m-0 text-xs leading-relaxed text-slate-500">
             {TOTP_ENABLED
-              ? "Sign in with a local admin PIN and two-factor authentication to protect configuration on your LAN."
-              : "Sign in with a local admin PIN to protect configuration on your LAN."}
+              ? "Choose a local admin PIN and two-factor authentication to protect configuration on your LAN."
+              : "Choose a local admin PIN to protect configuration on your LAN."}
           </p>
         </article>
         <article className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
@@ -149,9 +151,9 @@ function AccountStep({ form, setForm }: { form: OnboardingFormState; setForm: (p
 
   return (
     <div className={panelClass}>
-      <p className={eyebrowClass}>Step 1 of 3</p>
+      <p className={eyebrowClass}>Secure this device</p>
       <h2 className={headingClass}>Choose your admin PIN</h2>
-      <p className={leadClass}>Pick a numeric PIN code you will use to sign in to Edge Workbench.</p>
+      <p className={leadClass}>This PIN unlocks Edge Workbench on this hardware.</p>
 
       <div className={formGridClass}>
         <label className={labelClass}>
@@ -231,7 +233,7 @@ function TwoFactorStep({
 
   return (
     <div className={panelClass}>
-      <p className={eyebrowClass}>Step 2 of 3</p>
+      <p className={eyebrowClass}>Two-factor auth</p>
       <h2 className={headingClass}>Set up two-factor authentication</h2>
       <p className={leadClass}>
         Scan the QR code with your authenticator app, or enter the setup key manually if scanning fails. Then enter the current 6-digit code
@@ -342,99 +344,116 @@ function TwoFactorStep({
   );
 }
 
-function IntegritasStep({
-  form,
-  setForm,
-  checkState,
-  onVerifyKey,
-  integritasSkipped,
-  onSkip,
+function ConnectAccountStep({
+  status,
+  starting,
+  error,
+  onVerify,
+  onRetry,
 }: {
-  form: OnboardingFormState;
-  setForm: (patch: Partial<OnboardingFormState>) => void;
-  checkState: CheckState;
-  onVerifyKey: () => void;
-  integritasSkipped: boolean;
-  onSkip: () => void;
+  status: IntegritasAuthStatus | null;
+  starting: boolean;
+  error: string | null;
+  onVerify: () => boolean;
+  onRetry: () => void;
 }) {
+  const pendingStatus = status?.status === "pending" ? status : null;
+  const connectedStatus = status?.status === "connected" ? status : null;
+  const terminalKind = status?.status === "denied" || status?.status === "expired" || status?.status === "revoked" ? status.status : null;
+  const connectedProfile = connectedStatus && hasConnectedProfile(connectedStatus) ? connectedStatus : null;
+
   return (
     <div className={panelClass}>
-      <p className={eyebrowClass}>Step 3 of 3</p>
-      <h2 className={headingClass}>Connect Integritas</h2>
+      <p className={eyebrowClass}>Integritas Connect account</p>
+      <h2 className={headingClass}>
+        {connectedStatus ? "Integritas Connect account created and connected" : "Create your Integritas Connect account"}
+      </h2>
       <p className={leadClass}>
-        {INTEGRITAS_STEP_REQUIRED
-          ? "Paste your Integritas API key and verify it before continuing."
-          : "Paste your Integritas API key now, or skip and configure it later from the Integritas page."}
+        {connectedStatus
+          ? "Your account is linked to this Edge Workbench. Continue to review your setup."
+          : "Create the Integritas Connect account used for your plan and proof usage."}
       </p>
 
-      <div className={infoCalloutClass}>
-        <KeyRound size={20} />
-        <div>
-          <strong>Get an API key</strong>
-          <p className={mutedClass}>
-            Sign up at{" "}
-            <a
-              href="https://integritas.technology/"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 font-bold text-blue-700 no-underline hover:underline"
-            >
-              integritas.technology <ExternalLink size={14} />
-            </a>{" "}
-            if you do not have one yet.
-          </p>
-        </div>
-      </div>
-
-      <div className={formGridClass}>
-        <label className={labelClass}>
-          Integritas API key
-          <input
-            className={inputClass}
-            value={form.integritasApiKey}
-            onChange={(event) => setForm({ integritasApiKey: event.target.value })}
-            type="password"
-            placeholder="Paste API key"
-            disabled={integritasSkipped}
-          />
-        </label>
-      </div>
-
-      <div className={statusCardClass}>
-        <div className={statusRowClass}>
-          <div>
-            <strong>API key check</strong>
-            <p className={statusTextClass}>Validates the key with Integritas.</p>
-          </div>
-          <Pill tone={integritasSkipped ? "neutral" : checkState === "ok" ? "good" : checkState === "checking" ? "warn" : "neutral"}>
-            {integritasSkipped ? "Skipped" : checkState === "ok" ? "Valid" : checkState === "checking" ? "Verifying…" : "Not verified"}
-          </Pill>
-        </div>
-        {checkState === "ok" && !integritasSkipped && (
+      {connectedStatus ? (
+        <div className="grid max-w-xl gap-3">
           <div className={successResultClass}>
-            <CheckCircle2 size={18} />
+            <CheckCircle2 className="shrink-0" size={20} />
             <div>
-              <strong>API key verified</strong>
-              <p className="mt-1 mb-0 text-slate-500">Your key will be saved when you finish setup.</p>
+              <strong>Integritas Connect account connected successfully</strong>
+              <p className="m-0 mt-1 text-emerald-700">
+                {connectedProfile
+                  ? `${connectedProfile.user.name} (${connectedProfile.user.email})`
+                  : "Profile details will appear when Integritas Connect is reachable."}
+              </p>
             </div>
           </div>
-        )}
-        <div className={actionRowClass}>
-          <button
-            type="button"
-            className={primaryButtonClass}
-            onClick={onVerifyKey}
-            disabled={!form.integritasApiKey || checkState === "checking" || integritasSkipped}
-          >
-            {checkState === "checking" ? "Verifying…" : "Verify API key"}
-          </button>
-          {!INTEGRITAS_STEP_REQUIRED ? (
-            <button type="button" className={secondaryButtonClass} onClick={onSkip} disabled={integritasSkipped}>
-              Skip for now
+        </div>
+      ) : terminalKind ? (
+        <div className="grid max-w-xl gap-3">
+          <p className={mutedClass}>
+            {terminalKind === "denied" && "Activation was denied in Integritas Connect."}
+            {terminalKind === "expired" && "The verification code expired."}
+            {terminalKind === "revoked" && "This device was revoked in Integritas Connect."} Start again to continue setup.
+          </p>
+          <div className={actionRowClass}>
+            <button type="button" className={primaryButtonClass} disabled={starting} onClick={onRetry}>
+              <RefreshCw size={16} />
+              {starting ? "Starting…" : "Try again"}
             </button>
+          </div>
+        </div>
+      ) : pendingStatus ? (
+        <div className="grid max-w-xl gap-3">
+          <div className={infoCalloutClass}>
+            <Link2 className="shrink-0" size={20} />
+            <div>
+              <strong>Finish securely in the Integritas Connect account window</strong>
+              <p className={cx(mutedClass, "m-0 mt-1")}>
+                We&apos;ll connect automatically after signup and email verification. Your password stays with Integritas Connect and is
+                never stored on this device.
+              </p>
+            </div>
+          </div>
+          {error ? <ErrorText>{error}</ErrorText> : null}
+          <div className={actionRowClass}>
+            <a
+              className={primaryButtonClass}
+              href={pendingStatus.verificationUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(event) => {
+                if (onVerify()) event.preventDefault();
+              }}
+            >
+              <ExternalLink size={16} />
+              Create cloud account
+            </a>
+          </div>
+        </div>
+      ) : (
+        <div className="grid max-w-xl gap-3">
+          <div className={infoCalloutClass}>
+            <Link2 className="shrink-0" size={20} />
+            <div>
+              <strong>{starting ? "Preparing secure activation…" : "Preparing your Integritas Connect account…"}</strong>
+              <p className={cx(mutedClass, "m-0 mt-1")}>
+                Device security is complete. We&apos;re preparing the 20-minute Integritas Connect account activation window.
+              </p>
+            </div>
+          </div>
+          {error ? (
+            <>
+              <ErrorText>{error}</ErrorText>
+              <div className={actionRowClass}>
+                <button type="button" className={primaryButtonClass} disabled={starting} onClick={onRetry}>
+                  <RefreshCw size={16} />
+                  {starting ? "Starting…" : "Try again"}
+                </button>
+              </div>
+            </>
           ) : null}
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -442,13 +461,15 @@ function IntegritasStep({
 function CompleteStep({
   passwordSet,
   totpVerified,
-  integritasSkipped,
-  integritasVerified,
+  connectedName,
+  connectedPlan,
+  connectedUsage,
 }: {
   passwordSet: boolean;
   totpVerified: boolean;
-  integritasSkipped: boolean;
-  integritasVerified: boolean;
+  connectedName: string | null;
+  connectedPlan: string | null;
+  connectedUsage: number | null;
 }) {
   const configured = [
     {
@@ -464,9 +485,25 @@ function CompleteStep({
         ]
       : []),
     {
-      label: "Integritas",
-      detail: integritasSkipped ? "Skipped — configure later" : integritasVerified ? "API key verified" : "Not configured",
+      label: "Workbench account",
+      detail: connectedName ? `Signed in as ${connectedName}` : "Connected",
     },
+    ...(connectedPlan
+      ? [
+          {
+            label: "Plan",
+            detail: connectedPlan,
+          },
+        ]
+      : []),
+    ...(connectedUsage !== null
+      ? [
+          {
+            label: "Usage remaining",
+            detail: connectedUsage.toLocaleString(),
+          },
+        ]
+      : []),
   ];
 
   const automatic = [
@@ -478,10 +515,8 @@ function CompleteStep({
   return (
     <div className={panelClass}>
       <p className={eyebrowClass}>All done</p>
-      <h2 className={headingClass}>Your edge gateway is ready</h2>
-      <p className={leadClass}>
-        You have finished the required setup. Edge Workbench will initialise everything else silently when you continue.
-      </p>
+      <h2 className={headingClass}>{connectedName ? `Welcome, ${connectedName}` : "Your Edge Workbench is ready"}</h2>
+      <p className={leadClass}>Setup is complete. You can open the dashboard — your plan and usage sync from your Workbench account.</p>
 
       <ul className="m-0 grid max-w-xl list-none gap-2 p-0">
         {configured.map((item) => (
@@ -512,18 +547,31 @@ function CompleteStep({
   );
 }
 
-export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
-  const [stepIndex, setStepIndex] = useState(0);
+export function OnboardingWizard({ onComplete, resumeAtConnect = false }: { onComplete: () => void; resumeAtConnect?: boolean }) {
+  const [stepIndex, setStepIndex] = useState(() => (resumeAtConnect ? Math.max(0, connectAccountStepIndex) : 0));
   const [form, setFormState] = useState<OnboardingFormState>(initialForm);
   const [totpCheck, setTotpCheck] = useState<CheckState>("idle");
-  const [integritasCheck, setIntegritasCheck] = useState<CheckState>("idle");
-  const [integritasSkipped, setIntegritasSkipped] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [totpSecret, setTotpSecret] = useState<string | null>(null);
   const [loadingQr, setLoadingQr] = useState(false);
   const [qrError, setQrError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [localAdminReady, setLocalAdminReady] = useState(resumeAtConnect);
+  const connectStartRequested = useRef(false);
+
+  const {
+    status,
+    loading: connectLoading,
+    starting,
+    error: connectError,
+
+    start,
+    openVerification,
+  } = useIntegritasAuth({
+    enabled: localAdminReady,
+    refreshProfileOnConnected: true,
+  });
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -540,10 +588,6 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
     setFormState((prev) => ({ ...prev, ...patch }));
     if ("twoFactorCode" in patch) {
       setTotpCheck("idle");
-    }
-    if ("integritasApiKey" in patch) {
-      setIntegritasCheck("idle");
-      setIntegritasSkipped(false);
     }
   };
 
@@ -562,6 +606,16 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
       .finally(() => setLoadingQr(false));
   }, [currentStep.id, qrCode, loadingQr]);
 
+  // After local admin exists: start Connect activation on the account screen.
+  useEffect(() => {
+    if (!localAdminReady || currentStep.id !== "connectAccount") return;
+    if (connectLoading || starting || connectStartRequested.current || connectError) return;
+    if (!status || status.status !== "unauthenticated") return;
+
+    connectStartRequested.current = true;
+    void start();
+  }, [localAdminReady, currentStep.id, connectLoading, starting, connectError, status, start]);
+
   const canContinue = useMemo(() => {
     switch (currentStep.id) {
       case "welcome":
@@ -570,26 +624,35 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
         return isValidAdminPin(form.password) && form.password === form.confirmPassword;
       case "twofa":
         return totpCheck === "ok" && Boolean(qrCode) && !qrError;
-      case "integritas":
-        if (INTEGRITAS_STEP_REQUIRED) return integritasCheck === "ok";
-        return integritasCheck === "ok" || integritasSkipped;
+      case "connectAccount":
+        return status?.status === "connected";
       case "complete":
-        return true;
+        return status?.status === "connected";
       default:
         return false;
     }
-  }, [currentStep.id, form, totpCheck, integritasCheck, integritasSkipped, qrCode, qrError]);
+  }, [currentStep.id, form, totpCheck, qrCode, qrError, status?.status]);
+
+  const shouldCreateLocalAdmin = (stepId: OnboardingStepId) => {
+    if (localAdminReady) return false;
+    if (TOTP_ENABLED) return stepId === "twofa";
+    return stepId === "account";
+  };
 
   const goNext = async () => {
     if (currentStep.id === "complete") {
+      onComplete();
+      return;
+    }
+
+    if (shouldCreateLocalAdmin(currentStep.id)) {
       setSubmitting(true);
       setSubmitError(null);
       try {
-        await completeSetup({
-          password: form.password,
-          integritasApiKey: integritasSkipped ? undefined : form.integritasApiKey || undefined,
-        });
-        onComplete();
+        await completeSetup({ password: form.password });
+        setLocalAdminReady(true);
+        connectStartRequested.current = false;
+        setStepIndex((index) => index + 1);
       } catch (err) {
         setSubmitError(err instanceof Error ? err.message : "Setup failed");
       } finally {
@@ -604,6 +667,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   };
 
   const goBack = () => {
+    if (localAdminReady) return;
     if (stepIndex > 0) setStepIndex((index) => index - 1);
   };
 
@@ -617,15 +681,20 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
     }
   };
 
-  const verifyIntegritas = async () => {
-    setIntegritasCheck("checking");
-    try {
-      await verifyIntegritasKey(form.integritasApiKey);
-      setIntegritasCheck("ok");
-    } catch {
-      setIntegritasCheck("error");
-    }
+  const retryConnect = () => {
+    void start();
   };
+
+  const connectedStatus = status?.status === "connected" ? status : null;
+
+  const connectedName = connectedStatus && hasConnectedProfile(connectedStatus) ? connectedStatus.user.name : null;
+  const connectedPlan =
+    connectedStatus && hasConnectedProfile(connectedStatus)
+      ? `${connectedStatus.plan.name}${connectedStatus.plan.status ? ` (${connectedStatus.plan.status})` : ""}`
+      : null;
+  const connectedUsage = connectedStatus && hasConnectedProfile(connectedStatus) ? connectedStatus.usage.remaining : null;
+
+  const hideFooterContinue = currentStep.id === "connectAccount" && status?.status !== "connected";
 
   return (
     <div className="fixed inset-0 z-50 flex min-h-0 flex-col overflow-hidden overscroll-contain bg-white">
@@ -689,25 +758,22 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   onVerifyCode={() => void verifyTotpCode()}
                 />
               )}
-              {currentStep.id === "integritas" && (
-                <IntegritasStep
-                  form={form}
-                  setForm={setForm}
-                  checkState={integritasCheck}
-                  onVerifyKey={() => void verifyIntegritas()}
-                  integritasSkipped={integritasSkipped}
-                  onSkip={() => {
-                    setIntegritasSkipped(true);
-                    setIntegritasCheck("idle");
-                  }}
+              {currentStep.id === "connectAccount" && (
+                <ConnectAccountStep
+                  status={status}
+                  starting={starting || connectLoading}
+                  error={connectError}
+                  onVerify={openVerification}
+                  onRetry={retryConnect}
                 />
               )}
               {currentStep.id === "complete" && (
                 <CompleteStep
-                  passwordSet={isValidAdminPin(form.password)}
-                  totpVerified={totpCheck === "ok"}
-                  integritasSkipped={integritasSkipped}
-                  integritasVerified={integritasCheck === "ok"}
+                  passwordSet={localAdminReady}
+                  totpVerified={localAdminReady}
+                  connectedName={connectedName}
+                  connectedPlan={connectedPlan}
+                  connectedUsage={connectedUsage}
                 />
               )}
             </div>
@@ -716,7 +782,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
 
             <footer className="flex shrink-0 flex-col items-stretch gap-3 border-t border-slate-200 bg-white px-6 py-3 max-[900px]:gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                {stepIndex > 0 ? (
+                {stepIndex > 0 && !localAdminReady ? (
                   <button type="button" className={secondaryButtonClass} onClick={goBack} disabled={submitting}>
                     <ArrowLeft size={16} /> Back
                   </button>
@@ -728,10 +794,16 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                 <span className={mutedClass}>
                   Step {stepIndex + 1} of {onboardingSteps.length}
                 </span>
-                <button type="button" className={primaryButtonClass} disabled={!canContinue || submitting} onClick={() => void goNext()}>
-                  {submitting ? "Finishing…" : currentStep.id === "complete" ? "Enter Edge Workbench" : "Continue"}
-                  {currentStep.id !== "complete" && !submitting && <ArrowRight size={16} />}
-                </button>
+                {hideFooterContinue ? (
+                  <span className={mutedClass}>
+                    {status?.status === "pending" ? "Waiting for account connection…" : "Preparing account activation…"}
+                  </span>
+                ) : (
+                  <button type="button" className={primaryButtonClass} disabled={!canContinue || submitting} onClick={() => void goNext()}>
+                    {submitting ? "Securing device…" : currentStep.id === "complete" ? "Enter Edge Workbench" : "Continue"}
+                    {currentStep.id !== "complete" && !submitting && <ArrowRight size={16} />}
+                  </button>
+                )}
               </div>
             </footer>
           </div>

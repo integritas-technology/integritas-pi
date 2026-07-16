@@ -13,6 +13,7 @@ Page and feature folders:
 
 - Pages: `frontend/src/pages/`
 - Integritas UI/API/types: `frontend/src/features/integritas/`
+- Integritas Connect auth UI/API: `frontend/src/features/integritasAuth/`
 - Data Sources UI/API/types: `frontend/src/features/data-sources/`
 - Automation UI/API/types: `frontend/src/features/automation/`
 - Auth UI/API: `frontend/src/features/auth/`
@@ -22,7 +23,7 @@ Frontend rules:
 
 - Frontend calls backend API only; do not call Integritas directly from the browser.
 - All API fetches use `credentials: "include"` via `frontend/src/lib/api.ts`.
-- `AuthProvider` owns bootstrap: `GET /api/setup/status` → wizard vs `GET /api/auth/me` → app shell or login.
+- `AuthProvider` owns bootstrap: no local admin → full wizard; local admin + incomplete first-run setup → local session/PIN login then resume the Connect step; completed first-run setup → app shell or normal login. Later Connect revocation does not reopen onboarding.
 - Keep UI state simple unless there is a clear need for a new state layer.
 - Use existing shared components (`Page`, `Card`, `Section`, `Pill`, `Modal`, tables/forms helpers) before inventing new patterns.
 - Styling direction: component and page styling should be implemented with Tailwind utilities. Plain CSS should be limited to root/body/base global rules only. Follow `docs/frontend-design-system.md` when deciding between shared components, local class constants, and page-specific markup.

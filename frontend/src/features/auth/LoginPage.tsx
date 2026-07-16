@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowLeft, ArrowRight, Layers3, LogIn } from "lucide-react";
 import { ErrorText } from "../../components/Text";
 import { login } from "./api";
+import { ADMIN_PIN_LENGTH, isValidAdminPin, sanitizePinInput } from "./pin";
 import { TOTP_ENABLED } from "./totpEnabled";
 
 type LoginPhase = "credentials" | "twofa";
@@ -10,12 +11,12 @@ const TOTP_ACCOUNT_LABEL = "Edge Workbench";
 
 export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
   const [phase, setPhase] = useState<LoginPhase>("credentials");
-  const [password, setPassword] = useState("");
+  const [pin, setPin] = useState("");
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const credentialsValid = password.trim().length >= 1;
+  const credentialsValid = isValidAdminPin(pin);
   const twoFactorValid = twoFactorCode.length === 6;
 
   const continueToTwoFactor = () => {
@@ -32,7 +33,7 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
     setError(null);
     try {
       await login({
-        password,
+        password: pin,
         ...(TOTP_ENABLED ? { totpToken } : {}),
       });
       onSuccess();
@@ -52,7 +53,11 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex min-h-0 items-center justify-center overflow-auto overscroll-contain bg-slate-50 p-4 sm:p-6">
-      <div className="grid w-full max-w-[420px] gap-5 rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-900/10 sm:p-8" role="main" aria-label="Sign in">
+      <div
+        className="grid w-full max-w-[420px] gap-5 rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-900/10 sm:p-8"
+        role="main"
+        aria-label="Sign in"
+      >
         <div className="grid justify-items-center gap-3 text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white" aria-hidden="true">
             <Layers3 size={24} />
@@ -67,19 +72,20 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
           <div className="grid gap-3">
             <p className="m-0 text-xs font-extrabold uppercase tracking-[0.18em] text-slate-500">Sign in</p>
             <h2 className="m-0 text-xl leading-tight text-slate-950">Welcome back</h2>
-            <p className="m-0 text-sm leading-relaxed text-slate-600">
-              Enter your admin password to continue.
-            </p>
+            <p className="m-0 text-sm leading-relaxed text-slate-600">Enter your admin PIN to continue.</p>
 
             <div className="grid gap-2.5">
               <label className="grid gap-2 font-bold text-slate-700">
-                Password
+                PIN code
                 <input
-                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-950"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-950 tracking-[0.2em]"
+                  value={pin}
+                  onChange={(event) => setPin(sanitizePinInput(event.target.value))}
                   type="password"
-                  placeholder="Your password"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={ADMIN_PIN_LENGTH}
+                  placeholder="000000"
                   autoComplete="current-password"
                 />
               </label>
@@ -128,8 +134,7 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
             <p className="m-0 text-xs font-extrabold uppercase tracking-[0.18em] text-slate-500">Two-factor auth</p>
             <h2 className="m-0 text-xl leading-tight text-slate-950">Enter your code</h2>
             <p className="m-0 text-sm leading-relaxed text-slate-600">
-              Open your authenticator app and enter the 6-digit code for{" "}
-              <strong>{TOTP_ACCOUNT_LABEL}</strong>.
+              Open your authenticator app and enter the 6-digit code for <strong>{TOTP_ACCOUNT_LABEL}</strong>.
             </p>
 
             <div className="grid gap-2.5">
@@ -138,11 +143,7 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
                 <input
                   className="w-full max-w-none rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-center text-lg font-semibold tracking-[0.35em] text-slate-950"
                   value={twoFactorCode}
-                  onChange={(event) =>
-                    setTwoFactorCode(
-                      event.target.value.replace(/\D/g, "").slice(0, 6),
-                    )
-                  }
+                  onChange={(event) => setTwoFactorCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   placeholder="000000"

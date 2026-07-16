@@ -1,37 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ApiError } from "../../lib/api";
-import {
-  getIntegritasAuthStatus,
-  getIntegritasUserProfile,
-  startIntegritasConnect,
-  type IntegritasAuthStatus,
-} from "./integritasAuthApi";
+import { getIntegritasAuthStatus, getIntegritasUserProfile, startIntegritasConnect, type IntegritasAuthStatus } from "./integritasAuthApi";
 
-/** While pending: re-check Connect status (architecture poll interval). */
+/** While pending: re-check Integritas Connect status (architecture poll interval). */
 const POLL_INTERVAL_MS = 5_000;
+const ACTIVATION_POPUP_WIDTH = 480;
+const ACTIVATION_POPUP_HEIGHT = 720;
 
 const TOKEN_DECRYPT_FAILED = "TOKEN_DECRYPT_FAILED";
 
-const TOKEN_DECRYPT_FAILED_MESSAGE = "Local secrets were reset or changed. Connect your Integritas account again.";
-
-function secondsUntil(expiresAt: string | undefined, nowMs: number): number | null {
-  if (!expiresAt) return null;
-  const expiresMs = Date.parse(expiresAt);
-  if (Number.isNaN(expiresMs)) return null;
-  return Math.max(0, Math.ceil((expiresMs - nowMs) / 1000));
-}
-
-function formatCountdown(totalSeconds: number): string {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
-}
+const TOKEN_DECRYPT_FAILED_MESSAGE = "Local secrets were reset or changed. Connect your Integritas Connect account again.";
 
 function isTokenDecryptFailed(error: unknown): boolean {
   return (error as ApiError)?.errorCode === TOKEN_DECRYPT_FAILED;
 }
 
-/** Re-fetch status after server cleared Connect (decrypt failure). */
+/** Re-fetch status after server cleared Integritas Connect (decrypt failure). */
 async function statusAfterClear(): Promise<IntegritasAuthStatus> {
   try {
     return await getIntegritasAuthStatus();
@@ -51,15 +35,12 @@ export type UseIntegritasAuthResult = {
   starting: boolean;
   error: string | null;
   notice: string | null;
-  popupBlocked: boolean;
-  secondsRemaining: number | null;
-  countdownLabel: string | null;
   refresh: () => Promise<void>;
   start: () => Promise<void>;
-  openVerification: () => void;
+  openVerification: () => boolean;
 };
 
-/** Integritas Cloud Connect link state: status, start activation, popup verify device, pending poll + countdown. */
+/** Integritas Connect link state: status, start activation, popup verify device, pending poll + countdown. */
 export function useIntegritasAuth(options?: UseIntegritasAuthOptions): UseIntegritasAuthResult {
   const refreshProfileOnConnected = options?.refreshProfileOnConnected ?? false;
   const enabled = options?.enabled ?? true;
@@ -69,8 +50,7 @@ export function useIntegritasAuth(options?: UseIntegritasAuthOptions): UseIntegr
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [popupBlocked, setPopupBlocked] = useState(false);
-  const [nowMs, setNowMs] = useState(() => Date.now());
+  const popupRef = useRef<Window | null>(null);
 
   // Latest status for openVerification without a stale closure.
   const statusRef = useRef(status);
@@ -83,7 +63,7 @@ export function useIntegritasAuth(options?: UseIntegritasAuthOptions): UseIntegr
 
       if (next.status === "connected" && refreshProfileOnConnected) {
         try {
-          // Settings: sync profile from Integritas Cloud Connect (may return stale cache).
+          // Settings: sync profile from Integritas Connect (may return stale cache).
           const profile = await getIntegritasUserProfile({ refresh: true });
           next = {
             status: "connected",
@@ -93,11 +73,10 @@ export function useIntegritasAuth(options?: UseIntegritasAuthOptions): UseIntegr
             fetchedAt: profile.fetchedAt,
           };
           if (profile.stale) {
-            // Cache shown; Integritas Cloud Connect unreachable.
+            // Cache shown; Integritas Connect unreachable.
             setStatus(next);
             setError(null);
-            setNotice("Showing last saved profile — Integritas Cloud is unreachable right now.");
-            setPopupBlocked(false);
+            setNotice("Showing last saved profile — Integritas Connect is unreachable right now.");
             return;
           }
         } catch (profileError) {
@@ -106,7 +85,6 @@ export function useIntegritasAuth(options?: UseIntegritasAuthOptions): UseIntegr
             setStatus(await statusAfterClear());
             setError(profileError instanceof Error ? profileError.message : TOKEN_DECRYPT_FAILED_MESSAGE);
             setNotice(null);
-            setPopupBlocked(false);
             return;
           }
           // Revoke / other fatals: re-read status. Soft offline with cache is handled by the API.
@@ -117,15 +95,11 @@ export function useIntegritasAuth(options?: UseIntegritasAuthOptions): UseIntegr
       setStatus(next);
       setError(null);
       setNotice(null);
-      if (next.status !== "pending") {
-        setPopupBlocked(false);
-      }
     } catch (err) {
       if (isTokenDecryptFailed(err)) {
         setStatus(await statusAfterClear());
         setError(err instanceof Error ? err.message : TOKEN_DECRYPT_FAILED_MESSAGE);
         setNotice(null);
-        setPopupBlocked(false);
         return;
       }
       setError(err instanceof Error ? err.message : "Failed to load Integritas status");
@@ -139,7 +113,6 @@ export function useIntegritasAuth(options?: UseIntegritasAuthOptions): UseIntegr
     setStarting(true);
     setError(null);
     setNotice(null);
-    setPopupBlocked(false);
     try {
       const data = await startIntegritasConnect();
       setStatus({
@@ -157,13 +130,42 @@ export function useIntegritasAuth(options?: UseIntegritasAuthOptions): UseIntegr
 
   const openVerification = useCallback(() => {
     const current = statusRef.current;
-    if (current?.status !== "pending" || !current.verificationUrl) return;
+    if (current?.status !== "pending" || !current.verificationUrl) return false;
 
-    const popup = window.open(current.verificationUrl, "integritas-device-activate");
+    const left = Math.max(0, Math.round(window.screenX + (window.outerWidth - ACTIVATION_POPUP_WIDTH) / 2));
+    const top = Math.max(0, Math.round(window.screenY + (window.outerHeight - ACTIVATION_POPUP_HEIGHT) / 2));
+    const popup = window.open(
+      current.verificationUrl,
+      "integritas-device-activate",
+      [
+        "popup=yes",
+        `width=${ACTIVATION_POPUP_WIDTH}`,
+        `height=${ACTIVATION_POPUP_HEIGHT}`,
+        `left=${left}`,
+        `top=${top}`,
+        "resizable=yes",
+        "scrollbars=yes",
+      ].join(","),
+    );
     if (!popup) {
-      setPopupBlocked(true);
+      return false;
     }
+
+    popupRef.current = popup;
+    popup.focus();
+    return true;
   }, []);
+
+  // The parent learns completion through polling, so close the popup without cross-window messaging.
+  useEffect(() => {
+    if (status?.status !== "connected") return;
+
+    const popup = popupRef.current;
+    if (popup && !popup.closed) {
+      popup.close();
+    }
+    popupRef.current = null;
+  }, [status?.status]);
 
   // Initial load (and when re-enabled).
   useEffect(() => {
@@ -181,26 +183,12 @@ export function useIntegritasAuth(options?: UseIntegritasAuthOptions): UseIntegr
     return () => window.clearInterval(interval);
   }, [enabled, status?.status, refresh]);
 
-  // Pending: local countdown tick (no network).
-  useEffect(() => {
-    if (!enabled || status?.status !== "pending") return;
-
-    const tick = window.setInterval(() => setNowMs(Date.now()), 1_000);
-    return () => window.clearInterval(tick);
-  }, [enabled, status?.status]);
-
-  const secondsRemaining = status?.status === "pending" ? secondsUntil(status.expiresAt, nowMs) : null;
-  const countdownLabel = secondsRemaining === null ? null : formatCountdown(secondsRemaining);
-
   return {
     status,
     loading,
     starting,
     error,
     notice,
-    popupBlocked,
-    secondsRemaining,
-    countdownLabel,
     refresh,
     start,
     openVerification,

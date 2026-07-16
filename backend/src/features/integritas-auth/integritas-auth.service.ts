@@ -1,4 +1,5 @@
 import { recordAuditEvent } from "../auth/audit.service.js";
+import { markSetupComplete } from "../auth/setup.service.js";
 import {
   accountCacheHasDevices,
   getCachedProfile,
@@ -103,6 +104,7 @@ function connectedFromStoredAuth(): IntegritasAuthStatus | null {
     throw error;
   }
 
+  markSetupComplete();
   const payload = getCachedProfile();
   if (payload) return connectedStatusFromProfile(payload);
 
@@ -149,6 +151,7 @@ async function completeApprovedActivation(input: {
       tokenExpiresAt,
     });
     upsertAccountCache(JSON.stringify(cachePayload));
+    markSetupComplete();
 
     const cached = getCachedProfile();
     if (cached) return connectedStatusFromProfile(cached);
@@ -167,6 +170,7 @@ async function completeApprovedActivation(input: {
       return { status: "revoked" };
     }
     // Tokens already saved; profile can retry via getUserProfile().
+    markSetupComplete();
     return { status: "connected" };
   }
 }
