@@ -32,8 +32,8 @@ function buildProofListWhere(query: Pick<ProofListQuery, "status" | "q">) {
 
   if (query.q) {
     const like = `%${query.q}%`;
-    clauses.push("(hash LIKE ? OR proof_uid LIKE ? OR file_name LIKE ?)");
-    params.push(like, like, like);
+    clauses.push("(id LIKE ? OR hash LIKE ? OR proof_uid LIKE ? OR file_name LIKE ?)");
+    params.push(like, like, like, like);
   }
 
   return {

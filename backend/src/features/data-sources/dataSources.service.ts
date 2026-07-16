@@ -29,6 +29,14 @@ export type GpioInputConfig = {
   activeState: "high" | "low";
 };
 
+export type GpioOutputConfig = {
+  chip: string;
+  pin: number;
+  profile: "led";
+  activeState: "high" | "low";
+  initialState: "inactive";
+};
+
 export function serializeDataSource(record: DataSourceRecord) {
   return {
     id: record.id,
@@ -62,6 +70,7 @@ export function parseDataSourceConfig(type: string, value: unknown, existingConf
   if (type === "webhook") return parseWebhookConfig(value, existingConfig);
   if (type === "mqtt") return parseMqttConfig(value);
   if (type === "gpio-input") return parseGpioInputConfig(value);
+  if (type === "gpio-output") return parseGpioOutputConfig(value);
   return parseJsonApiConfig(value);
 }
 
@@ -95,6 +104,20 @@ export function parseGpioInputConfig(value: unknown): GpioInputConfig {
   if (!Number.isFinite(debounceMs) || debounceMs < 0 || debounceMs > 60000) throw new Error("config.debounceMs must be between 0 and 60000");
 
   return { chip, pin, pull, edge, debounceMs, activeState };
+}
+
+export function parseGpioOutputConfig(value: unknown): GpioOutputConfig {
+  const config = value as Partial<GpioOutputConfig> | undefined;
+  const chip = typeof config?.chip === "string" && config.chip.trim() ? config.chip.trim() : "gpiochip0";
+  const pin = Number(config?.pin);
+  const profile = config?.profile === "led" ? config.profile : "led";
+  const activeState = config?.activeState === "low" ? "low" : "high";
+  const initialState = "inactive";
+
+  if (!/^gpiochip\d+$/.test(chip) && !/^\/dev\/gpiochip\d+$/.test(chip)) throw new Error("config.chip must be gpiochipN or /dev/gpiochipN");
+  if (!Number.isInteger(pin) || pin < 0 || pin > 27) throw new Error("config.pin must be a BCM GPIO number from 0 to 27");
+
+  return { chip, pin, profile, activeState, initialState };
 }
 
 export async function checkDataSourceHealth(config: JsonApiConfig) {

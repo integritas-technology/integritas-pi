@@ -40,6 +40,131 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `update-agent` mounts `/var/run/docker.sock` to apply updates; documented as an accepted, host-root-equivalent risk mitigated by minimal code surface, admin-only access, and signature/digest verification — not by network placement. See `SECURITY.md`.
 - **Update-agent error responses**: client-visible error messages (`GET /status`, `POST /apply` job failures, port-bind-failure restore path) no longer leak raw Docker/system error text; full detail is still logged server-side via `console.error`.
 
+## [0.16.1] - 2026-07-15
+
+### Fixed
+
+- Deleting a device no longer deletes its historical read-history rows; preserved rows keep their recorded source name and URL.
+
+## [0.16.0] - 2026-07-15
+
+### Added
+
+- Feedback modal in the app shell saves authenticated user feedback to one local aggregate JSON file, captures feedback area, bug/feature-specific fields, browser context, and offers a browser download for manual sharing.
+
+## [0.15.0] - 2026-07-13
+
+### Changed
+
+- Frontend styling guidance now targets Tailwind-only component and page styling after the dedicated migration, with plain CSS reserved for root/body/base global rules.
+- Shared frontend button, text, tab, status-row, and table helpers now use Tailwind utilities, with setup, diagnostics, runtime config, and read-history surfaces migrated off their old global CSS selectors.
+- Proof history and read history now share the workflow-style table shell and row styling, moving history/list tables toward reusable Tailwind primitives.
+- Devices list now uses the shared workflow-style table and row action primitives, removing the old data-source table/action/health CSS selectors.
+- Automation workflow and run-history tables now use the shared table primitives while preserving the workflow list/log visual style.
+- Removed the unused frontend file explorer panel and its orphaned file-list CSS selectors.
+- Device form and template cards now use Tailwind/shared UI helpers instead of data-source-specific global CSS selectors.
+- Wallet page actions, tabs, hero balance card, and empty/error text now use Tailwind/shared UI helpers instead of wallet-specific global CSS selectors.
+- Dashboard hero, build-flow, activity, and status sections now use Tailwind/shared UI helpers instead of dashboard-specific global CSS selectors.
+- Integritas upload panels, file drop zones, runtime key panel, and stamp-result modal now use Tailwind/shared UI helpers instead of Integritas-specific global CSS selectors.
+- Minima runtime/health panels and Automation checkbox rows now use Tailwind/shared UI helpers instead of the old `api-key-box`, `check-row`, and `error-text` hooks.
+- Address book modal copy, empty/error, and inline form actions now use Tailwind/shared UI helpers instead of legacy global text/button hooks.
+- Account settings forms now use Tailwind utilities instead of the legacy `form-card` global selector.
+- Minima stat panels now use the shared card component, allowing old shared global selectors like `card`, `row-actions`, `selected-row`, and `json-preview` to be removed.
+- Login screen styling now uses Tailwind utilities directly, removing the standalone `login.css` component layer.
+- First-time onboarding styling now uses Tailwind utilities directly, removing the standalone `onboarding.css` component layer and final `error-text` global hook.
+- Frontend design-system conventions are now documented with styling boundaries, shared component guidance, and when to use local Tailwind class constants.
+- Shared buttons now support compact sizes, and Automation workspace actions now use the shared button variants instead of raw browser buttons.
+- Wallet and Diagnostics subtabs now have clearer active/inactive styling with reliable active-tab contrast.
+- Dashboard and Wallet now share the dark hero card surface, and wallet hero actions use a dedicated dark-surface button variant for reliable contrast.
+- Automation workspace headers now reuse the shared dark hero card surface instead of a flat black topbar.
+
+## [0.14.1] - 2026-07-10
+
+### Changed
+
+- Updated agent documentation.
+
+## [0.14.0] - 2026-07-09
+
+### Added
+
+- Automation workflows now have a validation endpoint and workspace validation panel that flags missing devices, invalid block order/data dependencies, hardware-output warnings, Integritas key warnings, and wallet transaction balance/configuration issues before manual runs.
+- Workflow block-run details now link directly to matching Diagnostics read/proof history filters when a block output contains a read id or Integritas proof id.
+- Automation workflows can now be searched, filtered by status, duplicated, archived, and restored from the Automation workspace.
+- Create workflow now uses a Scratch-inspired full-page draft workspace with a clean Start/Data/Logic block library, a visual block-chain canvas, setup inspector, and inline validation before creating the workflow.
+- The create workflow draft now starts empty, requires choosing one start block first, hides start blocks after selection, and includes Reset canvas to choose a different start block.
+- The create workflow draft block library now includes Pulse output and Send transaction action blocks plus attached Integritas stamps on Record/Fetch data blocks.
+- Draft workflow validation now uses a backend `POST /api/automation/workflows/validate-draft` endpoint backed by the same block-graph validation as created workflows.
+- The create workflow draft canvas now has its own editable block model: operators can add, remove, move, select, and configure draft blocks before the workflow is created.
+- Workflow canvas presentation has been extracted into reusable automation components as the first step toward using the same canvas for create, edit, and watch modes.
+- Existing workflow editing now uses the shared full-page canvas layout with add-block controls on the left, the saved workflow canvas in the center, and selected-block configuration on the right.
+- Workflow create, edit, and watch entry points are now URL-driven (`/automation?flow=build`, `/automation?flow=edit&id=...`, `/automation?flow=watch&id=...`) so workflow workspaces render in the page instead of opening edit in a modal.
+- Existing workflow validation now appears in the edit workspace right inspector beside selected-block configuration, matching the create workspace layout.
+- Workflow-level lifecycle actions remain in the workflow list, while run controls, test payloads, and recent runs now live in Watch mode.
+- The edit workspace now shares the builder shell, categorized block library, and selected-block inspector patterns from the create workspace, and operators can rename workflows from the edit setup panel.
+- Watch mode now uses the shared canvas with run/test controls on the left, selected-block runtime output/status/timing and Diagnostics links on the right, and recent run history below the canvas.
+- Build, Edit, and Watch now share a reusable workflow workspace shell and a unified canvas renderer, reducing duplicated UI paths before adding validation and runtime overlays.
+- The workflow canvas is now exposed as one mode-aware component for Build, Edit, and Watch, with persisted workflow blocks normalized before rendering.
+- Workflow canvas blocks now show validation error/warning badges in Build and Edit, plus latest run status/duration badges and highlighting in Watch.
+- Watch mode now lets operators choose a historic run to visualize on the canvas; the previous expandable recent-runs log table is replaced by a `Show on canvas` run picker.
+- Workflow log rows now link to `Show on canvas`, opening Watch mode for the selected workflow run via the `run` URL parameter.
+- Watch mode now live-refreshes while the selected or latest run is running, selects the newest run after manual/test execution, and shows whether the canvas is live-updating or viewing a historic run.
+- Watch historic runs and Diagnostics workflow logs now provide `Raw details` alongside `Show on canvas` for full workflow run JSON diagnostics.
+- Automation workflow list now uses the same table-style layout as Devices, with compact icon actions for edit, watch, run, pause/enable, duplicate, archive/restore, and delete.
+- GPIO LED output pulses now explicitly drive the inactive level before and after each pulse, return active/inactive GPIO values in the result, and clarify active-high vs active-low LED wiring in the Devices form.
+
+### Changed
+
+- Automation workspace styling now uses Tailwind utilities for the canvas, workflow list, run history, and inspectors, removing the old Automation-specific global CSS selectors.
+- Manual workflow runs are now blocked when workflow validation reports errors; warnings remain visible for operator review.
+- Archived automation workflows are excluded from automatic/event execution and cannot be manually run until restored.
+
+## [0.13.0] - 2026-07-07
+
+### Added
+
+- Block automation workflow implementation plan for replacing coarse automation rules with small composable start/action/logic blocks.
+- Block automation development plan now documents the remaining major workspace improvements and recommended implementation order.
+- Automation backend now stores workflows as ordered blocks, resets the disposable legacy automation schema, records trigger metadata on data reads, and executes schedule/manual/GPIO/webhook/MQTT workflows through the new block executor while preserving the existing UI/API compatibility surface.
+- GPIO and MQTT event workflows no longer create failed read-history rows for ignored overlapping events while the same workflow is still running, and the compatibility UI no longer shows start blocks as duplicate collect rules.
+- Automation workspace now displays real workflow blocks and can append fetch, wait, and Integritas stamp blocks from the UI.
+- Automation blocks can now be updated and reordered from the workspace, including changing fetch targets, wait durations, and action-block enabled state.
+- Workflow creation is now block-first: operators choose a start block (manual, schedule, GPIO, webhook, or MQTT) and an optional initial record/fetch action instead of creating workflows from a single data source.
+- Workflow run history now records each workflow execution and per-block status/timing/error details, visible in the workflow workspace and in Diagnostics -> Workflow logs.
+- Devices now support GPIO Output targets with an LED profile, and Automation supports a generic Control output block that can pulse those LED targets from workflows.
+- GPIO Output devices can now be test-pulsed directly from the Devices page before wiring them into an automation workflow.
+- Workflow run details now load the stored data-read preview for fetch/record blocks, making it clear which JSON a data condition evaluated.
+- Automation workflows can now include a Send transaction block that sends native MINIMA (`0x00`) to an address book recipient with a fixed operator-defined amount.
+- GPIO device settings guide documenting tested GPIO17 button input and GPIO18 LED output setups plus suggested untested device profiles.
+
+### Changed
+
+- Data Sources UI is now presented as Devices, with template cards split into Input sources and Output targets ahead of GPIO output support.
+- Integritas automation stamping is now attached as a side block on record/fetch data blocks, so stamping no longer has to be the final linear workflow block or block later actions.
+- Attached Integritas stamp blocks now show clearer status, last-stamped timing, enable/disable controls, and side-block labeling in workflow run details.
+- Automation workflows can now be manually tested with an editable JSON trigger payload from the workflow workspace.
+- Automation workflows now support an If payload field equals block that continues when a trigger payload field matches a JSON value and stops the remaining workflow when it does not.
+- Attached Integritas stamp blocks can now have an optional field-equals condition against the recorded/fetched data, allowing workflows to skip stamping unless data matches.
+- Field-equals conditions now explicitly choose whether they read from the workflow trigger event or the latest recorded/fetched data.
+- Event-start workflows can now add a Record trigger event block later from the workflow workspace when the workflow was created without one.
+- Workflow workspace Add block controls are now grouped into collapsible cards with titles and descriptions for each block type.
+- Field conditions now support operators: equals, not equals, greater/less than, greater/less than or equal to, exists, and does not exist. Existing workflows using the old equals-only condition config should be recreated.
+- Workflow workspace now clarifies that edits are saved per block, and Fetch data source edits use an explicit Save fetch source button.
+- Workflow block editing now shows per-block unsaved/saved feedback, disables unchanged save buttons, and labels immediate actions such as move/remove/enable as applying now.
+- Workflow run details now separate the trigger payload from the fetched/recorded data preview so manual test runs are easier to interpret.
+- Automation create/save buttons now use the same styled primary action treatment as the rest of the workspace.
+
+### Fixed
+
+- GPIO Output LED pulses now explicitly return the line to the inactive state after pulsing so LEDs do not remain stuck on after a workflow run.
+- Automation Run now is available for all workflow start types and records a synthetic manual test trigger for event workflows instead of being limited to scheduled workflows.
+- Backend shutdown now stops GPIO Output holder processes so LED output lines are released cleanly when the container stops.
+- Conditional Integritas stamp blocks now log as skipped when their condition is not met instead of appearing as successful stamps, and skipped blocks are not counted as successful blocks in run summaries.
+
+### Security
+
+- Automated wallet transaction blocks are restricted to address book recipients and native MINIMA (`0x00`) only, validate sendable balance server-side, and record wallet history plus audit events.
+
 ## [0.12.0] - 2026-07-02
 
 ### Changed

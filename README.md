@@ -124,6 +124,8 @@ The backend runs a Minima health poller on `MINIMA_HEALTH_POLL_INTERVAL_SECONDS`
 
 When GPIO is not enabled or `/dev/gpiochip0` is unavailable in the backend container, the GPIO Input card is disabled in the Data Sources page.
 
+GPIO input/output settings for tested button and LED wiring, plus suggested untested device profiles, are documented in [`docs/gpio-device-settings.md`](./docs/gpio-device-settings.md).
+
 `INTEGRITAS_API_KEY` is optional. You can leave it empty and save the API key from the Integritas page in the UI. The key is sent to the backend once, encrypted, and stored in SQLite. It is never exposed in the frontend bundle.
 
 The backend polls Integritas for pending proof UIDs in the background (`INTEGRITAS_POLL_INTERVAL_SECONDS`, default 30). Pending proofs that never reach on-chain status are marked failed after `INTEGRITAS_PROOF_POLL_TIMEOUT_MINUTES` (default 5). Automation workflows retry Integritas stamps on the next run after transient upstream errors. Manual poll in Diagnostics still works and uses the same refresh logic.
@@ -222,7 +224,7 @@ Plain `npm run dev` stays on HTTP for fast iteration.
 
 The backend loads the repo-root `.env` automatically in dev. `DATABASE_PATH`, `DATA_DIR`, and `HOST_FILES_DIR` are resolved relative to the repo root.
 
-Frontend styling direction: component and page styling should use Tailwind utilities going forward. Plain CSS should be limited to root/body/base global rules, with existing component-level CSS migrated incrementally as frontend files are touched.
+Frontend styling direction: component and page styling should use Tailwind utilities. Existing component-level CSS is being migrated to Tailwind as a dedicated cleanup effort; after migration, plain CSS should be limited to root/body/base global rules only.
 
 Transient frontend errors should use the shared toast system (`ToastProvider` / `useToast`) instead of duplicating inline messages across modals and pages. Keep inline errors for form validation, row-level status, and persistent context-specific details.
 
@@ -281,6 +283,18 @@ Public API routes (no session required):
 - `POST /api/auth/login`
 
 All other `/api/*` routes require a valid session cookie.
+
+## Feedback Export
+
+Authenticated users can open the Feedback modal from the app shell sidebar. Feedback is saved locally on the Pi as one aggregate JSON file:
+
+```txt
+DATA_DIR/feedback/feedback-submissions.json
+```
+
+In the default Docker deploy this is inside the backend container at `/data/feedback/feedback-submissions.json` and on the host under the configured `DATA_DIR`.
+
+After submitting feedback, the modal offers a download action for the same aggregate JSON file so the user can send it manually. The export includes the current page, feedback area, feedback type, optional bug/feature details, description, browser context, non-secret app/user/device metadata, and lightweight app stats. It must not include passwords, TOTP secrets, session cookies, Integritas API keys, wallet seed phrases, or raw encrypted secret values.
 
 The CLI does not send session cookies in V1. Operational CLI commands that call protected APIs return `401 Unauthorized` until a future CLI auth story is added. Use the browser UI for authenticated operations.
 
@@ -398,10 +412,10 @@ backend container
   - GET /api/files
   - GET /api/minima/status
 - Integritas hash, stamp, status, verify endpoints
-- Data source APIs and historic read log at `/api/data-sources` and `/api/data-reads`
-  - Data sources can include an optional health status URL. The browser polls saved health URLs once per minute through the backend and shows the latest status in the Added data sources table.
-  - Data source protocols currently include HTTP JSON API fetches, webhook JSON receives, MQTT JSON subscriptions, and Raspberry Pi GPIO input events. Data Sources define connection details; Automation workflows decide whether reads are recorded and stamped.
-  - Automation workflows are rule collections. V1 creates a Collect data rule first, then an optional Integritas stamping rule can be added to stamp collected hashes.
+- Device APIs and historic read log at `/api/data-sources` and `/api/data-reads`
+  - Input sources can include an optional health status URL. The browser polls saved health URLs once per minute through the backend and shows the latest status in the configured devices table.
+  - Device protocols currently include HTTP JSON API fetches, webhook JSON receives, MQTT JSON subscriptions, Raspberry Pi GPIO input events, and Raspberry Pi GPIO LED output targets. Devices define connection details; Automation workflows decide whether reads are recorded, outputs are controlled, and hashes are stamped. GPIO LED output targets can also be test-pulsed from the Devices page before adding them to a workflow.
+  - Automation workflows are block-based. Start blocks trigger ordered action blocks; logic blocks can stop the remaining flow when selected trigger or data fields do not match; Integritas stamping is attached as a side block to record/fetch data blocks so it stamps that block's hash without becoming the final step in the main flow. Attached stamp blocks can also have their own field condition against the trigger event or recorded/fetched data. New workflow creation uses a Scratch-inspired draft workspace with a clean Start/Data/Logic/Action block library, a visual block-chain canvas, setup inspector, and backend-powered inline validation. The draft starts empty, requires one start block first, hides start blocks after selection, and uses Reset canvas when the operator wants a different trigger. Create/edit/watch workspaces are URL-driven (`/automation?flow=build`, `/automation?flow=edit&id=...`, `/automation?flow=watch&id=...`) and render in the page rather than opening workflow editing in a modal. Build, Edit, and Watch share one workspace shell and normalized canvas renderer. Canvas blocks show validation error/warning badges in Build/Edit and selected run status/duration in Watch. Edit mode shares the builder shell, categorized block library, selected-block inspector pattern, workflow name editing, and right-side validation placement; Watch mode owns run controls, test payload execution, selected-block runtime output/error/timing, read/proof Diagnostics links, and a historic run picker that visualizes selected runs on the canvas. Draft action blocks include Pulse output and Send transaction; Integritas stamps attach as side blocks on Record/Fetch data blocks. Templates are intentionally deferred until the basic block building experience is complete. Block edits are saved per block with visible unsaved/saved feedback; add/remove/move/pause/enable actions apply immediately. Workflow validation flags broken block chains, missing devices, output/transaction risks, and missing Integritas key setup before manual runs; validation errors block `Run now` / `Run with payload`, while warnings stay visible for operator review. Workflow logs show the run trigger plus block outputs, and fetch/record blocks link their stored read preview so operators can see the JSON that conditions evaluated. Workflow lists support search, status filters, duplicate, archive, restore, and delete; archived workflows do not run automatically or manually until restored. Automation can also send native MINIMA (`0x00`) transactions to saved address book recipients through an allowlisted Send transaction block. Prototype workflows created with older equals-only condition configs should be recreated.
   - HTTP Collect data rules poll on a schedule. Webhook Collect data rules record pushed JSON at generated `/api/data-source-webhooks/:token` URLs while enabled. MQTT Collect data rules subscribe to the configured broker/topic only while enabled. GPIO Collect data rules watch configured BCM pins only while enabled.
   - Reads /host-files only
   - Reads Minima status from http://minima:9005/status
@@ -431,6 +445,15 @@ Health:
 GET /api/health
 GET /api/status/overview
 ```
+
+Feedback:
+
+```http
+POST /api/feedback
+GET /api/feedback/export
+```
+
+`POST /api/feedback` appends a submission to the local aggregate JSON feedback export. `GET /api/feedback/export` downloads that file as `feedback-submissions.json`. Both routes require an authenticated browser session.
 
 `/api/status/overview` returns status for the frontend, backend, Minima node, and Integritas API, plus Docker container CPU/memory/image-size data when the Docker socket is available.
 
@@ -569,7 +592,7 @@ See [`SECURITY.md`](./SECURITY.md) for the current risk register, known vulnerab
 - Minima RPC binds to `127.0.0.1` by default
 - Integritas API key is backend-only and encrypted at rest in SQLite when saved from the UI
 - Backend mounts `/var/run/docker.sock:ro` to read container status and resource usage for the App status page. This is useful for the prototype, but Docker socket access is sensitive and should be replaced with a narrower monitoring approach before production.
-- GPIO input sources use the `gpiomon` tool inside the backend container and require explicit GPIO device access on Raspberry Pi deployments. Add an override such as `devices: ["/dev/gpiochip0:/dev/gpiochip0"]` and a suitable GPIO group when enabling GPIO hardware ingestion.
+- GPIO input sources use the `gpiomon` tool inside the backend container and GPIO LED output targets use `gpioset`; both require explicit GPIO device access on Raspberry Pi deployments. Add an override such as `devices: ["/dev/gpiochip0:/dev/gpiochip0"]` and a suitable GPIO group when enabling GPIO hardware ingestion/control.
 - Admin authentication with password + TOTP and HttpOnly session cookies (see [Authentication](#authentication))
 - HTTPS with a self-signed certificate on the default Docker deploy (`COOKIE_SECURE=true`)
 

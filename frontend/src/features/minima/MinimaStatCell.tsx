@@ -1,3 +1,4 @@
+import { Card } from "../../components/Card";
 import { cx } from "../../lib/cx";
 
 export function MinimaStatCell({ label, value }: { label: string; value: string }) {
@@ -25,7 +26,7 @@ export function MinimaStatGrid({
   children: React.ReactNode;
 }) {
   return (
-    <section className="card flex h-full min-h-0 flex-col">
+    <Card className="flex h-full min-h-0 flex-col">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h3 className="m-0 text-lg font-semibold text-slate-950">{title}</h3>
@@ -37,6 +38,6 @@ export function MinimaStatGrid({
       </div>
       <div className={cx("mt-5 grid flex-1 auto-rows-fr gap-4", cols)}>{children}</div>
       <div className="mt-4 min-h-11">{footer}</div>
-    </section>
+    </Card>
   );
 }

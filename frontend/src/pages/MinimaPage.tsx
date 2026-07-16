@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { MinimaConfig, MinimaNodeStatus, MinimaPeersResponse } from "../app/types";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
+import { IconButton } from "../components/Button";
+import { ErrorText } from "../components/Text";
 import { useToast } from "../components/ToastProvider";
 import {
   addMinimaPeers,
@@ -214,14 +216,13 @@ export function MinimaPage() {
       title="Run the Minima node"
       desc="Start, monitor, and manage the Minima Core node running on the Raspberry Pi Edition."
       action={
-        <button
-          type="button"
-          className="section-action-button"
+        <IconButton
+          variant="primary"
           onClick={openConfig}
           aria-label="Configure Minima"
         >
           <Settings size={20} />
-        </button>
+        </IconButton>
       }
     >
       {configOpen && (
@@ -238,11 +239,11 @@ export function MinimaPage() {
             onSave={saveConfig}
             onAddPeers={runAddPeers}
           />
-          {configError && <p className="error-text">{configError}</p>}
+          {configError && <ErrorText>{configError}</ErrorText>}
         </Modal>
       )}
 
-      {!configOpen && configError && <p className="error-text">{configError}</p>}
+      {!configOpen && configError && <ErrorText>{configError}</ErrorText>}
 
       <MinimaSummaryGrid
         status={nodeStatus}

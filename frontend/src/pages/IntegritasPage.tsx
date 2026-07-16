@@ -3,6 +3,7 @@ import type { IntegritasConfig } from '../app/types';
 import { JsonPreview } from '../components/JsonPreview';
 import { Modal } from '../components/Modal';
 import { Page } from '../components/Page';
+import { IconButton } from '../components/Button';
 import { useToast } from '../components/ToastProvider';
 import { deleteJson, getJson, postJson } from '../lib/api';
 import {
@@ -109,13 +110,12 @@ export function IntegritasPage() {
       title='Prove local data'
       desc='Generate timestamp proofs from local files, poll proof status, export proof payloads, and verify JSON proof files.'
       action={
-        <button
-          type='button'
-          className='section-action-button'
+        <IconButton
+          variant='primary'
           onClick={() => setConfigOpen(true)}
         >
           <SettingsIcon size={20} />
-        </button>
+        </IconButton>
       }
     >
       {configOpen && (
@@ -179,7 +179,7 @@ export function IntegritasPage() {
         />
       )}
 
-      <div className='integritas-upload-grid'>
+      <div className='grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(320px,1fr))]'>
         <StampFilePanel
           file={stampUpload}
           setFile={setStampUpload}

@@ -1,5 +1,7 @@
 import { ExternalLink } from 'lucide-react';
 import type { IntegritasConfig } from '../../app/types';
+import { Button } from '../../components/Button';
+import { ButtonRow } from '../../components/ButtonRow';
 import { StatusBadge } from '../../components/StatusBadge';
 import type { IntegritasApiKeyCheck } from './integritasTypes';
 
@@ -80,7 +82,7 @@ export function IntegritasRuntimeConfig({
         </div>
       )}
 
-      <div className='api-key-box rounded-2xl border border-slate-200 bg-white p-4'>
+      <div className='grid min-w-[min(100%,360px)] gap-2.5 rounded-2xl border border-slate-200 bg-white p-4'>
         <div className='flex flex-wrap items-center justify-between gap-x-4 gap-y-2'>
           <div className='flex flex-wrap gap-2'>
             <StatusBadge ok={hasApiKey}>
@@ -116,29 +118,30 @@ export function IntegritasRuntimeConfig({
           type='password'
           autoComplete='off'
         />
-        <div className='button-row'>
-          <button
+        <ButtonRow>
+          <Button
             type='button'
             disabled={busy || keyCheckBusy || !hasApiKey}
             onClick={onCheckKey}
           >
             Check key
-          </button>
-          <button
+          </Button>
+          <Button
             type='button'
             disabled={busy || !apiKeyInput}
             onClick={onSave}
           >
             Save API key
-          </button>
-          <button
+          </Button>
+          <Button
             type='button'
+            variant='secondary'
             disabled={busy || !hasApiKey}
             onClick={onClear}
           >
             Clear stored key
-          </button>
-        </div>
+          </Button>
+        </ButtonRow>
       </div>
     </section>
   );

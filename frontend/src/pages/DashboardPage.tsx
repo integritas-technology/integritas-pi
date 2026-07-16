@@ -13,9 +13,12 @@ import {
   Wallet,
   Zap,
 } from 'lucide-react';
+import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { DarkHeroCard } from '../components/DarkHeroCard';
 import { Page } from '../components/Page';
 import { Pill } from '../components/Pill';
+import { ErrorText, Eyebrow, MutedText } from '../components/Text';
 import { listDataReads } from '../features/data-reads/dataReadsApi';
 import type { DataSourceRead } from '../features/data-reads/dataReadTypes';
 import { getHistory } from '../features/integritas/integritasApi';
@@ -147,96 +150,94 @@ export function DashboardPage() {
       title='Minima Edge Workbench'
       desc='A browser-first workspace for trusted data, proofs, automation, and value flows at the edge.'
     >
-      <section className='hero-card use-case-hero'>
-        <div className='hero-intro'>
-          <div className='hero-pills'>
+      <DarkHeroCard className='items-start lg:grid-cols-[1.35fr_0.65fr]'>
+        <div className='relative z-10 grid content-start gap-[18px]'>
+          <div className='flex flex-wrap gap-2'>
             <Pill>Pi Edition</Pill>
             <Pill>Edge Workbench</Pill>
             <Pill>Minima Core only</Pill>
           </div>
-          <h1>Minima Edge Workbench</h1>
-          <p>
+          <h1 className='m-0 mt-1.5 max-w-[760px] text-[clamp(2.25rem,6vw,3.6rem)] leading-none tracking-[-0.04em]'>Minima Edge Workbench</h1>
+          <p className='max-w-[760px] leading-7 text-slate-300'>
             Turn a Raspberry Pi into a Minima-powered edge gateway. Run a node,
             manage wallet and token workflows, verify local data with
             Integritas, and automate trusted edge events from a simple browser
             UI.
           </p>
-          <div className='hero-actions'>
-            <button type='button' onClick={() => navigate("/setup")}>
+          <div className='flex flex-wrap gap-2.5'>
+            <Button type='button' variant='secondary' className='border-transparent bg-white text-slate-950 hover:bg-slate-100' onClick={() => navigate("/setup")}>
               Start setup
-            </button>
+            </Button>
           </div>
         </div>
-        <div className='use-case-panel'>
-          <p className='eyebrow'>Use case builder</p>
-          <h2>Data to value</h2>
-          <p>Connect. Prove. Trigger. Settle.</p>
+        <div className='relative z-10 grid gap-3 rounded-[24px] border border-white/15 bg-gradient-to-br from-cyan-950/70 to-violet-950/70 p-[18px] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'>
+          <Eyebrow className='text-slate-300'>Use case builder</Eyebrow>
+          <h2 className='m-0 text-xl text-white'>Data to value</h2>
+          <p className='m-0 mb-2 text-slate-300'>Connect. Prove. Trigger. Settle.</p>
           {useCaseSteps.map((step) => (
-            <article className='use-case-step' key={step.number}>
-              <div className='use-case-icon'>
+            <article className='grid grid-cols-[auto_auto_minmax(0,1fr)] items-start gap-2.5 rounded-2xl border border-white/10 bg-white/10 p-4' key={step.number}>
+              <div className='grid size-[34px] place-items-center rounded-xl bg-white/15 text-white'>
                 <step.icon size={18} />
               </div>
-              <span>{step.number}</span>
+              <span className='text-xs font-black tracking-wide text-slate-300'>{step.number}</span>
               <div>
-                <strong>{step.title}</strong>
-                <p>{step.text}</p>
+                <strong className='text-white'>{step.title}</strong>
+                <p className='m-0 text-slate-300'>{step.text}</p>
               </div>
             </article>
           ))}
         </div>
-      </section>
+      </DarkHeroCard>
 
       {deviceStatus && (
         <DeviceStatusCard status={deviceStatus} walletBalance={walletBalance} />
       )}
 
-      <Card className='build-flow-card'>
+      <Card className='grid gap-5'>
         <div>
-          <p className='eyebrow'>Build flow</p>
-          <h3>From setup to trusted edge workflow</h3>
-          <p className='muted'>
+          <Eyebrow>Build flow</Eyebrow>
+          <h3 className='my-2 text-2xl text-slate-950'>From setup to trusted edge workflow</h3>
+          <MutedText className='m-0'>
             Each step has one job: deploy, connect, prove, automate, then build.
-          </p>
+          </MutedText>
         </div>
-        <div className='build-flow-grid'>
+        <div className='grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]'>
           {buildSteps.map((step) => (
-            <article className='build-flow-step' key={step.number}>
-              <span>{step.number}</span>
+            <article className='grid grid-cols-[auto_minmax(0,1fr)] gap-3.5 rounded-[20px] border border-slate-200 bg-slate-50 p-4' key={step.number}>
+              <span className='grid size-[34px] place-items-center rounded-[13px] bg-slate-950 font-black text-white'>{step.number}</span>
               <div>
                 <strong>{step.title}</strong>
-                <p>{step.text}</p>
+                <MutedText className='m-0 mt-1.5 leading-relaxed'>{step.text}</MutedText>
               </div>
             </article>
           ))}
         </div>
       </Card>
 
-      <Card className='live-activity-card'>
+      <Card className='grid gap-5'>
         <div>
-          <p className='eyebrow'>Live activity</p>
-          <h3>Events, attestations, and actions</h3>
-          <p className='muted'>
+          <Eyebrow>Live activity</Eyebrow>
+          <h3 className='my-2 text-2xl text-slate-950'>Events, attestations, and actions</h3>
+          <MutedText className='m-0'>
             A clear activity layer helps users understand what the Pi is doing
             in the background.
-          </p>
+          </MutedText>
         </div>
-        {activityError && <p className='error-text'>{activityError}</p>}
-        <div className='activity-list'>
+        {activityError && <ErrorText>{activityError}</ErrorText>}
+        <div className='grid gap-2.5'>
           {activity.map((item) => (
-            <article className='activity-item' key={item.id}>
+            <article className='grid items-center gap-3.5 rounded-[18px] border border-slate-200 bg-slate-50 p-3.5 sm:grid-cols-[minmax(0,1fr)_auto_auto]' key={item.id}>
               <div>
                 <strong>{item.category}</strong>
-                <p>{item.message}</p>
+                <MutedText className='m-0 mt-1.5 leading-relaxed'>{item.message}</MutedText>
               </div>
-              <time>{formatLocalTime(item.createdAt)}</time>
-              <span className={item.good ? 'pill pill-good' : 'pill pill-warn'}>
-                {item.status}
-              </span>
+              <time className='font-mono text-sm font-extrabold text-slate-600'>{formatLocalTime(item.createdAt)}</time>
+              <Pill tone={item.good ? 'good' : 'warn'}>{item.status}</Pill>
             </article>
           ))}
         </div>
         {activity.length === 0 && !activityError && (
-          <p className='muted'>No Diagnostics history entries yet.</p>
+          <MutedText>No Diagnostics history entries yet.</MutedText>
         )}
       </Card>
     </Page>

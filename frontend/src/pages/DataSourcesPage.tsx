@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
 import { useToast } from "../components/ToastProvider";
-import { checkDataSourceHealth, createDataSource, deleteDataSource, getDataSourceCapabilities, listDataSources, readDataSource, updateDataSource } from "../features/data-sources/dataSourcesApi";
+import { checkDataSourceHealth, createDataSource, deleteDataSource, getDataSourceCapabilities, listDataSources, readDataSource, testDataSourceOutput, updateDataSource } from "../features/data-sources/dataSourcesApi";
 import { DataSourceForm } from "../features/data-sources/DataSourceForm";
 import { DataSourcesList } from "../features/data-sources/DataSourcesList";
 import { DataSourceTemplates } from "../features/data-sources/DataSourceTemplates";
@@ -33,7 +33,7 @@ export function DataSourcesPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    refresh().catch((err: Error) => showToast({ tone: "error", title: "Could not load data sources", message: err.message }));
+    refresh().catch((err: Error) => showToast({ tone: "error", title: "Could not load devices", message: err.message }));
   }, []);
 
   useEffect(() => {
@@ -131,7 +131,7 @@ export function DataSourcesPage() {
       await refresh();
       if (successTitle) showToast({ tone: "success", title: successTitle });
     } catch (err) {
-      showToast({ tone: "error", title: "Data source action failed", message: err instanceof Error ? err.message : "Unknown error" });
+      showToast({ tone: "error", title: "Device action failed", message: err instanceof Error ? err.message : "Unknown error" });
       await refresh().catch(() => undefined);
     } finally {
       setBusy(false);
@@ -139,11 +139,11 @@ export function DataSourcesPage() {
   }
 
   return (
-    <Page eyebrow="Data Sources" title="Bring JSON data into the system" desc="Add sources by protocol. Fetch JSON from HTTP APIs, receive pushed JSON through webhooks/MQTT, or record GPIO input events.">
+    <Page eyebrow="Devices" title="Connect inputs and outputs" desc="Add input sources for data and events, then prepare output targets for automation workflows.">
       <DataSourceTemplates capabilities={capabilities} onSelect={applyTemplate} />
 
       {formOpen && (
-        <Modal title={editingSource ? "Edit source" : "Add source"} onClose={closeForm}>
+        <Modal title={editingSource ? "Edit device" : "Add device"} onClose={closeForm}>
           <DataSourceForm
             template={template}
             name={name}
@@ -175,14 +175,14 @@ export function DataSourcesPage() {
             method={method}
             setMethod={setMethod}
             busy={busy}
-            submitLabel={editingSource ? "Save source" : "Add source"}
+            submitLabel={editingSource ? "Save device" : "Add device"}
             onSubmit={() => run(async () => {
-              const input = { name, description, type, config: type === "webhook" ? { webhookToken: editingSource?.config.webhookToken } : type === "mqtt" ? { brokerUrl, topic } : type === "gpio-input" ? { chip: gpioChip, pin: Number(gpioPin), pull: gpioPull, edge: gpioEdge, debounceMs: Number(gpioDebounceMs), activeState: gpioActiveState } : { url, method, healthStatusUrl: healthStatusUrl.trim() || undefined, headers: {} } };
+              const input = { name, description, type, config: type === "webhook" ? { webhookToken: editingSource?.config.webhookToken } : type === "mqtt" ? { brokerUrl, topic } : type === "gpio-input" ? { chip: gpioChip, pin: Number(gpioPin), pull: gpioPull, edge: gpioEdge, debounceMs: Number(gpioDebounceMs), activeState: gpioActiveState } : type === "gpio-output" ? { chip: gpioChip, pin: Number(gpioPin), profile: "led" as const, activeState: gpioActiveState, initialState: "inactive" as const } : { url, method, healthStatusUrl: healthStatusUrl.trim() || undefined, headers: {} } };
               if (editingSource) await updateDataSource(editingSource.id, input);
               else await createDataSource(input);
               setFormOpen(false);
               resetForm();
-            }, editingSource ? "Source updated" : "Source added")}
+            }, editingSource ? "Device updated" : "Device added")}
           />
         </Modal>
       )}
@@ -192,8 +192,9 @@ export function DataSourcesPage() {
         healthStatuses={healthStatuses}
         busy={busy}
         onRead={(source) => run(() => readDataSource(source.id), "Manual read completed")}
+        onTestOutput={(source) => run(() => testDataSourceOutput(source.id), "Test pulse sent")}
         onEdit={editSource}
-        onDelete={(source) => run(() => deleteDataSource(source.id), "Source deleted")}
+        onDelete={(source) => run(() => deleteDataSource(source.id), "Device deleted")}
       />
     </Page>
   );

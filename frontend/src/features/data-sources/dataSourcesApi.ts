@@ -25,6 +25,10 @@ export async function readDataSource(id: string) {
   return postJson<{ item: DataSource; result: unknown }>(`/api/data-sources/${id}/read`);
 }
 
+export async function testDataSourceOutput(id: string, durationMs = 500) {
+  return postJson<{ item: DataSource; result: unknown }>(`/api/data-sources/${id}/test-output`, { durationMs });
+}
+
 export async function checkDataSourceHealth(id: string) {
   const response = await fetch(`/api/data-sources/${id}/health`, { credentials: "include" });
   return await response.json() as DataSourceHealthStatus;

@@ -1,8 +1,8 @@
 import { DEFAULT_PAGE_SIZE } from '../lib/paginated';
 
-export type DiagnosticsTab = 'proofs' | 'reads';
+export type DiagnosticsTab = 'proofs' | 'reads' | 'workflow-runs';
 
-const VALID_TABS = new Set<DiagnosticsTab>(['proofs', 'reads']);
+const VALID_TABS = new Set<DiagnosticsTab>(['proofs', 'reads', 'workflow-runs']);
 
 export const PROOF_STATUS_OPTIONS = [
   { value: '', label: 'All statuses' },
@@ -30,6 +30,7 @@ export function isValidDiagnosticsTab(value: string | null): value is Diagnostic
 
 export function parseDiagnosticsTab(searchParams: URLSearchParams): DiagnosticsTab {
   const raw = searchParams.get('tab');
+  if (raw === 'workflow-runs') return 'workflow-runs';
   return raw === 'reads' ? 'reads' : 'proofs';
 }
 
@@ -53,7 +54,9 @@ export function parseDiagnosticsListQuery(
   const rawStatus = searchParams.get('status')?.trim() ?? '';
   const allowedStatuses = tab === 'proofs'
     ? ['pending', 'ready', 'failed']
-    : ['success', 'failed'];
+    : tab === 'reads'
+      ? ['success', 'failed']
+      : [];
   const status = allowedStatuses.includes(rawStatus) ? rawStatus : '';
 
   const q = (searchParams.get('q') ?? '').trim().slice(0, 200);

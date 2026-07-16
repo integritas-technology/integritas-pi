@@ -13,6 +13,9 @@ export function serializeDataSourceRead(record: DataSourceReadRecord) {
     status: record.status,
     hash: record.hash,
     preview: record.preview_json ? JSON.parse(record.preview_json) as unknown : null,
-    error: record.error
+    error: record.error,
+    triggerSourceId: record.trigger_source_id,
+    triggerPayload: record.trigger_payload_json ? JSON.parse(record.trigger_payload_json) as unknown : null,
+    blockId: record.block_id
   };
 }
