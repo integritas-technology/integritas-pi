@@ -7,4 +7,5 @@
 - Host files are mounted read-only to `/host-files`.
 - Docker socket is mounted read-only for prototype status only; treat it as sensitive.
 - GPIO input requires explicit `/dev/gpiochip0` device access and `gpiomon`; keep it optional, input-only, and documented as host hardware access.
+- The optional local MQTT broker uses the `mqtt` Compose profile and exposes `${MQTT_PUBLIC_PORT:-1883}` only when explicitly enabled.
 - `host.docker.internal` is mapped for Linux via `extra_hosts` for host-gateway access.

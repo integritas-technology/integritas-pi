@@ -87,7 +87,7 @@ export function WorkflowBlockLibrary({ mode = "build", hasStartBlock, selectedBl
       <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("if_payload_field_equals")} title="If field matches" description="Stop unless a trigger/data field matches." />
       <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("wait")} title="Wait" description="Pause before the next block." />
       <strong>Action blocks</strong>
-      <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("control_output")} title="Pulse output" description="Pulse a configured GPIO LED output." />
+      <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("control_output")} title="Control output" description="Pulse GPIO or send JSON to an output target." />
       <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("send_transaction")} title="Send transaction" description="Send native MINIMA to an address book recipient." />
       <strong>Attached actions</strong>
       <LibraryCard disabled={!selectedBlock || !isDataBlock(selectedBlock.type) || Boolean(selectedBlock.attachedBlocks?.some((block) => block.type === "stamp_integritas"))} onClick={() => selectedBlock && onAttachStamp(selectedBlock.id)} title="Stamp with Integritas" description="Select a Record or Fetch block to attach a stamp." />
@@ -211,7 +211,7 @@ export function draftBlockTitle(block: { type: AutomationBlockType }) {
   if (block.type === "record_trigger_event") return "Record trigger event";
   if (block.type === "fetch_data_source") return "Fetch HTTP JSON";
   if (block.type === "stamp_integritas") return "Stamp with Integritas";
-  if (block.type === "control_output") return "Pulse output";
+  if (block.type === "control_output") return "Control output";
   if (block.type === "send_transaction") return "Send transaction";
   return block.type;
 }
@@ -225,7 +225,7 @@ export function draftBlockDescription(block: { type: AutomationBlockType; config
   if (block.type === "record_trigger_event") return "Stores the trigger payload as a data read.";
   if (block.type === "fetch_data_source") return "Fetches JSON and creates a hash.";
   if (block.type === "stamp_integritas") return "Stamp this data block's hash.";
-  if (block.type === "control_output") return `Pulse configured LED output for ${block.config.durationMs ?? 0} ms.`;
+  if (block.type === "control_output") return "Control a configured output target.";
   if (block.type === "send_transaction") return `Send ${block.config.amount || "?"} native MINIMA.`;
   return "Select a source in Setup.";
 }

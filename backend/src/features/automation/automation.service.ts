@@ -2,7 +2,8 @@ import { getDataSource, updateDataSourceReadResult } from "../data-sources/dataS
 import { getAddressBookEntryById } from "../address-book/address-book.repository.js";
 import { recordAuditEvent } from "../auth/audit.service.js";
 import { pulseGpioOutput } from "../data-sources/gpioOutput.service.js";
-import { parseJsonApiConfig, readJsonApiSource, serializeDataSource } from "../data-sources/dataSources.service.js";
+import { publishMqttOutput } from "../data-sources/mqttOutput.service.js";
+import { parseHttpOutputConfig, parseJsonApiConfig, readJsonApiSource, sendHttpOutput, serializeDataSource } from "../data-sources/dataSources.service.js";
 import { createDataSourceRead, linkDataSourceReadProof } from "../data-reads/dataReads.repository.js";
 import { createProofRecord } from "../integritas/integritas.repository.js";
 import { isIntegritasUnauthorizedErrorCode, isTransientIntegritasErrorCode, requestProofUid } from "../integritas/integritas.service.js";
@@ -280,7 +281,7 @@ function recordTriggerEvent(workflow: AutomationWorkflowRecord, block: Automatio
 async function fetchDataSource(workflow: AutomationWorkflowRecord, block: AutomationBlockRecord, context: WorkflowContext, sourceId: string) {
   const source = getDataSource(sourceId);
   if (!source) throw new Error("Data source not found");
-  if (source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output") throw new Error("Fetch data source block requires an HTTP JSON data source");
+  if (source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output" || source.type === "http-output" || source.type === "mqtt-output") throw new Error("Fetch data source block requires an HTTP JSON data source");
   const config = parseJsonApiConfig(JSON.parse(source.config) as unknown);
   try {
     const result = await readJsonApiSource(config);
@@ -411,9 +412,19 @@ function deepEqualJson(left: unknown, right: unknown) {
 }
 
 async function controlOutput(config: { targetId?: string; action?: string; durationMs?: number }, context: WorkflowContext) {
-  if (config.action !== "pulse") throw new Error("Only pulse output actions are supported");
   if (!config.targetId) throw new Error("Control output block requires a targetId");
-  const result = await pulseGpioOutput({ targetId: config.targetId, durationMs: Number(config.durationMs ?? 0) });
+  const target = getDataSource(config.targetId);
+  if (!target) throw new Error("Control output target was not found");
+
+  const payload = contextSummary(context);
+  const result = target.type === "gpio-output"
+    ? await pulseGpioOutput({ targetId: config.targetId, durationMs: Number(config.durationMs ?? 0) })
+    : target.type === "http-output"
+      ? await sendHttpOutput(parseHttpOutputConfig(JSON.parse(target.config) as unknown), payload)
+      : target.type === "mqtt-output"
+        ? await publishMqttOutput({ targetId: config.targetId, payload })
+        : null;
+  if (!result) throw new Error("Control output block requires an output target");
   context.data = undefined;
   context.output = result;
   return result;

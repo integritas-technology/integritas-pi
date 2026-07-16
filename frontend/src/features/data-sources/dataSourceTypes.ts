@@ -3,12 +3,12 @@ export type DataSource = {
   createdAt: string;
   updatedAt: string;
   name: string;
-  type: "json-api" | "internal-json-api" | "webhook" | "mqtt" | "gpio-input" | "gpio-output";
+  type: "json-api" | "internal-json-api" | "webhook" | "mqtt" | "gpio-input" | "gpio-output" | "http-output" | "mqtt-output";
   status: string;
   description: string | null;
   config: {
     url?: string;
-    method?: "GET" | "POST";
+    method?: "GET" | "POST" | "PUT" | "PATCH";
     headers?: Record<string, string>;
     healthStatusUrl?: string;
     webhookToken?: string;
@@ -23,6 +23,11 @@ export type DataSource = {
     profile?: "led";
     initialState?: "inactive";
     body?: unknown;
+    timeoutMs?: number;
+    qos?: 0 | 1;
+    retain?: boolean;
+    bodyTemplate?: unknown;
+    payloadTemplate?: unknown;
   };
   lastReadAt: string | null;
   lastError: string | null;
@@ -51,5 +56,11 @@ export type DataSourceCapabilities = {
     available: boolean;
     devicePath: string;
     reason: string | null;
+  };
+  mqttBroker?: {
+    enabled: boolean;
+    internalUrl: string;
+    publicHost: string;
+    publicPort: number;
   };
 };

@@ -37,6 +37,14 @@ curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi
 
 `ENABLE_GPIO=true` writes `/opt/integritas-pi/docker-compose.override.yml` with `/dev/gpiochip0` mounted into the backend container and detects the host GPIO group id. Leave it disabled unless this deployment needs GPIO hardware ingestion.
 
+To enable the optional local MQTT broker during install, pass `ENABLE_MQTT_BROKER=true`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/install.sh | sudo env ENABLE_MQTT_BROKER=true bash
+```
+
+The broker is exposed on `${MQTT_PUBLIC_PORT:-1883}` for trusted LAN devices and is available to backend containers as `mqtt://mqtt:1883`. It is disabled by default.
+
 The installer will:
 
 - Check that it runs as root or through `sudo`
@@ -76,6 +84,11 @@ APP_SECRET=dev-change-me
 DOCKER_GID=0
 ENABLE_GPIO=false
 GPIO_GID=0
+ENABLE_MQTT_BROKER=false
+COMPOSE_PROFILES=
+MQTT_PUBLIC_HOST=
+MQTT_PUBLIC_PORT=1883
+MQTT_INTERNAL_URL=mqtt://mqtt:1883
 MINIMA_DATA_DIR=./minima
 MINIMA_P2P_PORT=9003
 MINIMA_RPC_BIND=127.0.0.1
@@ -117,6 +130,8 @@ The backend runs a Minima health poller on `MINIMA_HEALTH_POLL_INTERVAL_SECONDS`
 When GPIO is not enabled or `/dev/gpiochip0` is unavailable in the backend container, the GPIO Input card is disabled in the Data Sources page.
 
 GPIO input/output settings for tested button and LED wiring, plus suggested untested device profiles, are documented in [`docs/gpio-device-settings.md`](./docs/gpio-device-settings.md).
+
+`ENABLE_MQTT_BROKER=true` enables the optional local Mosquitto broker when `COMPOSE_PROFILES=mqtt` is also set. The installer sets both values when launched with `ENABLE_MQTT_BROKER=true`. The Devices page shows the LAN broker URL for external devices and the internal Docker URL for Integritas Pi MQTT input/output configs.
 
 `INTEGRITAS_API_KEY` is optional. You can leave it empty and save the API key from the Integritas page in the UI. The key is sent to the backend once, encrypted, and stored in SQLite. It is never exposed in the frontend bundle.
 

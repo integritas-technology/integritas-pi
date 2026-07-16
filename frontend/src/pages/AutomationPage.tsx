@@ -452,7 +452,7 @@ function CreateWorkflowWorkspace({ name, enabled, sources, addressBook, walletSt
 function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChange, onAttachedChange, onAttachedRemove }: { block: DraftWorkflowBlock; sources: DataSource[]; addressBook: AddressBookEntry[]; walletStatus: WalletStatus | null; onChange: (config: AutomationBlock["config"]) => void; onAttachedChange: (attachedId: string, config: AutomationBlock["config"]) => void; onAttachedRemove: (attachedId: string) => void }) {
   const startSources = sourcesForStart(block.type, sources);
   const httpSources = sources.filter((source) => source.type === "json-api" || source.type === "internal-json-api");
-  const outputTargets = sources.filter((source) => source.type === "gpio-output");
+  const outputTargets = sources.filter((source) => isOutputTarget(source));
   const nativeTokens = nativeMinimaTokens(walletStatus);
 
   if (block.type.endsWith("_start")) {
@@ -499,13 +499,20 @@ function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChan
 
   if (block.type === "control_output") {
     const selectedOutput = outputTargets.find((source) => source.id === block.config.targetId);
+    const selectedAction = selectedOutput?.type === "gpio-output" ? "pulse" : selectedOutput?.type === "http-output" ? "send_request" : selectedOutput?.type === "mqtt-output" ? "publish" : "pulse";
     return (
       <Panel className={formGridClass}>
         <strong>Selected block</strong>
-        <label>Output target<select value={block.config.targetId ?? ""} onChange={(event) => onChange({ targetId: event.target.value, action: "pulse", durationMs: block.config.durationMs ?? 500 })}><option value="">Select GPIO output...</option>{outputTargets.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>
-        <label>Pulse duration ms<input value={String(block.config.durationMs ?? 500)} inputMode="numeric" onChange={(event) => onChange({ ...block.config, action: "pulse", durationMs: Number(event.target.value) })} /></label>
-        {selectedOutput && <p className={mutedText}>Selected device active state: <strong>{selectedOutput.config.activeState ?? "high"}</strong>. Use High for common GPIO to resistor to LED to GND wiring. Change this from Devices by editing the GPIO Output target.</p>}
-        <p className={mutedText}>LED output only. Verify resistor wiring and test pulse before enabling.</p>
+        <label>Output target<select value={block.config.targetId ?? ""} onChange={(event) => {
+          const target = outputTargets.find((source) => source.id === event.target.value);
+          onChange({ targetId: event.target.value, action: outputActionForTarget(target), durationMs: target?.type === "gpio-output" ? block.config.durationMs ?? 500 : undefined });
+        }}><option value="">Select output target...</option>{outputTargets.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>
+        {selectedOutput?.type === "gpio-output" && <label>Pulse duration ms<input value={String(block.config.durationMs ?? 500)} inputMode="numeric" onChange={(event) => onChange({ ...block.config, action: "pulse", durationMs: Number(event.target.value) })} /></label>}
+        {selectedOutput?.type === "gpio-output" && <p className={mutedText}>Selected device active state: <strong>{selectedOutput.config.activeState ?? "high"}</strong>. Use High for common GPIO to resistor to LED to GND wiring. Change this from Devices by editing the GPIO Output target.</p>}
+        {selectedOutput?.type === "http-output" && <p className={mutedText}>This block sends the workflow context as JSON to the selected HTTP/API output target.</p>}
+        {selectedOutput?.type === "mqtt-output" && <p className={mutedText}>This block publishes the workflow context as JSON to the selected MQTT output target.</p>}
+        {!selectedOutput && <p className={mutedText}>Choose a configured output target from Devices.</p>}
+        {selectedAction === "pulse" && <p className={mutedText}>Verify resistor wiring and test pulse before enabling GPIO output workflows.</p>}
       </Panel>
     );
   }
@@ -574,7 +581,10 @@ function defaultDraftConfig(type: AutomationBlockType, sources: DataSource[], po
   if (type === "gpio_event_start" || type === "webhook_event_start" || type === "mqtt_event_start") return { sourceId: defaultSourceForStart(type, sources)?.id ?? "" };
   if (type === "if_payload_field_equals") return { source: "trigger", fieldPath: "active", operator: "equals", value: true };
   if (type === "wait") return { durationMs: 1000 };
-  if (type === "control_output") return { targetId: sources.find((source) => source.type === "gpio-output")?.id ?? "", action: "pulse", durationMs: 500 };
+  if (type === "control_output") {
+    const target = sources.find((source) => isOutputTarget(source));
+    return { targetId: target?.id ?? "", action: outputActionForTarget(target), durationMs: target?.type === "gpio-output" ? 500 : undefined };
+  }
   if (type === "send_transaction") return { recipientAddressBookId: "", tokenId: "0x00", amount: "" };
   if (type === "stamp_integritas") return { condition: null };
   return {};
@@ -1128,7 +1138,19 @@ function sourceLabel(source: DataSource) {
   if (source.type === "mqtt") return `${source.config.brokerUrl ?? "MQTT broker"} ${source.config.topic ?? ""}`;
   if (source.type === "gpio-input") return `${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"}`;
   if (source.type === "gpio-output") return `${source.config.profile ?? "led"} ${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"} active:${source.config.activeState ?? "high"}`;
+  if (source.type === "http-output") return `${source.config.method ?? "POST"} ${source.config.url ?? "HTTP output"}`;
+  if (source.type === "mqtt-output") return `${source.config.brokerUrl ?? "MQTT broker"} ${source.config.topic ?? ""}`;
   return source.config.url ?? "HTTP JSON API";
+}
+
+function isOutputTarget(source: DataSource) {
+  return source.type === "gpio-output" || source.type === "http-output" || source.type === "mqtt-output";
+}
+
+function outputActionForTarget(source: DataSource | undefined) {
+  if (source?.type === "http-output") return "send_request";
+  if (source?.type === "mqtt-output") return "publish";
+  return "pulse";
 }
 
 function formatInterval(seconds: number) {

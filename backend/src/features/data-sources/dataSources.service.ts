@@ -20,6 +20,22 @@ export type MqttConfig = {
   topic: string;
 };
 
+export type HttpOutputConfig = {
+  url: string;
+  method: "POST" | "PUT" | "PATCH";
+  headers?: Record<string, string>;
+  bodyTemplate?: unknown;
+  timeoutMs?: number;
+};
+
+export type MqttOutputConfig = {
+  brokerUrl: string;
+  topic: string;
+  qos: 0 | 1;
+  retain: boolean;
+  payloadTemplate?: unknown;
+};
+
 export type GpioInputConfig = {
   chip: string;
   pin: number;
@@ -69,6 +85,8 @@ export function parseJsonApiConfig(value: unknown): JsonApiConfig {
 export function parseDataSourceConfig(type: string, value: unknown, existingConfig?: unknown) {
   if (type === "webhook") return parseWebhookConfig(value, existingConfig);
   if (type === "mqtt") return parseMqttConfig(value);
+  if (type === "http-output") return parseHttpOutputConfig(value);
+  if (type === "mqtt-output") return parseMqttOutputConfig(value);
   if (type === "gpio-input") return parseGpioInputConfig(value);
   if (type === "gpio-output") return parseGpioOutputConfig(value);
   return parseJsonApiConfig(value);
@@ -88,6 +106,32 @@ export function parseMqttConfig(value: unknown): MqttConfig {
   if (!brokerUrl) throw new Error("config.brokerUrl is required");
   if (!topic) throw new Error("config.topic is required");
   return { brokerUrl, topic };
+}
+
+export function parseHttpOutputConfig(value: unknown): HttpOutputConfig {
+  const config = value as Partial<HttpOutputConfig> | undefined;
+  const url = typeof config?.url === "string" ? config.url.trim() : "";
+  const method = config?.method === "PUT" || config?.method === "PATCH" ? config.method : "POST";
+  const headers = config?.headers && typeof config.headers === "object" && !Array.isArray(config.headers) ? config.headers as Record<string, string> : {};
+  const timeoutMs = Number(config?.timeoutMs ?? 5000);
+
+  if (!url) throw new Error("config.url is required");
+  if (!Number.isFinite(timeoutMs) || timeoutMs < 100 || timeoutMs > 60000) throw new Error("config.timeoutMs must be between 100 and 60000");
+
+  return { url, method, headers, bodyTemplate: config?.bodyTemplate, timeoutMs };
+}
+
+export function parseMqttOutputConfig(value: unknown): MqttOutputConfig {
+  const config = value as Partial<MqttOutputConfig> | undefined;
+  const brokerUrl = typeof config?.brokerUrl === "string" ? config.brokerUrl.trim() : "";
+  const topic = typeof config?.topic === "string" ? config.topic.trim() : "";
+  const qos = config?.qos === 1 ? 1 : 0;
+  const retain = config?.retain === true;
+
+  if (!brokerUrl) throw new Error("config.brokerUrl is required");
+  if (!topic) throw new Error("config.topic is required");
+
+  return { brokerUrl, topic, qos, retain, payloadTemplate: config?.payloadTemplate };
 }
 
 export function parseGpioInputConfig(value: unknown): GpioInputConfig {
@@ -152,6 +196,19 @@ export async function readJsonApiSource(config: JsonApiConfig) {
 
   const canonical = `${JSON.stringify(json, null, 2)}\n`;
   return { contentType: "application/json", bytesHash: sha3HashHex(canonical), canonicalBytes: canonical, preview: json, fetchedAt: new Date().toISOString() };
+}
+
+export async function sendHttpOutput(config: HttpOutputConfig, payload: unknown) {
+  const body = config.bodyTemplate === undefined ? payload : config.bodyTemplate;
+  const { response, body: responseBody } = await fetchJsonWithTimeout(config.url, {
+    method: config.method,
+    headers: { ...config.headers, "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  }, config.timeoutMs ?? 5000);
+
+  if (!response.ok) throw new Error(`HTTP output returned HTTP ${response.status}`);
+
+  return { targetUrl: config.url, method: config.method, status: response.status, response: responseBody, sentAt: new Date().toISOString() };
 }
 
 export function processWebhookPayload(payload: unknown) {
