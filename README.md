@@ -124,7 +124,7 @@ GPIO input/output settings for tested button and LED wiring, plus suggested unte
 
 `INTEGRITAS_BASE_URL` is the Integritas core host used for proof stamping (default `https://integritas.technology/core`).
 
-`INTEGRITAS_API_KEY` is optional. You can leave it empty and save the API key from the Integritas page in the UI. The key is sent to the backend once, encrypted, and stored in SQLite. It is never exposed in the frontend bundle.
+`INTEGRITAS_API_KEY` is optional. After Integritas Connect linking, the backend uses the account API key stored encrypted in `integritas_auth`. A key saved manually from the Integritas page, followed by `INTEGRITAS_API_KEY`, remains available as fallback. API keys are never exposed in the frontend bundle.
 
 `INTEGRITAS_DEVICE_POLL_INTERVAL_SECONDS` is how often the Pi polls Connect while device activation is pending (default `5`).
 
@@ -547,10 +547,11 @@ The frontend sends canonical bytes and proof payloads to the backend. The backen
 
 The API key can come from either:
 
-- encrypted SQLite storage, set from the frontend UI
-- `INTEGRITAS_API_KEY` in `.env`, used as a fallback
+- Integritas Connect's encrypted `integritas_auth.api_key_enc` value (preferred)
+- encrypted SQLite storage set manually from the frontend UI
+- `INTEGRITAS_API_KEY` in `.env`
 
-Install with an Integritas API key:
+The backend uses the first available source in that order. Install with a fallback Integritas API key:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/install.sh | sudo INTEGRITAS_API_KEY=your-api-key bash
