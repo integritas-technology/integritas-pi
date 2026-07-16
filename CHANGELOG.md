@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-07-16
+
 ### Added
 
 - **Update service (V1)**: new `update-agent` container provides a manual "Update Now" flow for `frontend`, `backend`, and `minima`. Updates are driven by a signed manifest (Ed25519) built and published by a tag-triggered GitHub Actions release workflow, and applied only after the new container passes a health check; a failed update leaves the previous container running (or, for `minima`, restores its data directory and restarts the previous version).
