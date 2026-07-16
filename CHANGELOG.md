@@ -12,6 +12,67 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Devices now separates adding input sources and output targets, shows local MQTT broker service URLs, supports HTTP/API and MQTT output targets, and can run an optional profile-gated local Mosquitto broker.
 - HTTP/API and MQTT output targets now keep endpoint settings on the device while workflow Control device blocks choose what payload to send.
 
+## [0.17.4] - 2026-07-16
+
+### Removed
+
+- The "debug v1" line on the `/update` page.
+
+## [0.17.3] - 2026-07-16
+
+### Added
+
+- Account settings' Version card now has a "Check for updates" link to the `/update` page.
+
+## [0.17.2] - 2026-07-16
+
+### Changed
+
+- The sidebar "Update available" notice is now a plain colored button linking to `/update` instead of a card with version details; version numbers are no longer shown in the sidebar.
+- Account settings now shows the current app version in a dedicated card at the bottom of the page.
+
+## [0.17.1] - 2026-07-16
+
+### Changed
+
+- `update-agent`'s default background manifest poll interval (`STATUS_POLL_INTERVAL_MS`) is now 12 hours instead of 24. Only affects fresh installs or `.env` files without an explicit value; existing deployments keep their current setting.
+
+## [0.17.0] - 2026-07-16
+
+### Added
+
+- **Update service (V1)**: new `update-agent` container provides a manual "Update Now" flow for `frontend`, `backend`, and `minima`. Updates are driven by a signed manifest (Ed25519) built and published by a tag-triggered GitHub Actions release workflow, and applied only after the new container passes a health check; a failed update leaves the previous container running (or, for `minima`, restores its data directory and restarts the previous version).
+- **`update-agent` as a built image + self-update**: `update-agent` is now built and pushed by CI and tracked in the manifest like `frontend`/`backend`, instead of building from source on the Pi. It can also update itself through the same "Update Now" flow: a one-shot orchestrator container starts the new version, health-checks it, then retires the old container — a failed self-update just leaves the old container running.
+- The update UI is served at `https://<pi-ip>:8080/update`, proxied through the existing frontend nginx on the same origin/certificate — no extra browser certificate approval.
+- Real Docker `HEALTHCHECK`s for `frontend`/`backend` so update-agent's health-gated swap has real health data to act on, not just "is the container running".
+- Manifest replay/downgrade protection: manifests carry a signed `createdAt` timestamp; `update-agent` persists the last-applied timestamp (`UPDATE_AGENT_STATE_DIR`) and rejects any manifest strictly older than it.
+- `/apply` is now asynchronous: `POST /apply` starts a background job and returns immediately, `GET /apply` polls job status — needed since a successful frontend update kills its own in-flight request.
+- New `MANIFEST_URL`, `RELEASE_CHANNEL`, `UPDATE_HEALTH_CHECK_TIMEOUT_MS`, `UPDATE_HEALTH_CHECK_INTERVAL_MS`, `UPDATE_PULL_TIMEOUT_MS`, `MINIMA_BACKUP_DIR`, `UPDATE_AGENT_STATE_DIR` environment variables (see README Configuration section).
+- **Background update check + navbar notice**: `update-agent` now polls the manifest on its own schedule (`STATUS_POLL_INTERVAL_MS`, default once a day) instead of only checking on request, and caches the result. The product frontend polls this cache (`GET /status/summary`) and shows an "Update" item with a badge in the sidebar when `frontend`, `backend`, or `minima` is out of date, linking to the existing `/update` page.
+
+### Changed
+
+- **Release workflow manifest deploy**: the signed manifest is now pushed to a private `integritas-manifests` repo over HTTPS instead of `scp`'d directly to the VPS over SSH; the VPS pulls it on a cron schedule and serves it locally via nginx. Avoids requiring inbound SSH access from GitHub-hosted Actions runners' unpredictable IPs through the VPS firewall. See `docs/plans/update-service-launch.md` §1.
+- **Manifest repo auth**: CI authenticates to `integritas-manifests` via a dedicated GitHub App (`integritas-pi-manifest-deploy`) generating short-lived installation tokens, instead of a static SSH deploy key — the org disables write-access deploy keys org-wide.
+
+### Fixed
+
+- **False "Update Now" on first install**: `install.sh` built `frontend`/`backend` from source, so a fresh install's image could never match the manifest's registry digest and always showed an update as available. It now fetches and verifies the signed manifest and pulls the exact pinned images instead.
+- **Release workflow Pi architecture support**: `frontend`/`backend` images were only built for the CI runner's native `amd64`, invisible while installs built from source on-device. Now that installs pull pre-built images, added QEMU + multi-platform build (`linux/arm64`, `linux/arm/v7`) so Pi installs can actually pull them.
+- **Release workflow "previous release tag" lookup**: no longer considers pre-release/test-shaped tags (e.g. `v0.0.0-test.1`) as a candidate "previous release," preventing a leftover test tag from hiding real `frontend`/`backend` changes from the release diff.
+
+- **Update-agent frontend/backend swap**: updates to services publishing a host port no longer fail on a port-binding conflict between the old and new container; the candidate is created and health-checked without port bindings first, and only swapped in (old stopped/removed, candidate recreated with its ports, started) once healthy.
+- **Update-agent Minima rollback**: backup/restore no longer fails with `EBUSY` on the bind mount root, no longer risks a backup taken mid-write, and now lands on its own dedicated `MINIMA_BACKUP_DIR` bind mount instead of a path inside the container's ephemeral layer.
+- **Update-agent retry after a crash**: a stale `<service>-update-candidate` container left behind by a crash mid-update (e.g. a power cut) no longer blocks every subsequent retry with a Docker name-conflict `409`.
+- **Update-agent auth check**: the forwarded `GET /api/auth/me` check now times out after 5s instead of hanging indefinitely if `backend` never responds.
+- **Update-agent `.sig` URL building**: signature URL is now built by parsing `MANIFEST_URL` and appending `.sig` to the pathname, instead of raw string concatenation (which broke when the manifest URL had a query string).
+- **Update-agent manifest public key**: `update-agent` now reads the signing public key from the committed `manifest-public-key.pem` (baked into its image) instead of a duplicate `MANIFEST_PUBLIC_KEY` env var, matching what `install.sh` already used — one source of truth instead of two copies that could drift on key rotation.
+
+### Security
+
+- `update-agent` mounts `/var/run/docker.sock` to apply updates; documented as an accepted, host-root-equivalent risk mitigated by minimal code surface, admin-only access, and signature/digest verification — not by network placement. See `SECURITY.md`.
+- **Update-agent error responses**: client-visible error messages (`GET /status`, `POST /apply` job failures, port-bind-failure restore path) no longer leak raw Docker/system error text; full detail is still logged server-side via `console.error`.
+
 ## [0.16.1] - 2026-07-15
 
 ### Fixed
