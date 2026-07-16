@@ -18,6 +18,10 @@ services:
       MINIMA_AUTO_RESYNC_COOLDOWN_MINUTES: ${MINIMA_AUTO_RESYNC_COOLDOWN_MINUTES:-30}
       DATABASE_PATH: /data/integritas-pi.db
       INTEGRITAS_PI_VERSION: ${INTEGRITAS_PI_VERSION:-0.15.0}
+      ENABLE_MQTT_BROKER: ${ENABLE_MQTT_BROKER:-false}
+      MQTT_PUBLIC_HOST: ${MQTT_PUBLIC_HOST:-}
+      MQTT_PUBLIC_PORT: ${MQTT_PUBLIC_PORT:-1883}
+      MQTT_INTERNAL_URL: ${MQTT_INTERNAL_URL:-mqtt://mqtt:1883}
       APP_SECRET: ${APP_SECRET:-dev-change-me}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       SESSION_MAX_AGE_DAYS: ${SESSION_MAX_AGE_DAYS:-7}
@@ -67,6 +71,17 @@ services:
     restart: unless-stopped
     networks:
       - integritas
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    profiles:
+      - mqtt
+    ports:
+      - "${MQTT_PUBLIC_PORT:-1883}:1883"
+    volumes:
+      - ./docker/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ${DATA_DIR:-./data}/mosquitto:/mosquitto/data
+    restart: unless-stopped
 
   update-agent:
     image: ${UPDATE_AGENT_IMAGE}

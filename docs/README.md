@@ -61,6 +61,7 @@ Project-specific agent rules live outside `docs/`, in `.agents/rules/` at the re
 | Plan | Status |
 |---|---|
 | [plans/block-automation-workflows.md](./plans/block-automation-workflows.md) | In progress |
+| [plans/device-configuration-and-mqtt-broker.md](./plans/device-configuration-and-mqtt-broker.md) | V1 implemented |
 | [plans/feedback.md](./plans/feedback.md) | V1 implemented; V2 planned |
 | [plans/security-checklist.md](./plans/security-checklist.md) | In progress |
 | [plans/update-service.md](./plans/update-service.md) | In progress |

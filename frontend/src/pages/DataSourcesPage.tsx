@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
+import { Button } from "../components/Button";
+import { Card } from "../components/Card";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
+import { MutedText } from "../components/Text";
 import { useToast } from "../components/ToastProvider";
 import { checkDataSourceHealth, createDataSource, deleteDataSource, getDataSourceCapabilities, listDataSources, readDataSource, testDataSourceOutput, updateDataSource } from "../features/data-sources/dataSourcesApi";
 import { DataSourceForm } from "../features/data-sources/DataSourceForm";
 import { DataSourcesList } from "../features/data-sources/DataSourcesList";
-import { DataSourceTemplates } from "../features/data-sources/DataSourceTemplates";
+import { DataSourceTemplates, LocalServicesCard } from "../features/data-sources/DataSourceTemplates";
 import type { DataSource, DataSourceCapabilities, DataSourceHealthStatus, DataSourceTemplate } from "../features/data-sources/dataSourceTypes";
 
 export function DataSourcesPage() {
@@ -13,6 +16,7 @@ export function DataSourcesPage() {
   const [items, setItems] = useState<DataSource[]>([]);
   const [capabilities, setCapabilities] = useState<DataSourceCapabilities | null>(null);
   const [template, setTemplate] = useState<DataSourceTemplate | null>(null);
+  const [templateMode, setTemplateMode] = useState<"input" | "output" | null>(null);
   const [editingSource, setEditingSource] = useState<DataSource | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [name, setName] = useState("");
@@ -28,7 +32,7 @@ export function DataSourcesPage() {
   const [gpioEdge, setGpioEdge] = useState<"rising" | "falling" | "both">("both");
   const [gpioDebounceMs, setGpioDebounceMs] = useState("100");
   const [gpioActiveState, setGpioActiveState] = useState<"high" | "low">("high");
-  const [method, setMethod] = useState<"GET" | "POST">("GET");
+  const [method, setMethod] = useState<"GET" | "POST" | "PUT" | "PATCH">("GET");
   const [healthStatuses, setHealthStatuses] = useState<Record<string, DataSourceHealthStatus>>({});
   const [busy, setBusy] = useState(false);
 
@@ -77,6 +81,7 @@ export function DataSourcesPage() {
     setGpioActiveState(nextTemplate.config.activeState ?? "high");
     setMethod(nextTemplate.config.method ?? "GET");
     setFormOpen(true);
+    setTemplateMode(null);
   }
 
   function editSource(source: DataSource) {
@@ -97,6 +102,7 @@ export function DataSourcesPage() {
     setGpioActiveState(source.config.activeState ?? "high");
     setMethod(source.config.method ?? "GET");
     setFormOpen(true);
+    setTemplateMode(null);
   }
 
   function resetForm() {
@@ -139,8 +145,25 @@ export function DataSourcesPage() {
   }
 
   return (
-    <Page eyebrow="Devices" title="Connect inputs and outputs" desc="Add input sources for data and events, then prepare output targets for automation workflows.">
-      <DataSourceTemplates capabilities={capabilities} onSelect={applyTemplate} />
+      <Page eyebrow="Devices" title="Connect inputs and outputs" desc="Add input sources for data and events, then prepare output targets for automation workflows.">
+      <Card className="grid gap-4">
+        <div>
+          <strong>Add devices</strong>
+          <MutedText className="m-0 mt-1">Create a configured input source or output target. Local services show connection details for app-provided services.</MutedText>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <Button type="button" onClick={() => setTemplateMode("input")}>Add input source</Button>
+          <Button type="button" variant="secondary" onClick={() => setTemplateMode("output")}>Add output target</Button>
+        </div>
+      </Card>
+
+      <LocalServicesCard capabilities={capabilities} />
+
+      {templateMode && (
+        <Modal title={templateMode === "input" ? "Add input source" : "Add output target"} onClose={() => setTemplateMode(null)}>
+          <DataSourceTemplates mode={templateMode} capabilities={capabilities} onSelect={applyTemplate} />
+        </Modal>
+      )}
 
       {formOpen && (
         <Modal title={editingSource ? "Edit device" : "Add device"} onClose={closeForm}>
@@ -177,7 +200,7 @@ export function DataSourcesPage() {
             busy={busy}
             submitLabel={editingSource ? "Save device" : "Add device"}
             onSubmit={() => run(async () => {
-              const input = { name, description, type, config: type === "webhook" ? { webhookToken: editingSource?.config.webhookToken } : type === "mqtt" ? { brokerUrl, topic } : type === "gpio-input" ? { chip: gpioChip, pin: Number(gpioPin), pull: gpioPull, edge: gpioEdge, debounceMs: Number(gpioDebounceMs), activeState: gpioActiveState } : type === "gpio-output" ? { chip: gpioChip, pin: Number(gpioPin), profile: "led" as const, activeState: gpioActiveState, initialState: "inactive" as const } : { url, method, healthStatusUrl: healthStatusUrl.trim() || undefined, headers: {} } };
+              const input = { name, description, type, config: type === "webhook" ? { webhookToken: editingSource?.config.webhookToken } : type === "mqtt" ? { brokerUrl, topic } : type === "mqtt-output" ? { brokerUrl, topic, qos: 0 as const, retain: false } : type === "http-output" ? { url, method: method === "GET" ? "POST" as const : method, headers: {}, timeoutMs: 5000 } : type === "gpio-input" ? { chip: gpioChip, pin: Number(gpioPin), pull: gpioPull, edge: gpioEdge, debounceMs: Number(gpioDebounceMs), activeState: gpioActiveState } : type === "gpio-output" ? { chip: gpioChip, pin: Number(gpioPin), profile: "led" as const, activeState: gpioActiveState, initialState: "inactive" as const } : { url, method: method === "PUT" || method === "PATCH" ? "POST" as const : method, healthStatusUrl: healthStatusUrl.trim() || undefined, headers: {} } };
               if (editingSource) await updateDataSource(editingSource.id, input);
               else await createDataSource(input);
               setFormOpen(false);

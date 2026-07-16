@@ -73,5 +73,9 @@ export const env = {
   minimaHealthPollIntervalSeconds: Number(process.env.MINIMA_HEALTH_POLL_INTERVAL_SECONDS ?? 60),
   minimaStallBlockAgeSeconds: Number(process.env.MINIMA_STALL_BLOCK_AGE_SECONDS ?? 300),
   minimaAutoResync: process.env.MINIMA_AUTO_RESYNC === "true",
-  minimaAutoResyncCooldownMinutes: Number(process.env.MINIMA_AUTO_RESYNC_COOLDOWN_MINUTES ?? 30)
+  minimaAutoResyncCooldownMinutes: Number(process.env.MINIMA_AUTO_RESYNC_COOLDOWN_MINUTES ?? 30),
+  mqttBrokerEnabled: process.env.ENABLE_MQTT_BROKER === "true",
+  mqttPublicHost: process.env.MQTT_PUBLIC_HOST ?? "",
+  mqttPublicPort: Number(process.env.MQTT_PUBLIC_PORT ?? 1883),
+  mqttInternalUrl: process.env.MQTT_INTERNAL_URL ?? "mqtt://mqtt:1883"
 };

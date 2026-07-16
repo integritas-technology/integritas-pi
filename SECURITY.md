@@ -14,7 +14,7 @@ Follow these when deploying, operating, or contributing to this project:
 - Never commit `.env`, `APP_SECRET`, Integritas API keys, or any other credential to version control.
 - Never add a generic Minima command proxy or arbitrary shell execution path. Expose only narrow, allowlisted, validated actions.
 - Never return secrets, password hashes, TOTP secrets, or raw session tokens from an API response.
-- Treat Docker socket access, GPIO device access, and host file mounts as high-privilege capabilities — keep them opt-in, admin-gated, and off by default wherever possible.
+- Treat Docker socket access, GPIO device access, local MQTT broker exposure, and host file mounts as high-privilege capabilities — keep them opt-in, admin-gated, and off by default wherever possible.
 - Preserve `APP_SECRET` across upgrades; losing it makes stored encrypted secrets unrecoverable.
 - Pin dependency and image versions before any production-like deployment; avoid mutable tags such as `:dev`.
 

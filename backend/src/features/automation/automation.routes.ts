@@ -334,7 +334,7 @@ function validateBlockConfig(type: AutomationBlockType, config: Record<string, u
     if (type === "gpio_event_start" && source.type !== "gpio-input") throw new Error("GPIO start requires a GPIO input source");
     if (type === "webhook_event_start" && source.type !== "webhook") throw new Error("Webhook start requires a webhook source");
     if (type === "mqtt_event_start" && source.type !== "mqtt") throw new Error("MQTT start requires an MQTT source");
-    if (type === "fetch_data_source" && (source.type === "gpio-input" || source.type === "gpio-output" || source.type === "webhook" || source.type === "mqtt")) throw new Error("Fetch block requires an HTTP JSON source");
+    if (type === "fetch_data_source" && (source.type === "gpio-input" || source.type === "gpio-output" || source.type === "webhook" || source.type === "mqtt" || source.type === "http-output" || source.type === "mqtt-output")) throw new Error("Fetch block requires an HTTP JSON source");
     return;
   }
 
@@ -359,13 +359,20 @@ function validateBlockConfig(type: AutomationBlockType, config: Record<string, u
   if (type === "control_output") {
     const targetId = typeof config.targetId === "string" ? config.targetId : "";
     const target = getDataSource(targetId);
-    if (!target || target.type !== "gpio-output") throw new Error("Control output requires a GPIO output target");
-    const targetConfig = parseGpioOutputConfig(JSON.parse(target.config) as unknown);
-    if (targetConfig.profile !== "led") throw new Error("Only LED output targets are supported");
-    if (config.action !== "pulse") throw new Error("Only pulse output actions are supported");
-    const durationMs = Number(config.durationMs);
-    if (!Number.isFinite(durationMs) || durationMs < 1 || durationMs > 60000) throw new Error("Pulse duration must be between 1 and 60000 ms");
-    config.durationMs = durationMs;
+    if (!target || !isOutputTarget(target.type)) throw new Error("Control output requires an output target");
+    if (target.type === "gpio-output") {
+      const targetConfig = parseGpioOutputConfig(JSON.parse(target.config) as unknown);
+      if (targetConfig.profile !== "led") throw new Error("Only LED output targets are supported");
+      if (config.action !== "pulse") throw new Error("GPIO output action must be pulse");
+      const durationMs = Number(config.durationMs);
+      if (!Number.isFinite(durationMs) || durationMs < 1 || durationMs > 60000) throw new Error("Pulse duration must be between 1 and 60000 ms");
+      config.durationMs = durationMs;
+      return;
+    }
+    if (target.type === "http-output" && config.action !== "send_request") throw new Error("HTTP output action must be send_request");
+    if (target.type === "mqtt-output" && config.action !== "publish") throw new Error("MQTT output action must be publish");
+    validateOutputBodyConfig(config, target.type);
+    delete config.durationMs;
     return;
   }
 
@@ -427,6 +434,29 @@ function isAutomationBlockType(type: string): type is AutomationBlockType {
     || type === "stamp_integritas"
     || type === "control_output"
     || type === "send_transaction";
+}
+
+function isOutputTarget(type: string) {
+  return type === "gpio-output" || type === "http-output" || type === "mqtt-output";
+}
+
+function validateOutputBodyConfig(config: Record<string, unknown>, targetType: string) {
+  const bodyMode = typeof config.bodyMode === "string" ? config.bodyMode : "workflow_context";
+  if (bodyMode !== "custom" && bodyMode !== "workflow_context" && bodyMode !== "trigger_payload" && bodyMode !== "latest_data" && bodyMode !== "none") throw new Error("Output body mode is invalid");
+  if (targetType === "mqtt-output" && bodyMode === "none") throw new Error("MQTT output requires a message body");
+  config.bodyMode = bodyMode;
+  if (bodyMode === "custom") {
+    const text = typeof config.bodyTemplateText === "string" ? config.bodyTemplateText : JSON.stringify(config.bodyTemplate ?? {});
+    try {
+      JSON.parse(text) as unknown;
+    } catch {
+      throw new Error("Custom output body must be valid JSON");
+    }
+    config.bodyTemplateText = text;
+  } else {
+    delete config.bodyTemplateText;
+    delete config.bodyTemplate;
+  }
 }
 
 function isPositiveDecimal(value: string) {

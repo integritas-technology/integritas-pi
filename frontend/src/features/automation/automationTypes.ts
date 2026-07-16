@@ -45,12 +45,15 @@ export type AutomationBlock = {
   config: {
     sourceId?: string;
     targetId?: string;
-    action?: "pulse";
+    action?: "pulse" | "send_request" | "publish";
     recipientAddressBookId?: string;
     tokenId?: "0x00";
     amount?: string;
     intervalSeconds?: number;
     durationMs?: number;
+    bodyMode?: "custom" | "workflow_context" | "trigger_payload" | "latest_data" | "none";
+    bodyTemplateText?: string;
+    bodyTemplate?: unknown;
     activeOnly?: boolean;
     source?: "trigger" | "data";
     fieldPath?: string;

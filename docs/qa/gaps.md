@@ -149,6 +149,27 @@ Shipped features with open QA, security, and test gaps. Close P0 items (or docum
 
 ---
 
+## Device I/O And Local MQTT
+
+### P0
+
+- [ ] **DEVICE-IO-01 Pi/LAN E2E** — Verify HTTP/API output, MQTT output, MQTT input through the optional local broker, and GPIO output on a Raspberry Pi or representative LAN setup.
+- [ ] **DEVICE-IO-02 Dependency audit** — `npm run check` currently reaches audit and reports backend advisories for `multer`, transitive `tar` via `@mapbox/node-pre-gyp`, and frontend/dev `esbuild`; decide update vs accepted prototype risk.
+- [ ] **DEVICE-IO-03 CLI shell syntax** — `bash -n bin/integritas-pi` fails on this workspace because the file has CRLF line endings; normalize before relying on shell verification.
+
+### P1
+
+- [ ] **DEVICE-IO-04 MQTT broker auth** — Add username/password support for the optional local broker before production use.
+- [ ] **DEVICE-IO-05 MQTT broker hardening** — Add TLS/certificate options, topic ACLs, and LAN bind controls before production use.
+- [ ] **DEVICE-IO-06 Output egress controls** — Add broker/URL allowlists and per-target rate limits for HTTP/API and MQTT output targets.
+- [ ] **DEVICE-IO-07 Secret/header handling** — Add safe storage/redaction before exposing custom HTTP output headers or credentials in the UI.
+
+### P2
+
+- [ ] **DEVICE-IO-08 Dynamic output payload templates** — Add variable interpolation and explicit redaction rules if richer HTTP/MQTT output payload shaping is needed beyond the current body modes.
+
+---
+
 ## Cross-cutting doc debt
 
 These are not code gaps but stale docs that confuse QA:
