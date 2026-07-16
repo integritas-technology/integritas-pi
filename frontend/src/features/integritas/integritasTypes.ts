@@ -2,7 +2,7 @@ export type IntegritasApiKeyCheck = {
   configured: boolean;
   valid: boolean;
   checkedAt: string;
-  apiKeySource: "database" | "environment" | "none";
+  apiKeySource: "connect" | "database" | "environment" | "none";
   error?: string;
   errorCode?: string;
 };

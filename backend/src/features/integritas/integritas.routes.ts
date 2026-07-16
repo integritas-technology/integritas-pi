@@ -6,7 +6,6 @@ import { requireRole } from "../auth/auth.middleware.js";
 import { validateIntegritasApiKey } from "../auth/integritas-validation.service.js";
 import { sha3HashHex } from "../../shared/crypto.js";
 import { deleteIntegritasApiKey, getIntegritasApiKey, integritasApiKeySource, saveIntegritasApiKey } from "../settings/secrets.service.js";
-import { env } from "../../config/env.js";
 import { createProofRecord, deleteProofRecords, getProofRecord, listProofRecords, countProofRecords, countPollablePendingProofRecords, PROOF_LIST_STATUSES, updateVerifyResponse } from "./integritas.repository.js";
 import { pollPendingProofRecords } from "./integritas-poll.service.js";
 import { getIntegritasConfig, hashCanonicalBytes, parseProofPayload, pollProofStatus, refreshProofRecord, requestProofUid, sha3HashFile, verifyProof, writeProofExport } from "./integritas.service.js";
@@ -90,13 +89,13 @@ integritasRouter.post("/api-key", requireRole("admin"), async (req, res) => {
 
   saveIntegritasApiKey(apiKey);
   recordAuditEvent("integritas_api_key.save", { userId: req.user?.id, detail: "via integritas page" });
-  return res.json({ hasApiKey: true, apiKeySource: "database" });
+  return res.json({ hasApiKey: true, apiKeySource: integritasApiKeySource() });
 });
 
 integritasRouter.delete("/api-key", requireRole("admin"), (req, res) => {
   deleteIntegritasApiKey();
   recordAuditEvent("integritas_api_key.delete", { userId: req.user?.id });
-  res.json({ hasApiKey: Boolean(env.integritasApiKeyFallback), apiKeySource: env.integritasApiKeyFallback ? "environment" : "none" });
+  res.json({ hasApiKey: Boolean(getIntegritasApiKey()), apiKeySource: integritasApiKeySource() });
 });
 
 integritasRouter.post("/hash", (req, res) => {

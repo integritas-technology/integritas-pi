@@ -1,5 +1,7 @@
 import { env } from "../../config/env.js";
 import { decryptSecret, encryptSecret, type EncryptedSecret } from "../../shared/crypto.js";
+import { decryptIntegritasToken } from "../integritas-auth/integritas-auth-crypto.service.js";
+import { getIntegritasAuth } from "../integritas-auth/integritas-auth.repository.js";
 import { deleteSetting, getSetting, saveSetting } from "./settings.repository.js";
 
 const integritasApiKeySetting = "integritas_api_key";
@@ -24,11 +26,24 @@ export function getStoredIntegritasApiKey() {
   }
 }
 
+export function getConnectedIntegritasApiKey() {
+  const encryptedValue = getIntegritasAuth()?.api_key_enc;
+  if (!encryptedValue) return "";
+
+  try {
+    return decryptIntegritasToken(encryptedValue);
+  } catch {
+    console.error("Failed to decrypt Integritas Connect API key");
+    return "";
+  }
+}
+
 export function getIntegritasApiKey() {
-  return getStoredIntegritasApiKey() || env.integritasApiKeyFallback;
+  return getConnectedIntegritasApiKey() || getStoredIntegritasApiKey() || env.integritasApiKeyFallback;
 }
 
 export function integritasApiKeySource() {
+  if (getConnectedIntegritasApiKey()) return "connect";
   if (getStoredIntegritasApiKey()) return "database";
   if (env.integritasApiKeyFallback) return "environment";
   return "none";

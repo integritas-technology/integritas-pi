@@ -73,7 +73,7 @@ export type MinimaRestartResult = {
   service: string;
   containerId: string;
 };
-export type IntegritasConfig = { baseUrl: string; requestId: string; hasApiKey: boolean; apiKeySource: "database" | "environment" | "none"; portalUrl: string };
+export type IntegritasConfig = { baseUrl: string; requestId: string; hasApiKey: boolean; apiKeySource: "connect" | "database" | "environment" | "none"; portalUrl: string };
 export type StatusOverview = {
   generatedAt: string;
   services: Array<{ name: string; ok: boolean; status: string; details?: unknown; error?: string }>;

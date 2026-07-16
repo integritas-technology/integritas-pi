@@ -16,6 +16,7 @@ Follow these when deploying, operating, or contributing to this project:
 - Never return secrets, password hashes, TOTP secrets, or raw session tokens from an API response.
 - Treat Docker socket access, GPIO device access, and host file mounts as high-privilege capabilities — keep them opt-in, admin-gated, and off by default wherever possible.
 - Preserve `APP_SECRET` across upgrades; losing or changing it makes stored encrypted secrets unrecoverable. For Integritas Connect, the Pi detects decrypt failure, clears the local link (`TOKEN_DECRYPT_FAILED`), and requires reconnect — it does not revoke the device on Connect as revoking requires secret tokens.
+- Integritas core calls prefer the Connect account API key decrypted in backend memory. Manually saved and environment API keys remain backend-only fallbacks and are never returned to the browser.
 - Pin dependency and image versions before any production-like deployment; avoid mutable tags such as `:dev`.
 
 The detailed risk register — specific risks, current controls, and mitigation plans by area — is maintained separately and kept current as the system changes.
