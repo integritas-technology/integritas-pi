@@ -371,6 +371,7 @@ function validateBlockConfig(type: AutomationBlockType, config: Record<string, u
     }
     if (target.type === "http-output" && config.action !== "send_request") throw new Error("HTTP output action must be send_request");
     if (target.type === "mqtt-output" && config.action !== "publish") throw new Error("MQTT output action must be publish");
+    validateOutputBodyConfig(config, target.type);
     delete config.durationMs;
     return;
   }
@@ -437,6 +438,25 @@ function isAutomationBlockType(type: string): type is AutomationBlockType {
 
 function isOutputTarget(type: string) {
   return type === "gpio-output" || type === "http-output" || type === "mqtt-output";
+}
+
+function validateOutputBodyConfig(config: Record<string, unknown>, targetType: string) {
+  const bodyMode = typeof config.bodyMode === "string" ? config.bodyMode : "workflow_context";
+  if (bodyMode !== "custom" && bodyMode !== "workflow_context" && bodyMode !== "trigger_payload" && bodyMode !== "latest_data" && bodyMode !== "none") throw new Error("Output body mode is invalid");
+  if (targetType === "mqtt-output" && bodyMode === "none") throw new Error("MQTT output requires a message body");
+  config.bodyMode = bodyMode;
+  if (bodyMode === "custom") {
+    const text = typeof config.bodyTemplateText === "string" ? config.bodyTemplateText : JSON.stringify(config.bodyTemplate ?? {});
+    try {
+      JSON.parse(text) as unknown;
+    } catch {
+      throw new Error("Custom output body must be valid JSON");
+    }
+    config.bodyTemplateText = text;
+  } else {
+    delete config.bodyTemplateText;
+    delete config.bodyTemplate;
+  }
 }
 
 function isPositiveDecimal(value: string) {

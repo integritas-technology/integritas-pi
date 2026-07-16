@@ -13,7 +13,7 @@ export const inputTemplates: DataSourceTemplate[] = [
 
 export const outputTemplates: DataSourceTemplate[] = [
   { title: "GPIO Output", description: "LED output target controlled by automation workflows", type: "gpio-output", config: { chip: "gpiochip0", pin: 18, profile: "led", activeState: "high", initialState: "inactive" } },
-  { title: "HTTP/API Output", description: "Send JSON commands to an HTTP endpoint from automation workflows", type: "http-output", config: { url: "https://example.com/device/command", method: "POST", headers: {}, timeoutMs: 5000 } },
+  { title: "HTTP/API Output", description: "Send commands to an HTTP endpoint from automation workflows", type: "http-output", config: { url: "https://example.com/device/command", method: "POST", headers: {}, timeoutMs: 5000 } },
   { title: "MQTT Output", description: "Publish JSON commands to a broker topic from automation workflows", type: "mqtt-output", config: { brokerUrl: "mqtt://localhost:1883", topic: "devices/example/set", qos: 0, retain: false } }
 ];
 

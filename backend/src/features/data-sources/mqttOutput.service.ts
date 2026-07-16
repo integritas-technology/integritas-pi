@@ -8,8 +8,7 @@ export async function publishMqttOutput(input: { targetId: string; payload: unkn
   if (source.type !== "mqtt-output") throw new Error("Control output block requires an MQTT output target");
 
   const config = parseMqttOutputConfig(JSON.parse(source.config) as unknown);
-  const payload = config.payloadTemplate === undefined ? input.payload : config.payloadTemplate;
-  const body = JSON.stringify(payload);
+  const body = JSON.stringify(input.payload);
 
   await new Promise<void>((resolve, reject) => {
     const client = mqtt.connect(config.brokerUrl, { reconnectPeriod: 0, connectTimeout: 5000 });

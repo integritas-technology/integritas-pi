@@ -52,7 +52,7 @@ export function DataSourceForm({ template, name, setName, description, setDescri
         <>
           <label>URL<input value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://example.com/device/command" /></label>
           <label>Method<select value={method === "GET" ? "POST" : method} onChange={(event) => setMethod(event.target.value as "POST" | "PUT" | "PATCH")}><option value="POST">POST</option><option value="PUT">PUT</option><option value="PATCH">PATCH</option></select></label>
-          <MutedText>Automation workflows send JSON payloads to this endpoint.</MutedText>
+          <MutedText>Set the request body in each workflow's Control device block so this target can be reused by different workflows.</MutedText>
         </>
       ) : (
         <>

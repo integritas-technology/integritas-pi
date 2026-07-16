@@ -142,12 +142,13 @@ Current Controls:
 - MQTT output target creation/editing requires admin role.
 - Output actions are allowlisted workflow blocks, not arbitrary shell commands.
 - MQTT output publishes JSON only to the saved broker/topic.
-- The default MQTT output action sends workflow context, not raw secrets such as passwords, session cookies, Integritas API keys, or wallet seed phrases.
+- MQTT output payloads are selected per workflow block: custom JSON, workflow context, trigger payload, or latest data.
+- Output payloads must not include raw secrets such as passwords, session cookies, Integritas API keys, or wallet seed phrases.
 
 Plan:
 
 - Add broker allowlists, credentials/secrets handling, TLS/certificate options, and per-target rate limits before production use.
-- Add operator-controlled payload templates with explicit redaction rules if richer payload shaping is needed.
+- Add dynamic payload templating with explicit redaction rules if richer payload shaping is needed.
 
 Status: Accepted prototype risk.
 
@@ -184,6 +185,7 @@ Current Controls:
 - Output actions are allowlisted workflow blocks, not arbitrary shell commands.
 - Supported methods are limited to `POST`, `PUT`, and `PATCH`.
 - Requests use JSON bodies and bounded timeouts.
+- Request bodies are selected per workflow block: custom JSON, workflow context, trigger payload, latest data, or no body.
 
 Plan:
 

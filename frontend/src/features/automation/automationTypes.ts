@@ -51,6 +51,9 @@ export type AutomationBlock = {
     amount?: string;
     intervalSeconds?: number;
     durationMs?: number;
+    bodyMode?: "custom" | "workflow_context" | "trigger_payload" | "latest_data" | "none";
+    bodyTemplateText?: string;
+    bodyTemplate?: unknown;
     activeOnly?: boolean;
     source?: "trigger" | "data";
     fieldPath?: string;

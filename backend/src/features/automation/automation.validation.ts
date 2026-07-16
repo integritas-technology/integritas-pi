@@ -40,6 +40,9 @@ export type BlockConfig = {
   targetId?: string;
   action?: string;
   durationMs?: number;
+  bodyMode?: string;
+  bodyTemplateText?: string;
+  bodyTemplate?: unknown;
   source?: "trigger" | "data";
   fieldPath?: string;
   operator?: string;
@@ -174,6 +177,7 @@ function validateBlockReference(block: ValidationBlock, config: BlockConfig, iss
     }
     if (target.type === "http-output") addIssue(issues, "warning", "control_output.http", "Control output sends an HTTP request to the configured target when this workflow runs.", block);
     if (target.type === "mqtt-output") addIssue(issues, "warning", "control_output.mqtt", "Control output publishes an MQTT message to the configured broker/topic when this workflow runs.", block);
+    validateOutputBodyConfig(block, config, target.type, issues);
   }
 
   if (block.type === "send_transaction") {
@@ -187,6 +191,23 @@ function validateBlockReference(block: ValidationBlock, config: BlockConfig, iss
 
 function isOutputTarget(type: string) {
   return type === "gpio-output" || type === "http-output" || type === "mqtt-output";
+}
+
+function validateOutputBodyConfig(block: ValidationBlock, config: BlockConfig, targetType: string, issues: AutomationValidationIssue[]) {
+  if (targetType !== "http-output" && targetType !== "mqtt-output") return;
+  const bodyMode = String(config.bodyMode ?? "workflow_context");
+  if (bodyMode !== "custom" && bodyMode !== "workflow_context" && bodyMode !== "trigger_payload" && bodyMode !== "latest_data" && bodyMode !== "none") {
+    addIssue(issues, "error", "control_output.invalid_body_mode", "Output body mode is invalid.", block);
+  }
+  if (targetType === "mqtt-output" && bodyMode === "none") addIssue(issues, "error", "control_output.mqtt_body_required", "MQTT output requires a message payload.", block);
+  if (bodyMode === "custom") {
+    const text = typeof config.bodyTemplateText === "string" ? config.bodyTemplateText : JSON.stringify(config.bodyTemplate ?? {});
+    try {
+      JSON.parse(text) as unknown;
+    } catch {
+      addIssue(issues, "error", "control_output.invalid_custom_body", "Custom output body must be valid JSON.", block);
+    }
+  }
 }
 
 async function validateTransactionBalances(blocks: ValidationBlock[], issues: AutomationValidationIssue[]) {

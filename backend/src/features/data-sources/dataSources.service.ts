@@ -24,7 +24,6 @@ export type HttpOutputConfig = {
   url: string;
   method: "POST" | "PUT" | "PATCH";
   headers?: Record<string, string>;
-  bodyTemplate?: unknown;
   timeoutMs?: number;
 };
 
@@ -33,7 +32,6 @@ export type MqttOutputConfig = {
   topic: string;
   qos: 0 | 1;
   retain: boolean;
-  payloadTemplate?: unknown;
 };
 
 export type GpioInputConfig = {
@@ -118,7 +116,7 @@ export function parseHttpOutputConfig(value: unknown): HttpOutputConfig {
   if (!url) throw new Error("config.url is required");
   if (!Number.isFinite(timeoutMs) || timeoutMs < 100 || timeoutMs > 60000) throw new Error("config.timeoutMs must be between 100 and 60000");
 
-  return { url, method, headers, bodyTemplate: config?.bodyTemplate, timeoutMs };
+  return { url, method, headers, timeoutMs };
 }
 
 export function parseMqttOutputConfig(value: unknown): MqttOutputConfig {
@@ -131,7 +129,7 @@ export function parseMqttOutputConfig(value: unknown): MqttOutputConfig {
   if (!brokerUrl) throw new Error("config.brokerUrl is required");
   if (!topic) throw new Error("config.topic is required");
 
-  return { brokerUrl, topic, qos, retain, payloadTemplate: config?.payloadTemplate };
+  return { brokerUrl, topic, qos, retain };
 }
 
 export function parseGpioInputConfig(value: unknown): GpioInputConfig {
@@ -198,15 +196,14 @@ export async function readJsonApiSource(config: JsonApiConfig) {
   return { contentType: "application/json", bytesHash: sha3HashHex(canonical), canonicalBytes: canonical, preview: json, fetchedAt: new Date().toISOString() };
 }
 
-export async function sendHttpOutput(config: HttpOutputConfig, payload: unknown) {
-  const body = config.bodyTemplate === undefined ? payload : config.bodyTemplate;
+export async function sendHttpOutput(config: HttpOutputConfig, payload: unknown, hasBody = true) {
   const { response, body: responseBody } = await fetchJsonWithTimeout(config.url, {
     method: config.method,
     headers: { ...config.headers, "Content-Type": "application/json" },
-    body: JSON.stringify(body)
+    body: hasBody ? JSON.stringify(payload) : undefined
   }, config.timeoutMs ?? 5000);
 
-  if (!response.ok) throw new Error(`HTTP output returned HTTP ${response.status}`);
+  if (!response.ok) throw new Error(`HTTP output returned HTTP ${response.status}${responseBody === null ? "" : `: ${JSON.stringify(responseBody)}`}`);
 
   return { targetUrl: config.url, method: config.method, status: response.status, response: responseBody, sentAt: new Date().toISOString() };
 }

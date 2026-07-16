@@ -500,17 +500,22 @@ function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChan
   if (block.type === "control_output") {
     const selectedOutput = outputTargets.find((source) => source.id === block.config.targetId);
     const selectedAction = selectedOutput?.type === "gpio-output" ? "pulse" : selectedOutput?.type === "http-output" ? "send_request" : selectedOutput?.type === "mqtt-output" ? "publish" : "pulse";
+    const selectedBodyTargetType = selectedOutput?.type === "http-output" || selectedOutput?.type === "mqtt-output" ? selectedOutput.type : null;
+    const bodyMode = block.config.bodyMode ?? "workflow_context";
     return (
       <Panel className={formGridClass}>
         <strong>Selected block</strong>
         <label>Output target<select value={block.config.targetId ?? ""} onChange={(event) => {
           const target = outputTargets.find((source) => source.id === event.target.value);
-          onChange({ targetId: event.target.value, action: outputActionForTarget(target), durationMs: target?.type === "gpio-output" ? block.config.durationMs ?? 500 : undefined });
+          onChange(defaultOutputBlockConfig(target, block.config.durationMs ?? 500));
         }}><option value="">Select output target...</option>{outputTargets.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>
         {selectedOutput?.type === "gpio-output" && <label>Pulse duration ms<input value={String(block.config.durationMs ?? 500)} inputMode="numeric" onChange={(event) => onChange({ ...block.config, action: "pulse", durationMs: Number(event.target.value) })} /></label>}
         {selectedOutput?.type === "gpio-output" && <p className={mutedText}>Selected device active state: <strong>{selectedOutput.config.activeState ?? "high"}</strong>. Use High for common GPIO to resistor to LED to GND wiring. Change this from Devices by editing the GPIO Output target.</p>}
-        {selectedOutput?.type === "http-output" && <p className={mutedText}>This block sends the workflow context as JSON to the selected HTTP/API output target.</p>}
-        {selectedOutput?.type === "mqtt-output" && <p className={mutedText}>This block publishes the workflow context as JSON to the selected MQTT output target.</p>}
+        {selectedBodyTargetType && <>
+          <label>{selectedBodyTargetType === "http-output" ? "Request body" : "Message payload"}<select value={bodyMode} onChange={(event) => onChange(outputBodyModeConfig(block.config, event.target.value as NonNullable<AutomationBlock["config"]["bodyMode"]>, selectedBodyTargetType))}>{outputBodyModes(selectedBodyTargetType).map((mode) => <option key={mode.value} value={mode.value}>{mode.label}</option>)}</select></label>
+          {bodyMode === "custom" && <label>Custom JSON<textarea rows={6} value={block.config.bodyTemplateText ?? defaultCustomBodyText()} onChange={(event) => onChange({ ...block.config, bodyMode: "custom", bodyTemplateText: event.target.value })} /></label>}
+          <p className={mutedText}>{bodyModeDescription(bodyMode, selectedBodyTargetType)}</p>
+        </>}
         {!selectedOutput && <p className={mutedText}>Choose a configured output target from Devices.</p>}
         {selectedAction === "pulse" && <p className={mutedText}>Verify resistor wiring and test pulse before enabling GPIO output workflows.</p>}
       </Panel>
@@ -583,7 +588,7 @@ function defaultDraftConfig(type: AutomationBlockType, sources: DataSource[], po
   if (type === "wait") return { durationMs: 1000 };
   if (type === "control_output") {
     const target = sources.find((source) => isOutputTarget(source));
-    return { targetId: target?.id ?? "", action: outputActionForTarget(target), durationMs: target?.type === "gpio-output" ? 500 : undefined };
+    return defaultOutputBlockConfig(target, 500);
   }
   if (type === "send_transaction") return { recipientAddressBookId: "", tokenId: "0x00", amount: "" };
   if (type === "stamp_integritas") return { condition: null };
@@ -1151,6 +1156,43 @@ function outputActionForTarget(source: DataSource | undefined) {
   if (source?.type === "http-output") return "send_request";
   if (source?.type === "mqtt-output") return "publish";
   return "pulse";
+}
+
+function defaultOutputBlockConfig(source: DataSource | undefined, durationMs: number): AutomationBlock["config"] {
+  if (source?.type === "gpio-output") return { targetId: source.id, action: "pulse", durationMs };
+  if (source?.type === "http-output") return { targetId: source.id, action: "send_request", bodyMode: "custom", bodyTemplateText: defaultCustomBodyText() };
+  if (source?.type === "mqtt-output") return { targetId: source.id, action: "publish", bodyMode: "workflow_context" };
+  return { targetId: "", action: "pulse", durationMs };
+}
+
+function outputBodyModeConfig(config: AutomationBlock["config"], bodyMode: NonNullable<AutomationBlock["config"]["bodyMode"]>, targetType: "http-output" | "mqtt-output"): AutomationBlock["config"] {
+  const next = { ...config, bodyMode };
+  if (bodyMode === "custom" && !next.bodyTemplateText) next.bodyTemplateText = defaultCustomBodyText();
+  if (bodyMode !== "custom") delete next.bodyTemplateText;
+  if (targetType === "mqtt-output" && bodyMode === "none") return { ...next, bodyMode: "workflow_context" };
+  return next;
+}
+
+function outputBodyModes(targetType: "http-output" | "mqtt-output") {
+  return [
+    { value: "custom", label: "Custom JSON" },
+    { value: "workflow_context", label: "Workflow context" },
+    { value: "trigger_payload", label: "Trigger payload" },
+    { value: "latest_data", label: "Latest data" },
+    ...(targetType === "http-output" ? [{ value: "none", label: "No body" }] : [])
+  ] as { value: NonNullable<AutomationBlock["config"]["bodyMode"]>; label: string }[];
+}
+
+function bodyModeDescription(bodyMode: AutomationBlock["config"]["bodyMode"], targetType: "http-output" | "mqtt-output") {
+  if (bodyMode === "custom") return targetType === "http-output" ? "Send exactly this JSON as the request body." : "Publish exactly this JSON as the message payload.";
+  if (bodyMode === "trigger_payload") return "Send only the event payload that started this workflow.";
+  if (bodyMode === "latest_data") return "Send the data recorded or fetched earlier in this workflow.";
+  if (bodyMode === "none") return "Send the request without a body.";
+  return "Send workflow trigger, data, output, hash, and proof references.";
+}
+
+function defaultCustomBodyText() {
+  return '{\n  "content": "Integritas Pi workflow triggered."\n}';
 }
 
 function formatInterval(seconds: number) {

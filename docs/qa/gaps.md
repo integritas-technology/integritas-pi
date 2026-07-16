@@ -166,7 +166,7 @@ Shipped features with open QA, security, and test gaps. Close P0 items (or docum
 
 ### P2
 
-- [ ] **DEVICE-IO-08 Output payload templates** — Add operator-controlled payload templates with explicit redaction rules if richer HTTP/MQTT output payload shaping is needed.
+- [ ] **DEVICE-IO-08 Dynamic output payload templates** — Add variable interpolation and explicit redaction rules if richer HTTP/MQTT output payload shaping is needed beyond the current body modes.
 
 ---
 

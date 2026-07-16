@@ -158,7 +158,6 @@ type HttpOutputConfig = {
   url: string;
   method: "POST" | "PUT" | "PATCH";
   headers?: Record<string, string>;
-  bodyTemplate?: unknown;
   timeoutMs?: number;
 };
 ```
@@ -169,7 +168,8 @@ Suggested workflow action config:
 {
   targetId: string;
   action: "send_request";
-  payload?: unknown;
+  bodyMode?: "custom" | "workflow_context" | "trigger_payload" | "latest_data" | "none";
+  bodyTemplateText?: string;
 }
 ```
 
@@ -193,7 +193,6 @@ type MqttOutputConfig = {
   topic: string;
   qos?: 0 | 1;
   retain?: boolean;
-  payloadTemplate?: unknown;
 };
 ```
 
@@ -203,7 +202,8 @@ Suggested workflow action config:
 {
   targetId: string;
   action: "publish";
-  payload?: unknown;
+  bodyMode?: "custom" | "workflow_context" | "trigger_payload" | "latest_data";
+  bodyTemplateText?: string;
 }
 ```
 
@@ -213,6 +213,7 @@ Initial constraints:
 - Default QoS to `0`.
 - Default retain to `false`.
 - Publish per workflow action and close the client after completion unless persistent clients become necessary.
+- Choose the message payload per workflow block, not on the shared output target.
 
 ## Backend Plan
 

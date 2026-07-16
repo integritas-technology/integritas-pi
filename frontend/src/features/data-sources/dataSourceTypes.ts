@@ -26,8 +26,6 @@ export type DataSource = {
     timeoutMs?: number;
     qos?: 0 | 1;
     retain?: boolean;
-    bodyTemplate?: unknown;
-    payloadTemplate?: unknown;
   };
   lastReadAt: string | null;
   lastError: string | null;
