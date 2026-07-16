@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - **Update service (V1)**: new `update-agent` container provides a manual "Update Now" flow for `frontend`, `backend`, and `minima`. Updates are driven by a signed manifest (Ed25519) built and published by a tag-triggered GitHub Actions release workflow, and applied only after the new container passes a health check; a failed update leaves the previous container running (or, for `minima`, restores its data directory and restarts the previous version).
+- **`update-agent` as a built image + self-update**: `update-agent` is now built and pushed by CI and tracked in the manifest like `frontend`/`backend`, instead of building from source on the Pi. It can also update itself through the same "Update Now" flow: a one-shot orchestrator container starts the new version, health-checks it, then retires the old container — a failed self-update just leaves the old container running.
 - The update UI is served at `https://<pi-ip>:8080/update`, proxied through the existing frontend nginx on the same origin/certificate — no extra browser certificate approval.
 - Real Docker `HEALTHCHECK`s for `frontend`/`backend` so update-agent's health-gated swap has real health data to act on, not just "is the container running".
 - Manifest replay/downgrade protection: manifests carry a signed `createdAt` timestamp; `update-agent` persists the last-applied timestamp (`UPDATE_AGENT_STATE_DIR`) and rejects any manifest strictly older than it.

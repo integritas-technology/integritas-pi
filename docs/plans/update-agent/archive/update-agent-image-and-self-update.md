@@ -1,6 +1,6 @@
 # update-agent as a built image + self-update
 
-**Status:** Not started.
+**Status:** Done. Both parts implemented and confirmed working end-to-end on a real Pi (version arrow + debug markers across frontend/backend/update-agent all correct after an update).
 **Created:** 2026-07-15
 **Related:** [update-agent-self-update.md](../../notes/update-agent-self-update.md) (the deferred note this plan resolves), archived [update-service.md](./archive/update-service.md) (original design — `update-agent` deliberately excluded from the manifest in V1)
 
