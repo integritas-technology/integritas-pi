@@ -13,12 +13,14 @@ DOCKER_GID_INPUT="${DOCKER_GID-}"
 ENABLE_GPIO_INPUT="${ENABLE_GPIO-}"
 GPIO_GID_INPUT="${GPIO_GID-}"
 MINIMA_DATA_DIR_INPUT="${MINIMA_DATA_DIR-}"
+UPDATE_AGENT_STATE_DIR_INPUT="${UPDATE_AGENT_STATE_DIR-}"
 MINIMA_P2P_PORT_INPUT="${MINIMA_P2P_PORT-}"
 MINIMA_RPC_BIND_INPUT="${MINIMA_RPC_BIND-}"
 MINIMA_RPC_PORT_INPUT="${MINIMA_RPC_PORT-}"
 INTEGRITAS_BASE_URL_INPUT="${INTEGRITAS_BASE_URL-}"
 INTEGRITAS_API_KEY_INPUT="${INTEGRITAS_API_KEY-}"
 INTEGRITAS_REQUEST_ID_INPUT="${INTEGRITAS_REQUEST_ID-}"
+MANIFEST_URL_INPUT="${MANIFEST_URL-}"
 HOST_FILES_DIR="${HOST_FILES_DIR:-/home/pi}"
 FRONTEND_PORT="${FRONTEND_PORT:-8080}"
 DATA_DIR="${DATA_DIR:-./data}"
@@ -27,12 +29,14 @@ DOCKER_GID="${DOCKER_GID:-}"
 ENABLE_GPIO="${ENABLE_GPIO:-false}"
 GPIO_GID="${GPIO_GID:-}"
 MINIMA_DATA_DIR="${MINIMA_DATA_DIR:-./minima}"
+UPDATE_AGENT_STATE_DIR="${UPDATE_AGENT_STATE_DIR:-./update-agent-state}"
 MINIMA_P2P_PORT="${MINIMA_P2P_PORT:-9003}"
 MINIMA_RPC_BIND="${MINIMA_RPC_BIND:-127.0.0.1}"
 MINIMA_RPC_PORT="${MINIMA_RPC_PORT:-9005}"
 INTEGRITAS_BASE_URL="${INTEGRITAS_BASE_URL:-https://integritas.technology/core}"
 INTEGRITAS_API_KEY="${INTEGRITAS_API_KEY:-}"
 INTEGRITAS_REQUEST_ID="${INTEGRITAS_REQUEST_ID:-integritas-pi}"
+MANIFEST_URL="${MANIFEST_URL:-https://integritas.technology/update-manifest/manifest.json}"
 
 APT_PACKAGES=(
   curl
@@ -129,6 +133,15 @@ prepare_runtime_directories() {
     ./*) mkdir -p "$APP_DIR/${MINIMA_DATA_DIR#./}" ;;
     *) mkdir -p "$APP_DIR/$MINIMA_DATA_DIR" ;;
   esac
+
+  local resolved_update_agent_state_dir
+  case "$UPDATE_AGENT_STATE_DIR" in
+    /*) resolved_update_agent_state_dir="$UPDATE_AGENT_STATE_DIR" ;;
+    ./*) resolved_update_agent_state_dir="$APP_DIR/${UPDATE_AGENT_STATE_DIR#./}" ;;
+    *) resolved_update_agent_state_dir="$APP_DIR/$UPDATE_AGENT_STATE_DIR" ;;
+  esac
+  mkdir -p "$resolved_update_agent_state_dir"
+  chown -R 1000:1000 "$resolved_update_agent_state_dir"
 }
 
 load_existing_config() {
@@ -150,12 +163,14 @@ load_existing_config() {
   ENABLE_GPIO="${ENABLE_GPIO_INPUT:-${ENABLE_GPIO:-false}}"
   GPIO_GID="${GPIO_GID_INPUT:-${GPIO_GID:-}}"
   MINIMA_DATA_DIR="${MINIMA_DATA_DIR_INPUT:-${MINIMA_DATA_DIR:-./minima}}"
+  UPDATE_AGENT_STATE_DIR="${UPDATE_AGENT_STATE_DIR_INPUT:-${UPDATE_AGENT_STATE_DIR:-./update-agent-state}}"
   MINIMA_P2P_PORT="${MINIMA_P2P_PORT_INPUT:-${MINIMA_P2P_PORT:-9003}}"
   MINIMA_RPC_BIND="${MINIMA_RPC_BIND_INPUT:-${MINIMA_RPC_BIND:-127.0.0.1}}"
   MINIMA_RPC_PORT="${MINIMA_RPC_PORT_INPUT:-${MINIMA_RPC_PORT:-9005}}"
   INTEGRITAS_BASE_URL="${INTEGRITAS_BASE_URL_INPUT:-${INTEGRITAS_BASE_URL:-https://integritas.technology/core}}"
   INTEGRITAS_API_KEY="${INTEGRITAS_API_KEY_INPUT:-${INTEGRITAS_API_KEY:-}}"
   INTEGRITAS_REQUEST_ID="${INTEGRITAS_REQUEST_ID_INPUT:-${INTEGRITAS_REQUEST_ID:-integritas-pi}}"
+  MANIFEST_URL="${MANIFEST_URL_INPUT:-${MANIFEST_URL:-https://integritas.technology/update-manifest/manifest.json}}"
 }
 
 ensure_app_secret() {
@@ -220,38 +235,102 @@ download_app() {
   local tmp_dir
   local protected_minima_dir
   local protected_sqlite_dir
+  local protected_update_agent_state_dir
+  local find_args=("$APP_DIR" -mindepth 1 -maxdepth 1 ! -name ".env")
   tmp_dir="$(mktemp -d)"
   protected_minima_dir="$(relative_top_level_dir "$MINIMA_DATA_DIR")"
   protected_sqlite_dir="$(relative_top_level_dir "$DATA_DIR")"
+  protected_update_agent_state_dir="$(relative_top_level_dir "$UPDATE_AGENT_STATE_DIR")"
 
   log "Downloading $APP_REPO_URL ($APP_BRANCH)"
   git clone --depth 1 --branch "$APP_BRANCH" "$APP_REPO_URL" "$tmp_dir"
 
   rm -rf "$APP_DIR/.git" "$APP_DIR/backend" "$APP_DIR/frontend"
-  if [ -n "$protected_minima_dir" ] && [ -n "$protected_sqlite_dir" ]; then
-    find "$APP_DIR" -mindepth 1 -maxdepth 1 \
-      ! -name ".env" \
-      ! -name "$protected_minima_dir" \
-      ! -name "$protected_sqlite_dir" \
-      -exec rm -rf {} +
-  elif [ -n "$protected_minima_dir" ]; then
-    find "$APP_DIR" -mindepth 1 -maxdepth 1 \
-      ! -name ".env" \
-      ! -name "$protected_minima_dir" \
-      -exec rm -rf {} +
-  elif [ -n "$protected_sqlite_dir" ]; then
-    find "$APP_DIR" -mindepth 1 -maxdepth 1 \
-      ! -name ".env" \
-      ! -name "$protected_sqlite_dir" \
-      -exec rm -rf {} +
-  else
-    find "$APP_DIR" -mindepth 1 -maxdepth 1 \
-      ! -name ".env" \
-      -exec rm -rf {} +
-  fi
+  [ -n "$protected_minima_dir" ] && find_args+=(! -name "$protected_minima_dir")
+  [ -n "$protected_sqlite_dir" ] && find_args+=(! -name "$protected_sqlite_dir")
+  [ -n "$protected_update_agent_state_dir" ] && find_args+=(! -name "$protected_update_agent_state_dir")
+  find_args+=(-exec rm -rf {} +)
+  find "${find_args[@]}"
 
   cp -a "$tmp_dir/." "$APP_DIR/"
   rm -rf "$tmp_dir"
+}
+
+fetch_manifest_field() {
+  local manifest_file="$1"
+  local field="$2"
+  grep -o "\"${field}\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$manifest_file" \
+    | head -n1 \
+    | sed -E 's/.*:[[:space:]]*"([^"]*)"$/\1/'
+}
+
+fetch_and_verify_manifest() {
+  if [ -z "$MANIFEST_URL" ]; then
+    echo "MANIFEST_URL is not set. Set it in .env or pass MANIFEST_URL=<url> to this installer."
+    exit 1
+  fi
+
+  local public_key_file="$APP_DIR/update-agent/manifest-public-key.pem"
+  if [ ! -f "$public_key_file" ]; then
+    echo "Manifest public key not found at $public_key_file"
+    exit 1
+  fi
+
+  log "Fetching update manifest from $MANIFEST_URL"
+
+  local manifest_file="$APP_DIR/.manifest.json"
+  local signature_file="$APP_DIR/.manifest.json.sig"
+  local signature_bin="$APP_DIR/.manifest.json.sig.bin"
+
+  curl -fsSL "$MANIFEST_URL" -o "$manifest_file"
+  curl -fsSL "${MANIFEST_URL}.sig" -o "$signature_file"
+
+  base64 -d "$signature_file" > "$signature_bin"
+
+  if ! openssl pkeyutl -verify -pubin -inkey "$public_key_file" -rawin -in "$manifest_file" -sigfile "$signature_bin" >/dev/null 2>&1; then
+    echo "Manifest signature verification failed. Refusing to install untrusted images."
+    rm -f "$manifest_file" "$signature_file" "$signature_bin"
+    exit 1
+  fi
+
+  FRONTEND_IMAGE="$(fetch_manifest_field "$manifest_file" frontend)"
+  BACKEND_IMAGE="$(fetch_manifest_field "$manifest_file" backend)"
+  UPDATE_AGENT_IMAGE="$(fetch_manifest_field "$manifest_file" updateAgent)"
+  MANIFEST_VERSION="$(fetch_manifest_field "$manifest_file" version)"
+  MANIFEST_CREATED_AT="$(fetch_manifest_field "$manifest_file" createdAt)"
+
+  rm -f "$manifest_file" "$signature_file" "$signature_bin"
+
+  if [ -z "$FRONTEND_IMAGE" ] || [ -z "$BACKEND_IMAGE" ] || [ -z "$UPDATE_AGENT_IMAGE" ]; then
+    echo "Manifest is missing frontend, backend, or update-agent image digest."
+    exit 1
+  fi
+
+  log "Manifest verified. frontend=$FRONTEND_IMAGE backend=$BACKEND_IMAGE update-agent=$UPDATE_AGENT_IMAGE"
+}
+
+record_applied_manifest() {
+  if [ -z "$MANIFEST_VERSION" ] || [ -z "$MANIFEST_CREATED_AT" ]; then
+    echo "Manifest is missing version or createdAt; skipping last-applied-manifest.json write."
+    return
+  fi
+
+  local resolved_update_agent_state_dir
+  case "$UPDATE_AGENT_STATE_DIR" in
+    /*) resolved_update_agent_state_dir="$UPDATE_AGENT_STATE_DIR" ;;
+    ./*) resolved_update_agent_state_dir="$APP_DIR/${UPDATE_AGENT_STATE_DIR#./}" ;;
+    *) resolved_update_agent_state_dir="$APP_DIR/$UPDATE_AGENT_STATE_DIR" ;;
+  esac
+
+  mkdir -p "$resolved_update_agent_state_dir"
+  cat > "$resolved_update_agent_state_dir/last-applied-manifest.json" <<EOF
+{
+  "createdAt": "$MANIFEST_CREATED_AT",
+  "version": "$MANIFEST_VERSION"
+}
+EOF
+  chown -R 1000:1000 "$resolved_update_agent_state_dir"
+  log "Recorded last-applied-manifest.json (version=$MANIFEST_VERSION)"
 }
 
 write_env_file() {
@@ -265,6 +344,7 @@ DOCKER_GID=$DOCKER_GID
 ENABLE_GPIO=$ENABLE_GPIO
 GPIO_GID=$GPIO_GID
 MINIMA_DATA_DIR=$MINIMA_DATA_DIR
+UPDATE_AGENT_STATE_DIR=$UPDATE_AGENT_STATE_DIR
 MINIMA_P2P_PORT=$MINIMA_P2P_PORT
 MINIMA_RPC_BIND=$MINIMA_RPC_BIND
 MINIMA_RPC_PORT=$MINIMA_RPC_PORT
@@ -272,6 +352,10 @@ INTEGRITAS_BASE_URL=$INTEGRITAS_BASE_URL
 INTEGRITAS_API_KEY=$INTEGRITAS_API_KEY
 INTEGRITAS_REQUEST_ID=$INTEGRITAS_REQUEST_ID
 COOKIE_SECURE=true
+MANIFEST_URL=$MANIFEST_URL
+FRONTEND_IMAGE=$FRONTEND_IMAGE
+BACKEND_IMAGE=$BACKEND_IMAGE
+UPDATE_AGENT_IMAGE=$UPDATE_AGENT_IMAGE
 EOF
 }
 
@@ -319,7 +403,8 @@ generate_tls_cert() {
 start_app() {
   log "Starting Docker services"
   cd "$APP_DIR"
-  docker compose up -d --build
+  docker compose pull frontend backend
+  docker compose up -d
 }
 
 install_cli() {
@@ -367,7 +452,9 @@ main() {
   detect_docker_gid
   detect_gpio_gid
   download_app
+  fetch_and_verify_manifest
   prepare_runtime_directories
+  record_applied_manifest
   write_env_file
   write_compose_override
   generate_tls_cert

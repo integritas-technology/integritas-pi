@@ -8,6 +8,7 @@ import { dataReadsRouter } from "./features/data-reads/dataReads.routes.js";
 import { filesRouter } from "./features/files/files.routes.js";
 import { feedbackRouter } from "./features/feedback/feedback.routes.js";
 import { dataSourcesRouter, dataSourcesWebhookRouter } from "./features/data-sources/dataSources.routes.js";
+import { debugRouter } from "./features/debug/debug.routes.js";
 import { healthRouter } from "./features/health/health.routes.js";
 import { integritasRouter } from "./features/integritas/integritas.routes.js";
 import { minimaRouter } from "./features/minima/minima.routes.js";
@@ -44,6 +45,7 @@ export function createApp() {
   app.use("/api/wallet", walletRouter);
   app.use("/api/wallet/address-book", addressBookRouter);
   app.use("/api/tokens", tokensRouter);
+  app.use("/api/debug", debugRouter);
 
   return app;
 }
