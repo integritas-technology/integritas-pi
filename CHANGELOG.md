@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-07-16
+
+### Changed
+
+- `update-agent`'s default background manifest poll interval (`STATUS_POLL_INTERVAL_MS`) is now 12 hours instead of 24. Only affects fresh installs or `.env` files without an explicit value; existing deployments keep their current setting.
+
 ## [0.17.0] - 2026-07-16
 
 ### Added

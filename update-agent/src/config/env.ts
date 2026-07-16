@@ -22,5 +22,5 @@ export const env = {
   healthCheckTimeoutMs: Number(process.env.HEALTH_CHECK_TIMEOUT_MS ?? 60000),
   healthCheckIntervalMs: Number(process.env.HEALTH_CHECK_INTERVAL_MS ?? 2000),
   pullTimeoutMs: Number(process.env.PULL_TIMEOUT_MS ?? 300000),
-  statusPollIntervalMs: Number(process.env.STATUS_POLL_INTERVAL_MS ?? 86400000)
+  statusPollIntervalMs: Number(process.env.STATUS_POLL_INTERVAL_MS ?? 43200000)
 };
