@@ -322,6 +322,14 @@ export function AuthSettingsPage() {
           <Tag size={18} /> Version
         </div>
         <p className="mt-2 tabular-nums text-slate-500">{currentVersion ?? "Unknown"}</p>
+        <ButtonRow className="mt-3">
+          <a
+            href="/update"
+            className="inline-flex w-fit items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            Check for updates
+          </a>
+        </ButtonRow>
       </Card>
     </Page>
   );

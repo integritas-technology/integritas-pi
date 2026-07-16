@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.17.3] - 2026-07-16
+
+### Added
+
+- Account settings' Version card now has a "Check for updates" link to the `/update` page.
+
 ## [0.17.2] - 2026-07-16
 
 ### Changed
