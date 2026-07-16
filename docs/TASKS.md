@@ -21,6 +21,7 @@
 
 ## Next
 
+- [ ] Workflow variables and output templating — see `docs/plans/workflow-variables-and-output-templating.md`.
 - [ ] Fix stale `docs/README.md` active-plans table (references deleted plan files) — re-check, may already be resolved.
 - [ ] Decide whether/how to fix the `docs/gpio-device-settings.md` link now that the file may have moved to `archive/docs/guides/`.
 
