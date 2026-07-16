@@ -254,6 +254,8 @@ download_app() {
 
   cp -a "$tmp_dir/." "$APP_DIR/"
   rm -rf "$tmp_dir"
+
+  log "install.sh version: $(fetch_manifest_field "$APP_DIR/package.json" version)"
 }
 
 fetch_manifest_field() {
