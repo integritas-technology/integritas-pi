@@ -287,7 +287,12 @@ fetch_and_verify_manifest() {
 
   base64 -d "$signature_file" > "$signature_bin"
 
-  if ! openssl pkeyutl -verify -pubin -inkey "$public_key_file" -rawin -in "$manifest_file" -sigfile "$signature_bin" >/dev/null 2>&1; then
+  log "Debug: APP_REPO_URL=$APP_REPO_URL APP_BRANCH=$APP_BRANCH"
+  log "Debug: public key fingerprint: $(openssl pkey -pubin -in "$public_key_file" -noout -outform DER 2>/dev/null | openssl sha256)"
+  log "Debug: manifest file size: $(wc -c < "$manifest_file") bytes, sha256: $(openssl sha256 < "$manifest_file")"
+  log "Debug: signature file size: $(wc -c < "$signature_file") bytes (base64), decoded: $(wc -c < "$signature_bin") bytes"
+
+  if ! openssl pkeyutl -verify -pubin -inkey "$public_key_file" -rawin -in "$manifest_file" -sigfile "$signature_bin"; then
     echo "Manifest signature verification failed. Refusing to install untrusted images."
     rm -f "$manifest_file" "$signature_file" "$signature_bin"
     exit 1
