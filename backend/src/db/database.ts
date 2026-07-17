@@ -206,9 +206,7 @@ export function runMigrations() {
     )
   `);
 
-  const setupPendingColumns = db
-    .prepare("PRAGMA table_info(setup_pending)")
-    .all() as { name: string }[];
+  const setupPendingColumns = db.prepare("PRAGMA table_info(setup_pending)").all() as { name: string }[];
   if (!setupPendingColumns.some((column) => column.name === "verified_at")) {
     db.exec("ALTER TABLE setup_pending ADD COLUMN verified_at TEXT");
   }
@@ -316,6 +314,15 @@ export function runMigrations() {
       payload_json TEXT NOT NULL,
       fetched_at TEXT NOT NULL
     )
+  `);
+
+  db.exec(`
+    INSERT OR IGNORE INTO settings (key, value, updated_at)
+    SELECT 'setup.completed_at', auth.updated_at, CURRENT_TIMESTAMP
+    FROM integritas_auth AS auth
+    WHERE auth.id = 'default'
+      AND EXISTS (SELECT 1 FROM users)
+    LIMIT 1
   `);
 
   db.exec(`DROP TABLE IF EXISTS wallet_accounts`);
