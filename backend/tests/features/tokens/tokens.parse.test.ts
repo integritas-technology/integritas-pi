@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { parseTokenCreateResponse } from "./tokens.parse.js";
+import { parseTokenCreateResponse } from "../../../src/features/tokens/tokens.parse.js";
 
 describe("parseTokenCreateResponse", () => {
   it("returns Minima error when status is false", () => {

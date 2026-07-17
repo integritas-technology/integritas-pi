@@ -10,7 +10,7 @@ function findTests(dir) {
   });
 }
 
-const tests = findTests("src");
+const tests = findTests("tests");
 if (tests.length === 0) {
   console.error("No backend test files found.");
   process.exit(1);

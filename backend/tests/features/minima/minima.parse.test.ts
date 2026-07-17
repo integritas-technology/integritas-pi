@@ -7,7 +7,7 @@ import {
   parseMegammrResyncMessage,
   parsePeersListResponse,
   parseStatusResponse
-} from "./minima.parse.js";
+} from "../../../src/features/minima/minima.parse.js";
 
 describe("parseStatusResponse", () => {
   it("reads chain block, network peers, and memory from live status shape", () => {
