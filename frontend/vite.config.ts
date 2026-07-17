@@ -46,5 +46,9 @@ export default defineConfig(({ mode }) => {
       https,
       proxy,
     },
+    test: {
+      environment: "happy-dom",
+      include: ["tests/**/*.test.{ts,tsx}"],
+    },
   };
 });

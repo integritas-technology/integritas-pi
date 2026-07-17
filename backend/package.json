@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "node scripts/run-tests.mjs"
+    "test": "vitest run"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
