@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --project tsconfig.tests.json",
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "vitest run"
