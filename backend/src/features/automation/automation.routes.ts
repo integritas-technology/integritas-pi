@@ -7,7 +7,9 @@ import { syncGpioDataSources } from "../data-sources/gpioIngestion.service.js";
 import { syncMqttDataSources } from "../data-sources/mqttIngestion.service.js";
 import { createAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, duplicateAutomationWorkflow, getAutomationWorkflow, listAutomationBlocks, listAutomationWorkflows, reorderAutomationBlocks, updateAutomationBlock, updateAutomationWorkflow, type AutomationBlockType } from "./automation.repository.js";
 import { getSerializedAutomationRun, listSerializedAutomationRuns, listSerializedAutomationRunsForWorkflow, runAutomationWorkflow, serializeAutomationBlock, serializeAutomationWorkflow } from "./automation.service.js";
+import { AUTOMATION_RUN_LIST_STATUSES, countAutomationRuns } from "./automationRuns.repository.js";
 import { validateAutomationDraft, validateAutomationWorkflow, type AutomationDraftValidationBlock } from "./automation.validation.js";
+import { parseListQuery, toPaginatedResult } from "../../shared/list-query.js";
 
 export const automationRouter = Router();
 
@@ -16,8 +18,12 @@ automationRouter.get("/workflows", (_req, res) => {
 });
 
 automationRouter.get("/runs", (req, res) => {
-  const limit = limitFromQuery(req.query.limit, 100);
-  res.json({ items: listSerializedAutomationRuns(limit) });
+  const parsed = parseListQuery(req.query, { allowedStatuses: AUTOMATION_RUN_LIST_STATUSES });
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+
+  const total = countAutomationRuns(parsed.value);
+  const items = listSerializedAutomationRuns(parsed.value);
+  return res.json(toPaginatedResult(items, total, parsed.value));
 });
 
 automationRouter.get("/runs/:id", (req, res) => {

@@ -17,6 +17,13 @@ export const READ_STATUS_OPTIONS = [
   { value: 'failed', label: 'Failed' },
 ] as const;
 
+export const WORKFLOW_STATUS_OPTIONS = [
+  { value: '', label: 'All statuses' },
+  { value: 'running', label: 'Running' },
+  { value: 'success', label: 'Success' },
+  { value: 'failed', label: 'Failed' },
+] as const;
+
 export type DiagnosticsListQuery = {
   page: number;
   pageSize: number;
@@ -56,7 +63,7 @@ export function parseDiagnosticsListQuery(
     ? ['pending', 'ready', 'failed']
     : tab === 'reads'
       ? ['success', 'failed']
-      : [];
+      : ['running', 'success', 'failed'];
   const status = allowedStatuses.includes(rawStatus) ? rawStatus : '';
 
   const q = (searchParams.get('q') ?? '').trim().slice(0, 200);

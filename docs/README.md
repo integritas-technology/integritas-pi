@@ -65,7 +65,7 @@ Project-specific agent rules live outside `docs/`, in `.agents/rules/` at the re
 | [plans/feedback.md](./plans/feedback.md) | V1 implemented; V2 planned |
 | [plans/security-checklist.md](./plans/security-checklist.md) | In progress |
 | [plans/manifest-deploy-pull-model.md](./plans/manifest-deploy-pull-model.md) | In progress |
-| [plans/workflow-runs-pagination.md](./plans/workflow-runs-pagination.md) | Not started |
+| [plans/workflow-runs-pagination.md](./plans/workflow-runs-pagination.md) | Implemented |
 
 ---
 

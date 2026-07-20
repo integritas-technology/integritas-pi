@@ -28,6 +28,7 @@ import {
   parseDiagnosticsTab,
   PROOF_STATUS_OPTIONS,
   READ_STATUS_OPTIONS,
+  WORKFLOW_STATUS_OPTIONS,
   type DiagnosticsListQuery,
   type DiagnosticsTab,
 } from './diagnosticsQuery';
@@ -59,7 +60,7 @@ export function DiagnosticsPage() {
   );
   const [proofsPage, setProofsPage] = useState(emptyProofsPage);
   const [readsPage, setReadsPage] = useState(emptyPaginatedPage<DataSourceRead>);
-  const [workflowRuns, setWorkflowRuns] = useState<AutomationRun[]>([]);
+  const [workflowRunsPage, setWorkflowRunsPage] = useState(emptyPaginatedPage<AutomationRun>);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -125,8 +126,9 @@ export function DiagnosticsPage() {
           return;
         }
 
-        const response = await listAutomationRuns(100);
-        if (!cancelled) setWorkflowRuns(response.items);
+        const response = await listAutomationRuns(listQuery);
+        if (cancelled) return;
+        applyPaginatedPage(response, listQuery.page, setWorkflowRunsPage, clampPage);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Failed to load diagnostics history.');
@@ -190,8 +192,8 @@ export function DiagnosticsPage() {
   async function handleRefreshWorkflowRuns() {
     setBusy(true);
     try {
-      const response = await listAutomationRuns(100);
-      setWorkflowRuns(response.items);
+      const response = await listAutomationRuns(listQuery);
+      applyPaginatedPage(response, listQuery.page, setWorkflowRunsPage, clampPage);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to refresh workflow logs.');
     } finally {
@@ -199,8 +201,8 @@ export function DiagnosticsPage() {
     }
   }
 
-  const activePager = activeTab === 'proofs' ? proofsPage : readsPage;
-  const statusOptions = activeTab === 'proofs' ? PROOF_STATUS_OPTIONS : READ_STATUS_OPTIONS;
+  const activePager = activeTab === 'proofs' ? proofsPage : activeTab === 'reads' ? readsPage : workflowRunsPage;
+  const statusOptions = activeTab === 'proofs' ? PROOF_STATUS_OPTIONS : activeTab === 'reads' ? READ_STATUS_OPTIONS : WORKFLOW_STATUS_OPTIONS;
   const listFiltered = Boolean(listQuery.status || listQuery.q);
 
   return (
@@ -220,21 +222,19 @@ export function DiagnosticsPage() {
         onChange={selectTab}
       />
 
-      {activeTab !== 'workflow-runs' && (
-        <ListPagerFilterBar
-          page={listQuery.page}
-          pageSize={listQuery.pageSize}
-          total={activePager.total}
-          totalPages={activePager.totalPages}
-          status={listQuery.status}
-          q={listQuery.q}
-          statusOptions={statusOptions}
-          onPageChange={(page) => updateListQuery({ page })}
-          onPageSizeChange={(pageSize) => updateListQuery({ pageSize })}
-          onStatusChange={(status) => updateListQuery({ status })}
-          onQueryChange={(q) => updateListQuery({ q })}
-        />
-      )}
+      <ListPagerFilterBar
+        page={listQuery.page}
+        pageSize={listQuery.pageSize}
+        total={activePager.total}
+        totalPages={activePager.totalPages}
+        status={listQuery.status}
+        q={listQuery.q}
+        statusOptions={statusOptions}
+        onPageChange={(page) => updateListQuery({ page })}
+        onPageSizeChange={(pageSize) => updateListQuery({ pageSize })}
+        onStatusChange={(status) => updateListQuery({ status })}
+        onQueryChange={(q) => updateListQuery({ q })}
+      />
 
       {activeTab === 'proofs' ? (
         <IntegritasHistoryTable
@@ -267,7 +267,7 @@ export function DiagnosticsPage() {
               Refresh
             </Button>
           </StatusRow>
-          <AutomationRunsTable runs={workflowRuns} />
+          <AutomationRunsTable runs={workflowRunsPage.items} />
         </Card>
       )}
 

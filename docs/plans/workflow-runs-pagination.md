@@ -1,6 +1,6 @@
 # Workflow Runs Pagination Plan
 
-**Status:** Not started
+**Status:** Implemented
 **Created:** 2026-07-20
 **Goal:** Bring the Diagnostics "Workflow logs" tab to pagination parity with the existing `proofs`/`reads` tabs (page/pageSize/status/search, URL-driven), instead of its current hardcoded `limit=100` fetch with no pager or filters.
 
