@@ -21,12 +21,12 @@ import {
 import { ErrorText } from "../../components/Text";
 import { cx } from "../../lib/cx";
 import {
-  adminPasswordHint,
   adminPinHint,
   isValidAdminCredential,
   sanitizePinInput,
   type AdminCredentialType
 } from "../auth/adminCredentials";
+import { PasswordRequirements } from "../auth/PasswordRequirements";
 import { TOTP_ENABLED } from "../auth/totpEnabled";
 import { hasConnectedProfile, type IntegritasAuthStatus } from "../integritas-auth/integritasAuthApi";
 import { useIntegritasAuth } from "../integritas-auth/useIntegritasAuth";
@@ -93,8 +93,8 @@ function credentialHint(
     return { label: "PIN looks good", tone: "good" };
   }
 
-  if (!credential) return { label: adminPasswordHint(), tone: "neutral" };
-  if (!isValidAdminCredential(type, credential)) return { label: adminPasswordHint(), tone: "warn" };
+  if (!credential) return { label: "Complete the password requirements below", tone: "neutral" };
+  if (!isValidAdminCredential(type, credential)) return { label: "Complete the remaining password requirements", tone: "warn" };
   return { label: "Password looks good", tone: "good" };
 }
 
@@ -207,7 +207,7 @@ function AccountStep({ form, setForm }: { form: OnboardingFormState; setForm: (p
             inputMode={isPin ? "numeric" : "text"}
             pattern={isPin ? "[0-9]*" : undefined}
             maxLength={isPin ? 6 : undefined}
-            placeholder={isPin ? "000000" : "At least 8 characters"}
+            placeholder={isPin ? "000000" : "Create a strong password"}
             autoComplete="new-password"
           />
           <span
@@ -220,6 +220,7 @@ function AccountStep({ form, setForm }: { form: OnboardingFormState; setForm: (p
             {hint.label}
           </span>
         </label>
+        {!isPin && <PasswordRequirements password={form.password} />}
 
         <label className={labelClass}>
           Confirm {credentialLabel.toLowerCase()}

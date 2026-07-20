@@ -7,7 +7,8 @@ import { Card } from "../components/Card";
 import { Page } from "../components/Page";
 import { ErrorText } from "../components/Text";
 import { changePassword, initTotpReset, verifyTotpReset } from "../features/auth/api";
-import { adminPasswordHint, isValidAdminCredential, sanitizePinInput, type AdminCredentialType } from "../features/auth/adminCredentials";
+import { isValidAdminCredential, sanitizePinInput, type AdminCredentialType } from "../features/auth/adminCredentials";
+import { PasswordRequirements } from "../features/auth/PasswordRequirements";
 import { TOTP_ENABLED } from "../features/auth/totpEnabled";
 import { IntegritasConnectPanel } from "../features/integritas-auth/IntegritasConnectPanel";
 
@@ -146,8 +147,8 @@ export function AuthSettingsPage() {
           <h3 style={{ margin: 0 }}>Change PIN or password</h3>
           <p style={{ margin: 0, color: "#64748b", fontSize: "0.875rem" }}>
             {TOTP_ENABLED
-              ? "Requires your current credential and a valid 2FA code."
-              : "Choose a 6-digit PIN or a password with at least 8 characters."}
+              ? "Choose a 6-digit PIN or a strong password. A valid 2FA code is also required."
+              : "Choose a 6-digit PIN or a strong password."}
           </p>
         </div>
 
@@ -211,10 +212,11 @@ export function AuthSettingsPage() {
                 setPwError(null);
                 setPwSuccess(false);
               }}
-              placeholder={newCredentialIsPin ? "000000" : adminPasswordHint()}
+              placeholder={newCredentialIsPin ? "000000" : "Create a strong password"}
               autoComplete="new-password"
             />
           </label>
+          {!newCredentialIsPin && <PasswordRequirements password={newPassword} />}
           <label className={labelClass}>
             Confirm new {newCredentialLabel}
             <input
