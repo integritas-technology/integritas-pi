@@ -726,7 +726,7 @@ export function OnboardingWizard({ onComplete, resumeAtConnect = false }: { onCo
   };
 
   const retryConnect = () => {
-    void start();
+    void start({ openPopup: true });
   };
 
   const connectedStatus = status?.status === "connected" ? status : null;

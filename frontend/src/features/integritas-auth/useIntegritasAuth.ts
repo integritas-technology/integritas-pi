@@ -29,6 +29,11 @@ export type UseIntegritasAuthOptions = {
   enabled?: boolean;
 };
 
+export type StartIntegritasAuthOptions = {
+  /** Open the Connect verify popup in the same user gesture (avoids a second click after start). */
+  openPopup?: boolean;
+};
+
 export type UseIntegritasAuthResult = {
   status: IntegritasAuthStatus | null;
   loading: boolean;
@@ -36,9 +41,23 @@ export type UseIntegritasAuthResult = {
   error: string | null;
   notice: string | null;
   refresh: () => Promise<void>;
-  start: () => Promise<void>;
+  start: (options?: StartIntegritasAuthOptions) => Promise<void>;
   openVerification: () => boolean;
 };
+
+function activationPopupFeatures(): string {
+  const left = Math.max(0, Math.round(window.screenX + (window.outerWidth - ACTIVATION_POPUP_WIDTH) / 2));
+  const top = Math.max(0, Math.round(window.screenY + (window.outerHeight - ACTIVATION_POPUP_HEIGHT) / 2));
+  return [
+    "popup=yes",
+    `width=${ACTIVATION_POPUP_WIDTH}`,
+    `height=${ACTIVATION_POPUP_HEIGHT}`,
+    `left=${left}`,
+    `top=${top}`,
+    "resizable=yes",
+    "scrollbars=yes",
+  ].join(",");
+}
 
 /** Integritas Connect link state: status, start activation, popup verify device, pending poll + countdown. */
 export function useIntegritasAuth(options?: UseIntegritasAuthOptions): UseIntegritasAuthResult {
@@ -55,6 +74,13 @@ export function useIntegritasAuth(options?: UseIntegritasAuthOptions): UseIntegr
   // Latest status for openVerification without a stale closure.
   const statusRef = useRef(status);
   statusRef.current = status;
+
+  const rememberPopup = useCallback((popup: Window | null) => {
+    if (!popup) return null;
+    popupRef.current = popup;
+    popup.focus();
+    return popup;
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -109,52 +135,58 @@ export function useIntegritasAuth(options?: UseIntegritasAuthOptions): UseIntegr
     }
   }, [refreshProfileOnConnected]);
 
-  const start = useCallback(async () => {
-    setStarting(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const data = await startIntegritasConnect();
-      setStatus({
-        status: "pending",
-        userCode: data.userCode,
-        verificationUrl: data.verificationUrl,
-        expiresAt: data.expiresAt,
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start Connect activation");
-    } finally {
-      setStarting(false);
-    }
-  }, []);
+  const start = useCallback(
+    async (startOptions?: StartIntegritasAuthOptions) => {
+      setStarting(true);
+      setError(null);
+      setNotice(null);
+
+      // Open blank window in the click gesture so navigation after await is not blocked.
+      let placeholder: Window | null = null;
+      if (startOptions?.openPopup) {
+        placeholder = rememberPopup(window.open("about:blank", "integritas-device-activate", activationPopupFeatures()));
+      }
+
+      try {
+        const data = await startIntegritasConnect();
+        setStatus({
+          status: "pending",
+          userCode: data.userCode,
+          verificationUrl: data.verificationUrl,
+          expiresAt: data.expiresAt,
+        });
+
+        if (startOptions?.openPopup) {
+          if (placeholder && !placeholder.closed) {
+            placeholder.location.href = data.verificationUrl;
+            placeholder.focus();
+          } else {
+            // Popup blocked — pending UI still offers the verify link.
+            rememberPopup(window.open(data.verificationUrl, "integritas-device-activate", activationPopupFeatures()));
+          }
+        }
+      } catch (err) {
+        if (placeholder && !placeholder.closed) {
+          placeholder.close();
+          popupRef.current = null;
+        }
+        setError(err instanceof Error ? err.message : "Failed to start Connect activation");
+      } finally {
+        setStarting(false);
+      }
+    },
+    [rememberPopup],
+  );
 
   const openVerification = useCallback(() => {
     const current = statusRef.current;
     if (current?.status !== "pending" || !current.verificationUrl) return false;
 
-    const left = Math.max(0, Math.round(window.screenX + (window.outerWidth - ACTIVATION_POPUP_WIDTH) / 2));
-    const top = Math.max(0, Math.round(window.screenY + (window.outerHeight - ACTIVATION_POPUP_HEIGHT) / 2));
-    const popup = window.open(
-      current.verificationUrl,
-      "integritas-device-activate",
-      [
-        "popup=yes",
-        `width=${ACTIVATION_POPUP_WIDTH}`,
-        `height=${ACTIVATION_POPUP_HEIGHT}`,
-        `left=${left}`,
-        `top=${top}`,
-        "resizable=yes",
-        "scrollbars=yes",
-      ].join(","),
+    const popup = rememberPopup(
+      window.open(current.verificationUrl, "integritas-device-activate", activationPopupFeatures()),
     );
-    if (!popup) {
-      return false;
-    }
-
-    popupRef.current = popup;
-    popup.focus();
-    return true;
-  }, []);
+    return Boolean(popup);
+  }, [rememberPopup]);
 
   // The parent learns completion through polling, so close the popup without cross-window messaging.
   useEffect(() => {

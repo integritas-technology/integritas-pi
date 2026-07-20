@@ -31,6 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - After Connect device approval, encrypted tokens are stored (and pending activation cleared) before fetching `/api/me`, so a transient profile failure cannot consume the one-time handoff and leave the Pi permanently unlinked.
 - If Integritas Connect tokens cannot be decrypted (e.g. `APP_SECRET` changed), the Pi clears the local Connect link, returns `TOKEN_DECRYPT_FAILED`, and the Settings panel prompts the user to connect again (no remote Connect revoke).
+- Settings / reconnect **Connect account** opens the Integritas Connect verify popup on the first click (blank window reserved in the click gesture, then navigated after activation starts), so revoke/reconnect no longer needs a second click.
 
 ## [0.15.0] - 2026-07-13
 

@@ -67,7 +67,7 @@ export function IntegritasConnectPanel() {
         <div className="grid gap-4">
           <MutedText className="m-0">This Edge Workbench is not connected to your Integritas Connect account.</MutedText>
           <ButtonRow>
-            <Button type="button" disabled={starting} onClick={() => void start()}>
+            <Button type="button" disabled={starting} onClick={() => void start({ openPopup: true })}>
               <Link2 size={14} />
               {starting ? "Starting…" : "Connect account"}
             </Button>
@@ -140,7 +140,7 @@ export function IntegritasConnectPanel() {
             {kind === "revoked" && "This device was revoked in Integritas Connect."} Start again to link a new activation.
           </MutedText>
           <ButtonRow>
-            <Button type="button" disabled={starting} onClick={() => void start()}>
+            <Button type="button" disabled={starting} onClick={() => void start({ openPopup: true })}>
               <RefreshCw size={14} />
               {starting ? "Starting…" : "Connect account"}
             </Button>
