@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Removed
+
+- Removed the old Automation workflow rule compatibility API and response fields; workflows are now exposed through the block API only.
+
 ## [0.18.0] - 2026-07-16
 
 ### Added

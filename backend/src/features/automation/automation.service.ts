@@ -66,19 +66,6 @@ let scheduler: NodeJS.Timeout | null = null;
 
 export function serializeAutomationWorkflow(record: AutomationWorkflowRecord) {
   const blocks = listAutomationBlocks(record.id).map(serializeAutomationBlock);
-  const mainBlocks = blocks.filter((block) => !block.parentBlockId);
-  const startBlock = mainBlocks[0];
-  const fetchBlock = blocks.find((block) => block.type === "fetch_data_source");
-  const stampBlock = blocks.find((block) => block.type === "stamp_integritas");
-  const dataSourceId = typeof fetchBlock?.config === "object" && fetchBlock.config && "sourceId" in fetchBlock.config
-    ? String(fetchBlock.config.sourceId)
-    : typeof startBlock?.config === "object" && startBlock.config && "sourceId" in startBlock.config
-      ? String(startBlock.config.sourceId)
-      : "";
-  const pollingIntervalSeconds = startBlock?.type === "schedule_start" && typeof startBlock.config === "object" && startBlock.config && "intervalSeconds" in startBlock.config
-    ? Number(startBlock.config.intervalSeconds)
-    : 0;
-
   return {
     id: record.id,
     createdAt: record.created_at,
@@ -91,12 +78,7 @@ export function serializeAutomationWorkflow(record: AutomationWorkflowRecord) {
     lastHash: record.last_hash,
     lastProofId: record.last_proof_id,
     lastError: record.last_error,
-    blocks,
-    // Temporary compatibility fields for the existing frontend while the block UI is built.
-    dataSourceId,
-    pollingIntervalSeconds,
-    stampWithIntegritas: Boolean(stampBlock),
-    rules: blocks.filter((block) => !block.type.endsWith("_start") && !block.parentBlockId).map(blockToLegacyRule)
+    blocks
   };
 }
 
@@ -345,24 +327,6 @@ function sourceUrlForRecord(source: { type: string; config: string }) {
   if (source.type === "mqtt") return `${config.brokerUrl ?? "MQTT"} ${config.topic ?? ""}`;
   if (source.type === "webhook") return `/api/data-source-webhooks/${config.webhookToken ?? ""}`;
   return String(config.url ?? "data source");
-}
-
-function blockToLegacyRule(block: ReturnType<typeof serializeAutomationBlock>) {
-  return {
-    id: block.id,
-    workflowId: block.workflowId,
-    createdAt: block.createdAt,
-    updatedAt: block.updatedAt,
-    name: blockLabel(block.type),
-    type: block.type === "stamp_integritas" ? "stamp_integritas" : "collect_data",
-    enabled: block.enabled,
-    order: block.order,
-    when: block.type.endsWith("_start") ? block.config : { type: "after_previous_block" },
-    condition: { type: "block_enabled" },
-    then: block.config,
-    lastRunAt: block.lastRunAt,
-    lastError: block.lastError
-  };
 }
 
 function blockLabel(type: string) {

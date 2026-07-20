@@ -167,7 +167,7 @@ export function AutomationPage() {
   const sourceName = (id: string) => sourceById(id)?.name ?? "Unknown source";
   const activeWorkflowId = "workflowId" in flow ? flow.workflowId : null;
   const workspaceWorkflow = activeWorkflowId ? workflows.find((workflow) => workflow.id === activeWorkflowId) ?? null : null;
-  const filteredWorkflows = workflows.filter((workflow) => workflowMatchesFilter(workflow, workflowSearch, workflowFilter, sourceName(workflow.dataSourceId)));
+  const filteredWorkflows = workflows.filter((workflow) => workflowMatchesFilter(workflow, workflowSearch, workflowFilter, sourceName(workflowPrimarySourceId(workflow))));
   const workspaceMode = flow.mode === "edit" || flow.mode === "watch" ? flow.mode : null;
 
   return (
@@ -214,7 +214,7 @@ export function AutomationPage() {
           workflow={workspaceWorkflow}
           runs={workspaceRuns}
           validation={workspaceValidation}
-          source={sourceById(workspaceWorkflow.dataSourceId)}
+          source={sourceById(workflowPrimarySourceId(workspaceWorkflow))}
           sources={sources}
           addressBook={addressBook}
           walletStatus={walletStatus}
@@ -271,7 +271,7 @@ export function AutomationPage() {
                 <tr key={workflow.id} className={tableRowClass}>
                   <td className={tableCellClass}><strong>{workflow.name}</strong>{workflow.lastError && <p className={errorText}>{workflow.lastError}</p>}{workflow.archived && <p className={mutedText}>Archived workflows do not run until restored.</p>}</td>
                   <td className={tableCellClass}><WorkflowStatusPill workflow={workflow} /></td>
-                  <td className={tableCellClass}>{sourceName(workflow.dataSourceId)}<p className={mutedText}>{workflow.pollingIntervalSeconds > 0 ? formatInterval(workflow.pollingIntervalSeconds) : "Event driven"}</p></td>
+                  <td className={tableCellClass}>{sourceName(workflowPrimarySourceId(workflow))}<p className={mutedText}>{workflowIntervalSeconds(workflow) > 0 ? formatInterval(workflowIntervalSeconds(workflow)) : "Event driven"}</p></td>
                   <td className={tableCellClass}><span>{workflow.blocks.length}</span><p className={mutedText}>{summarizeBlocks(workflow)}</p></td>
                   <td className={tableCellClass}>{workflow.lastRunAt ? formatLocalTime(workflow.lastRunAt) : <span className={mutedText}>Never</span>}</td>
                   <td className={tableCellClass}>{workflow.lastHash ? <code>{workflow.lastHash}</code> : <span className={mutedText}>No hash yet</span>}</td>
@@ -420,6 +420,7 @@ function CreateWorkflowWorkspace({ name, enabled, sources, addressBook, walletSt
       actions={<>
         <Button type="button" variant="secondary" size="sm" disabled={busy} onClick={onCancel}>Cancel</Button>
         <Button type="button" variant="secondary" size="sm" disabled={busy || draftBlocks.length === 0} onClick={resetCanvas}>Reset canvas</Button>
+        <Button type="button" variant="secondary" size="sm" disabled={busy || !hasStartBlock} onClick={() => addDraftBlock("set_variable")}>Add variable</Button>
         <Button type="button" size="sm" disabled={busy || !canCreate} onClick={() => onCreate(flattenDraftBlocks(draftBlocks))}>Create workflow</Button>
       </>}
       left={<WorkflowBlockLibrary hasStartBlock={hasStartBlock} selectedBlock={selectedBlock} onSelectStartBlock={selectStartBlock} onAddBlock={addDraftBlock} onAttachStamp={attachStampBlock} />}
@@ -663,17 +664,18 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
       eyebrow={mode === "watch" ? "Watch workflow" : "Edit workflow"}
       title={workflow.name}
       description={<>
-        <p className={mutedText}>{source?.name ?? "Unknown source"} · {workflow.pollingIntervalSeconds > 0 ? formatInterval(workflow.pollingIntervalSeconds) : "Event driven"}</p>
+        <p className={mutedText}>{source?.name ?? "Unknown source"} · {workflowIntervalSeconds(workflow) > 0 ? formatInterval(workflowIntervalSeconds(workflow)) : "Event driven"}</p>
         <p className={mutedText}>{mode === "watch" ? "Run and inspect this workflow from the shared canvas shell." : "Changes are saved per block. Edit fields, then click that block's save button; add/remove/move/pause/enable actions apply immediately."}</p>
         {mode === "watch" && selectedRun && <p className={mutedText}>Canvas showing run from {formatLocalTime(selectedRun.startedAt)} · {selectedRun.status} · {formatDuration(selectedRun.durationMs)}</p>}
       </>}
       actions={<>
         <Button type="button" variant="secondary" size="sm" disabled={busy} onClick={() => onNavigateMode(mode === "watch" ? "edit" : "watch")}>{mode === "watch" ? "Open in edit" : "Open in watch"}</Button>
+        {mode === "edit" && <Button type="button" variant="secondary" size="sm" disabled={busy || !startBlock} onClick={() => addBlockFromLibrary("set_variable")}>Add variable</Button>}
         <WorkflowStatusPill workflow={workflow} />
         {mode === "watch" && <StatusPill status={selectedRun?.status === "running" ? "good" : "neutral"}>{watchRunStatusLabel}</StatusPill>}
         <StatusPill status="neutral">Blocks {workflow.blocks.length}</StatusPill>
         <StatusPill status="neutral">Last run {workflow.lastRunAt ? formatLocalTime(workflow.lastRunAt) : "Never"}</StatusPill>
-        <StatusPill status="neutral">Next {workflow.nextRunAt ? formatLocalTime(workflow.nextRunAt) : workflow.pollingIntervalSeconds > 0 ? "Paused" : "On incoming data"}</StatusPill>
+        <StatusPill status="neutral">Next {workflow.nextRunAt ? formatLocalTime(workflow.nextRunAt) : workflowIntervalSeconds(workflow) > 0 ? "Paused" : "On incoming data"}</StatusPill>
       </>}
       notices={<>
         {workflow.archived && <p className={mutedText}>Archived workflows do not run automatically or manually until restored.</p>}
@@ -980,7 +982,7 @@ function workflowMatchesFilter(workflow: AutomationWorkflow, search: string, fil
   if (!query) return true;
   const haystack = [
     workflow.name,
-    workflow.dataSourceId,
+    workflowPrimarySourceId(workflow),
     sourceName,
     workflow.lastHash ?? "",
     workflow.lastProofId ?? "",
@@ -1094,6 +1096,19 @@ function sourcesForStart(type: AutomationBlockType, sources: DataSource[]) {
 
 function defaultSourceForStart(type: AutomationBlockType, sources: DataSource[]) {
   return sourcesForStart(type, sources)[0] ?? null;
+}
+
+function workflowPrimarySourceId(workflow: AutomationWorkflow) {
+  const mainBlocks = workflow.blocks.filter((block) => !block.parentBlockId);
+  const fetchBlock = mainBlocks.find((block) => block.type === "fetch_data_source");
+  const startBlock = mainBlocks.find((block) => block.type.endsWith("_start"));
+  return fetchBlock?.config.sourceId ?? startBlock?.config.sourceId ?? "";
+}
+
+function workflowIntervalSeconds(workflow: AutomationWorkflow) {
+  const startBlock = workflow.blocks.find((block) => !block.parentBlockId && block.type === "schedule_start");
+  const intervalSeconds = Number(startBlock?.config.intervalSeconds);
+  return Number.isFinite(intervalSeconds) ? intervalSeconds : 0;
 }
 
 function firstHttpSource(sources: DataSource[]) {

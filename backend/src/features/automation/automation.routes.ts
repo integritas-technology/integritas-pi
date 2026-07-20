@@ -50,56 +50,28 @@ automationRouter.post("/workflows", requireRole("admin"), (req, res) => {
 
   if (!name) return res.status(400).json({ error: "name is required" });
 
-  if (Array.isArray(req.body?.blocks)) {
-    try {
-      const blocks = parseWorkflowBlocks(req.body.blocks);
-      const workflow = createAutomationWorkflow({
-        name,
-        enabled,
-        nextRunAt: enabled ? nextRunAtForBlocks(blocks) : null,
-        blocks
-      });
-      syncMqttDataSources();
-      syncGpioDataSources();
-      return res.json({ item: serializeAutomationWorkflow(workflow) });
-    } catch (error) {
-      return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid workflow blocks" });
-    }
-  }
-
-  const dataSourceId = typeof req.body?.dataSourceId === "string" ? req.body.dataSourceId : "";
-  const pollingIntervalSeconds = Number(req.body?.pollingIntervalSeconds);
-  const stampWithIntegritas = req.body?.stampWithIntegritas === true;
-  const dataSource = getDataSource(dataSourceId);
-  if (!dataSource) return res.status(400).json({ error: "dataSourceId must reference an existing data source" });
-  const isPushSource = dataSource.type === "webhook" || dataSource.type === "mqtt" || dataSource.type === "gpio-input";
-  if (!isPushSource && (!Number.isFinite(pollingIntervalSeconds) || pollingIntervalSeconds < 10)) return res.status(400).json({ error: "pollingIntervalSeconds must be at least 10" });
-
+  if (!Array.isArray(req.body?.blocks)) return res.status(400).json({ error: "blocks are required" });
   try {
+    const blocks = parseWorkflowBlocks(req.body.blocks);
     const workflow = createAutomationWorkflow({
       name,
       enabled,
-      nextRunAt: enabled && !isPushSource ? new Date(Date.now() + pollingIntervalSeconds * 1000).toISOString() : null,
-      blocks: legacyBlocksForWorkflow(dataSource.id, dataSource.type, isPushSource ? 0 : pollingIntervalSeconds)
+      nextRunAt: enabled ? nextRunAtForBlocks(blocks) : null,
+      blocks
     });
-    if (stampWithIntegritas) setStampBlock(workflow.id, true);
     syncMqttDataSources();
     syncGpioDataSources();
-    return res.json({ item: serializeAutomationWorkflow(getAutomationWorkflow(workflow.id)!) });
+    return res.json({ item: serializeAutomationWorkflow(workflow) });
   } catch (error) {
-    return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid workflow" });
+    return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid workflow blocks" });
   }
 });
 
 automationRouter.patch("/workflows/:id", requireRole("admin"), (req, res) => {
   const current = getAutomationWorkflow(req.params.id);
   if (!current) return res.status(404).json({ error: "Automation workflow not found" });
-  const serialized = serializeAutomationWorkflow(current);
   const enabled = typeof req.body?.enabled === "boolean" ? req.body.enabled : undefined;
   const archived = typeof req.body?.archived === "boolean" ? req.body.archived : undefined;
-  const nextPollingIntervalSeconds = Number.isFinite(Number(req.body?.pollingIntervalSeconds)) ? Number(req.body.pollingIntervalSeconds) : undefined;
-
-  if (nextPollingIntervalSeconds !== undefined && serialized.pollingIntervalSeconds > 0 && nextPollingIntervalSeconds < 10) return res.status(400).json({ error: "pollingIntervalSeconds must be at least 10" });
 
   const workflow = updateAutomationWorkflow(req.params.id, {
     name: typeof req.body?.name === "string" ? req.body.name.trim() : undefined,
@@ -107,20 +79,6 @@ automationRouter.patch("/workflows/:id", requireRole("admin"), (req, res) => {
     archived,
     nextRunAt: archived === true || enabled === false ? null : undefined
   });
-
-  if (nextPollingIntervalSeconds !== undefined && serialized.pollingIntervalSeconds > 0) {
-    const scheduleBlock = listAutomationBlocks(req.params.id).find((block) => !block.parent_block_id && block.type === "schedule_start");
-    if (scheduleBlock) updateAutomationBlock(req.params.id, scheduleBlock.id, { config: { intervalSeconds: nextPollingIntervalSeconds } });
-    if (enabled !== false) updateAutomationWorkflow(req.params.id, { nextRunAt: new Date(Date.now() + nextPollingIntervalSeconds * 1000).toISOString() });
-  }
-
-  if (typeof req.body?.stampWithIntegritas === "boolean") {
-    try {
-      setStampBlock(req.params.id, req.body.stampWithIntegritas);
-    } catch (error) {
-      return res.status(400).json({ error: error instanceof Error ? error.message : "Could not update Integritas stamping" });
-    }
-  }
 
   syncMqttDataSources();
   syncGpioDataSources();
@@ -191,28 +149,9 @@ automationRouter.post("/workflows/:id/blocks/reorder", requireRole("admin"), (re
   }
 });
 
-automationRouter.post("/workflows/:id/rules", requireRole("admin"), (req, res) => {
-  const workflow = getAutomationWorkflow(req.params.id);
-  if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
-  const type = typeof req.body?.type === "string" ? req.body.type : "";
-  if (type !== "stamp_integritas") return res.status(400).json({ error: "Only Integritas stamping rules can be added in this compatibility endpoint" });
-  const block = setStampBlock(workflow.id, true);
-  syncMqttDataSources();
-  syncGpioDataSources();
-  return res.json({ item: serializeAutomationBlock(block!), workflow: serializeAutomationWorkflow(getAutomationWorkflow(workflow.id)!) });
-});
-
 automationRouter.delete("/workflows/:workflowId/blocks/:blockId", requireRole("admin"), (req, res) => {
   const deleted = deleteAutomationBlock(req.params.workflowId, req.params.blockId);
   if (!deleted) return res.status(404).json({ error: "Block not found" });
-  syncMqttDataSources();
-  syncGpioDataSources();
-  return res.json({ deleted: true, workflow: serializeAutomationWorkflow(getAutomationWorkflow(req.params.workflowId)!) });
-});
-
-automationRouter.delete("/workflows/:workflowId/rules/:ruleId", requireRole("admin"), (req, res) => {
-  const deleted = deleteAutomationBlock(req.params.workflowId, req.params.ruleId);
-  if (!deleted) return res.status(400).json({ error: "Rule cannot be deleted" });
   syncMqttDataSources();
   syncGpioDataSources();
   return res.json({ deleted: true, workflow: serializeAutomationWorkflow(getAutomationWorkflow(req.params.workflowId)!) });
@@ -267,15 +206,6 @@ function isJsonCompatible(value: unknown) {
   } catch {
     return false;
   }
-}
-
-function legacyBlocksForWorkflow(sourceId: string, sourceType: string, pollingIntervalSeconds: number) {
-  const blocks: { type: AutomationBlockType; config: unknown }[] = [];
-  if (sourceType === "gpio-input") blocks.push({ type: "gpio_event_start", config: { sourceId, activeOnly: false } }, { type: "record_trigger_event", config: {} });
-  else if (sourceType === "webhook") blocks.push({ type: "webhook_event_start", config: { sourceId } }, { type: "record_trigger_event", config: {} });
-  else if (sourceType === "mqtt") blocks.push({ type: "mqtt_event_start", config: { sourceId } }, { type: "record_trigger_event", config: {} });
-  else blocks.push({ type: "schedule_start", config: { intervalSeconds: pollingIntervalSeconds } }, { type: "fetch_data_source", config: { sourceId } });
-  return blocks;
 }
 
 function parseWorkflowBlocks(value: unknown[]) {
@@ -399,20 +329,6 @@ function nextRunAtForBlocks(blocks: { type: AutomationBlockType; config: unknown
   if (start.type !== "schedule_start") return null;
   const intervalSeconds = Number((start.config as { intervalSeconds?: unknown }).intervalSeconds);
   return Number.isFinite(intervalSeconds) && intervalSeconds > 0 ? new Date(Date.now() + intervalSeconds * 1000).toISOString() : null;
-}
-
-function setStampBlock(workflowId: string, enabled: boolean) {
-  const blocks = listAutomationBlocks(workflowId);
-  const parent = blocks.find((block) => !block.parent_block_id && (block.type === "record_trigger_event" || block.type === "fetch_data_source"));
-  if (!parent) {
-    if (enabled) throw new Error("Add a record or fetch block before adding Integritas stamping");
-    return undefined;
-  }
-  const existing = blocks.find((block) => block.type === "stamp_integritas" && block.parent_block_id === parent.id);
-  if (enabled && existing) return existing;
-  if (enabled) return createAutomationBlock(workflowId, { type: "stamp_integritas", config: {}, parentBlockId: parent.id });
-  if (existing) deleteAutomationBlock(workflowId, existing.id);
-  return undefined;
 }
 
 function validateBlockAttachment(workflowId: string, type: AutomationBlockType, parentBlockId: string | null) {

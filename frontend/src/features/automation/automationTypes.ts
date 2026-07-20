@@ -3,18 +3,14 @@ export type AutomationWorkflow = {
   createdAt: string;
   updatedAt: string;
   name: string;
-  dataSourceId: string;
   enabled: boolean;
   archived: boolean;
-  pollingIntervalSeconds: number;
-  stampWithIntegritas: boolean;
   lastRunAt: string | null;
   nextRunAt: string | null;
   lastHash: string | null;
   lastProofId: string | null;
   lastError: string | null;
   blocks: AutomationBlock[];
-  rules: AutomationRule[];
 };
 
 export type AutomationBlockType =
@@ -121,18 +117,3 @@ export type AutomationValidationResult = {
   warnings: AutomationValidationIssue[];
 };
 
-export type AutomationRule = {
-  id: string;
-  workflowId: string;
-  createdAt: string;
-  updatedAt: string;
-  name: string;
-  type: "collect_data" | "stamp_integritas";
-  enabled: boolean;
-  order: number;
-  when: unknown;
-  condition: unknown;
-  then: unknown;
-  lastRunAt: string | null;
-  lastError: string | null;
-};
