@@ -24,6 +24,7 @@ INTEGRITAS_BASE_URL_INPUT="${INTEGRITAS_BASE_URL-}"
 INTEGRITAS_API_KEY_INPUT="${INTEGRITAS_API_KEY-}"
 INTEGRITAS_REQUEST_ID_INPUT="${INTEGRITAS_REQUEST_ID-}"
 MANIFEST_URL_INPUT="${MANIFEST_URL-}"
+DEV_MODE_INPUT="${DEV_MODE-}"
 HOST_FILES_DIR="${HOST_FILES_DIR:-/home/pi}"
 FRONTEND_PORT="${FRONTEND_PORT:-8080}"
 DATA_DIR="${DATA_DIR:-./data}"
@@ -43,6 +44,7 @@ INTEGRITAS_BASE_URL="${INTEGRITAS_BASE_URL:-https://integritas.technology/core}"
 INTEGRITAS_API_KEY="${INTEGRITAS_API_KEY:-}"
 INTEGRITAS_REQUEST_ID="${INTEGRITAS_REQUEST_ID:-integritas-pi}"
 MANIFEST_URL="${MANIFEST_URL:-https://integritas.technology/update-manifest/manifest.json}"
+DEV_MODE="${DEV_MODE:-false}"
 
 APT_PACKAGES=(
   curl
@@ -180,6 +182,7 @@ load_existing_config() {
   INTEGRITAS_API_KEY="${INTEGRITAS_API_KEY_INPUT:-${INTEGRITAS_API_KEY:-}}"
   INTEGRITAS_REQUEST_ID="${INTEGRITAS_REQUEST_ID_INPUT:-${INTEGRITAS_REQUEST_ID:-integritas-pi}}"
   MANIFEST_URL="${MANIFEST_URL_INPUT:-${MANIFEST_URL:-https://integritas.technology/update-manifest/manifest.json}}"
+  DEV_MODE="${DEV_MODE_INPUT:-${DEV_MODE:-false}}"
 }
 
 ensure_app_secret() {
@@ -239,6 +242,14 @@ normalize_mqtt_broker_config() {
   fi
 }
 
+normalize_dev_mode() {
+  if is_truthy "$DEV_MODE"; then
+    DEV_MODE="true"
+  else
+    DEV_MODE="false"
+  fi
+}
+
 relative_top_level_dir() {
   local value="$1"
   case "$value" in
@@ -281,6 +292,20 @@ fetch_manifest_field() {
   grep -o "\"${field}\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$manifest_file" \
     | head -n1 \
     | sed -E 's/.*:[[:space:]]*"([^"]*)"$/\1/'
+}
+
+resolve_images() {
+  if is_truthy "$DEV_MODE"; then
+    log "DEV_MODE enabled: skipping manifest fetch/signature verification and update agent; building frontend/backend from source"
+    FRONTEND_IMAGE="integritas-pi-frontend:dev"
+    BACKEND_IMAGE="integritas-pi-backend:dev"
+    UPDATE_AGENT_IMAGE=""
+    MANIFEST_VERSION=""
+    MANIFEST_CREATED_AT=""
+    return
+  fi
+
+  fetch_and_verify_manifest
 }
 
 fetch_and_verify_manifest() {
@@ -371,6 +396,13 @@ EOF
 
 write_env_file() {
   log "Writing runtime configuration"
+
+  local compose_profiles=()
+  [ "$ENABLE_MQTT_BROKER" = "true" ] && compose_profiles+=(mqtt)
+  is_truthy "$DEV_MODE" || compose_profiles+=(update-agent)
+  local compose_profiles_joined
+  compose_profiles_joined="$(IFS=,; echo "${compose_profiles[*]:-}")"
+
   cat > "$APP_DIR/.env" <<EOF
 HOST_FILES_DIR=$HOST_FILES_DIR
 FRONTEND_PORT=$FRONTEND_PORT
@@ -380,7 +412,8 @@ DOCKER_GID=$DOCKER_GID
 ENABLE_GPIO=$ENABLE_GPIO
 GPIO_GID=$GPIO_GID
 ENABLE_MQTT_BROKER=$ENABLE_MQTT_BROKER
-COMPOSE_PROFILES=$([ "$ENABLE_MQTT_BROKER" = "true" ] && echo mqtt || echo "")
+DEV_MODE=$DEV_MODE
+COMPOSE_PROFILES=$compose_profiles_joined
 MQTT_PUBLIC_HOST=$MQTT_PUBLIC_HOST
 MQTT_PUBLIC_PORT=$MQTT_PUBLIC_PORT
 MQTT_INTERNAL_URL=mqtt://mqtt:1883
@@ -444,7 +477,11 @@ generate_tls_cert() {
 start_app() {
   log "Starting Docker services"
   cd "$APP_DIR"
-  docker compose pull frontend backend
+  if is_truthy "$DEV_MODE"; then
+    docker compose build frontend backend
+  else
+    docker compose pull frontend backend
+  fi
   docker compose up -d
 }
 
@@ -493,8 +530,9 @@ main() {
   detect_docker_gid
   detect_gpio_gid
   normalize_mqtt_broker_config
+  normalize_dev_mode
   download_app
-  fetch_and_verify_manifest
+  resolve_images
   prepare_runtime_directories
   record_applied_manifest
   write_env_file
