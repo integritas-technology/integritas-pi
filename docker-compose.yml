@@ -1,7 +1,6 @@
 services:
   backend:
-    build:
-      context: ./backend
+    image: ${BACKEND_IMAGE}
     environment:
       PORT: 3000
       HOST_FILES_ROOT: /host-files
@@ -45,8 +44,7 @@ services:
       - integritas
 
   frontend:
-    build:
-      context: ./frontend
+    image: ${FRONTEND_IMAGE}
     ports:
       - "${FRONTEND_PORT:-8080}:443"
     volumes:
@@ -84,6 +82,30 @@ services:
       - ./docker/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - ${DATA_DIR:-./data}/mosquitto:/mosquitto/data
     restart: unless-stopped
+
+  update-agent:
+    image: ${UPDATE_AGENT_IMAGE}
+    environment:
+      PORT: 8081
+      DOCKER_SOCKET_PATH: /var/run/docker.sock
+      MANIFEST_URL: ${MANIFEST_URL:-}
+      RELEASE_CHANNEL: ${RELEASE_CHANNEL:-stable}
+      BACKEND_INTERNAL_URL: http://backend:3000
+      STATE_DIR_IN_CONTAINER: /state
+      HEALTH_CHECK_TIMEOUT_MS: ${UPDATE_HEALTH_CHECK_TIMEOUT_MS:-60000}
+      HEALTH_CHECK_INTERVAL_MS: ${UPDATE_HEALTH_CHECK_INTERVAL_MS:-2000}
+      PULL_TIMEOUT_MS: ${UPDATE_PULL_TIMEOUT_MS:-300000}
+      STATUS_POLL_INTERVAL_MS: ${STATUS_POLL_INTERVAL_MS:-43200000}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${UPDATE_AGENT_STATE_DIR:-./update-agent-state}:/state
+    group_add:
+      - "${DOCKER_GID:-0}"
+    expose:
+      - "8081"
+    restart: unless-stopped
+    depends_on:
+      - backend
     networks:
       - integritas
 

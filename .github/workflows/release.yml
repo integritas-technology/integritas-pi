@@ -1,0 +1,220 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+      update-agent: ${{ steps.filter.outputs.update-agent }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Find previous release tag
+        id: prev-tag
+        run: |
+          case "${GITHUB_REF_NAME}" in
+            *-test.*)
+              echo "tag=" >> "$GITHUB_OUTPUT"
+              ;;
+            *-dev.*)
+              prev=$(git tag --sort=-v:refname | grep -v "^${GITHUB_REF_NAME}$" | grep -- '-dev\.' | head -n1)
+              echo "tag=${prev}" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              prev=$(git tag --sort=-v:refname | grep -v "^${GITHUB_REF_NAME}$" | grep -v -- '-' | head -n1)
+              echo "tag=${prev}" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+      - name: Detect changed service folders since previous release
+        id: filter
+        run: |
+          case "${GITHUB_REF_NAME}" in
+            *-test.*)
+              echo "frontend=true" >> "$GITHUB_OUTPUT"
+              echo "backend=true" >> "$GITHUB_OUTPUT"
+              echo "update-agent=true" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+
+          prev="${{ steps.prev-tag.outputs.tag }}"
+          if [ -z "$prev" ]; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+            echo "update-agent=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only "$prev" "${GITHUB_REF_NAME}")
+          echo "frontend=$(echo "$changed" | grep -q '^frontend/' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "backend=$(echo "$changed" | grep -q '^backend/' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "update-agent=$(echo "$changed" | grep -q '^update-agent/' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.backend == 'true' || needs.changes.outputs.update-agent == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      frontend-digest: ${{ steps.frontend-ref.outputs.ref }}
+      backend-digest: ${{ steps.backend-ref.outputs.ref }}
+      update-agent-digest: ${{ steps.update-agent-ref.outputs.ref }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64,arm
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build and push frontend
+        if: needs.changes.outputs.frontend == 'true'
+        id: frontend-build
+        uses: docker/build-push-action@v7
+        with:
+          context: ./frontend
+          push: true
+          platforms: linux/arm64,linux/arm/v7
+          tags: ghcr.io/${{ github.repository_owner }}/integritas-pi-frontend:${{ github.ref_name }}
+
+      - name: Resolve frontend digest ref
+        if: needs.changes.outputs.frontend == 'true'
+        id: frontend-ref
+        run: echo "ref=ghcr.io/${{ github.repository_owner }}/integritas-pi-frontend@${{ steps.frontend-build.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push backend
+        if: needs.changes.outputs.backend == 'true'
+        id: backend-build
+        uses: docker/build-push-action@v7
+        with:
+          context: ./backend
+          push: true
+          platforms: linux/arm64,linux/arm/v7
+          tags: ghcr.io/${{ github.repository_owner }}/integritas-pi-backend:${{ github.ref_name }}
+
+      - name: Resolve backend digest ref
+        if: needs.changes.outputs.backend == 'true'
+        id: backend-ref
+        run: echo "ref=ghcr.io/${{ github.repository_owner }}/integritas-pi-backend@${{ steps.backend-build.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push update-agent
+        if: needs.changes.outputs.update-agent == 'true'
+        id: update-agent-build
+        uses: docker/build-push-action@v7
+        with:
+          context: ./update-agent
+          push: true
+          platforms: linux/arm64,linux/arm/v7
+          tags: ghcr.io/${{ github.repository_owner }}/integritas-pi-update-agent:${{ github.ref_name }}
+
+      - name: Resolve update-agent digest ref
+        if: needs.changes.outputs.update-agent == 'true'
+        id: update-agent-ref
+        run: echo "ref=ghcr.io/${{ github.repository_owner }}/integritas-pi-update-agent@${{ steps.update-agent-build.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+  manifest:
+    needs: [changes, build]
+    if: always() && !cancelled() && !failure()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Generate manifest repo access token
+        id: manifest-repo-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.MANIFEST_APP_ID }}
+          private-key: ${{ secrets.MANIFEST_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: integritas-manifests
+
+      - name: Pick manifest repo branch
+        id: manifest-repo-branch
+        run: |
+          case "${{ github.ref_name }}" in
+            *-test.*)
+              echo "branch=test" >> "$GITHUB_OUTPUT"
+              ;;
+            *-dev.*)
+              echo "branch=dev" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "branch=main" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+      - name: Checkout manifest repo
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.repository_owner }}/integritas-manifests
+          ref: ${{ steps.manifest-repo-branch.outputs.branch }}
+          token: ${{ steps.manifest-repo-token.outputs.token }}
+          path: manifest-repo
+
+      - name: Read previously deployed digests as fallback
+        id: previous-manifest
+        run: |
+          prev_manifest="manifest-repo/integritas-pi/qa/manifest.json"
+          if [ -f "$prev_manifest" ]; then
+            echo "frontend=$(node -pe "require('./$prev_manifest').frontend ?? ''")" >> "$GITHUB_OUTPUT"
+            echo "backend=$(node -pe "require('./$prev_manifest').backend ?? ''")" >> "$GITHUB_OUTPUT"
+            echo "update-agent=$(node -pe "require('./$prev_manifest').updateAgent ?? ''")" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend=" >> "$GITHUB_OUTPUT"
+            echo "backend=" >> "$GITHUB_OUTPUT"
+            echo "update-agent=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build manifest
+        env:
+          FRONTEND_DIGEST: ${{ needs.build.outputs.frontend-digest || steps.previous-manifest.outputs.frontend }}
+          BACKEND_DIGEST: ${{ needs.build.outputs.backend-digest || steps.previous-manifest.outputs.backend }}
+          UPDATE_AGENT_DIGEST: ${{ needs.build.outputs.update-agent-digest || steps.previous-manifest.outputs.update-agent }}
+          VERSION: ${{ github.ref_name }}
+        run: node scripts/release/build-manifest.mjs manifest.json
+
+      - name: Sign manifest
+        env:
+          MANIFEST_SIGNING_KEY: ${{ secrets.MANIFEST_SIGNING_KEY }}
+        run: node scripts/release/sign-manifest.mjs manifest.json manifest.json.sig
+
+      - name: Deploy manifest (push to private manifest repo)
+        run: |
+          cp manifest.json manifest.json.sig manifest-repo/integritas-pi/qa/
+          cd manifest-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add integritas-pi/qa/manifest.json integritas-pi/qa/manifest.json.sig
+          git diff --staged --quiet && exit 0
+          git commit -m "integritas-pi/qa: update manifest (${{ github.ref_name }})"
+          git push origin HEAD:${{ steps.manifest-repo-branch.outputs.branch }}
+
+      - name: Upload manifest artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: manifest
+          path: |
+            manifest.json
+            manifest.json.sig

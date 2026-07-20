@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Integritas Pi — Update</title>
+<style>
+  :root {
+    color-scheme: light;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    background: #f1f5f9;
+    color: #020617;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+
+  .card {
+    width: min(420px, calc(100vw - 32px));
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 24px;
+    padding: 32px;
+    text-align: center;
+  }
+
+  .card h1 {
+    font-size: 18px;
+    margin: 0 0 8px;
+  }
+
+  .card p {
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0 0 20px;
+  }
+
+  .spinner {
+    width: 36px;
+    height: 36px;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+    border: 3px solid #e2e8f0;
+    border-top-color: #020617;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  button {
+    font: inherit;
+    cursor: pointer;
+    border: none;
+    border-radius: 999px;
+    padding: 10px 24px;
+    background: #020617;
+    color: #ffffff;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  .service-list {
+    text-align: left;
+    font-size: 13px;
+    color: #475569;
+    margin: 0 0 20px;
+    padding: 0;
+    list-style: none;
+  }
+
+  .service-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .hidden {
+    display: none;
+  }
+
+  .error-text {
+    color: #b91c1c;
+  }
+
+  .version-line {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div id="view-loading">
+      <div class="spinner"></div>
+      <p>Checking for updates…</p>
+    </div>
+
+    <div id="view-up-to-date" class="hidden">
+      <h1>Up to date</h1>
+      <p id="up-to-date-version"></p>
+      <ul id="up-to-date-list" class="service-list"></ul>
+    </div>
+
+    <div id="view-available" class="hidden">
+      <h1>Update available</h1>
+      <p id="available-version" class="version-line"></p>
+      <ul id="available-list" class="service-list"></ul>
+      <button id="update-now-button" type="button">Update Now</button>
+    </div>
+
+    <div id="view-updating" class="hidden">
+      <div class="spinner"></div>
+      <h1>Updating…</h1>
+      <p>Please wait, this may take a few minutes. Do not close this page.</p>
+    </div>
+
+    <div id="view-success" class="hidden">
+      <h1>Update complete</h1>
+      <p>Redirecting…</p>
+    </div>
+
+    <div id="view-failure" class="hidden">
+      <h1 class="error-text">Update failed</h1>
+      <p id="failure-message">The update did not complete. Affected services were rolled back to their previous version.</p>
+      <p>Redirecting…</p>
+    </div>
+
+    <div id="view-error" class="hidden">
+      <h1 class="error-text">Unable to check for updates</h1>
+      <p id="error-message"></p>
+      <button id="retry-button" type="button">Retry</button>
+    </div>
+  </div>
+
+  <script src="/update/app.js"></script>
+</body>
+</html>
