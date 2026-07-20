@@ -20,12 +20,6 @@ export async function stampFile(file: File) {
   return postForm<{ record: IntegritasProofRecord }>("/api/integritas/stamp-file", form);
 }
 
-export async function pollPendingRecords(params: ListQueryParams = { page: 1, pageSize: 50 }) {
-  return postJson<IntegritasHistoryPage>(
-    `/api/integritas/history/poll-pending${buildListQueryString(params)}`,
-  );
-}
-
 export async function verifyRecord(id: string) {
   return postJson<{ record: IntegritasProofRecord; response: unknown }>(`/api/integritas/history/${id}/verify`);
 }
