@@ -344,6 +344,11 @@ function validateBlockConfig(type: AutomationBlockType, config: Record<string, u
     config.durationMs = durationMs;
   }
 
+  if (type === "set_variable") {
+    validateSetVariableConfig(config);
+    return;
+  }
+
   if (type === "if_payload_field_equals") {
     validateFieldCondition(config, "Condition block");
     return;
@@ -429,11 +434,37 @@ function isAutomationBlockType(type: string): type is AutomationBlockType {
     || type === "mqtt_event_start"
     || type === "record_trigger_event"
     || type === "fetch_data_source"
+    || type === "set_variable"
     || type === "if_payload_field_equals"
     || type === "wait"
     || type === "stamp_integritas"
     || type === "control_output"
     || type === "send_transaction";
+}
+
+function validateSetVariableConfig(config: Record<string, unknown>) {
+  const variableName = typeof config.variableName === "string" ? config.variableName.trim() : "";
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(variableName)) throw new Error("Set variable requires a valid variable name");
+  const variableSource = typeof config.variableSource === "string" ? config.variableSource : "custom_json";
+  if (variableSource !== "custom_json" && variableSource !== "trigger_field" && variableSource !== "latest_data_field" && variableSource !== "context_field") throw new Error("Set variable source is invalid");
+  config.variableName = variableName;
+  config.variableSource = variableSource;
+  if (variableSource === "custom_json") {
+    const text = typeof config.valueJsonText === "string" ? config.valueJsonText : "null";
+    try {
+      JSON.parse(text) as unknown;
+    } catch {
+      throw new Error("Variable custom JSON must be valid JSON");
+    }
+    config.valueJsonText = text;
+    delete config.fieldPath;
+    return;
+  }
+  const fieldPath = typeof config.fieldPath === "string" ? config.fieldPath.trim() : "";
+  if (!fieldPath) throw new Error("Set variable field source requires a field path");
+  if (!isSafeFieldPath(fieldPath)) throw new Error("Field path can only contain letters, numbers, underscores, dashes, and dots");
+  config.fieldPath = fieldPath;
+  delete config.valueJsonText;
 }
 
 function isOutputTarget(type: string) {

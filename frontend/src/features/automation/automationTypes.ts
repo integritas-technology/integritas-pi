@@ -25,6 +25,7 @@ export type AutomationBlockType =
   | "mqtt_event_start"
   | "record_trigger_event"
   | "fetch_data_source"
+  | "set_variable"
   | "if_payload_field_equals"
   | "wait"
   | "stamp_integritas"
@@ -54,6 +55,9 @@ export type AutomationBlock = {
     bodyMode?: "custom" | "workflow_context" | "trigger_payload" | "latest_data" | "none";
     bodyTemplateText?: string;
     bodyTemplate?: unknown;
+    variableName?: string;
+    variableSource?: "custom_json" | "trigger_field" | "latest_data_field" | "context_field";
+    valueJsonText?: string;
     activeOnly?: boolean;
     source?: "trigger" | "data";
     fieldPath?: string;

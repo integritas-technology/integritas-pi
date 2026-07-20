@@ -1,6 +1,6 @@
 # Workflow Variables And Output Templating Plan
 
-**Status:** Planned  
+**Status:** V1 implemented  
 **Created:** 2026-07-16  
 **Goal:** Let workflows prepare per-run values and reuse them in later blocks, starting with output payload templating for HTTP/API and MQTT output targets.
 
@@ -195,6 +195,8 @@ When the entire string is exactly one variable reference:
 Preserve object/array/number/boolean/null type instead of stringifying it.
 
 ## V1 Implementation Plan
+
+Status: Implemented.
 
 1. Extend runtime context.
    Add `variables: Record<string, unknown>` to workflow execution context and include it in block run input/output summaries.

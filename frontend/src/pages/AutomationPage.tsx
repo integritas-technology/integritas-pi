@@ -476,6 +476,19 @@ function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChan
     );
   }
 
+  if (block.type === "set_variable") {
+    const variableSource = block.config.variableSource ?? "custom_json";
+    return (
+      <Panel className={formGridClass}>
+        <strong>Selected block</strong>
+        <p className={mutedText}>Save a per-run value that later blocks can use as <code>{"{{variableName}}"}</code> in custom output JSON.</p>
+        <label>Variable name<input value={block.config.variableName ?? "message"} onChange={(event) => onChange({ ...block.config, variableName: event.target.value })} placeholder="discordMessage" /></label>
+        <label>Value source<select value={variableSource} onChange={(event) => onChange(defaultVariableSourceConfig(block.config, event.target.value as NonNullable<AutomationBlock["config"]["variableSource"]>))}><option value="custom_json">Custom JSON</option><option value="trigger_field">Trigger field</option><option value="latest_data_field">Latest data field</option><option value="context_field">Workflow context field</option></select></label>
+        {variableSource === "custom_json" ? <label>Custom JSON<textarea rows={5} value={block.config.valueJsonText ?? '"Button pressed"'} onChange={(event) => onChange({ ...block.config, variableSource: "custom_json", valueJsonText: event.target.value })} /></label> : <label>Field path<input value={block.config.fieldPath ?? ""} onChange={(event) => onChange({ ...block.config, variableSource, fieldPath: event.target.value })} placeholder={variableSource === "trigger_field" ? "pin" : variableSource === "latest_data_field" ? "temperature" : "hash"} /></label>}
+      </Panel>
+    );
+  }
+
   if (block.type === "if_payload_field_equals") {
     return (
       <Panel className={formGridClass}>
@@ -586,6 +599,7 @@ function defaultDraftConfig(type: AutomationBlockType, sources: DataSource[], po
   if (type === "gpio_event_start" || type === "webhook_event_start" || type === "mqtt_event_start") return { sourceId: defaultSourceForStart(type, sources)?.id ?? "" };
   if (type === "if_payload_field_equals") return { source: "trigger", fieldPath: "active", operator: "equals", value: true };
   if (type === "wait") return { durationMs: 1000 };
+  if (type === "set_variable") return { variableName: "message", variableSource: "custom_json", valueJsonText: '"Button pressed"' };
   if (type === "control_output") {
     const target = sources.find((source) => isOutputTarget(source));
     return defaultOutputBlockConfig(target, 500);
@@ -1018,6 +1032,7 @@ function blockLabel(block: AutomationBlock) {
   if (block.type === "manual_start") return "Start manually";
   if (block.type === "record_trigger_event") return "Record trigger event";
   if (block.type === "fetch_data_source") return "Fetch data source";
+  if (block.type === "set_variable") return "Set variable";
   if (block.type === "if_payload_field_equals") return `If ${conditionSourceLabel(block.config.source ?? "trigger")} field matches`;
   if (block.type === "wait") return "Wait";
   if (block.type === "stamp_integritas") return "Stamp data";
@@ -1030,6 +1045,7 @@ function blockShortLabel(block: AutomationBlock) {
   if (block.type.endsWith("_start")) return "Start";
   if (block.type === "record_trigger_event") return "Record event";
   if (block.type === "fetch_data_source") return "Fetch source";
+  if (block.type === "set_variable") return "Set variable";
   if (block.type === "if_payload_field_equals") return "If payload matches";
   if (block.type === "stamp_integritas") return "Stamp";
   if (block.type === "control_output") return "Control device";
@@ -1171,6 +1187,12 @@ function outputBodyModeConfig(config: AutomationBlock["config"], bodyMode: NonNu
   if (bodyMode !== "custom") delete next.bodyTemplateText;
   if (targetType === "mqtt-output" && bodyMode === "none") return { ...next, bodyMode: "workflow_context" };
   return next;
+}
+
+function defaultVariableSourceConfig(config: AutomationBlock["config"], variableSource: NonNullable<AutomationBlock["config"]["variableSource"]>): AutomationBlock["config"] {
+  const base = { variableName: config.variableName ?? "message", variableSource };
+  if (variableSource === "custom_json") return { ...base, valueJsonText: config.valueJsonText ?? '"Button pressed"' };
+  return { ...base, fieldPath: variableSource === "trigger_field" ? "pin" : variableSource === "latest_data_field" ? "temperature" : "hash" };
 }
 
 function outputBodyModes(targetType: "http-output" | "mqtt-output") {

@@ -21,12 +21,12 @@
 
 ## Next
 
-- [ ] Workflow variables and output templating — see `docs/plans/workflow-variables-and-output-templating.md`.
 - [ ] Fix stale `docs/README.md` active-plans table (references deleted plan files) — re-check, may already be resolved.
 - [ ] Decide whether/how to fix the `docs/gpio-device-settings.md` link now that the file may have moved to `archive/docs/guides/`.
 
 ## Done
 
+- [x] Implemented V1 workflow variables and output templating — see `docs/plans/workflow-variables-and-output-templating.md`.
 - [x] Implemented V1 device configuration flow, HTTP/MQTT output targets, and optional local MQTT broker support — see `docs/plans/device-configuration-and-mqtt-broker.md`.
 
 

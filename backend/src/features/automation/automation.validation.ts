@@ -43,6 +43,9 @@ export type BlockConfig = {
   bodyMode?: string;
   bodyTemplateText?: string;
   bodyTemplate?: unknown;
+  variableName?: string;
+  variableSource?: string;
+  valueJsonText?: string;
   source?: "trigger" | "data";
   fieldPath?: string;
   operator?: string;
@@ -117,6 +120,10 @@ async function validateAutomationBlockGraph(blocks: ValidationBlock[]): Promise<
 
     if (block.type === "fetch_data_source") {
       hasData = true;
+    }
+
+    if (block.type === "set_variable") {
+      validateSetVariableBlock(block, config, hasData, issues);
     }
 
     if (block.type === "if_payload_field_equals" && (config.source ?? "trigger") === "data" && !hasData) {
@@ -208,6 +215,25 @@ function validateOutputBodyConfig(block: ValidationBlock, config: BlockConfig, t
       addIssue(issues, "error", "control_output.invalid_custom_body", "Custom output body must be valid JSON.", block);
     }
   }
+}
+
+function validateSetVariableBlock(block: ValidationBlock, config: BlockConfig, hasData: boolean, issues: AutomationValidationIssue[]) {
+  const variableName = String(config.variableName ?? "").trim();
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(variableName)) addIssue(issues, "error", "set_variable.invalid_name", "Set variable requires a valid variable name.", block);
+  const variableSource = String(config.variableSource ?? "custom_json");
+  if (variableSource !== "custom_json" && variableSource !== "trigger_field" && variableSource !== "latest_data_field" && variableSource !== "context_field") addIssue(issues, "error", "set_variable.invalid_source", "Set variable source is invalid.", block);
+  if (variableSource === "latest_data_field" && !hasData) addIssue(issues, "error", "set_variable.data_before_data_block", "Latest data variables require a Record trigger event or Fetch data block before this block.", block);
+  if (variableSource === "custom_json") {
+    try {
+      JSON.parse(config.valueJsonText ?? "null") as unknown;
+    } catch {
+      addIssue(issues, "error", "set_variable.invalid_json", "Variable custom JSON must be valid JSON.", block);
+    }
+    return;
+  }
+  const fieldPath = String(config.fieldPath ?? "").trim();
+  if (!fieldPath) addIssue(issues, "error", "set_variable.missing_field_path", "Set variable field source requires a field path.", block);
+  if (fieldPath && !/^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$/.test(fieldPath)) addIssue(issues, "error", "set_variable.invalid_field_path", "Field path can only contain letters, numbers, underscores, dashes, and dots.", block);
 }
 
 async function validateTransactionBalances(blocks: ValidationBlock[], issues: AutomationValidationIssue[]) {
