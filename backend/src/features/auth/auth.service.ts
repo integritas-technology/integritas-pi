@@ -11,16 +11,9 @@ import {
   updateUserPassword,
   updateUserTotpSecret
 } from "./auth.repository.js";
-import { adminPinValidationError, hashPassword, isValidAdminPin, verifyPassword } from "./password.service.js";
+import { adminCredentialValidationError, hashPassword, isValidAdminCredential, verifyPassword } from "./password.service.js";
 import { createSession } from "./session.service.js";
-import {
-  decryptTotpSecret,
-  encryptTotpSecret,
-  generateSecret,
-  getOtpAuthUrl,
-  renderQrPngBase64,
-  verifyToken
-} from "./totp.service.js";
+import { decryptTotpSecret, encryptTotpSecret, generateSecret, getOtpAuthUrl, renderQrPngBase64, verifyToken } from "./totp.service.js";
 
 const DUMMY_HASH = bcrypt.hashSync("integritas-pi-dummy-login-path", 12);
 const TOTP_RESET_PENDING_TTL_MS = 15 * 60 * 1000;
@@ -71,16 +64,19 @@ export async function login(input: { password: string; totpToken?: string }) {
   };
 }
 
-export async function changePassword(userId: string, input: {
-  currentPassword: string;
-  newPassword: string;
-  totpToken?: string;
-}) {
+export async function changePassword(
+  userId: string,
+  input: {
+    currentPassword: string;
+    newPassword: string;
+    totpToken?: string;
+  }
+) {
   const user = findUserById(userId);
   if (!user) throw new AuthSettingsError("User not found", 404);
 
   const passwordValid = await verifyPassword(input.currentPassword, user.password);
-  if (!passwordValid) throw new AuthSettingsError("Invalid current PIN", 401);
+  if (!passwordValid) throw new AuthSettingsError("Invalid current credential", 401);
 
   if (TOTP_ENABLED) {
     const token = (input.totpToken ?? "").trim();
@@ -96,22 +92,25 @@ export async function changePassword(userId: string, input: {
     if (!totpValid) throw new AuthSettingsError("Invalid TOTP code", 401);
   }
 
-  if (!isValidAdminPin(input.newPassword)) throw new AuthSettingsError(adminPinValidationError(), 400);
+  if (!isValidAdminCredential(input.newPassword)) throw new AuthSettingsError(adminCredentialValidationError(), 400);
 
   const newHash = await hashPassword(input.newPassword);
   updateUserPassword(userId, newHash);
   recordAuditEvent("settings.password_changed", { userId, detail: LOCAL_ADMIN_DISPLAY_NAME });
 }
 
-export async function initTotpReset(userId: string, input: {
-  currentPassword: string;
-  totpToken: string;
-}) {
+export async function initTotpReset(
+  userId: string,
+  input: {
+    currentPassword: string;
+    totpToken: string;
+  }
+) {
   const user = findUserById(userId);
   if (!user) throw new AuthSettingsError("User not found", 404);
 
   const passwordValid = await verifyPassword(input.currentPassword, user.password);
-  if (!passwordValid) throw new AuthSettingsError("Invalid current PIN", 401);
+  if (!passwordValid) throw new AuthSettingsError("Invalid current credential", 401);
 
   const token = input.totpToken.trim();
   if (!/^\d{6}$/.test(token)) throw new AuthSettingsError("totpToken must be a 6-digit code", 400);

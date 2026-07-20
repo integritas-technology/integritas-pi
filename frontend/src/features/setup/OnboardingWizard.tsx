@@ -16,11 +16,17 @@ import {
   Smartphone,
   Sparkles,
   Stamp,
-  UserRound,
+  UserRound
 } from "lucide-react";
 import { ErrorText } from "../../components/Text";
 import { cx } from "../../lib/cx";
-import { adminPinHint, isValidAdminPin, sanitizePinInput } from "../auth/pin";
+import {
+  adminPasswordHint,
+  adminPinHint,
+  isValidAdminCredential,
+  sanitizePinInput,
+  type AdminCredentialType
+} from "../auth/adminCredentials";
 import { TOTP_ENABLED } from "../auth/totpEnabled";
 import { hasConnectedProfile, type IntegritasAuthStatus } from "../integritas-auth/integritasAuthApi";
 import { useIntegritasAuth } from "../integritas-auth/useIntegritasAuth";
@@ -31,9 +37,10 @@ import type { CheckState, OnboardingFormState, OnboardingStepId } from "./types"
 const TOTP_ACCOUNT_LABEL = "Edge Workbench";
 
 const initialForm: OnboardingFormState = {
+  credentialType: "pin",
   password: "",
   confirmPassword: "",
-  twoFactorCode: "",
+  twoFactorCode: ""
 };
 
 type PillTone = "neutral" | "good" | "warn" | "future";
@@ -64,7 +71,7 @@ const pillToneClass: Record<PillTone, string> = {
   neutral: "bg-slate-100 text-slate-700",
   good: "bg-emerald-100 text-emerald-700",
   warn: "bg-amber-100 text-amber-700",
-  future: "bg-violet-100 text-violet-700",
+  future: "bg-violet-100 text-violet-700"
 };
 
 function Pill({ children, tone = "neutral" }: { children: React.ReactNode; tone?: PillTone }) {
@@ -73,14 +80,22 @@ function Pill({ children, tone = "neutral" }: { children: React.ReactNode; tone?
   );
 }
 
-function pinHint(pin: string): {
+function credentialHint(
+  type: AdminCredentialType,
+  credential: string
+): {
   label: string;
   tone: "warn" | "good" | "neutral";
 } {
-  if (!pin) return { label: `Enter a ${adminPinHint()}`, tone: "neutral" };
-  if (!/^\d+$/.test(pin)) return { label: "Numbers only", tone: "warn" };
-  if (!isValidAdminPin(pin)) return { label: `Must be a ${adminPinHint()}`, tone: "warn" };
-  return { label: "PIN looks good", tone: "good" };
+  if (type === "pin") {
+    if (!credential) return { label: `Enter a ${adminPinHint()}`, tone: "neutral" };
+    if (!isValidAdminCredential(type, credential)) return { label: `Must be a ${adminPinHint()}`, tone: "warn" };
+    return { label: "PIN looks good", tone: "good" };
+  }
+
+  if (!credential) return { label: adminPasswordHint(), tone: "neutral" };
+  if (!isValidAdminCredential(type, credential)) return { label: adminPasswordHint(), tone: "warn" };
+  return { label: "Password looks good", tone: "good" };
 }
 
 function StepIcon({ id, active, complete }: { id: OnboardingStepId; active: boolean; complete: boolean }) {
@@ -89,7 +104,7 @@ function StepIcon({ id, active, complete }: { id: OnboardingStepId; active: bool
     account: LockKeyhole,
     twofa: Smartphone,
     connectAccount: UserRound,
-    complete: CheckCircle2,
+    complete: CheckCircle2
   };
   const Icon = complete ? Check : icons[id];
   return (
@@ -97,7 +112,7 @@ function StepIcon({ id, active, complete }: { id: OnboardingStepId; active: bool
       className={cx(
         "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 [&_svg]:pointer-events-none",
         active && "bg-white text-slate-950",
-        complete && "bg-green-600 text-white",
+        complete && "bg-green-600 text-white"
       )}
       aria-hidden="true"
     >
@@ -122,8 +137,8 @@ function WelcomeStep() {
           <h3 className="m-0 text-sm">Secure this device</h3>
           <p className="m-0 text-xs leading-relaxed text-slate-500">
             {TOTP_ENABLED
-              ? "Choose a local admin PIN and two-factor authentication to protect configuration on your LAN."
-              : "Choose a local admin PIN to protect configuration on your LAN."}
+              ? "Choose a local admin PIN or password and two-factor authentication to protect configuration on your LAN."
+              : "Choose a local admin PIN or password to protect configuration on your LAN."}
           </p>
         </article>
         <article className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
@@ -146,33 +161,60 @@ function WelcomeStep() {
 }
 
 function AccountStep({ form, setForm }: { form: OnboardingFormState; setForm: (patch: Partial<OnboardingFormState>) => void }) {
-  const hint = pinHint(form.password);
-  const pinsMatch = !form.confirmPassword || form.password === form.confirmPassword;
+  const hint = credentialHint(form.credentialType, form.password);
+  const credentialsMatch = !form.confirmPassword || form.password === form.confirmPassword;
+  const isPin = form.credentialType === "pin";
+  const credentialLabel = isPin ? "PIN" : "Password";
+
+  const selectCredentialType = (credentialType: AdminCredentialType) => {
+    setForm({ credentialType, password: "", confirmPassword: "" });
+  };
 
   return (
     <div className={panelClass}>
       <p className={eyebrowClass}>Secure this device</p>
-      <h2 className={headingClass}>Choose your admin PIN</h2>
-      <p className={leadClass}>This PIN unlocks Edge Workbench on this hardware.</p>
+      <h2 className={headingClass}>Choose a PIN or password</h2>
+      <p className={leadClass}>This local credential unlocks Edge Workbench on this hardware.</p>
 
       <div className={formGridClass}>
+        <fieldset className="grid gap-2 border-0 p-0">
+          <legend className="mb-2 font-bold text-slate-700">Credential type</legend>
+          <div className="grid grid-cols-2 gap-2">
+            {(["pin", "password"] as const).map((type) => (
+              <button
+                key={type}
+                type="button"
+                className={cx(
+                  "rounded-xl border px-3 py-2.5 text-sm font-bold",
+                  form.credentialType === type ? "border-slate-950 bg-slate-950 text-white" : "border-slate-300 bg-white text-slate-700"
+                )}
+                aria-pressed={form.credentialType === type}
+                onClick={() => selectCredentialType(type)}
+              >
+                {type === "pin" ? "6-digit PIN" : "Password"}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+
         <label className={labelClass}>
-          PIN code
+          {credentialLabel}
           <input
             className={inputClass}
             value={form.password}
-            onChange={(event) => setForm({ password: sanitizePinInput(event.target.value) })}
+            onChange={(event) => setForm({ password: isPin ? sanitizePinInput(event.target.value) : event.target.value })}
             type="password"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            placeholder="000000"
+            inputMode={isPin ? "numeric" : "text"}
+            pattern={isPin ? "[0-9]*" : undefined}
+            maxLength={isPin ? 6 : undefined}
+            placeholder={isPin ? "000000" : "At least 8 characters"}
             autoComplete="new-password"
           />
           <span
             className={cx(
               hint.tone === "good" && goodHintClass,
               hint.tone === "warn" && warnHintClass,
-              hint.tone === "neutral" && mutedClass,
+              hint.tone === "neutral" && mutedClass
             )}
           >
             {hint.label}
@@ -180,18 +222,19 @@ function AccountStep({ form, setForm }: { form: OnboardingFormState; setForm: (p
         </label>
 
         <label className={labelClass}>
-          Confirm PIN
+          Confirm {credentialLabel.toLowerCase()}
           <input
             className={inputClass}
             value={form.confirmPassword}
-            onChange={(event) => setForm({ confirmPassword: sanitizePinInput(event.target.value) })}
+            onChange={(event) => setForm({ confirmPassword: isPin ? sanitizePinInput(event.target.value) : event.target.value })}
             type="password"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            placeholder="Repeat PIN"
+            inputMode={isPin ? "numeric" : "text"}
+            pattern={isPin ? "[0-9]*" : undefined}
+            maxLength={isPin ? 6 : undefined}
+            placeholder={`Repeat ${credentialLabel.toLowerCase()}`}
             autoComplete="new-password"
           />
-          {!pinsMatch && <span className={warnHintClass}>PINs do not match</span>}
+          {!credentialsMatch && <span className={warnHintClass}>{credentialLabel}s do not match</span>}
         </label>
       </div>
     </div>
@@ -206,7 +249,7 @@ function TwoFactorStep({
   loadingQr,
   qrError,
   checkState,
-  onVerifyCode,
+  onVerifyCode
 }: {
   form: OnboardingFormState;
   setForm: (patch: Partial<OnboardingFormState>) => void;
@@ -292,7 +335,7 @@ function TwoFactorStep({
               value={form.twoFactorCode}
               onChange={(event) =>
                 setForm({
-                  twoFactorCode: event.target.value.replace(/\D/g, "").slice(0, 6),
+                  twoFactorCode: event.target.value.replace(/\D/g, "").slice(0, 6)
                 })
               }
               inputMode="numeric"
@@ -349,7 +392,7 @@ function ConnectAccountStep({
   starting,
   error,
   onVerify,
-  onRetry,
+  onRetry
 }: {
   status: IntegritasAuthStatus | null;
   starting: boolean;
@@ -463,7 +506,7 @@ function CompleteStep({
   totpVerified,
   connectedName,
   connectedPlan,
-  connectedUsage,
+  connectedUsage
 }: {
   passwordSet: boolean;
   totpVerified: boolean;
@@ -473,43 +516,43 @@ function CompleteStep({
 }) {
   const configured = [
     {
-      label: "Admin PIN",
-      detail: passwordSet ? "Configured" : "Not set",
+      label: "Admin credential",
+      detail: passwordSet ? "Configured" : "Not set"
     },
     ...(TOTP_ENABLED
       ? [
           {
             label: "Two-factor auth",
-            detail: totpVerified ? "Authenticator linked" : "Not verified",
-          },
+            detail: totpVerified ? "Authenticator linked" : "Not verified"
+          }
         ]
       : []),
     {
       label: "Workbench account",
-      detail: connectedName ? `Signed in as ${connectedName}` : "Connected",
+      detail: connectedName ? `Signed in as ${connectedName}` : "Connected"
     },
     ...(connectedPlan
       ? [
           {
             label: "Plan",
-            detail: connectedPlan,
-          },
+            detail: connectedPlan
+          }
         ]
       : []),
     ...(connectedUsage !== null
       ? [
           {
             label: "Usage remaining",
-            detail: connectedUsage.toLocaleString(),
-          },
+            detail: connectedUsage.toLocaleString()
+          }
         ]
-      : []),
+      : [])
   ];
 
   const automatic = [
     "Minima node health and peer connectivity",
     "Wallet lock and local security defaults",
-    "Background services and stamp polling",
+    "Background services and stamp polling"
   ];
 
   return (
@@ -567,10 +610,10 @@ export function OnboardingWizard({ onComplete, resumeAtConnect = false }: { onCo
     error: connectError,
 
     start,
-    openVerification,
+    openVerification
   } = useIntegritasAuth({
     enabled: localAdminReady,
-    refreshProfileOnConnected: true,
+    refreshProfileOnConnected: true
   });
 
   useEffect(() => {
@@ -621,7 +664,7 @@ export function OnboardingWizard({ onComplete, resumeAtConnect = false }: { onCo
       case "welcome":
         return true;
       case "account":
-        return isValidAdminPin(form.password) && form.password === form.confirmPassword;
+        return isValidAdminCredential(form.credentialType, form.password) && form.password === form.confirmPassword;
       case "twofa":
         return totpCheck === "ok" && Boolean(qrCode) && !qrError;
       case "connectAccount":
@@ -728,7 +771,7 @@ export function OnboardingWizard({ onComplete, resumeAtConnect = false }: { onCo
                     className={cx(
                       "flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-slate-400",
                       active && "bg-white/10 text-white",
-                      complete && "text-slate-300",
+                      complete && "text-slate-300"
                     )}
                   >
                     <StepIcon id={step.id} active={active} complete={complete} />

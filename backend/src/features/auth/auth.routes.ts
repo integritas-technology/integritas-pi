@@ -63,7 +63,7 @@ authProtectedRouter.post("/settings/password", authRateLimiter, async (req, res)
     if (error instanceof AuthSettingsError) {
       return res.status(error.status).json({ error: error.message });
     }
-    return res.status(500).json({ error: "Failed to change PIN" });
+    return res.status(500).json({ error: "Failed to change credential" });
   }
 });
 

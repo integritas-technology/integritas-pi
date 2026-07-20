@@ -10,10 +10,10 @@ import {
   createUser,
   getLatestSetupPending,
   clearSetupPending,
-  markSetupPendingVerified,
+  markSetupPendingVerified
 } from "./auth.repository.js";
 import { validateIntegritasApiKey } from "./integritas-validation.service.js";
-import { adminPinValidationError, hashPassword, isValidAdminPin } from "./password.service.js";
+import { adminCredentialValidationError, hashPassword, isValidAdminCredential } from "./password.service.js";
 import { createSession } from "./session.service.js";
 import { decryptTotpSecret, encryptTotpSecret, generateSecret, getOtpAuthUrl, renderQrPngBase64, verifyToken } from "./totp.service.js";
 
@@ -103,7 +103,7 @@ export async function completeSetup(input: { password: string; integritasApiKey?
 
   const password = input.password;
 
-  if (!isValidAdminPin(password)) throw new SetupError(adminPinValidationError(), 400);
+  if (!isValidAdminCredential(password)) throw new SetupError(adminCredentialValidationError(), 400);
 
   let totpSecretEncrypted: string;
   if (TOTP_ENABLED) {
@@ -132,7 +132,7 @@ export async function completeSetup(input: { password: string; integritasApiKey?
     const userId = createUser({
       username: LOCAL_ADMIN_USERNAME,
       passwordHash,
-      totpSecretEncrypted,
+      totpSecretEncrypted
     });
 
     if (integritasApiKey) {
@@ -151,6 +151,6 @@ export async function completeSetup(input: { password: string; integritasApiKey?
 
   return {
     sessionToken,
-    user: { displayName: LOCAL_ADMIN_DISPLAY_NAME, role: "admin" as const },
+    user: { displayName: LOCAL_ADMIN_DISPLAY_NAME, role: "admin" as const }
   };
 }

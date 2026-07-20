@@ -7,7 +7,7 @@ import { Card } from "../components/Card";
 import { Page } from "../components/Page";
 import { ErrorText } from "../components/Text";
 import { changePassword, initTotpReset, verifyTotpReset } from "../features/auth/api";
-import { isValidAdminPin, sanitizePinInput } from "../features/auth/pin";
+import { adminPasswordHint, isValidAdminCredential, sanitizePinInput, type AdminCredentialType } from "../features/auth/adminCredentials";
 import { TOTP_ENABLED } from "../features/auth/totpEnabled";
 import { IntegritasConnectPanel } from "../features/integritas-auth/IntegritasConnectPanel";
 
@@ -19,7 +19,9 @@ const labelClass = "grid gap-3 font-bold text-slate-700";
 export function AuthSettingsPage() {
   const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState("");
+  const [newCredentialType, setNewCredentialType] = useState<AdminCredentialType>("pin");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [pwTotpToken, setPwTotpToken] = useState("");
   const [pwSubmitting, setPwSubmitting] = useState(false);
   const [pwError, setPwError] = useState<string | null>(null);
@@ -52,9 +54,10 @@ export function AuthSettingsPage() {
       setPwSuccess(true);
       setCurrentPassword("");
       setNewPassword("");
+      setConfirmNewPassword("");
       setPwTotpToken("");
     } catch (err) {
-      setPwError(err instanceof Error ? err.message : "Failed to change PIN");
+      setPwError(err instanceof Error ? err.message : "Failed to change credential");
     } finally {
       setPwSubmitting(false);
     }
@@ -113,7 +116,14 @@ export function AuthSettingsPage() {
     setShowManualKey(false);
   };
 
-  const passwordFormReady = isValidAdminPin(currentPassword) && isValidAdminPin(newPassword) && (!TOTP_ENABLED || pwTotpToken.length === 6);
+  const newCredentialIsPin = newCredentialType === "pin";
+  const newCredentialLabel = newCredentialIsPin ? "PIN" : "password";
+  const newCredentialsMatch = !confirmNewPassword || newPassword === confirmNewPassword;
+  const passwordFormReady =
+    currentPassword.length > 0 &&
+    isValidAdminCredential(newCredentialType, newPassword) &&
+    newPassword === confirmNewPassword &&
+    (!TOTP_ENABLED || pwTotpToken.length === 6);
 
   return (
     <Page
@@ -133,54 +143,97 @@ export function AuthSettingsPage() {
 
       <Card>
         <div className="grid gap-1" style={{ marginBottom: 16 }}>
-          <h3 style={{ margin: 0 }}>Change PIN</h3>
+          <h3 style={{ margin: 0 }}>Change PIN or password</h3>
           <p style={{ margin: 0, color: "#64748b", fontSize: "0.875rem" }}>
             {TOTP_ENABLED
-              ? "Requires your current PIN and a valid 2FA code."
-              : "Requires your current PIN. New PIN must be exactly 6 digits."}
+              ? "Requires your current credential and a valid 2FA code."
+              : "Choose a 6-digit PIN or a password with at least 8 characters."}
           </p>
         </div>
 
         {pwSuccess && (
           <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3" style={{ marginBottom: 16 }}>
             <p className="text-sm text-emerald-700 flex items-center gap-2" style={{ margin: 0 }}>
-              <Check size={14} /> PIN changed successfully.
+              <Check size={14} /> Credential changed successfully.
             </p>
           </div>
         )}
 
         <form onSubmit={(e) => void handleChangePassword(e)} className={formClass}>
           <label className={labelClass}>
-            Current PIN
+            Current PIN or password
             <input
               type="password"
-              inputMode="numeric"
-              pattern="[0-9]*"
               value={currentPassword}
               onChange={(e) => {
-                setCurrentPassword(sanitizePinInput(e.target.value));
+                setCurrentPassword(e.target.value);
                 setPwError(null);
                 setPwSuccess(false);
               }}
-              placeholder="Your current PIN"
+              placeholder="Your current credential"
               autoComplete="current-password"
             />
           </label>
+          <fieldset className="grid gap-2 border-0 p-0">
+            <legend className="mb-2 font-bold text-slate-700">New credential type</legend>
+            <div className="grid max-w-md grid-cols-2 gap-2">
+              {(["pin", "password"] as const).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  className={`rounded-xl border px-3 py-2.5 text-sm font-bold ${
+                    newCredentialType === type ? "border-slate-950 bg-slate-950 text-white" : "border-slate-300 bg-white text-slate-700"
+                  }`}
+                  aria-pressed={newCredentialType === type}
+                  onClick={() => {
+                    setNewCredentialType(type);
+                    setNewPassword("");
+                    setConfirmNewPassword("");
+                    setPwError(null);
+                    setPwSuccess(false);
+                  }}
+                >
+                  {type === "pin" ? "6-digit PIN" : "Password"}
+                </button>
+              ))}
+            </div>
+          </fieldset>
           <label className={labelClass}>
-            New PIN
+            New {newCredentialLabel}
             <input
               type="password"
-              inputMode="numeric"
-              pattern="[0-9]*"
+              inputMode={newCredentialIsPin ? "numeric" : "text"}
+              pattern={newCredentialIsPin ? "[0-9]*" : undefined}
+              maxLength={newCredentialIsPin ? 6 : undefined}
               value={newPassword}
               onChange={(e) => {
-                setNewPassword(sanitizePinInput(e.target.value));
+                setNewPassword(newCredentialIsPin ? sanitizePinInput(e.target.value) : e.target.value);
                 setPwError(null);
                 setPwSuccess(false);
               }}
-              placeholder="000000"
+              placeholder={newCredentialIsPin ? "000000" : adminPasswordHint()}
               autoComplete="new-password"
             />
+          </label>
+          <label className={labelClass}>
+            Confirm new {newCredentialLabel}
+            <input
+              type="password"
+              inputMode={newCredentialIsPin ? "numeric" : "text"}
+              pattern={newCredentialIsPin ? "[0-9]*" : undefined}
+              maxLength={newCredentialIsPin ? 6 : undefined}
+              value={confirmNewPassword}
+              onChange={(e) => {
+                setConfirmNewPassword(newCredentialIsPin ? sanitizePinInput(e.target.value) : e.target.value);
+                setPwError(null);
+                setPwSuccess(false);
+              }}
+              placeholder={`Repeat new ${newCredentialLabel}`}
+              autoComplete="new-password"
+            />
+            {!newCredentialsMatch && (
+              <span className="text-sm font-medium text-amber-700">{newCredentialIsPin ? "PINs" : "Passwords"} do not match</span>
+            )}
           </label>
           {TOTP_ENABLED ? (
             <label className={labelClass}>
@@ -202,7 +255,7 @@ export function AuthSettingsPage() {
           {pwError && <ErrorText className="m-0">{pwError}</ErrorText>}
           <ButtonRow>
             <Button type="submit" disabled={pwSubmitting || !passwordFormReady}>
-              {pwSubmitting ? "Updating…" : "Change PIN"}
+              {pwSubmitting ? "Updating…" : "Change credential"}
             </Button>
           </ButtonRow>
         </form>
@@ -226,17 +279,15 @@ export function AuthSettingsPage() {
                 </p>
               </div>
               <label className={labelClass}>
-                Current PIN
+                Current PIN or password
                 <input
                   type="password"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
                   value={resetCurrentPassword}
                   onChange={(e) => {
-                    setResetCurrentPassword(sanitizePinInput(e.target.value));
+                    setResetCurrentPassword(e.target.value);
                     setResetError(null);
                   }}
-                  placeholder="Your current PIN"
+                  placeholder="Your current credential"
                   autoComplete="current-password"
                 />
               </label>
@@ -256,10 +307,7 @@ export function AuthSettingsPage() {
               </label>
               {resetError && <ErrorText className="m-0">{resetError}</ErrorText>}
               <ButtonRow>
-                <Button
-                  type="submit"
-                  disabled={resetSubmitting || !isValidAdminPin(resetCurrentPassword) || resetCurrentToken.length !== 6}
-                >
+                <Button type="submit" disabled={resetSubmitting || resetCurrentPassword.length === 0 || resetCurrentToken.length !== 6}>
                   {resetSubmitting ? "Verifying…" : "Start 2FA reset"}
                 </Button>
               </ButtonRow>

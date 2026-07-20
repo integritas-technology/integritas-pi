@@ -2,7 +2,6 @@ import { useState } from "react";
 import { ArrowLeft, ArrowRight, Layers3, LogIn } from "lucide-react";
 import { ErrorText } from "../../components/Text";
 import { login } from "./api";
-import { ADMIN_PIN_LENGTH, isValidAdminPin, sanitizePinInput } from "./pin";
 import { TOTP_ENABLED } from "./totpEnabled";
 
 type LoginPhase = "credentials" | "twofa";
@@ -11,12 +10,12 @@ const TOTP_ACCOUNT_LABEL = "Edge Workbench";
 
 export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
   const [phase, setPhase] = useState<LoginPhase>("credentials");
-  const [pin, setPin] = useState("");
+  const [credential, setCredential] = useState("");
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const credentialsValid = isValidAdminPin(pin);
+  const credentialsValid = credential.length > 0;
   const twoFactorValid = twoFactorCode.length === 6;
 
   const continueToTwoFactor = () => {
@@ -33,7 +32,7 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
     setError(null);
     try {
       await login({
-        password: pin,
+        password: credential,
         ...(TOTP_ENABLED ? { totpToken } : {}),
       });
       onSuccess();
@@ -59,7 +58,10 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
         aria-label="Sign in"
       >
         <div className="grid justify-items-center gap-3 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white" aria-hidden="true">
+          <div
+            className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white"
+            aria-hidden="true"
+          >
             <Layers3 size={24} />
           </div>
           <div>
@@ -72,20 +74,17 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
           <div className="grid gap-3">
             <p className="m-0 text-xs font-extrabold uppercase tracking-[0.18em] text-slate-500">Sign in</p>
             <h2 className="m-0 text-xl leading-tight text-slate-950">Welcome back</h2>
-            <p className="m-0 text-sm leading-relaxed text-slate-600">Enter your admin PIN to continue.</p>
+            <p className="m-0 text-sm leading-relaxed text-slate-600">Enter your admin PIN or password to continue.</p>
 
             <div className="grid gap-2.5">
               <label className="grid gap-2 font-bold text-slate-700">
-                PIN code
+                PIN or password
                 <input
-                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-950 tracking-[0.2em]"
-                  value={pin}
-                  onChange={(event) => setPin(sanitizePinInput(event.target.value))}
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-950"
+                  value={credential}
+                  onChange={(event) => setCredential(event.target.value)}
                   type="password"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={ADMIN_PIN_LENGTH}
-                  placeholder="000000"
+                  placeholder="Enter your credential"
                   autoComplete="current-password"
                 />
               </label>
