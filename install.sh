@@ -300,6 +300,8 @@ resolve_images() {
     FRONTEND_IMAGE="integritas-pi-frontend:dev"
     BACKEND_IMAGE="integritas-pi-backend:dev"
     UPDATE_AGENT_IMAGE=""
+    MANIFEST_VERSION=""
+    MANIFEST_CREATED_AT=""
     return
   fi
 
