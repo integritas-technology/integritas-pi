@@ -54,7 +54,7 @@ export function parseDiagnosticsListQuery(
   const page = Number.isFinite(rawPage) && rawPage >= 1 ? Math.trunc(rawPage) : defaults.page;
 
   const rawPageSize = Number(searchParams.get('pageSize'));
-  const pageSize = Number.isFinite(rawPageSize)
+  const pageSize = Number.isFinite(rawPageSize) && rawPageSize > 0
     ? Math.min(100, Math.max(10, Math.trunc(rawPageSize)))
     : defaults.pageSize;
 
