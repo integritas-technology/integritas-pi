@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../components/Button";
 import { DataTable, RowActions, TableWrap, tableCellClass, tableHeaderCellClass, tableHeadRowClass, tableRowClass } from "../../components/DataTable";
@@ -36,19 +36,27 @@ export function AutomationRunsTable({ runs, compact = false }: { runs: Automatio
         </thead>
         <tbody>
           {runs.map((run) => (
-            <tr key={run.id} className={tableRowClass}>
-              <td className={tableCellClass}>{formatLocalTime(run.startedAt)}</td>
-              {!compact && <td className={tableCellClass}>{run.workflowName}</td>}
-              <td className={tableCellClass}>{run.triggerType}</td>
-              <td className={tableCellClass}><StatusPill status={run.status} /></td>
-              <td className={tableCellClass}>{formatDuration(run.durationMs)}</td>
-              <td className={tableCellClass}>{run.blocks.filter((block) => block.status === "success").length}/{run.blockCount}</td>
-              <td className={tableCellClass}><RowActions><Link className="font-bold text-blue-700 hover:text-blue-900" to={`/automation?flow=watch&id=${encodeURIComponent(run.workflowId)}&run=${encodeURIComponent(run.id)}`}>Show on canvas</Link><Button type="button" variant="secondary" className="rounded-full px-3 py-1.5" onClick={() => setRawRunId(rawRunId === run.id ? null : run.id)}>{rawRunId === run.id ? "Hide raw" : "Raw details"}</Button></RowActions></td>
-            </tr>
+            <Fragment key={run.id}>
+              <tr className={tableRowClass}>
+                <td className={tableCellClass}>{formatLocalTime(run.startedAt)}</td>
+                {!compact && <td className={tableCellClass}>{run.workflowName}</td>}
+                <td className={tableCellClass}>{run.triggerType}</td>
+                <td className={tableCellClass}><StatusPill status={run.status} /></td>
+                <td className={tableCellClass}>{formatDuration(run.durationMs)}</td>
+                <td className={tableCellClass}>{run.blocks.filter((block) => block.status === "success").length}/{run.blockCount}</td>
+                <td className={tableCellClass}><RowActions><Link className="font-bold text-blue-700 hover:text-blue-900" to={`/automation?flow=watch&id=${encodeURIComponent(run.workflowId)}&run=${encodeURIComponent(run.id)}`}>Show on canvas</Link><Button type="button" variant="secondary" className="rounded-full px-3 py-1.5" onClick={() => setRawRunId(rawRunId === run.id ? null : run.id)}>{rawRunId === run.id ? "Hide raw" : "Raw details"}</Button></RowActions></td>
+              </tr>
+              {rawRunId === run.id && (
+                <tr className={tableRowClass}>
+                  <td className={tableCellClass} colSpan={compact ? 6 : 7}>
+                    <RawRunDetails run={run} />
+                  </td>
+                </tr>
+              )}
+            </Fragment>
           ))}
         </tbody>
       </DataTable>
-      {runs.map((run) => rawRunId === run.id ? <RawRunDetails key={`${run.id}-raw`} run={run} /> : null)}
     </TableWrap>
   );
 }
