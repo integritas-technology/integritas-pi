@@ -1,0 +1,15 @@
+# CLI Work
+
+Read these first:
+
+- `bin/integritas-pi`
+- `install.sh`
+- README CLI section.
+
+CLI rules:
+
+- CLI commands should call the same backend API as the browser.
+- Do not duplicate business logic in shell.
+- Start with operational commands only.
+- Keep dependencies minimal: POSIX shell, `curl`, optional `python3` for JSON formatting.
+- Installer should keep installing the CLI to `/usr/local/bin/integritas-pi`.

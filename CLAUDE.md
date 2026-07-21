@@ -1,6 +1,6 @@
-# AGENTS.md
+# CLAUDE.md
 
-> **Sync notice:** This file is duplicated as `CLAUDE.md` (and `.agents/rules/` as `.claude/rules/`), kept for tool compatibility — some tools read `AGENTS.md`/`.agents/`, Claude Code reads `CLAUDE.md`/`.claude/`. When you change one, apply the identical change to its counterpart in the same commit. Do not let them drift.
+> **Sync notice:** This file is a duplicate of `AGENTS.md` (and `.claude/rules/` duplicates `.agents/rules/`), kept for tool compatibility — some tools read `AGENTS.md`/`.agents/`, Claude Code reads `CLAUDE.md`/`.claude/`. When you change one, apply the identical change to its counterpart in the same commit. Do not let them drift.
 
 Behavioral guidelines to reduce common LLM coding mistakes.
 Merge with project-specific instructions as needed — see Project Rules below.
@@ -80,17 +80,17 @@ Read the rules relevant to the area you're working in before editing:
 
 | Doc | Covers |
 |---|---|
-| [.agents/rules/project-shape.md](.agents/rules/project-shape.md) | Architecture, core principles, what to read before editing |
-| [.agents/rules/backend.md](.agents/rules/backend.md) | Backend feature folders, route/schema conventions, auth rules |
-| [.agents/rules/frontend.md](.agents/rules/frontend.md) | Frontend feature folders, API usage, styling conventions |
-| [.agents/rules/cli.md](.agents/rules/cli.md) | CLI conventions and constraints |
-| [.agents/rules/minima.md](.agents/rules/minima.md) | Minima RPC command rules |
-| [.agents/rules/integritas.md](.agents/rules/integritas.md) | Integritas stamping/proof rules |
-| [.agents/rules/data-sources.md](.agents/rules/data-sources.md) | Data source types and rules |
-| [.agents/rules/automation.md](.agents/rules/automation.md) | Automation workflow rules |
-| [.agents/rules/docker.md](.agents/rules/docker.md) | Docker / Raspberry Pi deployment rules |
-| [.agents/rules/update-agent.md](.agents/rules/update-agent.md) | Update Agent service rules |
-| [.agents/rules/verification.md](.agents/rules/verification.md) | Commands to run before finishing changes |
-| [.agents/rules/documenting-work.md](.agents/rules/documenting-work.md) | Task summaries, doc updates, changelog policy |
+| [.claude/rules/project-shape.md](.claude/rules/project-shape.md) | Architecture, core principles, what to read before editing |
+| [.claude/rules/backend.md](.claude/rules/backend.md) | Backend feature folders, route/schema conventions, auth rules |
+| [.claude/rules/frontend.md](.claude/rules/frontend.md) | Frontend feature folders, API usage, styling conventions |
+| [.claude/rules/cli.md](.claude/rules/cli.md) | CLI conventions and constraints |
+| [.claude/rules/minima.md](.claude/rules/minima.md) | Minima RPC command rules |
+| [.claude/rules/integritas.md](.claude/rules/integritas.md) | Integritas stamping/proof rules |
+| [.claude/rules/data-sources.md](.claude/rules/data-sources.md) | Data source types and rules |
+| [.claude/rules/automation.md](.claude/rules/automation.md) | Automation workflow rules |
+| [.claude/rules/docker.md](.claude/rules/docker.md) | Docker / Raspberry Pi deployment rules |
+| [.claude/rules/update-agent.md](.claude/rules/update-agent.md) | Update Agent service rules |
+| [.claude/rules/verification.md](.claude/rules/verification.md) | Commands to run before finishing changes |
+| [.claude/rules/documenting-work.md](.claude/rules/documenting-work.md) | Task summaries, doc updates, changelog policy |
 
 Also see `docs/PROJECT.md` (goals/constraints), `docs/TASKS.md` (current work), and `SECURITY.md` (security policy).
