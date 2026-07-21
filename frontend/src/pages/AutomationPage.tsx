@@ -420,7 +420,6 @@ function CreateWorkflowWorkspace({ name, enabled, sources, addressBook, walletSt
       actions={<>
         <Button type="button" variant="secondary" size="sm" disabled={busy} onClick={onCancel}>Cancel</Button>
         <Button type="button" variant="secondary" size="sm" disabled={busy || draftBlocks.length === 0} onClick={resetCanvas}>Reset canvas</Button>
-        <Button type="button" variant="secondary" size="sm" disabled={busy || !hasStartBlock} onClick={() => addDraftBlock("set_variable")}>Add variable</Button>
         <Button type="button" size="sm" disabled={busy || !canCreate} onClick={() => onCreate(flattenDraftBlocks(draftBlocks))}>Create workflow</Button>
       </>}
       left={<WorkflowBlockLibrary hasStartBlock={hasStartBlock} selectedBlock={selectedBlock} onSelectStartBlock={selectStartBlock} onAddBlock={addDraftBlock} onAttachStamp={attachStampBlock} />}
@@ -482,7 +481,7 @@ function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChan
     return (
       <Panel className={formGridClass}>
         <strong>Selected block</strong>
-        <p className={mutedText}>Save a per-run value that later blocks can use as <code>{"{{variableName}}"}</code> in custom output JSON.</p>
+        <p className={mutedText}>Save a per-run value that later condition and output blocks can use.</p>
         <label>Variable name<input value={block.config.variableName ?? "message"} onChange={(event) => onChange({ ...block.config, variableName: event.target.value })} placeholder="discordMessage" /></label>
         <label>Value source<select value={variableSource} onChange={(event) => onChange(defaultVariableSourceConfig(block.config, event.target.value as NonNullable<AutomationBlock["config"]["variableSource"]>))}><option value="custom_json">Custom JSON</option><option value="trigger_field">Trigger field</option><option value="latest_data_field">Latest data field</option><option value="context_field">Workflow context field</option></select></label>
         {variableSource === "custom_json" ? <label>Custom JSON<textarea rows={5} value={block.config.valueJsonText ?? '"Button pressed"'} onChange={(event) => onChange({ ...block.config, variableSource: "custom_json", valueJsonText: event.target.value })} /></label> : <label>Field path<input value={block.config.fieldPath ?? ""} onChange={(event) => onChange({ ...block.config, variableSource, fieldPath: event.target.value })} placeholder={variableSource === "trigger_field" ? "pin" : variableSource === "latest_data_field" ? "temperature" : "hash"} /></label>}
@@ -491,11 +490,12 @@ function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChan
   }
 
   if (block.type === "if_payload_field_equals") {
+    const conditionSource = block.config.source ?? "trigger";
     return (
       <Panel className={formGridClass}>
         <strong>Selected block</strong>
-        <label>Condition source<select value={block.config.source ?? "trigger"} onChange={(event) => onChange({ ...block.config, source: event.target.value as "trigger" | "data" })}><option value="trigger">Trigger event</option><option value="data">Latest data</option></select></label>
-        <label>Field path<input value={block.config.fieldPath ?? "active"} onChange={(event) => onChange({ ...block.config, fieldPath: event.target.value })} /></label>
+        <label>Condition source<select value={conditionSource} onChange={(event) => onChange(defaultConditionSourceConfig(block.config, event.target.value as "trigger" | "variable"))}><option value="trigger">Trigger event</option><option value="variable">Variable</option></select></label>
+        {conditionSource === "variable" ? <label>Variable name<input value={block.config.variableName ?? "temp"} onChange={(event) => onChange({ ...block.config, source: "variable", variableName: event.target.value })} placeholder="temp" /></label> : <label>Field path<input value={block.config.fieldPath ?? "active"} onChange={(event) => onChange({ ...block.config, source: "trigger", fieldPath: event.target.value })} /></label>}
         <label>Operator<select value={block.config.operator ?? "equals"} onChange={(event) => onChange({ ...block.config, operator: event.target.value as ConditionOperator })}>{conditionOperatorOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
         {!operatorHasNoValue(block.config.operator ?? "equals") && <label>Compare value<input value={compareValueInputText(block.config.value ?? true)} onChange={(event) => onChange({ ...block.config, value: parseCompareValueInput(event.target.value) })} /></label>}
       </Panel>
@@ -670,7 +670,6 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
       </>}
       actions={<>
         <Button type="button" variant="secondary" size="sm" disabled={busy} onClick={() => onNavigateMode(mode === "watch" ? "edit" : "watch")}>{mode === "watch" ? "Open in edit" : "Open in watch"}</Button>
-        {mode === "edit" && <Button type="button" variant="secondary" size="sm" disabled={busy || !startBlock} onClick={() => addBlockFromLibrary("set_variable")}>Add variable</Button>}
         <WorkflowStatusPill workflow={workflow} />
         {mode === "watch" && <StatusPill status={selectedRun?.status === "running" ? "good" : "neutral"}>{watchRunStatusLabel}</StatusPill>}
         <StatusPill status="neutral">Blocks {workflow.blocks.length}</StatusPill>
@@ -1048,7 +1047,7 @@ function blockShortLabel(block: AutomationBlock) {
   if (block.type === "record_trigger_event") return "Record event";
   if (block.type === "fetch_data_source") return "Fetch source";
   if (block.type === "set_variable") return "Set variable";
-  if (block.type === "if_payload_field_equals") return "If payload matches";
+  if (block.type === "if_payload_field_equals") return "If field matches";
   if (block.type === "stamp_integritas") return "Stamp";
   if (block.type === "control_output") return "Control device";
   if (block.type === "send_transaction") return "Send payment";
@@ -1056,8 +1055,8 @@ function blockShortLabel(block: AutomationBlock) {
   return block.type;
 }
 
-function conditionSourceLabel(source: "trigger" | "data") {
-  return source === "data" ? "data" : "trigger";
+function conditionSourceLabel(source: "trigger" | "variable") {
+  return source === "variable" ? "variable" : "trigger";
 }
 
 const conditionOperatorOptions: { value: ConditionOperator; label: string }[] = [
@@ -1208,6 +1207,11 @@ function defaultVariableSourceConfig(config: AutomationBlock["config"], variable
   const base = { variableName: config.variableName ?? "message", variableSource };
   if (variableSource === "custom_json") return { ...base, valueJsonText: config.valueJsonText ?? '"Button pressed"' };
   return { ...base, fieldPath: variableSource === "trigger_field" ? "pin" : variableSource === "latest_data_field" ? "temperature" : "hash" };
+}
+
+function defaultConditionSourceConfig(config: AutomationBlock["config"], source: "trigger" | "variable"): AutomationBlock["config"] {
+  if (source === "variable") return { ...config, source, variableName: config.variableName ?? "temp", fieldPath: undefined };
+  return { ...config, source, fieldPath: config.fieldPath ?? "active", variableName: undefined };
 }
 
 function outputBodyModes(targetType: "http-output" | "mqtt-output") {

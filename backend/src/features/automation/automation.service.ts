@@ -58,6 +58,14 @@ type FieldCondition = {
   value?: unknown;
 };
 
+type WorkflowCondition = {
+  source?: "trigger" | "variable";
+  fieldPath?: string;
+  variableName?: string;
+  operator?: FieldCondition["operator"];
+  value?: unknown;
+};
+
 type OutputBodyMode = "custom" | "workflow_context" | "trigger_payload" | "latest_data" | "none";
 type VariableSource = "custom_json" | "trigger_field" | "latest_data_field" | "context_field";
 
@@ -224,7 +232,7 @@ function validateStartBlock(block: AutomationBlockRecord, trigger: WorkflowConte
 }
 
 async function executeBlock(workflow: AutomationWorkflowRecord, block: AutomationBlockRecord, context: WorkflowContext, runId: string) {
-  const config = JSON.parse(block.config_json) as { sourceId?: string; targetId?: string; action?: string; durationMs?: number; bodyMode?: OutputBodyMode; bodyTemplate?: unknown; bodyTemplateText?: string; variableName?: string; variableSource?: VariableSource; valueJsonText?: string; source?: "trigger" | "data"; fieldPath?: string; operator?: FieldCondition["operator"]; value?: unknown; condition?: FieldCondition | null; recipientAddressBookId?: string; tokenId?: string; amount?: string };
+  const config = JSON.parse(block.config_json) as { sourceId?: string; targetId?: string; action?: string; durationMs?: number; bodyMode?: OutputBodyMode; bodyTemplate?: unknown; bodyTemplateText?: string; variableName?: string; variableSource?: VariableSource; valueJsonText?: string; source?: "trigger" | "variable"; fieldPath?: string; operator?: FieldCondition["operator"]; value?: unknown; condition?: FieldCondition | null; recipientAddressBookId?: string; tokenId?: string; amount?: string };
   const blockRun = createAutomationBlockRun({ runId, workflowId: workflow.id, blockId: block.id, orderIndex: block.order_index, blockType: block.type, blockLabel: blockLabel(block.type), input: contextSummary(context) });
 
   try {
@@ -341,10 +349,17 @@ function blockLabel(type: string) {
   return "Start workflow";
 }
 
-function checkPayloadFieldEquals(config: { source?: "trigger" | "data"; fieldPath?: string; operator?: FieldCondition["operator"]; value?: unknown }, context: WorkflowContext) {
-  const result = evaluateCondition(context, { source: config.source ?? "trigger", fieldPath: String(config.fieldPath ?? ""), operator: config.operator!, value: config.value });
+function checkPayloadFieldEquals(config: WorkflowCondition, context: WorkflowContext) {
+  const result = evaluateWorkflowCondition(context, config);
   context.output = { ...result, action: result.matched ? "continued" : "stopped" };
   if (!result.matched) context.stopped = true;
+}
+
+function evaluateWorkflowCondition(context: WorkflowContext, condition: WorkflowCondition) {
+  const source = condition.source ?? "trigger";
+  const actual = source === "variable" ? context.variables[String(condition.variableName ?? "")] : getPathValue(context.trigger.payload, String(condition.fieldPath ?? ""));
+  const matched = evaluateOperator(actual, condition.operator!, condition.value);
+  return { source, fieldPath: condition.fieldPath, variableName: condition.variableName, operator: condition.operator, expected: condition.value, actual, matched };
 }
 
 function evaluateCondition(context: WorkflowContext, condition: FieldCondition & { source: "trigger" | "data" }) {

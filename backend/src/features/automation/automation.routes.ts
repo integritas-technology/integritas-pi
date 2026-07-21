@@ -286,7 +286,7 @@ function validateBlockConfig(type: AutomationBlockType, config: Record<string, u
   }
 
   if (type === "if_payload_field_equals") {
-    validateFieldCondition(config, "Condition block");
+    validateWorkflowCondition(config);
     return;
   }
 
@@ -410,6 +410,26 @@ function validateOutputBodyConfig(config: Record<string, unknown>, targetType: s
     delete config.bodyTemplateText;
     delete config.bodyTemplate;
   }
+}
+
+function validateWorkflowCondition(config: Record<string, unknown>) {
+  const source = typeof config.source === "string" ? config.source : "trigger";
+  if (source !== "trigger" && source !== "variable") throw new Error("Condition block source must be trigger or variable");
+  config.source = source;
+  if (source === "variable") {
+    const variableName = typeof config.variableName === "string" ? config.variableName.trim() : "";
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(variableName)) throw new Error("Condition block requires a valid variable name");
+    config.variableName = variableName;
+    delete config.fieldPath;
+  } else {
+    const fieldPath = typeof config.fieldPath === "string" ? config.fieldPath.trim() : "";
+    if (!fieldPath) throw new Error("Condition block requires a field path");
+    if (!isSafeFieldPath(fieldPath)) throw new Error("Field path can only contain letters, numbers, underscores, dashes, and dots");
+    config.fieldPath = fieldPath;
+    delete config.variableName;
+  }
+  if (!isConditionOperator(config.operator)) throw new Error("Condition block requires a valid operator");
+  if (config.operator !== "exists" && config.operator !== "does_not_exist" && !Object.prototype.hasOwnProperty.call(config, "value")) throw new Error("Condition block requires a compare value");
 }
 
 function isPositiveDecimal(value: string) {

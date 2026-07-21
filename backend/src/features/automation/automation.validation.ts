@@ -46,7 +46,7 @@ export type BlockConfig = {
   variableName?: string;
   variableSource?: string;
   valueJsonText?: string;
-  source?: "trigger" | "data";
+  source?: "trigger" | "variable";
   fieldPath?: string;
   operator?: string;
   value?: unknown;
@@ -101,6 +101,7 @@ async function validateAutomationBlockGraph(blocks: ValidationBlock[]): Promise<
   }
 
   let hasData = false;
+  const variables = new Set<string>();
   const startType = startBlock?.type;
   const startConfig = startBlock?.config ?? {};
 
@@ -124,10 +125,12 @@ async function validateAutomationBlockGraph(blocks: ValidationBlock[]): Promise<
 
     if (block.type === "set_variable") {
       validateSetVariableBlock(block, config, hasData, issues);
+      const variableName = String(config.variableName ?? "").trim();
+      if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(variableName)) variables.add(variableName);
     }
 
-    if (block.type === "if_payload_field_equals" && (config.source ?? "trigger") === "data" && !hasData) {
-      addIssue(issues, "error", "condition.data_before_data_block", "This condition reads Data, but no enabled record/fetch block runs before it.", block);
+    if (block.type === "if_payload_field_equals") {
+      validateWorkflowConditionBlock(block, config, variables, issues);
     }
 
     for (const attachedBlock of blocks.filter((item) => item.enabled && item.parentId === block.id)) {
@@ -236,6 +239,22 @@ function validateSetVariableBlock(block: ValidationBlock, config: BlockConfig, h
   if (fieldPath && !/^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$/.test(fieldPath)) addIssue(issues, "error", "set_variable.invalid_field_path", "Field path can only contain letters, numbers, underscores, dashes, and dots.", block);
 }
 
+function validateWorkflowConditionBlock(block: ValidationBlock, config: BlockConfig, variables: Set<string>, issues: AutomationValidationIssue[]) {
+  const source = String(config.source ?? "trigger");
+  if (source !== "trigger" && source !== "variable") addIssue(issues, "error", "condition.invalid_source", "Condition source must be Trigger event or Variable.", block);
+  if (source === "variable") {
+    const variableName = String(config.variableName ?? "").trim();
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(variableName)) addIssue(issues, "error", "condition.invalid_variable_name", "Variable conditions require a valid variable name.", block);
+    else if (!variables.has(variableName)) addIssue(issues, "error", "condition.variable_before_set", `Variable '${variableName}' must be set by an enabled Set variable block before this condition.`, block);
+  } else {
+    const fieldPath = String(config.fieldPath ?? "").trim();
+    if (!fieldPath) addIssue(issues, "error", "condition.missing_field_path", "Trigger conditions require a field path.", block);
+    if (fieldPath && !/^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$/.test(fieldPath)) addIssue(issues, "error", "condition.invalid_field_path", "Field path can only contain letters, numbers, underscores, dashes, and dots.", block);
+  }
+  if (!isConditionOperator(String(config.operator ?? ""))) addIssue(issues, "error", "condition.invalid_operator", "Condition requires a valid operator.", block);
+  if (config.operator !== "exists" && config.operator !== "does_not_exist" && !Object.prototype.hasOwnProperty.call(config, "value")) addIssue(issues, "error", "condition.missing_value", "Condition requires a compare value.", block);
+}
+
 async function validateTransactionBalances(blocks: ValidationBlock[], issues: AutomationValidationIssue[]) {
   const transactionBlocks = blocks.filter((block) => block.type === "send_transaction");
   if (transactionBlocks.length === 0) return;
@@ -272,6 +291,17 @@ function isPositiveDecimal(value: string) {
   const trimmed = value.trim();
   if (!/^\d+(\.\d+)?$/.test(trimmed)) return false;
   return compareDecimalStrings(trimmed, "0") > 0;
+}
+
+function isConditionOperator(value: string) {
+  return value === "equals"
+    || value === "not_equals"
+    || value === "greater_than"
+    || value === "greater_than_or_equals"
+    || value === "less_than"
+    || value === "less_than_or_equals"
+    || value === "exists"
+    || value === "does_not_exist";
 }
 
 function compareDecimalStrings(a: string, b: string) {

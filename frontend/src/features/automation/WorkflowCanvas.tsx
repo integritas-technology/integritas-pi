@@ -85,7 +85,7 @@ export function WorkflowBlockLibrary({ mode = "build", hasStartBlock, selectedBl
       <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("fetch_data_source")} title="Fetch HTTP JSON" description="Fetch a configured HTTP source." />
       <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("set_variable")} title="Add variable" description="Save a value for later blocks." />
       <strong>Logic blocks</strong>
-      <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("if_payload_field_equals")} title="If field matches" description="Stop unless a trigger/data field matches." />
+      <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("if_payload_field_equals")} title="If field matches" description="Stop unless a trigger field or variable matches." />
       <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("wait")} title="Wait" description="Pause before the next block." />
       <strong>Action blocks</strong>
       <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("control_output")} title="Control device" description="Send a command to a configured output target." />
@@ -194,7 +194,7 @@ function capabilityBadges(block: DraftWorkflowBlock) {
   const badges: string[] = [];
   if (block.type.endsWith("_start")) badges.push("Provides trigger event");
   if (isDataBlock(block.type)) badges.push("Provides latest data");
-  if (block.type === "if_payload_field_equals") badges.push((block.config.source ?? "trigger") === "data" ? "Reads latest data" : "Reads trigger event");
+  if (block.type === "if_payload_field_equals") badges.push((block.config.source ?? "trigger") === "variable" ? "Reads variable" : "Reads trigger event");
   if (block.type === "stamp_integritas") badges.push("Reads parent data");
   return badges;
 }
