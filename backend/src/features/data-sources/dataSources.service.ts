@@ -51,6 +51,15 @@ export type GpioOutputConfig = {
   initialState: "inactive";
 };
 
+export type PiCameraConfig = {
+  mode: "photo" | "video";
+  width: number;
+  height: number;
+  durationMs: number;
+  fps: number;
+  outputFormat: "jpg" | "h264";
+};
+
 export function serializeDataSource(record: DataSourceRecord) {
   return {
     id: record.id,
@@ -87,6 +96,7 @@ export function parseDataSourceConfig(type: string, value: unknown, existingConf
   if (type === "mqtt-output") return parseMqttOutputConfig(value);
   if (type === "gpio-input") return parseGpioInputConfig(value);
   if (type === "gpio-output") return parseGpioOutputConfig(value);
+  if (type === "pi-camera") return parsePiCameraConfig(value);
   return parseJsonApiConfig(value);
 }
 
@@ -160,6 +170,23 @@ export function parseGpioOutputConfig(value: unknown): GpioOutputConfig {
   if (!Number.isInteger(pin) || pin < 0 || pin > 27) throw new Error("config.pin must be a BCM GPIO number from 0 to 27");
 
   return { chip, pin, profile, activeState, initialState };
+}
+
+export function parsePiCameraConfig(value: unknown): PiCameraConfig {
+  const config = value as Partial<PiCameraConfig> | undefined;
+  const mode = config?.mode === "video" ? "video" : "photo";
+  const width = Number(config?.width ?? 1280);
+  const height = Number(config?.height ?? 720);
+  const durationMs = Number(config?.durationMs ?? (mode === "video" ? 5000 : 1000));
+  const fps = Number(config?.fps ?? 30);
+  const outputFormat = mode === "video" ? "h264" : "jpg";
+
+  if (!Number.isInteger(width) || width < 160 || width > 7680) throw new Error("config.width must be between 160 and 7680");
+  if (!Number.isInteger(height) || height < 120 || height > 4320) throw new Error("config.height must be between 120 and 4320");
+  if (!Number.isFinite(durationMs) || durationMs < 100 || durationMs > 300000) throw new Error("config.durationMs must be between 100 and 300000");
+  if (!Number.isInteger(fps) || fps < 1 || fps > 120) throw new Error("config.fps must be between 1 and 120");
+
+  return { mode, width, height, durationMs, fps, outputFormat };
 }
 
 export async function checkDataSourceHealth(config: JsonApiConfig) {

@@ -13,11 +13,14 @@ Scratch log for the session in progress. Update it as you go; reset it when a se
 - Fixed 7 of the 10 code-review findings (shared backend pageSize=0 bug, duplicated tab-dispatch logic, an orphaned API route, a stale hardcoded default, dead code, refresh-icon busy-state conflation, empty `CHANGELOG.md [Unreleased]`).
 - Duplicated `.agents/` → `.claude/` and `AGENTS.md` → `CLAUDE.md`, with a sync notice in both against drift.
 - Added `commit-message` and `session-notes` skills, mirrored in both `.claude/skills/` and `.agents/skills/`.
+- Added Pi Camera capture devices and a `Capture camera` automation data block that hashes captured media bytes, stores metadata in read history, and can attach Integritas stamping.
+- Updated installer/env/Compose docs for `ENABLE_CAMERA=true`, camera device mounts, capture retention, and camera privacy/security notes.
 
 ## Next Steps
 
 - Manual browser pass through all three Diagnostics tabs (pagination, filters, search, refresh) before merging — not click-tested live this session due to the TOTP-gated setup flow.
 - Decide whether to merge `chore/workflow-pagination` into `main` now or fold in the deferred README/SECURITY `DEV_MODE` doc note first.
+- Verify camera capture on real Raspberry Pi hardware with camera devices and `rpicam-still`/`rpicam-vid` available in the backend runtime.
 
 ## Notes / Open Questions
 

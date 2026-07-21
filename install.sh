@@ -15,6 +15,13 @@ GPIO_GID_INPUT="${GPIO_GID-}"
 ENABLE_MQTT_BROKER_INPUT="${ENABLE_MQTT_BROKER-}"
 MQTT_PUBLIC_HOST_INPUT="${MQTT_PUBLIC_HOST-}"
 MQTT_PUBLIC_PORT_INPUT="${MQTT_PUBLIC_PORT-}"
+ENABLE_CAMERA_INPUT="${ENABLE_CAMERA-}"
+CAMERA_GID_INPUT="${CAMERA_GID-}"
+CAMERA_CAPTURE_DIR_INPUT="${CAMERA_CAPTURE_DIR-}"
+CAMERA_MAX_DURATION_SECONDS_INPUT="${CAMERA_MAX_DURATION_SECONDS-}"
+CAMERA_RETENTION_DAYS_INPUT="${CAMERA_RETENTION_DAYS-}"
+CAMERA_PHOTO_COMMAND_INPUT="${CAMERA_PHOTO_COMMAND-}"
+CAMERA_VIDEO_COMMAND_INPUT="${CAMERA_VIDEO_COMMAND-}"
 MINIMA_DATA_DIR_INPUT="${MINIMA_DATA_DIR-}"
 UPDATE_AGENT_STATE_DIR_INPUT="${UPDATE_AGENT_STATE_DIR-}"
 MINIMA_P2P_PORT_INPUT="${MINIMA_P2P_PORT-}"
@@ -35,6 +42,13 @@ GPIO_GID="${GPIO_GID:-}"
 ENABLE_MQTT_BROKER="${ENABLE_MQTT_BROKER:-false}"
 MQTT_PUBLIC_HOST="${MQTT_PUBLIC_HOST:-}"
 MQTT_PUBLIC_PORT="${MQTT_PUBLIC_PORT:-1883}"
+ENABLE_CAMERA="${ENABLE_CAMERA:-false}"
+CAMERA_GID="${CAMERA_GID:-}"
+CAMERA_CAPTURE_DIR="${CAMERA_CAPTURE_DIR:-/data/captures}"
+CAMERA_MAX_DURATION_SECONDS="${CAMERA_MAX_DURATION_SECONDS:-30}"
+CAMERA_RETENTION_DAYS="${CAMERA_RETENTION_DAYS:-7}"
+CAMERA_PHOTO_COMMAND="${CAMERA_PHOTO_COMMAND:-rpicam-still}"
+CAMERA_VIDEO_COMMAND="${CAMERA_VIDEO_COMMAND:-rpicam-vid}"
 MINIMA_DATA_DIR="${MINIMA_DATA_DIR:-./minima}"
 UPDATE_AGENT_STATE_DIR="${UPDATE_AGENT_STATE_DIR:-./update-agent-state}"
 MINIMA_P2P_PORT="${MINIMA_P2P_PORT:-9003}"
@@ -173,6 +187,13 @@ load_existing_config() {
   ENABLE_MQTT_BROKER="${ENABLE_MQTT_BROKER_INPUT:-${ENABLE_MQTT_BROKER:-false}}"
   MQTT_PUBLIC_HOST="${MQTT_PUBLIC_HOST_INPUT:-${MQTT_PUBLIC_HOST:-}}"
   MQTT_PUBLIC_PORT="${MQTT_PUBLIC_PORT_INPUT:-${MQTT_PUBLIC_PORT:-1883}}"
+  ENABLE_CAMERA="${ENABLE_CAMERA_INPUT:-${ENABLE_CAMERA:-false}}"
+  CAMERA_GID="${CAMERA_GID_INPUT:-${CAMERA_GID:-}}"
+  CAMERA_CAPTURE_DIR="${CAMERA_CAPTURE_DIR_INPUT:-${CAMERA_CAPTURE_DIR:-/data/captures}}"
+  CAMERA_MAX_DURATION_SECONDS="${CAMERA_MAX_DURATION_SECONDS_INPUT:-${CAMERA_MAX_DURATION_SECONDS:-30}}"
+  CAMERA_RETENTION_DAYS="${CAMERA_RETENTION_DAYS_INPUT:-${CAMERA_RETENTION_DAYS:-7}}"
+  CAMERA_PHOTO_COMMAND="${CAMERA_PHOTO_COMMAND_INPUT:-${CAMERA_PHOTO_COMMAND:-rpicam-still}}"
+  CAMERA_VIDEO_COMMAND="${CAMERA_VIDEO_COMMAND_INPUT:-${CAMERA_VIDEO_COMMAND:-rpicam-vid}}"
   MINIMA_DATA_DIR="${MINIMA_DATA_DIR_INPUT:-${MINIMA_DATA_DIR:-./minima}}"
   UPDATE_AGENT_STATE_DIR="${UPDATE_AGENT_STATE_DIR_INPUT:-${UPDATE_AGENT_STATE_DIR:-./update-agent-state}}"
   MINIMA_P2P_PORT="${MINIMA_P2P_PORT_INPUT:-${MINIMA_P2P_PORT:-9003}}"
@@ -239,6 +260,27 @@ normalize_mqtt_broker_config() {
     ENABLE_MQTT_BROKER="true"
   else
     ENABLE_MQTT_BROKER="false"
+  fi
+}
+
+detect_camera_gid() {
+  if ! is_truthy "$ENABLE_CAMERA"; then
+    ENABLE_CAMERA="false"
+    return
+  fi
+
+  ENABLE_CAMERA="true"
+
+  if [ -n "$CAMERA_GID" ]; then
+    return
+  fi
+
+  if [ -e /dev/video0 ]; then
+    CAMERA_GID="$(stat -c '%g' /dev/video0)"
+  elif getent group video >/dev/null 2>&1; then
+    CAMERA_GID="$(getent group video | cut -d: -f3)"
+  else
+    CAMERA_GID="0"
   fi
 }
 
@@ -411,6 +453,13 @@ APP_SECRET=$APP_SECRET
 DOCKER_GID=$DOCKER_GID
 ENABLE_GPIO=$ENABLE_GPIO
 GPIO_GID=$GPIO_GID
+ENABLE_CAMERA=$ENABLE_CAMERA
+CAMERA_GID=$CAMERA_GID
+CAMERA_CAPTURE_DIR=$CAMERA_CAPTURE_DIR
+CAMERA_MAX_DURATION_SECONDS=$CAMERA_MAX_DURATION_SECONDS
+CAMERA_RETENTION_DAYS=$CAMERA_RETENTION_DAYS
+CAMERA_PHOTO_COMMAND=$CAMERA_PHOTO_COMMAND
+CAMERA_VIDEO_COMMAND=$CAMERA_VIDEO_COMMAND
 ENABLE_MQTT_BROKER=$ENABLE_MQTT_BROKER
 DEV_MODE=$DEV_MODE
 COMPOSE_PROFILES=$compose_profiles_joined
@@ -436,33 +485,79 @@ EOF
 write_compose_override() {
   local docker_group
   local gpio_group
+  local camera_group
+  local camera_devices=()
+  local device
 
-  if ! is_truthy "$ENABLE_GPIO"; then
+  if ! is_truthy "$ENABLE_GPIO" && ! is_truthy "$ENABLE_CAMERA"; then
     rm -f "$APP_DIR/docker-compose.override.yml"
     return
   fi
 
   docker_group="${DOCKER_GID:-0}"
   gpio_group="${GPIO_GID:-0}"
-
-  log "Enabling GPIO device access"
-
-  if [ ! -e /dev/gpiochip0 ]; then
-    log "Warning: /dev/gpiochip0 was not found on this host. GPIO sources will not work until the device exists."
-  fi
+  camera_group="${CAMERA_GID:-0}"
 
   cat > "$APP_DIR/docker-compose.override.yml" <<EOF
 services:
   backend:
+EOF
+
+  if is_truthy "$ENABLE_GPIO"; then
+    log "Enabling GPIO device access"
+
+    if [ ! -e /dev/gpiochip0 ]; then
+      log "Warning: /dev/gpiochip0 was not found on this host. GPIO sources will not work until the device exists."
+    fi
+
+    cat >> "$APP_DIR/docker-compose.override.yml" <<EOF
     devices:
       - /dev/gpiochip0:/dev/gpiochip0
 EOF
+  fi
 
-  if [ "$gpio_group" != "$docker_group" ]; then
+  if is_truthy "$ENABLE_CAMERA"; then
+    log "Enabling camera device access"
+
+    for device in /dev/video* /dev/media* /dev/v4l-subdev* /dev/vchiq; do
+      [ -e "$device" ] && camera_devices+=("$device")
+    done
+
+    if [ "${#camera_devices[@]}" -eq 0 ]; then
+      log "Warning: no /dev/video*, /dev/media*, /dev/v4l-subdev*, or /dev/vchiq camera devices were found on this host. Camera capture will not work until devices exist."
+    else
+      if ! is_truthy "$ENABLE_GPIO"; then
+        cat >> "$APP_DIR/docker-compose.override.yml" <<EOF
+    devices:
+EOF
+      fi
+      for device in "${camera_devices[@]}"; do
+        cat >> "$APP_DIR/docker-compose.override.yml" <<EOF
+      - $device:$device
+EOF
+      done
+    fi
+
+    cat >> "$APP_DIR/docker-compose.override.yml" <<EOF
+    volumes:
+      - /run/udev:/run/udev:ro
+EOF
+  fi
+
+  if [ "$gpio_group" != "$docker_group" ] || [ "$camera_group" != "$docker_group" ]; then
     cat >> "$APP_DIR/docker-compose.override.yml" <<EOF
     group_add:
+EOF
+    if [ "$gpio_group" != "$docker_group" ]; then
+      cat >> "$APP_DIR/docker-compose.override.yml" <<EOF
       - "\${GPIO_GID:-0}"
 EOF
+    fi
+    if [ "$camera_group" != "$docker_group" ]; then
+      cat >> "$APP_DIR/docker-compose.override.yml" <<EOF
+      - "\${CAMERA_GID:-0}"
+EOF
+    fi
   fi
 }
 
@@ -529,6 +624,7 @@ main() {
   ensure_app_secret
   detect_docker_gid
   detect_gpio_gid
+  detect_camera_gid
   normalize_mqtt_broker_config
   normalize_dev_mode
   download_app

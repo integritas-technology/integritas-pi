@@ -3,7 +3,7 @@ export type DataSource = {
   createdAt: string;
   updatedAt: string;
   name: string;
-  type: "json-api" | "internal-json-api" | "webhook" | "mqtt" | "gpio-input" | "gpio-output" | "http-output" | "mqtt-output";
+  type: "json-api" | "internal-json-api" | "webhook" | "mqtt" | "gpio-input" | "gpio-output" | "pi-camera" | "http-output" | "mqtt-output";
   status: string;
   description: string | null;
   config: {
@@ -26,6 +26,12 @@ export type DataSource = {
     timeoutMs?: number;
     qos?: 0 | 1;
     retain?: boolean;
+    mode?: "photo" | "video";
+    width?: number;
+    height?: number;
+    durationMs?: number;
+    fps?: number;
+    outputFormat?: "jpg" | "h264";
   };
   lastReadAt: string | null;
   lastError: string | null;
@@ -60,5 +66,11 @@ export type DataSourceCapabilities = {
     internalUrl: string;
     publicHost: string;
     publicPort: number;
+  };
+  camera?: {
+    available: boolean;
+    enabled: boolean;
+    captureDir: string;
+    reason: string | null;
   };
 };

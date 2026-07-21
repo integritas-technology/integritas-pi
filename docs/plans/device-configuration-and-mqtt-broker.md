@@ -9,6 +9,7 @@
 The Devices page should help operators work with three related but different things:
 
 - Input sources: endpoints, devices, or services that send data/events into Integritas Pi.
+- Capture sources: local hardware that produces evidence when a workflow asks it to capture, currently Pi Camera.
 - Output targets: endpoints, devices, or services that Integritas Pi can control from workflows.
 - Local services: app-provided services or connection details that help devices talk to the Pi app.
 
@@ -102,11 +103,12 @@ When the local MQTT broker is enabled, the MQTT output card should show a small 
 
 ## Device And Local Services Model
 
-Use two configured-device directions:
+Use configured-device directions based on what the workflow receives from or sends to the device:
 
 | Direction | Meaning |
 |---|---|
 | Input source | The Pi reads from it or receives data/events from it. |
+| Capture source | The Pi triggers a capture and receives a resulting media hash/metadata. |
 | Output target | The Pi sends commands/data to it from workflow action blocks. |
 
 Use Local services for app-managed services or connection details:
@@ -123,6 +125,7 @@ Protocol pairs should look like this:
 | HTTP/API | `json-api` fetch | `http-output` request |
 | Webhook/API push | `webhook` receive | covered by `http-output` |
 | MQTT | `mqtt` subscribe | `mqtt-output` publish |
+| Pi Camera | `pi-camera` capture source | not an output target; use the `Capture camera` data block |
 
 ## MQTT Broker URLs
 

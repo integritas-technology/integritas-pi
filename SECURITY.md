@@ -17,7 +17,7 @@ Follow these when deploying, operating, or contributing to this project:
 - Local admins may use a 6-digit PIN on a trusted LAN or an 8+ character password containing uppercase, lowercase, a number, and a symbol. Prefer a unique password when stronger protection is needed; only the bcrypt hash is stored, and the credential type is not persisted.
 - Preserve `APP_SECRET` across upgrades; losing or changing it makes stored encrypted secrets unrecoverable. For Integritas Connect, the Pi detects decrypt failure, clears the local link (`TOKEN_DECRYPT_FAILED`), and requires reconnect — it does not revoke the device on Connect as revoking requires secret tokens.
 - Integritas core calls prefer the Connect account API key decrypted in backend memory. Manually saved and environment API keys remain backend-only fallbacks and are never returned to the browser.
-- Treat Docker socket access, GPIO device access, local MQTT broker exposure, and host file mounts as high-privilege capabilities — keep them opt-in, admin-gated, and off by default wherever possible.
+- Treat Docker socket access, GPIO device access, camera device access, local MQTT broker exposure, and host file mounts as high-privilege capabilities — keep them opt-in, admin-gated, and off by default wherever possible.
 - Pin dependency and image versions before any production-like deployment; avoid mutable tags such as `:dev`.
 
 The detailed risk register — specific risks, current controls, and mitigation plans by area — is maintained separately and kept current as the system changes.

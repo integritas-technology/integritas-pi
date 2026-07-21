@@ -37,6 +37,14 @@ curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi
 
 `ENABLE_GPIO=true` writes `/opt/integritas-pi/docker-compose.override.yml` with `/dev/gpiochip0` mounted into the backend container and detects the host GPIO group id. Leave it disabled unless this deployment needs GPIO hardware ingestion.
 
+To enable Raspberry Pi camera capture devices during install, pass `ENABLE_CAMERA=true`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/install.sh | sudo env ENABLE_CAMERA=true bash
+```
+
+`ENABLE_CAMERA=true` writes a Docker Compose override with detected `/dev/video*`, `/dev/media*`, `/dev/v4l-subdev*`, and `/dev/vchiq` devices plus `/run/udev:ro` mounted into the backend container. Leave it disabled unless this deployment needs camera capture workflows.
+
 To enable the optional local MQTT broker during install, pass `ENABLE_MQTT_BROKER=true`:
 
 ```bash
@@ -84,6 +92,13 @@ APP_SECRET=dev-change-me
 DOCKER_GID=0
 ENABLE_GPIO=false
 GPIO_GID=0
+ENABLE_CAMERA=false
+CAMERA_GID=0
+CAMERA_CAPTURE_DIR=/data/captures
+CAMERA_MAX_DURATION_SECONDS=30
+CAMERA_RETENTION_DAYS=7
+CAMERA_PHOTO_COMMAND=rpicam-still
+CAMERA_VIDEO_COMMAND=rpicam-vid
 ENABLE_MQTT_BROKER=false
 COMPOSE_PROFILES=
 MQTT_PUBLIC_HOST=
@@ -137,7 +152,11 @@ The backend runs a Minima health poller on `MINIMA_HEALTH_POLL_INTERVAL_SECONDS`
 
 When GPIO is not enabled or `/dev/gpiochip0` is unavailable in the backend container, the GPIO Input card is disabled in the Data Sources page.
 
-GPIO input/output settings for tested button and LED wiring, plus suggested untested device profiles, are documented in [`docs/gpio-device-settings.md`](./docs/gpio-device-settings.md).
+GPIO input/output settings for tested button and LED wiring, plus suggested untested device profiles, are documented in [`docs/guides/gpio-device-settings.md`](./docs/guides/gpio-device-settings.md).
+
+`ENABLE_CAMERA=true` lets the installer create a Docker Compose override that mounts detected Raspberry Pi camera device nodes and `/run/udev:ro` into the backend container. The Devices page then enables the Pi Camera capture device type. Camera support stays disabled by default because it grants the backend container host camera access and captured images/video may contain private data.
+
+Pi Camera devices are capture/input devices, not generic output targets. Automation workflows use a `Capture camera` data block to capture a photo or short video clip, hash the captured media bytes, store capture metadata in read history, and optionally attach `Stamp data` to create an Integritas proof for the media hash. Captured media is stored locally under `CAMERA_CAPTURE_DIR` (`/data/captures` in Docker). `CAMERA_MAX_DURATION_SECONDS` limits per-capture video duration. `CAMERA_PHOTO_COMMAND` and `CAMERA_VIDEO_COMMAND` default to `rpicam-still` and `rpicam-vid`; the backend image/runtime must provide these commands or compatible replacements.
 
 `INTEGRITAS_CONNECT_BASE_URL` is the Integritas Connect host used for device activation and account linking (default `https://integritas.technology`).
 

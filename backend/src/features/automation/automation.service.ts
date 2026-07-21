@@ -3,6 +3,7 @@ import { getAddressBookEntryById } from "../address-book/address-book.repository
 import { recordAuditEvent } from "../auth/audit.service.js";
 import { pulseGpioOutput } from "../data-sources/gpioOutput.service.js";
 import { publishMqttOutput } from "../data-sources/mqttOutput.service.js";
+import { capturePiCamera } from "../data-sources/cameraCapture.service.js";
 import { parseHttpOutputConfig, parseJsonApiConfig, readJsonApiSource, sendHttpOutput, serializeDataSource } from "../data-sources/dataSources.service.js";
 import { createDataSourceRead, linkDataSourceReadProof } from "../data-reads/dataReads.repository.js";
 import { createProofRecord } from "../integritas/integritas.repository.js";
@@ -29,6 +30,7 @@ type ReadResult = {
   bytesHash: string;
   preview: unknown;
   canonicalBytes: string;
+  sizeBytes?: number;
 };
 
 type WorkflowContext = {
@@ -244,6 +246,7 @@ async function executeBlock(workflow: AutomationWorkflowRecord, block: Automatio
     }
     if (block.type === "record_trigger_event") await recordTriggerEvent(workflow, block, context);
     else if (block.type === "fetch_data_source") await fetchDataSource(workflow, block, context, String(config.sourceId ?? ""));
+    else if (block.type === "capture_camera") await captureCamera(workflow, block, context, config);
     else if (block.type === "set_variable") setVariable(config, context);
     else if (block.type === "if_payload_field_equals") checkPayloadFieldEquals(config, context);
     else if (block.type === "wait") await wait(Number(config.durationMs ?? 0));
@@ -276,7 +279,7 @@ function recordTriggerEvent(workflow: AutomationWorkflowRecord, block: Automatio
 async function fetchDataSource(workflow: AutomationWorkflowRecord, block: AutomationBlockRecord, context: WorkflowContext, sourceId: string) {
   const source = getDataSource(sourceId);
   if (!source) throw new Error("Data source not found");
-  if (source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output" || source.type === "http-output" || source.type === "mqtt-output") throw new Error("Fetch data source block requires an HTTP JSON data source");
+  if (source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output" || source.type === "pi-camera" || source.type === "http-output" || source.type === "mqtt-output") throw new Error("Fetch data source block requires an HTTP JSON data source");
   const config = parseJsonApiConfig(JSON.parse(source.config) as unknown);
   try {
     const result = await readJsonApiSource(config);
@@ -288,6 +291,26 @@ async function fetchDataSource(workflow: AutomationWorkflowRecord, block: Automa
     const message = error instanceof Error ? error.message : "Failed to fetch data source";
     updateDataSourceReadResult(source.id, { error: message });
     createDataSourceRead({ dataSourceId: source.id, workflowId: workflow.id, sourceName: source.name, sourceUrl: config.url, triggerType: context.trigger.type === "manual" ? "manual" : context.trigger.type === "schedule" ? "schedule" : context.trigger.type, status: "failed", error: message, triggerSourceId: context.trigger.sourceId ?? null, triggerPayload: context.trigger.payload, blockId: block.id });
+    throw error;
+  }
+}
+
+async function captureCamera(workflow: AutomationWorkflowRecord, block: AutomationBlockRecord, context: WorkflowContext, config: { sourceId?: string; durationMs?: number }) {
+  const sourceId = String(config.sourceId ?? "");
+  const source = getDataSource(sourceId);
+  if (!source) throw new Error("Camera device not found");
+  if (source.type !== "pi-camera") throw new Error("Capture camera block requires a Pi Camera device");
+
+  try {
+    const result = await capturePiCamera({ sourceId, durationMs: config.durationMs });
+    const read = createDataSourceRead({ dataSourceId: source.id, workflowId: workflow.id, sourceName: source.name, sourceUrl: sourceUrlForRecord(source), triggerType: context.trigger.type === "manual" ? "manual" : context.trigger.type === "schedule" ? "schedule" : context.trigger.type, status: "success", hash: result.bytesHash, preview: result.preview, triggerSourceId: context.trigger.sourceId ?? null, triggerPayload: context.trigger.payload, blockId: block.id });
+    updateDataSourceReadResult(source.id, { hash: result.bytesHash, preview: result.preview });
+    context.data = { sourceId: source.id, sourceName: source.name, sourceUrl: sourceUrlForRecord(source), result, readId: read.id };
+    context.hash = result.bytesHash;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to capture camera";
+    updateDataSourceReadResult(source.id, { error: message });
+    createDataSourceRead({ dataSourceId: source.id, workflowId: workflow.id, sourceName: source.name, sourceUrl: sourceUrlForRecord(source), triggerType: context.trigger.type === "manual" ? "manual" : context.trigger.type === "schedule" ? "schedule" : context.trigger.type, status: "failed", error: message, triggerSourceId: context.trigger.sourceId ?? null, triggerPayload: context.trigger.payload, blockId: block.id });
     throw error;
   }
 }
@@ -306,7 +329,7 @@ async function stampLatestHash(workflow: AutomationWorkflowRecord, context: Work
   const stamp = await requestProofUid({ apiKey, hash: context.hash });
   if (!stamp.ok) throw new Error(formatIntegritasStampError(stamp));
 
-  const proof = createProofRecord({ fileName: `Automation: ${context.data.sourceName}`, fileSize: Buffer.byteLength(context.data.result.canonicalBytes, "utf8"), hash: context.hash, proofUid: stamp.proofUid, proofStatus: "pending" });
+  const proof = createProofRecord({ fileName: `Automation: ${context.data.sourceName}`, fileSize: context.data.result.sizeBytes ?? Buffer.byteLength(context.data.result.canonicalBytes, "utf8"), hash: context.hash, proofUid: stamp.proofUid, proofStatus: "pending" });
   context.proofId = proof.id;
   if (context.data.readId) linkDataSourceReadProof(context.data.readId, proof.id);
   context.output = { condition: condition ? evaluateCondition(context, { ...condition, source: condition.source ?? "data" }) : null, action: "stamped", proofId: proof.id, proofUid: stamp.proofUid };
@@ -334,6 +357,7 @@ function sourceUrlForRecord(source: { type: string; config: string }) {
   if (source.type === "gpio-input") return `${config.chip ?? "gpiochip0"} GPIO${config.pin ?? "?"}`;
   if (source.type === "mqtt") return `${config.brokerUrl ?? "MQTT"} ${config.topic ?? ""}`;
   if (source.type === "webhook") return `/api/data-source-webhooks/${config.webhookToken ?? ""}`;
+  if (source.type === "pi-camera") return `pi-camera:${config.mode ?? "photo"}`;
   return String(config.url ?? "data source");
 }
 
@@ -344,6 +368,7 @@ function blockLabel(type: string) {
   if (type === "send_transaction") return "Send payment";
   if (type === "if_payload_field_equals") return "If field matches";
   if (type === "fetch_data_source") return "Fetch data source";
+  if (type === "capture_camera") return "Capture camera";
   if (type === "record_trigger_event") return "Record trigger event";
   if (type === "wait") return "Wait";
   return "Start workflow";

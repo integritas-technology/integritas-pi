@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Pi Camera capture devices can now be enabled with `ENABLE_CAMERA=true`, configured from Devices, and used in Automation through a `Capture camera` data block that hashes captured media bytes and can attach Integritas stamping.
+
+### Changed
+
+- Docs now describe the implemented block-based automation/device model more accurately, including GPIO output targets, Pi Camera privacy risks, and the moved GPIO device settings guide.
+
 ## [0.21.0] - 2026-07-21
 
 ### Added

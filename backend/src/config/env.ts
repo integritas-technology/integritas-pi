@@ -78,5 +78,11 @@ export const env = {
   mqttBrokerEnabled: process.env.ENABLE_MQTT_BROKER === "true",
   mqttPublicHost: process.env.MQTT_PUBLIC_HOST ?? "",
   mqttPublicPort: Number(process.env.MQTT_PUBLIC_PORT ?? 1883),
-  mqttInternalUrl: process.env.MQTT_INTERNAL_URL ?? "mqtt://mqtt:1883"
+  mqttInternalUrl: process.env.MQTT_INTERNAL_URL ?? "mqtt://mqtt:1883",
+  cameraEnabled: process.env.ENABLE_CAMERA === "true",
+  cameraCaptureDir: process.env.CAMERA_CAPTURE_DIR ?? path.join(resolveDataDir(databasePath), "captures"),
+  cameraMaxDurationSeconds: Number(process.env.CAMERA_MAX_DURATION_SECONDS ?? 30),
+  cameraRetentionDays: Number(process.env.CAMERA_RETENTION_DAYS ?? 7),
+  cameraPhotoCommand: process.env.CAMERA_PHOTO_COMMAND ?? "rpicam-still",
+  cameraVideoCommand: process.env.CAMERA_VIDEO_COMMAND ?? "rpicam-vid"
 };

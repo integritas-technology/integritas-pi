@@ -9,6 +9,7 @@ import { syncMqttDataSources } from "./mqttIngestion.service.js";
 import { getGpioInputCapability, syncGpioDataSources } from "./gpioIngestion.service.js";
 import { pulseGpioOutput } from "./gpioOutput.service.js";
 import { publishMqttOutput } from "./mqttOutput.service.js";
+import { getCameraCapability } from "./cameraCapture.service.js";
 import { checkDataSourceHealth, parseDataSourceConfig, parseGpioInputConfig, parseGpioOutputConfig, parseHttpOutputConfig, parseJsonApiConfig, processWebhookPayload, readJsonApiSource, sendHttpOutput, serializeDataSource } from "./dataSources.service.js";
 
 export const dataSourcesRouter = Router();
@@ -42,7 +43,8 @@ dataSourcesRouter.get("/capabilities", (_req, res) => {
       internalUrl: env.mqttInternalUrl,
       publicHost: env.mqttPublicHost,
       publicPort: env.mqttPublicPort
-    }
+    },
+    camera: getCameraCapability()
   });
 });
 
@@ -52,8 +54,9 @@ dataSourcesRouter.post("/", requireRole("admin"), (req, res) => {
   const description = typeof req.body?.description === "string" ? req.body.description : "";
 
   if (!name) return res.status(400).json({ error: "name is required" });
-  if (!isSupportedDeviceType(type)) return res.status(400).json({ error: "Only HTTP JSON API, webhook, MQTT, GPIO input/output, HTTP output, and MQTT output devices are supported" });
+  if (!isSupportedDeviceType(type)) return res.status(400).json({ error: "Only HTTP JSON API, webhook, MQTT, GPIO input/output, Pi Camera, HTTP output, and MQTT output devices are supported" });
   if ((type === "gpio-input" || type === "gpio-output") && !getGpioInputCapability().available) return res.status(400).json({ error: getGpioInputCapability().reason });
+  if (type === "pi-camera" && !getCameraCapability().available) return res.status(400).json({ error: getCameraCapability().reason });
 
   try {
     const config = parseDataSourceConfig(type, req.body?.config);
@@ -83,8 +86,9 @@ dataSourcesRouter.patch("/:id", requireRole("admin"), (req, res) => {
   const description = typeof req.body?.description === "string" ? req.body.description : "";
 
   if (!name) return res.status(400).json({ error: "name is required" });
-  if (!isSupportedDeviceType(type)) return res.status(400).json({ error: "Only HTTP JSON API, webhook, MQTT, GPIO input/output, HTTP output, and MQTT output devices are supported" });
+  if (!isSupportedDeviceType(type)) return res.status(400).json({ error: "Only HTTP JSON API, webhook, MQTT, GPIO input/output, Pi Camera, HTTP output, and MQTT output devices are supported" });
   if ((type === "gpio-input" || type === "gpio-output") && !getGpioInputCapability().available) return res.status(400).json({ error: getGpioInputCapability().reason });
+  if (type === "pi-camera" && !getCameraCapability().available) return res.status(400).json({ error: getCameraCapability().reason });
 
   try {
     const config = parseDataSourceConfig(type, req.body?.config, JSON.parse(existing.config) as unknown);
@@ -101,7 +105,7 @@ dataSourcesRouter.patch("/:id", requireRole("admin"), (req, res) => {
 dataSourcesRouter.get("/:id/health", async (req, res) => {
   const record = getDataSource(req.params.id);
   if (!record) return res.status(404).json({ error: "Data source not found" });
-  if (record.type === "webhook" || record.type === "mqtt" || record.type === "gpio-input" || record.type === "gpio-output" || record.type === "http-output" || record.type === "mqtt-output") return res.status(400).json({ error: "This device does not have a health URL" });
+  if (record.type === "webhook" || record.type === "mqtt" || record.type === "gpio-input" || record.type === "gpio-output" || record.type === "pi-camera" || record.type === "http-output" || record.type === "mqtt-output") return res.status(400).json({ error: "This device does not have a health URL" });
 
   try {
     const config = parseJsonApiConfig(JSON.parse(record.config) as unknown);
@@ -115,7 +119,7 @@ dataSourcesRouter.get("/:id/health", async (req, res) => {
 dataSourcesRouter.post("/:id/read", requireRole("admin"), async (req, res) => {
   const record = getDataSource(req.params.id);
   if (!record) return res.status(404).json({ error: "Data source not found" });
-  if (record.type === "webhook" || record.type === "mqtt" || record.type === "gpio-input" || record.type === "gpio-output" || record.type === "http-output" || record.type === "mqtt-output") return res.status(400).json({ error: "This device cannot be read manually" });
+  if (record.type === "webhook" || record.type === "mqtt" || record.type === "gpio-input" || record.type === "gpio-output" || record.type === "pi-camera" || record.type === "http-output" || record.type === "mqtt-output") return res.status(400).json({ error: "This device cannot be read manually" });
 
   try {
     const config = parseJsonApiConfig(JSON.parse(record.config) as unknown);
@@ -153,7 +157,7 @@ dataSourcesRouter.post("/:id/test-output", requireRole("admin"), async (req, res
 });
 
 function isSupportedDeviceType(type: string) {
-  return type === "json-api" || type === "internal-json-api" || type === "webhook" || type === "mqtt" || type === "gpio-input" || type === "gpio-output" || type === "http-output" || type === "mqtt-output";
+  return type === "json-api" || type === "internal-json-api" || type === "webhook" || type === "mqtt" || type === "gpio-input" || type === "gpio-output" || type === "pi-camera" || type === "http-output" || type === "mqtt-output";
 }
 
 function validateGpioPinAvailable(type: string, config: unknown, currentId: string | null) {

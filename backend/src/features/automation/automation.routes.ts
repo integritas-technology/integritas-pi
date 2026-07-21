@@ -233,7 +233,7 @@ function parseWorkflowBlocks(value: unknown[]) {
   for (const block of blocks.filter((item) => item.parentBlockId)) {
     if (block.type !== "stamp_integritas") throw new Error("Only Integritas stamp blocks can be attached to another block");
     const parent = blocks.find((item) => item.clientId && item.clientId === block.parentBlockId);
-    if (!parent || (parent.type !== "record_trigger_event" && parent.type !== "fetch_data_source")) throw new Error("Integritas stamp blocks must be attached to a record or fetch block");
+    if (!parent || (parent.type !== "record_trigger_event" && parent.type !== "fetch_data_source" && parent.type !== "capture_camera")) throw new Error("Integritas stamp blocks must be attached to a record, fetch, or camera capture block");
   }
   return blocks;
 }
@@ -263,14 +263,20 @@ function validateBlockConfig(type: AutomationBlockType, config: Record<string, u
     return;
   }
 
-  if (type === "gpio_event_start" || type === "webhook_event_start" || type === "mqtt_event_start" || type === "fetch_data_source") {
+  if (type === "gpio_event_start" || type === "webhook_event_start" || type === "mqtt_event_start" || type === "fetch_data_source" || type === "capture_camera") {
     const sourceId = typeof config.sourceId === "string" ? config.sourceId : "";
     const source = getDataSource(sourceId);
     if (!source) throw new Error(`${type} requires a valid sourceId`);
     if (type === "gpio_event_start" && source.type !== "gpio-input") throw new Error("GPIO start requires a GPIO input source");
     if (type === "webhook_event_start" && source.type !== "webhook") throw new Error("Webhook start requires a webhook source");
     if (type === "mqtt_event_start" && source.type !== "mqtt") throw new Error("MQTT start requires an MQTT source");
-    if (type === "fetch_data_source" && (source.type === "gpio-input" || source.type === "gpio-output" || source.type === "webhook" || source.type === "mqtt" || source.type === "http-output" || source.type === "mqtt-output")) throw new Error("Fetch block requires an HTTP JSON source");
+    if (type === "fetch_data_source" && (source.type === "gpio-input" || source.type === "gpio-output" || source.type === "webhook" || source.type === "mqtt" || source.type === "pi-camera" || source.type === "http-output" || source.type === "mqtt-output")) throw new Error("Fetch block requires an HTTP JSON source");
+    if (type === "capture_camera" && source.type !== "pi-camera") throw new Error("Capture camera block requires a Pi Camera device");
+    if (type === "capture_camera") {
+      const durationMs = config.durationMs === undefined ? undefined : Number(config.durationMs);
+      if (durationMs !== undefined && (!Number.isFinite(durationMs) || durationMs < 100 || durationMs > 300000)) throw new Error("Capture duration must be between 100 and 300000 ms");
+      if (durationMs !== undefined) config.durationMs = durationMs;
+    }
     return;
   }
 
@@ -343,7 +349,7 @@ function validateBlockAttachment(workflowId: string, type: AutomationBlockType, 
   if (!parentBlockId) return;
   const parent = listAutomationBlocks(workflowId).find((block) => block.id === parentBlockId);
   if (!parent || parent.parent_block_id) throw new Error("Attached block parent not found");
-  if (parent.type !== "record_trigger_event" && parent.type !== "fetch_data_source") throw new Error("Integritas can only be attached to record or fetch blocks");
+  if (parent.type !== "record_trigger_event" && parent.type !== "fetch_data_source" && parent.type !== "capture_camera") throw new Error("Integritas can only be attached to record, fetch, or camera capture blocks");
   const existing = listAutomationBlocks(workflowId).find((block) => block.type === "stamp_integritas" && block.parent_block_id === parentBlockId);
   if (existing) throw new Error("This block already has an Integritas stamp attached");
 }
@@ -356,6 +362,7 @@ function isAutomationBlockType(type: string): type is AutomationBlockType {
     || type === "mqtt_event_start"
     || type === "record_trigger_event"
     || type === "fetch_data_source"
+    || type === "capture_camera"
     || type === "set_variable"
     || type === "if_payload_field_equals"
     || type === "wait"
