@@ -1,5 +1,5 @@
 import { deleteJson, getJson, patchJson, postJson } from "../../lib/api";
-import { buildListQueryString, type ListQueryParams, type PaginatedResponse } from "../../lib/paginated";
+import { buildListQueryString, DEFAULT_PAGE_SIZE, type ListQueryParams, type PaginatedResponse } from "../../lib/paginated";
 import type { AutomationBlock, AutomationBlockType, AutomationRun, AutomationValidationResult, AutomationWorkflow } from "./automationTypes";
 
 export async function listAutomationWorkflows() {
@@ -54,7 +54,7 @@ export async function runAutomationWorkflow(id: string, triggerPayload?: unknown
   return postJson<{ workflow: AutomationWorkflow; proofId: string | null }>(`/api/automation/workflows/${id}/run`, triggerPayload === undefined ? undefined : { triggerPayload });
 }
 
-export async function listAutomationRuns(params: ListQueryParams = { page: 1, pageSize: 50 }) {
+export async function listAutomationRuns(params: ListQueryParams = { page: 1, pageSize: DEFAULT_PAGE_SIZE }) {
   return getJson<PaginatedResponse<AutomationRun>>(`/api/automation/runs${buildListQueryString(params)}`);
 }
 

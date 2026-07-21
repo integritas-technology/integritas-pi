@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Diagnostics "Workflow logs" tab now supports pagination, status filtering, and search, matching the existing proof/read history tabs.
+- All three Diagnostics tabs (proofs, reads, workflow logs) now share a single lightweight refresh button.
+
+### Changed
+
+- Diagnostics default page size lowered from 50 to 25.
+
+### Fixed
+
+- Diagnostics "Raw details" panel for a workflow run now expands inline below its row instead of rendering at the bottom of the table.
+- Diagnostics no longer silently falls back to a page size of 10 when no `pageSize` is set in the URL (affected the shared backend pagination helper too, used by proofs/reads/workflow-runs).
+
 ## [0.18.0] - 2026-07-16
 
 ### Added

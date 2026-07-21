@@ -8,7 +8,6 @@ import { sha3HashHex } from "../../shared/crypto.js";
 import { deleteIntegritasApiKey, getIntegritasApiKey, integritasApiKeySource, saveIntegritasApiKey } from "../settings/secrets.service.js";
 import { env } from "../../config/env.js";
 import { createProofRecord, deleteProofRecords, getProofRecord, listProofRecords, countProofRecords, countPollablePendingProofRecords, PROOF_LIST_STATUSES, updateVerifyResponse } from "./integritas.repository.js";
-import { pollPendingProofRecords } from "./integritas-poll.service.js";
 import { getIntegritasConfig, hashCanonicalBytes, parseProofPayload, pollProofStatus, refreshProofRecord, requestProofUid, sha3HashFile, verifyProof, writeProofExport } from "./integritas.service.js";
 import type { IntegritasApiFailure } from "./integritas.types.js";
 import { parseListQuery, toPaginatedResult } from "../../shared/list-query.js";
@@ -168,17 +167,6 @@ integritasRouter.post("/history/export-selected", async (req, res) => {
   } catch (error) {
     return res.status(500).json({ error: error instanceof Error ? error.message : "Proof export failed" });
   }
-});
-
-integritasRouter.post("/history/poll-pending", async (req, res) => {
-  const apiKey = requireIntegritasApiKey(res);
-  if (!apiKey) return;
-
-  await pollPendingProofRecords();
-  const parsed = parseListQuery(req.query, { allowedStatuses: PROOF_LIST_STATUSES });
-  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
-
-  return res.json(proofHistoryPage(parsed.value));
 });
 
 integritasRouter.post("/history/:id/poll", async (req, res) => {

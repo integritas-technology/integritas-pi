@@ -63,6 +63,7 @@ export function DiagnosticsPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const updateListQuery = useCallback((patch: Partial<DiagnosticsListQuery>) => {
     const current = parseDiagnosticsListQuery(searchParams, activeTab);
@@ -105,29 +106,33 @@ export function DiagnosticsPage() {
     setSelectedIds([]);
   }, [activeTab, listQuery.page, listQuery.pageSize, listQuery.status, listQuery.q]);
 
+  const loadActiveTab = useCallback(async (query: DiagnosticsListQuery, isCancelled: () => boolean = () => false) => {
+    if (activeTab === 'proofs') {
+      const response = await getHistory(query);
+      if (isCancelled()) return;
+      applyPaginatedPage(response, query.page, setProofsPage, clampPage);
+      return;
+    }
+
+    if (activeTab === 'reads') {
+      const response = await listDataReads(query);
+      if (isCancelled()) return;
+      applyPaginatedPage(response, query.page, setReadsPage, clampPage);
+      return;
+    }
+
+    const response = await listAutomationRuns(query);
+    if (isCancelled()) return;
+    applyPaginatedPage(response, query.page, setWorkflowRunsPage, clampPage);
+  }, [activeTab, clampPage]);
+
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       setError(null);
       try {
-        if (activeTab === 'proofs') {
-          const response = await getHistory(listQuery);
-          if (cancelled) return;
-          applyPaginatedPage(response, listQuery.page, setProofsPage, clampPage);
-          return;
-        }
-
-        if (activeTab === 'reads') {
-          const response = await listDataReads(listQuery);
-          if (cancelled) return;
-          applyPaginatedPage(response, listQuery.page, setReadsPage, clampPage);
-          return;
-        }
-
-        const response = await listAutomationRuns(listQuery);
-        if (cancelled) return;
-        applyPaginatedPage(response, listQuery.page, setWorkflowRunsPage, clampPage);
+        await loadActiveTab(listQuery, () => cancelled);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Failed to load diagnostics history.');
@@ -139,7 +144,7 @@ export function DiagnosticsPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, listQuery, clampPage]);
+  }, [listQuery, loadActiveTab]);
 
   useIntegritasHistoryAutoRefresh(proofsPage.items, undefined, {
     enabled: activeTab === 'proofs',
@@ -178,20 +183,14 @@ export function DiagnosticsPage() {
   }
 
   async function handleRefresh() {
-    setBusy(true);
+    setRefreshing(true);
     setError(null);
     try {
-      if (activeTab === 'proofs') {
-        applyPaginatedPage(await getHistory(listQuery), listQuery.page, setProofsPage, clampPage);
-      } else if (activeTab === 'reads') {
-        applyPaginatedPage(await listDataReads(listQuery), listQuery.page, setReadsPage, clampPage);
-      } else {
-        applyPaginatedPage(await listAutomationRuns(listQuery), listQuery.page, setWorkflowRunsPage, clampPage);
-      }
+      await loadActiveTab(listQuery);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to refresh diagnostics history.');
     } finally {
-      setBusy(false);
+      setRefreshing(false);
     }
   }
 
@@ -229,7 +228,7 @@ export function DiagnosticsPage() {
         onStatusChange={(status) => updateListQuery({ status })}
         onQueryChange={(q) => updateListQuery({ q })}
         onRefresh={() => void handleRefresh()}
-        refreshing={busy}
+        refreshing={refreshing}
       />
 
       {activeTab === 'proofs' ? (
