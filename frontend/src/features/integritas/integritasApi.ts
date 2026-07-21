@@ -1,10 +1,10 @@
 import { getJson, postForm, postJson } from "../../lib/api";
 import { buildListQueryString, type ListQueryParams } from "../../lib/paginated";
-import type { IntegritasApiKeyCheck, IntegritasHistoryPage, IntegritasProofRecord } from "./integritasTypes";
+import type { IntegritasHistoryPage, IntegritasProofRecord } from "./integritasTypes";
 
-export async function checkIntegritasApiKey() {
-  return postJson<IntegritasApiKeyCheck>("/api/integritas/api-key/check");
-}
+// export async function checkIntegritasApiKey() {
+//   return postJson<IntegritasApiKeyCheck>("/api/integritas/api-key/check");
+// }
 
 export async function getHistory(params: ListQueryParams = { page: 1, pageSize: 50 }) {
   return getJson<IntegritasHistoryPage>(`/api/integritas/history${buildListQueryString(params)}`);
@@ -18,12 +18,6 @@ export async function stampFile(file: File) {
   const form = new FormData();
   form.append("file", file);
   return postForm<{ record: IntegritasProofRecord }>("/api/integritas/stamp-file", form);
-}
-
-export async function pollPendingRecords(params: ListQueryParams = { page: 1, pageSize: 50 }) {
-  return postJson<IntegritasHistoryPage>(
-    `/api/integritas/history/poll-pending${buildListQueryString(params)}`,
-  );
 }
 
 export async function verifyRecord(id: string) {

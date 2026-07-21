@@ -5,5 +5,6 @@ export type AuthUser = {
 };
 
 export type SetupStatus = {
+  localAdminCreated: boolean;
   setupComplete: boolean;
 };

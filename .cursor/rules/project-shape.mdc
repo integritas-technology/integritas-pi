@@ -1,0 +1,41 @@
+---
+description: Architecture, core principles, what to read before editing
+alwaysApply: false
+---
+
+# Project Shape
+
+`integritas-pi` is a Raspberry Pi Docker Compose prototype with a React frontend, TypeScript/Express backend, SQLite persistence, Minima, Integritas stamping, data sources, automation workflows, and a small operational CLI.
+
+The primary architecture is API-first:
+
+```txt
+Browser UI -> backend API
+CLI        -> backend API
+Backend    -> SQLite / Integritas / Minima / Docker status / data source URLs
+```
+
+Do not implement business logic separately in the frontend or CLI. Put shared behavior behind backend API routes/services.
+
+## Core Principles
+
+- Keep changes small and direct.
+- Prefer extending existing feature folders over creating broad abstractions.
+- Preserve the browser UI as the primary UX.
+- CLI commands are operational/admin helpers, not a full duplicate UI.
+- Backend must not expose arbitrary shell command execution.
+- Host file access must stay read-only and path-safe.
+- Backend should continue running as non-root in Docker.
+- Persist runtime state in SQLite under `/data/integritas-pi.db`.
+- Do not add mock data/functions to production paths.
+- Document security-sensitive tradeoffs in `SECURITY.md` when adding risk.
+
+## Read Before Editing
+
+Always start with:
+
+- `README.md` for install, runtime, API, and operational expectations.
+- `CHANGELOG.md` for what changed recently and how releases are recorded.
+- `SECURITY.md` for security boundaries and known prototype risks.
+- `docker-compose.yml` for service topology, mounts, ports, and container constraints.
+- `.env.example` for supported runtime configuration.

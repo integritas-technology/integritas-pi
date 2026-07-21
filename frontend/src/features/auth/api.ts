@@ -9,7 +9,7 @@ export async function getMe() {
   return getJson<AuthUser>("/api/auth/me");
 }
 
-export async function login(input: { password: string; totpToken: string }) {
+export async function login(input: { password: string; totpToken?: string }) {
   return postJson<{ success: boolean; user: AuthUser }>("/api/auth/login", input);
 }
 
@@ -17,7 +17,7 @@ export async function logout() {
   return postJson<{ success: boolean }>("/api/auth/logout");
 }
 
-export async function changePassword(input: { currentPassword: string; newPassword: string; totpToken: string }) {
+export async function changePassword(input: { currentPassword: string; newPassword: string; totpToken?: string }) {
   return postJson<{ success: boolean }>("/api/auth/settings/password", input);
 }
 

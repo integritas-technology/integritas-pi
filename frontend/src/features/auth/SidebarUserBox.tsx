@@ -1,5 +1,6 @@
 import { LogOut, Settings, ShieldCheck } from "lucide-react";
 import type { AuthUser } from "./types";
+import { TOTP_ENABLED } from "./totpEnabled";
 
 export function SidebarUserBox({
   user,
@@ -22,11 +23,13 @@ export function SidebarUserBox({
         </div>
       </button>
 
-      <div className="flex">
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[0.68rem] font-extrabold text-emerald-700">
-          <ShieldCheck size={12} /> 2FA protected
-        </span>
-      </div>
+      {TOTP_ENABLED ? (
+        <div className="flex">
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[0.68rem] font-extrabold text-emerald-700">
+            <ShieldCheck size={12} /> 2FA protected
+          </span>
+        </div>
+      ) : null}
 
       <button type="button" className="inline-flex w-fit items-center gap-1.5 border-0 bg-transparent p-0 text-[0.78rem] font-bold text-slate-500 hover:text-slate-950" onClick={onSignOut}>
         <LogOut size={14} /> Sign out

@@ -5,9 +5,11 @@ import { AuthContext } from "./hooks";
 import { OnboardingWizard } from "../setup/OnboardingWizard";
 import type { AuthUser } from "./types";
 
+type SetupMode = "fresh" | "resume" | null;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
-  const [showSetup, setShowSetup] = useState(false);
+  const [setupMode, setSetupMode] = useState<SetupMode>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
 
@@ -15,21 +17,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const status = await getSetupStatus();
-      if (!status.setupComplete) {
-        setShowSetup(true);
+      if (!status.localAdminCreated) {
+        setSetupMode("fresh");
         setShowLogin(false);
         setUser(null);
         return;
       }
 
-      setShowSetup(false);
       try {
         const me = await getMe();
         setUser(me);
         setShowLogin(false);
+        setSetupMode(status.setupComplete ? null : "resume");
       } catch {
         setUser(null);
         setShowLogin(true);
+        setSetupMode(null);
       }
     } finally {
       setLoading(false);
@@ -44,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUnauthorizedHandler(() => {
       setUser(null);
       setShowLogin(true);
-      setShowSetup(false);
+      setSetupMode(null);
     });
     return () => setUnauthorizedHandler(null);
   }, []);
@@ -57,9 +60,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setUser(null);
     setShowLogin(true);
-    setShowSetup(false);
+    setSetupMode(null);
   }, []);
 
+  const showSetup = setupMode !== null;
   const value = useMemo(
     () => ({
       user,
@@ -81,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   if (showSetup) {
-    return <OnboardingWizard onComplete={() => void refreshSession()} />;
+    return <OnboardingWizard resumeAtConnect={setupMode === "resume"} onComplete={() => void refreshSession()} />;
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,5 +1,7 @@
 # AGENTS.md
 
+> **Sync notice:** This file is duplicated as `CLAUDE.md` (and `.agents/rules/` as `.claude/rules/`), kept for tool compatibility — some tools read `AGENTS.md`/`.agents/`, Claude Code reads `CLAUDE.md`/`.claude/`. Cursor reads `.cursor/rules/` instead: this file's content maps to `.cursor/rules/index.mdc` (behavioral guidelines + rules index, `alwaysApply: true`), and each `.agents/rules/*.md` has a body-identical `.cursor/rules/*.mdc` counterpart (with `globs`/`description` frontmatter added so Cursor only loads what's relevant). When you change one, apply the identical change to its counterparts in the same commit. Do not let them drift.
+
 Behavioral guidelines to reduce common LLM coding mistakes.
 Merge with project-specific instructions as needed — see Project Rules below.
 
