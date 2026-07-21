@@ -2,13 +2,13 @@
 
 **Status:** V1 implemented  
 **Created:** 2026-07-16  
-**Goal:** Let workflows prepare per-run values and reuse them in later blocks, starting with output payload templating for HTTP/API and MQTT output targets.
+**Goal:** Let workflows prepare per-run values and reuse them in later condition and output blocks.
 
 ## Summary
 
 Workflows need a generic way to prepare values before sending commands, notifications, or messages. The first concrete use case is sending a Discord-compatible HTTP webhook body, but the feature must stay generic and work for any output target that accepts structured data.
 
-Add per-run workflow variables plus a `Set variable` block. Later blocks can reference those variables, initially through simple `{{variableName}}` interpolation inside custom output JSON.
+Add per-run workflow variables plus a `Set variable` block. Later blocks can reference those variables in condition checks and through simple `{{variableName}}` interpolation inside custom output JSON.
 
 Variables are not global settings and are not persisted across runs. They exist only while one workflow run executes.
 
@@ -23,7 +23,8 @@ Variables are not global settings and are not persisted across runs. They exist 
   - trigger payload
   - latest data
   - no body for HTTP only
-- Custom JSON is static today. It cannot insert fetched data, trigger fields, or prepared values.
+- Custom JSON can insert prepared workflow variables with `{{variableName}}` placeholders.
+- The main `If field matches` condition block can read either a trigger field or a previously set workflow variable.
 
 ## Target Model
 
@@ -53,6 +54,8 @@ Example workflow:
 ```txt
 [GPIO button pressed]
   -> [Fetch HTTP JSON]
+  -> [Set variable: temperature = latest data temperature]
+  -> [If variable temperature is greater than 20]
   -> [Set variable: discordMessage = "Temperature alert"]
   -> [Control device: HTTP output with custom JSON]
 ```
@@ -69,12 +72,12 @@ Output custom JSON:
 
 ### Block Library
 
-Place `Set variable` under Data blocks, not Action blocks.
+Place the `Add variable` card under Data blocks, not Action blocks. The block itself is named `Set variable` on the canvas and in the inspector.
 
 ```txt
 Data blocks
 
-Set variable
+Add variable
 Save a value for later blocks.
 ```
 
@@ -163,6 +166,38 @@ data.sourceName
 trigger.type
 ```
 
+## Condition Blocks
+
+The main `If field matches` block can read from either the workflow trigger or a workflow variable.
+
+```txt
+Condition source
+[Trigger event]
+[Variable]
+```
+
+Trigger conditions use a field path from `context.trigger.payload`:
+
+```txt
+Condition source: Trigger event
+Field path: temperatureC
+Operator: is greater than
+Compare value: 20
+```
+
+Variable conditions use a variable name from `context.variables`:
+
+```txt
+Condition source: Variable
+Variable name: temperature
+Operator: is greater than
+Compare value: 20
+```
+
+Variable conditions require an enabled earlier `Set variable` block that defines the variable. The main condition block does not read `Latest data` directly. To condition on data from a recorded or fetched source, set a variable first, then condition on that variable.
+
+Attached `Stamp data` conditions are separate: they still read the parent record/fetch block's data because they are scoped to that attached data block.
+
 ## Interpolation Rules
 
 V1 interpolation is intentionally small:
@@ -172,7 +207,7 @@ V1 interpolation is intentionally small:
 - No conditionals.
 - No filters/helpers.
 - No nested paths in template placeholders.
-- Unknown variables should fail validation or fail the block clearly before sending output.
+- Unknown variables in output templates fail the output block clearly before sending output.
 
 When interpolating inside a string:
 
@@ -208,19 +243,22 @@ Status: Implemented.
    Implement value source modes and write to `context.variables[name]`.
 
 4. Add frontend block library card.
-   Add `Set variable` under Data blocks.
+   Add `Add variable` under Data blocks.
 
 5. Add frontend inspector.
    Let operators choose variable name, value source, and custom JSON or field path.
 
 6. Add output interpolation.
-   Apply variable interpolation to custom JSON bodies in Control device blocks before sending HTTP/MQTT output.
+    Apply variable interpolation to custom JSON bodies in Control device blocks before sending HTTP/MQTT output.
 
 7. Add validation.
-   Validate variable names, custom JSON, field paths, and obvious references to variables that are not set by prior blocks.
+   Validate variable names, custom JSON, field paths, and variable-backed condition references that are not set by prior blocks.
 
 8. Update run history display.
-   Include variables in block run summaries so users can debug what values were set.
+    Include variables in block run summaries so users can debug what values were set.
+
+9. Add variable-backed conditions.
+   Let the main `If field matches` block choose between Trigger event and Variable sources. Remove Latest data as a direct source for this main condition block.
 
 ## V1 Non-Goals
 
@@ -281,3 +319,5 @@ Manual checks:
 - Confirm unknown variable references fail clearly.
 - Confirm invalid custom JSON fails validation before the workflow is created or saved.
 - Confirm variables are visible in block run details for debugging.
+- Set a variable from latest data and use `If field matches` with Condition source `Variable`.
+- Confirm `If field matches` no longer offers `Latest data` as a condition source.
