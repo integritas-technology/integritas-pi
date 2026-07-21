@@ -98,12 +98,13 @@ MINIMA_HEALTH_POLL_INTERVAL_SECONDS=60
 MINIMA_STALL_BLOCK_AGE_SECONDS=300
 MINIMA_AUTO_RESYNC=false
 MINIMA_AUTO_RESYNC_COOLDOWN_MINUTES=30
+INTEGRITAS_CONNECT_BASE_URL=https://integritas.technology
 INTEGRITAS_BASE_URL=https://integritas.technology/core
-INTEGRITAS_API_KEY=
 INTEGRITAS_REQUEST_ID=integritas-pi
 INTEGRITAS_REQUEST_TIMEOUT_MS=15000
 INTEGRITAS_POLL_INTERVAL_SECONDS=30
 INTEGRITAS_PROOF_POLL_TIMEOUT_MINUTES=5
+INTEGRITAS_DEVICE_POLL_INTERVAL_SECONDS=5
 INTEGRITAS_PORTAL_URL=
 COOKIE_SECURE=true
 SESSION_MAX_AGE_DAYS=7
@@ -138,9 +139,14 @@ When GPIO is not enabled or `/dev/gpiochip0` is unavailable in the backend conta
 
 GPIO input/output settings for tested button and LED wiring, plus suggested untested device profiles, are documented in [`docs/gpio-device-settings.md`](./docs/gpio-device-settings.md).
 
-`ENABLE_MQTT_BROKER=true` enables the optional local Mosquitto broker when `COMPOSE_PROFILES=mqtt` is also set. The installer sets both values when launched with `ENABLE_MQTT_BROKER=true`. The Devices page shows the LAN broker URL for external devices and the internal Docker URL for Integritas Pi MQTT input/output configs.
+`INTEGRITAS_CONNECT_BASE_URL` is the Integritas Connect host used for device activation and account linking (default `https://integritas.technology`).
 
-`INTEGRITAS_API_KEY` is optional. You can leave it empty and save the API key from the Integritas page in the UI. The key is sent to the backend once, encrypted, and stored in SQLite. It is never exposed in the frontend bundle.
+`INTEGRITAS_BASE_URL` is the Integritas core host used for proof stamping (default `https://integritas.technology/core`).
+
+Proof stamping uses the Integritas Connect account API key stored encrypted in `integritas_auth.api_key_enc` after device linking. Link Integritas Connect from Auth Settings or during first-run setup. API keys are never exposed in the frontend bundle.
+
+`INTEGRITAS_DEVICE_POLL_INTERVAL_SECONDS` is how often the Pi polls Connect while device activation is pending (default `5`).
+`ENABLE_MQTT_BROKER=true` enables the optional local Mosquitto broker when `COMPOSE_PROFILES=mqtt` is also set. The installer sets both values when launched with `ENABLE_MQTT_BROKER=true`. The Devices page shows the LAN broker URL for external devices and the internal Docker URL for Integritas Pi MQTT input/output configs.
 
 The backend polls Integritas for pending proof UIDs in the background (`INTEGRITAS_POLL_INTERVAL_SECONDS`, default 30). Pending proofs that never reach on-chain status are marked failed after `INTEGRITAS_PROOF_POLL_TIMEOUT_MINUTES` (default 5). Automation workflows retry Integritas stamps on the next run after transient upstream errors. Manual poll in Diagnostics still works and uses the same refresh logic.
 
@@ -282,12 +288,13 @@ docker compose logs -f
 
 On first launch with an empty database, Edge Workbench shows a setup wizard:
 
-1. Set the admin password (minimum 8 characters)
-2. Scan the TOTP QR code and enter a 6-digit code
-3. Optionally verify an Integritas API key (or skip and configure later)
-4. Finish setup — you are signed in via an HttpOnly session cookie
+1. Choose a local admin credential: a 6-digit PIN or a password with at least 8 characters, including uppercase, lowercase, a number, and a symbol
+2. Create or connect the Integritas Connect account used for plan and proof usage
+3. Review the connected account and finish setup
 
-After setup, sign in with password and TOTP. There is a single local admin account (no username to enter). Sessions persist across browser reloads until logout or expiry.
+After setup, sign in with the chosen PIN or password. You can switch credential types later in Account settings. There is a single local admin account (no username to enter), and only its bcrypt hash is stored. Sessions persist across browser reloads until logout or expiry.
+
+TOTP is temporarily disabled through `TOTP_ENABLED = false` in the backend and frontend auth constants.
 
 Public API routes (no session required):
 
@@ -433,7 +440,7 @@ backend container
   - HTTP Collect data rules poll on a schedule. Webhook Collect data rules record pushed JSON at generated `/api/data-source-webhooks/:token` URLs while enabled. MQTT Collect data rules subscribe to the configured broker/topic only while enabled. GPIO Collect data rules watch configured BCM pins only while enabled.
   - Reads /host-files only
   - Reads Minima status from http://minima:9005/status
-  - Calls https://integritas.technology/core with backend-only API key
+  - Calls https://integritas.technology/core with the backend-only Connect API key
   - Reads Docker resource usage through /var/run/docker.sock
 
 minima container
@@ -515,7 +522,11 @@ Example fields:
   "state": "running",
   "sync": { "status": "active", "block": 932067, "blockAgeSeconds": 45 },
   "health": { "peerCount": 12 },
-  "container": { "state": "running", "cpuPercent": 2.5, "memory": { "usage": "512 MB", "limit": "4 GB" } },
+  "container": {
+    "state": "running",
+    "cpuPercent": 2.5,
+    "memory": { "usage": "512 MB", "limit": "4 GB" }
+  },
   "monitoring": { "stallDetected": false, "autoResyncEnabled": false }
 }
 ```
@@ -567,25 +578,23 @@ Integritas:
 
 ```http
 GET /api/integritas/config
-POST /api/integritas/api-key/check
-POST /api/integritas/api-key
-DELETE /api/integritas/api-key
 POST /api/integritas/hash
 POST /api/integritas/stamp
 POST /api/integritas/status
 POST /api/integritas/verify
 ```
 
-`GET /api/integritas/history` and `GET /api/data-reads` return paginated log rows. Query params: `page` (default `1`), `pageSize` (default `50`, clamped `10`–`100`), optional `status`, and optional `q` (substring match on hash/UID/source fields). Response shape: `{ items, page, pageSize, total, totalPages }`. `GET /api/integritas/history/:id` returns a single proof record.
+Integritas Connect (device linking):
 
-The frontend sends canonical bytes and proof payloads to the backend. The backend performs SHA3-256 hashing and calls Integritas with a backend-only API key.
+```http
+POST /api/auth/connect/start
+GET /api/auth/connect/status
+GET /api/user/profile
+```
 
-The API key can come from either:
+The frontend sends canonical bytes and proof payloads to the backend. The backend performs SHA3-256 hashing and calls Integritas with the Connect-linked API key from `integritas_auth.api_key_enc`.
 
-- encrypted SQLite storage, set from the frontend UI
-- `INTEGRITAS_API_KEY` in `.env`, used as a fallback
-
-Install with an Integritas API key:
+The backend uses the first available source in that order. Install with a fallback Integritas API key:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/install.sh | sudo INTEGRITAS_API_KEY=your-api-key bash
@@ -604,10 +613,10 @@ See [`SECURITY.md`](./SECURITY.md) for the current risk register, known vulnerab
 - Backend blocks access outside `/host-files`
 - Frontend cannot trigger shell commands
 - Minima RPC binds to `127.0.0.1` by default
-- Integritas API key is backend-only and encrypted at rest in SQLite when saved from the UI
+- Integritas Connect tokens and API key are backend-only and encrypted at rest in SQLite
 - Backend mounts `/var/run/docker.sock:ro` to read container status and resource usage for the App status page. This is useful for the prototype, but Docker socket access is sensitive and should be replaced with a narrower monitoring approach before production.
 - GPIO input sources use the `gpiomon` tool inside the backend container and GPIO LED output targets use `gpioset`; both require explicit GPIO device access on Raspberry Pi deployments. Add an override such as `devices: ["/dev/gpiochip0:/dev/gpiochip0"]` and a suitable GPIO group when enabling GPIO hardware ingestion/control.
-- Admin authentication with password + TOTP and HttpOnly session cookies (see [Authentication](#authentication))
+- Admin authentication with a 6-digit PIN or an 8+ character password containing uppercase, lowercase, a number, and a symbol, plus HttpOnly session cookies (see [Authentication](#authentication))
 - HTTPS with a self-signed certificate on the default Docker deploy (`COOKIE_SECURE=true`)
 
 ## Future Services

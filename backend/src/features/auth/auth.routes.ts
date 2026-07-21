@@ -34,7 +34,7 @@ authProtectedRouter.post("/logout", (req, res) => {
     httpOnly: true,
     secure: env.cookieSecure,
     sameSite: env.cookieSameSite,
-    path: "/"
+    path: "/",
   });
   return res.json({ success: true });
 });
@@ -47,7 +47,7 @@ authProtectedRouter.get("/me", (req, res) => {
   return res.json({
     displayName: req.user.displayName,
     role: req.user.role,
-    lastLogin: req.user.lastLogin
+    lastLogin: req.user.lastLogin,
   });
 });
 
@@ -63,7 +63,7 @@ authProtectedRouter.post("/settings/password", authRateLimiter, async (req, res)
     if (error instanceof AuthSettingsError) {
       return res.status(error.status).json({ error: error.message });
     }
-    return res.status(500).json({ error: "Failed to change password" });
+    return res.status(500).json({ error: "Failed to change credential" });
   }
 });
 

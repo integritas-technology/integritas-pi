@@ -1,9 +1,6 @@
-export type OnboardingStepId =
-  | "welcome"
-  | "account"
-  | "twofa"
-  | "integritas"
-  | "complete";
+import type { AdminCredentialType } from "../auth/adminCredentials";
+
+export type OnboardingStepId = "welcome" | "account" | "twofa" | "connectAccount" | "complete";
 
 export type OnboardingStep = {
   id: OnboardingStepId;
@@ -12,10 +9,10 @@ export type OnboardingStep = {
 };
 
 export type OnboardingFormState = {
+  credentialType: AdminCredentialType;
   password: string;
   confirmPassword: string;
   twoFactorCode: string;
-  integritasApiKey: string;
 };
 
 export type CheckState = "idle" | "checking" | "ok" | "error";
