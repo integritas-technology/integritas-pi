@@ -36,25 +36,26 @@ Plan: See `docs/plans/security-checklist.md` for V2+ custom-certificate/HSTS wor
 
 Status: Mitigated for passive sniffing; residual self-signed trust risk documented.
 
-## API Key Management
+## Integritas Connect Credentials
 
-Risk: Saving or clearing the Integritas API key is a high-impact mutation.
+Risk: Linking or revoking Integritas Connect is a high-impact mutation. A compromised admin session could link a different account or disrupt proof stamping.
 
 Impact: Service disruption, billing/quota misuse, incorrect stamping under attacker-controlled credentials.
 
 Controls (V1):
 
-- `POST/DELETE /api/integritas/api-key` require an admin session.
-- Keys validated upstream before save; never returned to the frontend.
-- Audit events recorded on save/delete.
+- Connect activation (`POST /api/auth/connect/start`, `GET /api/auth/connect/status`) requires an admin session.
+- Connect tokens and the derived core API key are stored encrypted in SQLite; never returned to the frontend.
+- Device revocation is detected upstream (`DEVICE_REVOKED`) and clears local Connect state.
+- Audit events recorded on activation start and revocation.
 
 Status: Mitigated.
 
 ## `APP_SECRET` Dependency
 
-Risk: The encrypted Integritas API key can only be decrypted with the same `APP_SECRET`. If `APP_SECRET` is lost or changed, stored secrets are unrecoverable. If `APP_SECRET` leaks, encrypted database secrets can be decrypted.
+Risk: Encrypted local secrets (Integritas API key, TOTP, Connect tokens) can only be decrypted with the same `APP_SECRET` from `.env`. If `APP_SECRET` is lost or changed, stored secrets are unrecoverable. If `.env` leaks together with the database, encrypted secrets can be decrypted.
 
-Impact: Loss of access to saved API key or compromise of stored secrets.
+Impact: Loss of access to saved secrets or compromise when both `.env` and SQLite are obtained.
 
 Plan:
 

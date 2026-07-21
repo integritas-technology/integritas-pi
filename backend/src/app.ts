@@ -11,6 +11,10 @@ import { dataSourcesRouter, dataSourcesWebhookRouter } from "./features/data-sou
 import { debugRouter } from "./features/debug/debug.routes.js";
 import { healthRouter } from "./features/health/health.routes.js";
 import { integritasRouter } from "./features/integritas/integritas.routes.js";
+import {
+  integritasAuthRouter,
+  integritasUserRouter,
+} from "./features/integritas-auth/integritas-auth.routes.js";
 import { minimaRouter } from "./features/minima/minima.routes.js";
 import { statusRouter } from "./features/status/status.routes.js";
 import { addressBookRouter } from "./features/address-book/address-book.routes.js";
@@ -34,6 +38,8 @@ export function createApp() {
   app.use(requireAuth);
 
   app.use("/api/auth", authProtectedRouter);
+  app.use("/api/auth", integritasAuthRouter);
+  app.use("/api/user", integritasUserRouter);
   app.use("/api/status", statusRouter);
   app.use("/api/minima", minimaRouter);
   app.use("/api/integritas", integritasRouter);

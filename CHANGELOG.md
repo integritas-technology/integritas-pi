@@ -4,7 +4,40 @@ All notable changes to `integritas-pi` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html) at the package level.
 
-## [Unreleased]
+## [0.19.0] - 2026-07-21
+
+### Added
+
+- SQLite tables for Integritas Connect device linking: `integritas_device`, `integritas_activation`, `integritas_auth`, and `integritas_account_cache` (separate from local `users` / `sessions`).
+- Backend `integritas-auth` helpers: Connect token encrypt/decrypt at rest (AES-256-GCM via `APP_SECRET`), and `getOrCreateDevice()` that reuses `settings.device_id` with name/type from device info.
+- Backend Integritas Connect HTTP client (`startActivation`, `getActivationStatus`, `getMe`, `refreshToken`) using `INTEGRITAS_CONNECT_BASE_URL`.
+- Env/config for Connect device activation: `INTEGRITAS_CONNECT_BASE_URL` and `INTEGRITAS_DEVICE_POLL_INTERVAL_SECONDS` (wired through `.env.example`, installer, Docker Compose, and README).
+- Pi Connect auth routes (require local session): `POST /api/auth/connect/start` (persists pending activation; returns user code + verification URL) and `GET /api/auth/connect/status` (polls Connect; on approve stores encrypted tokens/API key + account cache; returns frontend-safe status: `unauthenticated` | `pending` | `connected` | `denied` | `expired` | `revoked`; never returns raw tokens). Local passcode logout remains `POST /api/auth/logout` and does not unlink Connect (no Pi Integritas disconnect in v1).
+- Backend Integritas token manager (`getValidAccessToken`) that refreshes when within 5 minutes of expiry, stores rotated tokens and `api_key_enc` from `/api/me`, and on `401 DEVICE_REVOKED` clears Connect credentials (status → `revoked`).
+- Frontend-safe `GET /api/user/profile` returning redacted account cache (`user`, `plan`, `usage`, `devices`) with no tokens or API key. Optional `?refresh=1` (or `true`) re-fetches Connect `/api/me` and rewrites the cache (for Account/Settings); default GET still serves cache.
+- Settings Integritas Connect panel (`useIntegritasAuth`): start/poll Connect link status, pending user code + verify popup/link, connected name/plan/usage (profile refresh on mount). No Pi disconnect in v1; tokens never stored in browser storage.
+
+### Changed
+
+- Integritas proof, verification, polling, status, and automation calls now use only the encrypted API key supplied by Integritas Connect (`integritas_auth.api_key_enc`); manual UI and `INTEGRITAS_API_KEY` env fallbacks are removed.
+- Integritas runtime configuration modal is read-only (base URL, request ID, Connect link status, portal link); paste/save/clear/check-key UI removed from the Integritas page.
+- Integritas unauthorized errors now direct operators to reconnect under Settings → Integritas Connect instead of saving a new API key.
+- First-run setup wizard replaces the Integritas API key step with unified Connect onboarding: create a local admin credential → open cloud account signup from one button in a centered small activation popup → see the account-connected confirmation in the same step → ready screen with name/plan/usage before dashboard. Setup now remains gated across refresh/reopen until the first successful Connect link; interrupted users authenticate with the existing credential and resume the cloud-account step. Later device revocation keeps onboarding complete and reconnects from Settings.
+- Local admins can choose either a **6-digit PIN** or a password with at least 8 characters containing uppercase, lowercase, a number, and a symbol during setup and in Account settings. Login supports both credential types, including existing free-form passwords; API request fields remain `password` / `currentPassword` / `newPassword` for compatibility.
+- **Temporary:** local admin auth uses a PIN or password without TOTP. TOTP enrollment/login/settings checks are disabled via `TOTP_ENABLED = false` (backend `auth.constants.ts`, frontend `totpEnabled.ts`). Set both to `true` to restore 2FA or delete if not used.
+- Pi Connect auth route paths: `POST /api/auth/connect/start` and `GET /api/auth/connect/status` (replacing `/api/auth/device/start` and `/api/auth/status`) so Connect link APIs share a `/connect` prefix and stay distinct from system `/api/status`.
+- Connect profile responses include `fetchedAt`. Offline / unreachable Connect on `GET /api/user/profile?refresh=1` returns the last cached profile with `stale: true` instead of blank fields; Settings shows last synced time and a muted notice. `connected` status no longer invents empty user/plan/usage when cache is missing.
+- Clarified that losing or changing `APP_SECRET` makes encrypted local secrets (API key, TOTP, and future Connect tokens) unrecoverable; keep `.env` preserved across upgrades.
+
+### Fixed
+
+- After Connect device approval, encrypted tokens are stored (and pending activation cleared) before fetching `/api/me`, so a transient profile failure cannot consume the one-time handoff and leave the Pi permanently unlinked.
+- If Integritas Connect tokens cannot be decrypted (e.g. `APP_SECRET` changed), the Pi clears the local Connect link, returns `TOKEN_DECRYPT_FAILED`, and the Settings panel prompts the user to connect again (no remote Connect revoke).
+- Settings / reconnect **Connect account** opens the Integritas Connect verify popup on the first click (blank window reserved in the click gesture, then navigated after activation starts), so revoke/reconnect no longer needs a second click.
+
+### Removed
+
+- Manual Integritas API key entry: `INTEGRITAS_API_KEY` env var, installer support, setup `integritasApiKey` / `POST /api/setup/integritas/verify`, and Integritas page save/clear/check-key UI. Backend `/api/integritas/api-key*` routes are disabled (commented out in source for now).
 
 ## [0.18.0] - 2026-07-16
 

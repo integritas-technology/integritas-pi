@@ -207,9 +207,7 @@ export function runMigrations() {
     )
   `);
 
-  const setupPendingColumns = db
-    .prepare("PRAGMA table_info(setup_pending)")
-    .all() as { name: string }[];
+  const setupPendingColumns = db.prepare("PRAGMA table_info(setup_pending)").all() as { name: string }[];
   if (!setupPendingColumns.some((column) => column.name === "verified_at")) {
     db.exec("ALTER TABLE setup_pending ADD COLUMN verified_at TEXT");
   }
@@ -271,6 +269,61 @@ export function runMigrations() {
       notes      TEXT,
       created_at TEXT NOT NULL
     )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS integritas_device (
+      id TEXT PRIMARY KEY DEFAULT 'default',
+      device_id TEXT NOT NULL UNIQUE,
+      device_name TEXT NOT NULL,
+      device_type TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS integritas_activation (
+      id TEXT PRIMARY KEY DEFAULT 'current',
+      activation_id TEXT,
+      user_code TEXT,
+      verification_url TEXT,
+      status TEXT NOT NULL,
+      expires_at TEXT,
+      started_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS integritas_auth (
+      id TEXT PRIMARY KEY DEFAULT 'default',
+      connected_device_id TEXT,
+      integritas_user_id TEXT,
+      access_token_enc TEXT NOT NULL,
+      refresh_token_enc TEXT NOT NULL,
+      api_key_enc TEXT,
+      token_expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS integritas_account_cache (
+      id TEXT PRIMARY KEY DEFAULT 'default',
+      payload_json TEXT NOT NULL,
+      fetched_at TEXT NOT NULL
+    )
+  `);
+
+  db.exec(`
+    INSERT OR IGNORE INTO settings (key, value, updated_at)
+    SELECT 'setup.completed_at', auth.updated_at, CURRENT_TIMESTAMP
+    FROM integritas_auth AS auth
+    WHERE auth.id = 'default'
+      AND EXISTS (SELECT 1 FROM users)
+    LIMIT 1
   `);
 
   db.exec(`DROP TABLE IF EXISTS wallet_accounts`);

@@ -1,6 +1,7 @@
 import { db } from "../../db/database.js";
-import { saveIntegritasApiKey } from "../settings/secrets.service.js";
-import { LOCAL_ADMIN_DISPLAY_NAME, LOCAL_ADMIN_USERNAME, TOTP_ACCOUNT_LABEL } from "./auth.constants.js";
+import { getIntegritasAuth } from "../integritas-auth/integritas-auth.repository.js";
+import { getSetting, saveSetting } from "../settings/settings.repository.js";
+import { LOCAL_ADMIN_DISPLAY_NAME, LOCAL_ADMIN_USERNAME, TOTP_ACCOUNT_LABEL, TOTP_ENABLED } from "./auth.constants.js";
 import { recordAuditEvent } from "./audit.service.js";
 import {
   countUsers,
@@ -10,27 +11,31 @@ import {
   clearSetupPending,
   markSetupPendingVerified
 } from "./auth.repository.js";
-import { validateIntegritasApiKey } from "./integritas-validation.service.js";
-import { hashPassword } from "./password.service.js";
+import { adminCredentialValidationError, hashPassword, isValidAdminCredential } from "./password.service.js";
 import { createSession } from "./session.service.js";
-import {
-  decryptTotpSecret,
-  encryptTotpSecret,
-  generateSecret,
-  getOtpAuthUrl,
-  renderQrPngBase64,
-  verifyToken
-} from "./totp.service.js";
+import { decryptTotpSecret, encryptTotpSecret, generateSecret, getOtpAuthUrl, renderQrPngBase64, verifyToken } from "./totp.service.js";
 
 const SETUP_PENDING_TTL_MS = 15 * 60 * 1000;
 const SETUP_PENDING_VERIFIED_TTL_MS = 30 * 60 * 1000;
+const SETUP_COMPLETED_SETTING_KEY = "setup.completed_at";
 
-export function isSetupComplete() {
+export function isLocalAdminCreated() {
   return countUsers() > 0;
 }
 
-export function assertSetupNotComplete() {
-  if (isSetupComplete()) {
+export function isSetupComplete() {
+  return isLocalAdminCreated() && Boolean(getSetting(SETUP_COMPLETED_SETTING_KEY));
+}
+
+export function markSetupComplete() {
+  if (!isLocalAdminCreated() || !getIntegritasAuth()) return;
+  if (!getSetting(SETUP_COMPLETED_SETTING_KEY)) {
+    saveSetting(SETUP_COMPLETED_SETTING_KEY, new Date().toISOString());
+  }
+}
+
+export function assertLocalAdminNotCreated() {
+  if (isLocalAdminCreated()) {
     throw new SetupError("Setup is already complete", 403);
   }
 }
@@ -44,7 +49,7 @@ export class SetupError extends Error {
 }
 
 export async function initSetupTotp() {
-  assertSetupNotComplete();
+  assertLocalAdminNotCreated();
 
   const secret = generateSecret();
   const encrypted = encryptTotpSecret(secret);
@@ -58,7 +63,7 @@ export async function initSetupTotp() {
 }
 
 export async function verifySetupTotp(totpToken: string) {
-  assertSetupNotComplete();
+  assertLocalAdminNotCreated();
 
   const token = totpToken.trim();
   if (!/^\d{6}$/.test(token)) {
@@ -82,41 +87,27 @@ export async function verifySetupTotp(totpToken: string) {
   return { valid: true };
 }
 
-export async function verifySetupIntegritasKey(apiKey: string) {
-  assertSetupNotComplete();
-  const result = await validateIntegritasApiKey(apiKey);
-  if (!result.ok) {
-    throw new SetupError(result.error, 400);
-  }
-  return { valid: true };
-}
-
-export async function completeSetup(input: {
-  password: string;
-  integritasApiKey?: string;
-}) {
-  assertSetupNotComplete();
+export async function completeSetup(input: { password: string }) {
+  assertLocalAdminNotCreated();
 
   const password = input.password;
 
-  if (password.length < 8) throw new SetupError("password must be at least 8 characters", 400);
+  if (!isValidAdminCredential(password)) throw new SetupError(adminCredentialValidationError(), 400);
 
-  const pending = getLatestSetupPending();
-  if (!pending) throw new SetupError("TOTP setup expired or not initialized", 400);
-  if (!pending.verified_at) {
-    throw new SetupError("TOTP must be verified before completing setup", 400);
-  }
-
-  const totpSecret = decryptTotpSecret(pending.totp_secret);
-
-  const integritasApiKey = input.integritasApiKey?.trim() ?? "";
-  if (integritasApiKey) {
-    const validation = await validateIntegritasApiKey(integritasApiKey);
-    if (!validation.ok) throw new SetupError(validation.error, 400);
+  let totpSecretEncrypted: string;
+  if (TOTP_ENABLED) {
+    const pending = getLatestSetupPending();
+    if (!pending) throw new SetupError("TOTP setup expired or not initialized", 400);
+    if (!pending.verified_at) {
+      throw new SetupError("TOTP must be verified before completing setup", 400);
+    }
+    totpSecretEncrypted = encryptTotpSecret(decryptTotpSecret(pending.totp_secret));
+  } else {
+    // Placeholder so users.totp_secret stays NOT NULL while TOTP is disabled.
+    totpSecretEncrypted = encryptTotpSecret(generateSecret());
   }
 
   const passwordHash = await hashPassword(password);
-  const totpSecretEncrypted = encryptTotpSecret(totpSecret);
 
   const complete = db.transaction(() => {
     if (countUsers() > 0) throw new SetupError("Setup is already complete", 403);
@@ -126,11 +117,6 @@ export async function completeSetup(input: {
       passwordHash,
       totpSecretEncrypted
     });
-
-    if (integritasApiKey) {
-      saveIntegritasApiKey(integritasApiKey);
-      recordAuditEvent("integritas_api_key.save", { userId, detail: "during setup" });
-    }
 
     clearSetupPending();
     recordAuditEvent("setup.complete", { userId, detail: LOCAL_ADMIN_DISPLAY_NAME });
