@@ -8,6 +8,8 @@ When finishing a task, summarize:
 - What verification was run.
 - Any known limitations, skipped checks, or follow-up work.
 
+Apply that summary to `docs/SESSION.md` and reconcile `docs/TASKS.md` — use the `session-notes` skill for this.
+
 Update project documentation when behavior changes:
 
 - Update `CHANGELOG.md` for every user-facing or operator-facing change (see below).
