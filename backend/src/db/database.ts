@@ -101,7 +101,7 @@ export function runMigrations() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS automation_runs (
       id TEXT PRIMARY KEY,
-      workflow_id TEXT NOT NULL,
+      workflow_id TEXT,
       workflow_name TEXT NOT NULL,
       started_at TEXT NOT NULL,
       finished_at TEXT,
@@ -112,7 +112,7 @@ export function runMigrations() {
       duration_ms INTEGER,
       block_count INTEGER NOT NULL DEFAULT 0,
       error TEXT,
-      FOREIGN KEY (workflow_id) REFERENCES automation_workflows(id) ON DELETE CASCADE
+      FOREIGN KEY (workflow_id) REFERENCES automation_workflows(id) ON DELETE SET NULL
     )
   `);
 
@@ -120,7 +120,7 @@ export function runMigrations() {
     CREATE TABLE IF NOT EXISTS automation_block_runs (
       id TEXT PRIMARY KEY,
       run_id TEXT NOT NULL,
-      workflow_id TEXT NOT NULL,
+      workflow_id TEXT,
       block_id TEXT,
       order_index INTEGER NOT NULL,
       block_type TEXT NOT NULL,
@@ -133,10 +133,12 @@ export function runMigrations() {
       output_json TEXT,
       error TEXT,
       FOREIGN KEY (run_id) REFERENCES automation_runs(id) ON DELETE CASCADE,
-      FOREIGN KEY (workflow_id) REFERENCES automation_workflows(id) ON DELETE CASCADE,
+      FOREIGN KEY (workflow_id) REFERENCES automation_workflows(id) ON DELETE SET NULL,
       FOREIGN KEY (block_id) REFERENCES automation_blocks(id) ON DELETE SET NULL
     )
   `);
+
+  migrateAutomationRunsToPreserveDeletedWorkflows();
 
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_automation_runs_status_started
@@ -404,6 +406,92 @@ function migrateDataSourceReadsToPreserveDeletedSources() {
     DROP TABLE data_source_reads;
     ALTER TABLE data_source_reads_new RENAME TO data_source_reads;
   `);
+  } finally {
+    db.pragma(`foreign_keys = ${foreignKeysEnabled ? "ON" : "OFF"}`);
+  }
+}
+
+function migrateAutomationRunsToPreserveDeletedWorkflows() {
+  const runColumns = db.prepare("PRAGMA table_info(automation_runs)").all() as { name: string; notnull: number }[];
+  const blockRunColumns = db.prepare("PRAGMA table_info(automation_block_runs)").all() as { name: string; notnull: number }[];
+  const runWorkflowIdColumn = runColumns.find((column) => column.name === "workflow_id");
+  const blockRunWorkflowIdColumn = blockRunColumns.find((column) => column.name === "workflow_id");
+  const runForeignKeys = db.prepare("PRAGMA foreign_key_list(automation_runs)").all() as { from: string; table: string; on_delete: string }[];
+  const blockRunForeignKeys = db.prepare("PRAGMA foreign_key_list(automation_block_runs)").all() as { from: string; table: string; on_delete: string }[];
+  const runWorkflowForeignKey = runForeignKeys.find((key) => key.from === "workflow_id" && key.table === "automation_workflows");
+  const blockRunWorkflowForeignKey = blockRunForeignKeys.find((key) => key.from === "workflow_id" && key.table === "automation_workflows");
+
+  const needsRunMigration = runWorkflowIdColumn?.notnull === 1 || runWorkflowForeignKey?.on_delete?.toUpperCase() === "CASCADE";
+  const needsBlockRunMigration = blockRunWorkflowIdColumn?.notnull === 1 || blockRunWorkflowForeignKey?.on_delete?.toUpperCase() === "CASCADE";
+  if (!needsRunMigration && !needsBlockRunMigration) return;
+
+  const foreignKeysEnabled = db.pragma("foreign_keys", { simple: true }) as number;
+  db.pragma("foreign_keys = OFF");
+
+  try {
+    db.exec(`
+      DROP TABLE IF EXISTS automation_block_runs_new;
+      DROP TABLE IF EXISTS automation_runs_new;
+
+      CREATE TABLE automation_runs_new (
+        id TEXT PRIMARY KEY,
+        workflow_id TEXT,
+        workflow_name TEXT NOT NULL,
+        started_at TEXT NOT NULL,
+        finished_at TEXT,
+        status TEXT NOT NULL,
+        trigger_type TEXT NOT NULL,
+        trigger_source_id TEXT,
+        trigger_payload_json TEXT,
+        duration_ms INTEGER,
+        block_count INTEGER NOT NULL DEFAULT 0,
+        error TEXT,
+        FOREIGN KEY (workflow_id) REFERENCES automation_workflows(id) ON DELETE SET NULL
+      );
+
+      CREATE TABLE automation_block_runs_new (
+        id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL,
+        workflow_id TEXT,
+        block_id TEXT,
+        order_index INTEGER NOT NULL,
+        block_type TEXT NOT NULL,
+        block_label TEXT NOT NULL,
+        started_at TEXT NOT NULL,
+        finished_at TEXT,
+        status TEXT NOT NULL,
+        duration_ms INTEGER,
+        input_json TEXT,
+        output_json TEXT,
+        error TEXT,
+        FOREIGN KEY (run_id) REFERENCES automation_runs_new(id) ON DELETE CASCADE,
+        FOREIGN KEY (workflow_id) REFERENCES automation_workflows(id) ON DELETE SET NULL,
+        FOREIGN KEY (block_id) REFERENCES automation_blocks(id) ON DELETE SET NULL
+      );
+
+      INSERT INTO automation_runs_new (
+        id, workflow_id, workflow_name, started_at, finished_at, status, trigger_type,
+        trigger_source_id, trigger_payload_json, duration_ms, block_count, error
+      )
+      SELECT
+        id, workflow_id, workflow_name, started_at, finished_at, status, trigger_type,
+        trigger_source_id, trigger_payload_json, duration_ms, block_count, error
+      FROM automation_runs;
+
+      INSERT INTO automation_block_runs_new (
+        id, run_id, workflow_id, block_id, order_index, block_type, block_label,
+        started_at, finished_at, status, duration_ms, input_json, output_json, error
+      )
+      SELECT
+        id, run_id, workflow_id, block_id, order_index, block_type, block_label,
+        started_at, finished_at, status, duration_ms, input_json, output_json, error
+      FROM automation_block_runs;
+
+      DROP TABLE automation_block_runs;
+      DROP TABLE automation_runs;
+      ALTER TABLE automation_runs_new RENAME TO automation_runs;
+      ALTER TABLE automation_block_runs_new RENAME TO automation_block_runs;
+    `);
   } finally {
     db.pragma(`foreign_keys = ${foreignKeysEnabled ? "ON" : "OFF"}`);
   }

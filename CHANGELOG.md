@@ -53,6 +53,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Diagnostics "Raw details" panel for a workflow run now expands inline below its row instead of rendering at the bottom of the table.
 - Diagnostics no longer silently falls back to a page size of 10 when no `pageSize` is set in the URL (affected the shared backend pagination helper too, used by proofs/reads/workflow-runs).
 
+### Removed
+
+- Removed the old Automation workflow rule compatibility API and response fields; workflows are now exposed through the block API only.
+
 ## [0.18.0] - 2026-07-16
 
 ### Added
@@ -60,6 +64,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Planned the Devices page flow for direct input/output add actions, local services, API/MQTT output targets, and optional local MQTT broker support.
 - Devices now separates adding input sources and output targets, shows local MQTT broker service URLs, supports HTTP/API and MQTT output targets, and can run an optional profile-gated local Mosquitto broker.
 - HTTP/API and MQTT output targets now keep endpoint settings on the device while workflow Control device blocks choose what payload to send.
+- Planned per-run workflow variables and output templating for reusable values in later workflow blocks.
+- Automation workflows now support per-run Set variable blocks and `{{variableName}}` interpolation in custom HTTP/MQTT output JSON.
 
 ## [0.17.4] - 2026-07-16
 
@@ -127,6 +133,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - Deleting a device no longer deletes its historical read-history rows; preserved rows keep their recorded source name and URL.
+- Deleting a workflow no longer deletes its historical workflow run logs; preserved logs keep their recorded workflow name.
 
 ## [0.16.0] - 2026-07-15
 

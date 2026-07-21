@@ -5,6 +5,7 @@ import { Button } from "../components/Button";
 import { DataTable, RowActions, TableIconButton, TableWrap, tableCellClass, tableHeaderCellClass, tableHeadRowClass, tableRowClass } from "../components/DataTable";
 import { JsonPreview } from "../components/JsonPreview";
 import { Page } from "../components/Page";
+import { ProgressModal } from "../components/ProgressModal";
 import { addAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, duplicateAutomationWorkflow, getAutomationWorkflowValidation, listAutomationWorkflowRuns, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow, validateAutomationDraft } from "../features/automation/automationApi";
 import { automationBlockToCanvasBlock, draftBlockDescription, draftBlockTitle, isDataBlock, WorkflowBlockLibrary, WorkflowCanvas, WorkflowWorkspaceShell, type DraftWorkflowBlock, type WorkflowCanvasRuntimeState, type WorkflowCanvasValidationIssue } from "../features/automation/WorkflowCanvas";
 import type { AutomationBlock, AutomationBlockType, AutomationRun, AutomationValidationResult, AutomationWorkflow, ConditionOperator } from "../features/automation/automationTypes";
@@ -55,6 +56,7 @@ export function AutomationPage() {
   const [workspaceValidation, setWorkspaceValidation] = useState<AutomationValidationResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deletingWorkflow, setDeletingWorkflow] = useState<AutomationWorkflow | null>(null);
 
   useEffect(() => {
     refresh().catch((err: Error) => setError(err.message));
@@ -148,6 +150,15 @@ export function AutomationPage() {
     }
   }
 
+  async function deleteWorkflow(workflow: AutomationWorkflow) {
+    setDeletingWorkflow(workflow);
+    try {
+      await run(() => deleteAutomationWorkflow(workflow.id));
+    } finally {
+      setDeletingWorkflow(null);
+    }
+  }
+
   async function submitWorkflow(blocks: { type: AutomationBlockType; config: AutomationBlock["config"]; enabled?: boolean; parentBlockId?: string | null }[]) {
     setBusy(true);
     setError(null);
@@ -167,7 +178,7 @@ export function AutomationPage() {
   const sourceName = (id: string) => sourceById(id)?.name ?? "Unknown source";
   const activeWorkflowId = "workflowId" in flow ? flow.workflowId : null;
   const workspaceWorkflow = activeWorkflowId ? workflows.find((workflow) => workflow.id === activeWorkflowId) ?? null : null;
-  const filteredWorkflows = workflows.filter((workflow) => workflowMatchesFilter(workflow, workflowSearch, workflowFilter, sourceName(workflow.dataSourceId)));
+  const filteredWorkflows = workflows.filter((workflow) => workflowMatchesFilter(workflow, workflowSearch, workflowFilter, sourceName(workflowPrimarySourceId(workflow))));
   const workspaceMode = flow.mode === "edit" || flow.mode === "watch" ? flow.mode : null;
 
   return (
@@ -214,7 +225,7 @@ export function AutomationPage() {
           workflow={workspaceWorkflow}
           runs={workspaceRuns}
           validation={workspaceValidation}
-          source={sourceById(workspaceWorkflow.dataSourceId)}
+          source={sourceById(workflowPrimarySourceId(workspaceWorkflow))}
           sources={sources}
           addressBook={addressBook}
           walletStatus={walletStatus}
@@ -236,6 +247,14 @@ export function AutomationPage() {
       {workspaceMode && activeWorkflowId && !workspaceWorkflow && <section className={cardClass}><p className={mutedText}>Loading workflow...</p></section>}
 
       {error && <p className={errorText}>{error}</p>}
+
+      {deletingWorkflow && (
+        <ProgressModal
+          title="Deleting workflow"
+          headline="Deleting in progress"
+          message={`Removing ${deletingWorkflow.name}. Large workflow logs can take a few seconds while saved run history is detached from this workflow.`}
+        />
+      )}
 
       {flow.mode === "list" && <section className={cx(cardClass, "grid gap-4")}>
         <div className={statusRowClass}>
@@ -271,7 +290,7 @@ export function AutomationPage() {
                 <tr key={workflow.id} className={tableRowClass}>
                   <td className={tableCellClass}><strong>{workflow.name}</strong>{workflow.lastError && <p className={errorText}>{workflow.lastError}</p>}{workflow.archived && <p className={mutedText}>Archived workflows do not run until restored.</p>}</td>
                   <td className={tableCellClass}><WorkflowStatusPill workflow={workflow} /></td>
-                  <td className={tableCellClass}>{sourceName(workflow.dataSourceId)}<p className={mutedText}>{workflow.pollingIntervalSeconds > 0 ? formatInterval(workflow.pollingIntervalSeconds) : "Event driven"}</p></td>
+                  <td className={tableCellClass}>{sourceName(workflowPrimarySourceId(workflow))}<p className={mutedText}>{workflowIntervalSeconds(workflow) > 0 ? formatInterval(workflowIntervalSeconds(workflow)) : "Event driven"}</p></td>
                   <td className={tableCellClass}><span>{workflow.blocks.length}</span><p className={mutedText}>{summarizeBlocks(workflow)}</p></td>
                   <td className={tableCellClass}>{workflow.lastRunAt ? formatLocalTime(workflow.lastRunAt) : <span className={mutedText}>Never</span>}</td>
                   <td className={tableCellClass}>{workflow.lastHash ? <code>{workflow.lastHash}</code> : <span className={mutedText}>No hash yet</span>}</td>
@@ -283,7 +302,7 @@ export function AutomationPage() {
                       <IconAction disabled={busy || workflow.archived} title={workflow.enabled ? "Pause workflow" : "Enable workflow"} label={`${workflow.enabled ? "Pause" : "Enable"} ${workflow.name}`} onClick={() => run(() => updateAutomationWorkflow(workflow.id, { enabled: !workflow.enabled }))}><RotateCcw size={16} /></IconAction>
                       <IconAction disabled={busy} title="Duplicate workflow" label={`Duplicate ${workflow.name}`} onClick={() => run(() => duplicateAutomationWorkflow(workflow.id))}><Copy size={16} /></IconAction>
                       <IconAction disabled={busy} title={workflow.archived ? "Restore workflow" : "Archive workflow"} label={`${workflow.archived ? "Restore" : "Archive"} ${workflow.name}`} onClick={() => run(() => updateAutomationWorkflow(workflow.id, { archived: !workflow.archived }))}><Archive size={16} /></IconAction>
-                      <IconAction danger disabled={busy} title="Delete workflow" label={`Delete workflow ${workflow.name}`} onClick={() => run(() => deleteAutomationWorkflow(workflow.id))}><Trash2 size={16} /></IconAction>
+                      <IconAction danger disabled={busy} title="Delete workflow" label={`Delete workflow ${workflow.name}`} onClick={() => deleteWorkflow(workflow)}><Trash2 size={16} /></IconAction>
                     </RowActions>
                   </td>
                 </tr>
@@ -476,12 +495,26 @@ function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChan
     );
   }
 
-  if (block.type === "if_payload_field_equals") {
+  if (block.type === "set_variable") {
+    const variableSource = block.config.variableSource ?? "custom_json";
     return (
       <Panel className={formGridClass}>
         <strong>Selected block</strong>
-        <label>Condition source<select value={block.config.source ?? "trigger"} onChange={(event) => onChange({ ...block.config, source: event.target.value as "trigger" | "data" })}><option value="trigger">Trigger event</option><option value="data">Latest data</option></select></label>
-        <label>Field path<input value={block.config.fieldPath ?? "active"} onChange={(event) => onChange({ ...block.config, fieldPath: event.target.value })} /></label>
+        <p className={mutedText}>Save a per-run value that later condition and output blocks can use.</p>
+        <label>Variable name<input value={block.config.variableName ?? "message"} onChange={(event) => onChange({ ...block.config, variableName: event.target.value })} placeholder="discordMessage" /></label>
+        <label>Value source<select value={variableSource} onChange={(event) => onChange(defaultVariableSourceConfig(block.config, event.target.value as NonNullable<AutomationBlock["config"]["variableSource"]>))}><option value="custom_json">Custom JSON</option><option value="trigger_field">Trigger field</option><option value="latest_data_field">Latest data field</option><option value="context_field">Workflow context field</option></select></label>
+        {variableSource === "custom_json" ? <label>Custom JSON<textarea rows={5} value={block.config.valueJsonText ?? '"Button pressed"'} onChange={(event) => onChange({ ...block.config, variableSource: "custom_json", valueJsonText: event.target.value })} /></label> : <label>Field path<input value={block.config.fieldPath ?? ""} onChange={(event) => onChange({ ...block.config, variableSource, fieldPath: event.target.value })} placeholder={variableSource === "trigger_field" ? "pin" : variableSource === "latest_data_field" ? "temperature" : "hash"} /></label>}
+      </Panel>
+    );
+  }
+
+  if (block.type === "if_payload_field_equals") {
+    const conditionSource = block.config.source ?? "trigger";
+    return (
+      <Panel className={formGridClass}>
+        <strong>Selected block</strong>
+        <label>Condition source<select value={conditionSource} onChange={(event) => onChange(defaultConditionSourceConfig(block.config, event.target.value as "trigger" | "variable"))}><option value="trigger">Trigger event</option><option value="variable">Variable</option></select></label>
+        {conditionSource === "variable" ? <label>Variable name<input value={block.config.variableName ?? "temp"} onChange={(event) => onChange({ ...block.config, source: "variable", variableName: event.target.value })} placeholder="temp" /></label> : <label>Field path<input value={block.config.fieldPath ?? "active"} onChange={(event) => onChange({ ...block.config, source: "trigger", fieldPath: event.target.value })} /></label>}
         <label>Operator<select value={block.config.operator ?? "equals"} onChange={(event) => onChange({ ...block.config, operator: event.target.value as ConditionOperator })}>{conditionOperatorOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
         {!operatorHasNoValue(block.config.operator ?? "equals") && <label>Compare value<input value={compareValueInputText(block.config.value ?? true)} onChange={(event) => onChange({ ...block.config, value: parseCompareValueInput(event.target.value) })} /></label>}
       </Panel>
@@ -586,6 +619,7 @@ function defaultDraftConfig(type: AutomationBlockType, sources: DataSource[], po
   if (type === "gpio_event_start" || type === "webhook_event_start" || type === "mqtt_event_start") return { sourceId: defaultSourceForStart(type, sources)?.id ?? "" };
   if (type === "if_payload_field_equals") return { source: "trigger", fieldPath: "active", operator: "equals", value: true };
   if (type === "wait") return { durationMs: 1000 };
+  if (type === "set_variable") return { variableName: "message", variableSource: "custom_json", valueJsonText: '"Button pressed"' };
   if (type === "control_output") {
     const target = sources.find((source) => isOutputTarget(source));
     return defaultOutputBlockConfig(target, 500);
@@ -649,7 +683,7 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
       eyebrow={mode === "watch" ? "Watch workflow" : "Edit workflow"}
       title={workflow.name}
       description={<>
-        <p className={mutedText}>{source?.name ?? "Unknown source"} · {workflow.pollingIntervalSeconds > 0 ? formatInterval(workflow.pollingIntervalSeconds) : "Event driven"}</p>
+        <p className={mutedText}>{source?.name ?? "Unknown source"} · {workflowIntervalSeconds(workflow) > 0 ? formatInterval(workflowIntervalSeconds(workflow)) : "Event driven"}</p>
         <p className={mutedText}>{mode === "watch" ? "Run and inspect this workflow from the shared canvas shell." : "Changes are saved per block. Edit fields, then click that block's save button; add/remove/move/pause/enable actions apply immediately."}</p>
         {mode === "watch" && selectedRun && <p className={mutedText}>Canvas showing run from {formatLocalTime(selectedRun.startedAt)} · {selectedRun.status} · {formatDuration(selectedRun.durationMs)}</p>}
       </>}
@@ -659,7 +693,7 @@ function WorkflowWorkspace({ workflow, runs, validation, source, sources, addres
         {mode === "watch" && <StatusPill status={selectedRun?.status === "running" ? "good" : "neutral"}>{watchRunStatusLabel}</StatusPill>}
         <StatusPill status="neutral">Blocks {workflow.blocks.length}</StatusPill>
         <StatusPill status="neutral">Last run {workflow.lastRunAt ? formatLocalTime(workflow.lastRunAt) : "Never"}</StatusPill>
-        <StatusPill status="neutral">Next {workflow.nextRunAt ? formatLocalTime(workflow.nextRunAt) : workflow.pollingIntervalSeconds > 0 ? "Paused" : "On incoming data"}</StatusPill>
+        <StatusPill status="neutral">Next {workflow.nextRunAt ? formatLocalTime(workflow.nextRunAt) : workflowIntervalSeconds(workflow) > 0 ? "Paused" : "On incoming data"}</StatusPill>
       </>}
       notices={<>
         {workflow.archived && <p className={mutedText}>Archived workflows do not run automatically or manually until restored.</p>}
@@ -966,7 +1000,7 @@ function workflowMatchesFilter(workflow: AutomationWorkflow, search: string, fil
   if (!query) return true;
   const haystack = [
     workflow.name,
-    workflow.dataSourceId,
+    workflowPrimarySourceId(workflow),
     sourceName,
     workflow.lastHash ?? "",
     workflow.lastProofId ?? "",
@@ -1018,6 +1052,7 @@ function blockLabel(block: AutomationBlock) {
   if (block.type === "manual_start") return "Start manually";
   if (block.type === "record_trigger_event") return "Record trigger event";
   if (block.type === "fetch_data_source") return "Fetch data source";
+  if (block.type === "set_variable") return "Set variable";
   if (block.type === "if_payload_field_equals") return `If ${conditionSourceLabel(block.config.source ?? "trigger")} field matches`;
   if (block.type === "wait") return "Wait";
   if (block.type === "stamp_integritas") return "Stamp data";
@@ -1030,7 +1065,8 @@ function blockShortLabel(block: AutomationBlock) {
   if (block.type.endsWith("_start")) return "Start";
   if (block.type === "record_trigger_event") return "Record event";
   if (block.type === "fetch_data_source") return "Fetch source";
-  if (block.type === "if_payload_field_equals") return "If payload matches";
+  if (block.type === "set_variable") return "Set variable";
+  if (block.type === "if_payload_field_equals") return "If field matches";
   if (block.type === "stamp_integritas") return "Stamp";
   if (block.type === "control_output") return "Control device";
   if (block.type === "send_transaction") return "Send payment";
@@ -1038,8 +1074,8 @@ function blockShortLabel(block: AutomationBlock) {
   return block.type;
 }
 
-function conditionSourceLabel(source: "trigger" | "data") {
-  return source === "data" ? "data" : "trigger";
+function conditionSourceLabel(source: "trigger" | "variable") {
+  return source === "variable" ? "variable" : "trigger";
 }
 
 const conditionOperatorOptions: { value: ConditionOperator; label: string }[] = [
@@ -1078,6 +1114,19 @@ function sourcesForStart(type: AutomationBlockType, sources: DataSource[]) {
 
 function defaultSourceForStart(type: AutomationBlockType, sources: DataSource[]) {
   return sourcesForStart(type, sources)[0] ?? null;
+}
+
+function workflowPrimarySourceId(workflow: AutomationWorkflow) {
+  const mainBlocks = workflow.blocks.filter((block) => !block.parentBlockId);
+  const fetchBlock = mainBlocks.find((block) => block.type === "fetch_data_source");
+  const startBlock = mainBlocks.find((block) => block.type.endsWith("_start"));
+  return fetchBlock?.config.sourceId ?? startBlock?.config.sourceId ?? "";
+}
+
+function workflowIntervalSeconds(workflow: AutomationWorkflow) {
+  const startBlock = workflow.blocks.find((block) => !block.parentBlockId && block.type === "schedule_start");
+  const intervalSeconds = Number(startBlock?.config.intervalSeconds);
+  return Number.isFinite(intervalSeconds) ? intervalSeconds : 0;
 }
 
 function firstHttpSource(sources: DataSource[]) {
@@ -1171,6 +1220,17 @@ function outputBodyModeConfig(config: AutomationBlock["config"], bodyMode: NonNu
   if (bodyMode !== "custom") delete next.bodyTemplateText;
   if (targetType === "mqtt-output" && bodyMode === "none") return { ...next, bodyMode: "workflow_context" };
   return next;
+}
+
+function defaultVariableSourceConfig(config: AutomationBlock["config"], variableSource: NonNullable<AutomationBlock["config"]["variableSource"]>): AutomationBlock["config"] {
+  const base = { variableName: config.variableName ?? "message", variableSource };
+  if (variableSource === "custom_json") return { ...base, valueJsonText: config.valueJsonText ?? '"Button pressed"' };
+  return { ...base, fieldPath: variableSource === "trigger_field" ? "pin" : variableSource === "latest_data_field" ? "temperature" : "hash" };
+}
+
+function defaultConditionSourceConfig(config: AutomationBlock["config"], source: "trigger" | "variable"): AutomationBlock["config"] {
+  if (source === "variable") return { ...config, source, variableName: config.variableName ?? "temp", fieldPath: undefined };
+  return { ...config, source, fieldPath: config.fieldPath ?? "active", variableName: undefined };
 }
 
 function outputBodyModes(targetType: "http-output" | "mqtt-output") {
