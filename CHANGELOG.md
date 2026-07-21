@@ -4,6 +4,27 @@ All notable changes to `integritas-pi` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html) at the package level.
 
+## [Unreleased]
+
+## [0.20.0] - 2026-07-21
+
+### Added
+
+- Planned the Devices page flow for direct input/output add actions, local services, API/MQTT output targets, and optional local MQTT broker support.
+- Devices now separates adding input sources and output targets, shows local MQTT broker service URLs, supports HTTP/API and MQTT output targets, and can run an optional profile-gated local Mosquitto broker.
+- HTTP/API and MQTT output targets now keep endpoint settings on the device while workflow Control device blocks choose what payload to send.
+- Planned per-run workflow variables and output templating for reusable values in later workflow blocks.
+- Automation workflows now support per-run Set variable blocks and `{{variableName}}` interpolation in custom HTTP/MQTT output JSON.
+- Main workflow `If field matches` blocks can now read previously set workflow variables.
+
+### Changed
+
+- Main workflow `If field matches` blocks now choose between Trigger event and Variable sources; Latest data is no longer a direct condition source, so workflows should use Set variable before condition checks on recorded or fetched data.
+
+### Fixed
+
+- HTTP output failures now include upstream response details when available, making target API errors easier to diagnose.
+
 ## [0.19.0] - 2026-07-21
 
 ### Added
@@ -58,14 +79,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Removed the old Automation workflow rule compatibility API and response fields; workflows are now exposed through the block API only.
 
 ## [0.18.0] - 2026-07-16
-
-### Added
-
-- Planned the Devices page flow for direct input/output add actions, local services, API/MQTT output targets, and optional local MQTT broker support.
-- Devices now separates adding input sources and output targets, shows local MQTT broker service URLs, supports HTTP/API and MQTT output targets, and can run an optional profile-gated local Mosquitto broker.
-- HTTP/API and MQTT output targets now keep endpoint settings on the device while workflow Control device blocks choose what payload to send.
-- Planned per-run workflow variables and output templating for reusable values in later workflow blocks.
-- Automation workflows now support per-run Set variable blocks and `{{variableName}}` interpolation in custom HTTP/MQTT output JSON.
 
 ## [0.17.4] - 2026-07-16
 
