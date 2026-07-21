@@ -69,6 +69,7 @@ Project-specific agent rules live outside `docs/`, in `.agents/rules/` at the re
 | [plans/update-agent-review-fixes.md](./plans/update-agent-review-fixes.md)                               | Done                       |
 | [plans/update-service-launch.md](./plans/update-service-launch.md)                                       | In progress                |
 | [plans/manifest-deploy-pull-model.md](./plans/manifest-deploy-pull-model.md)                             | In progress                |
+| [plans/workflow-runs-pagination.md](./plans/workflow-runs-pagination.md)                                 | Implemented                |
 
 ---
 

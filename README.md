@@ -109,7 +109,6 @@ COOKIE_SECURE=true
 SESSION_MAX_AGE_DAYS=7
 SESSION_IDLE_HOURS=24
 MANIFEST_URL=
-MANIFEST_PUBLIC_KEY=
 RELEASE_CHANNEL=stable
 UPDATE_HEALTH_CHECK_TIMEOUT_MS=60000
 UPDATE_HEALTH_CHECK_INTERVAL_MS=2000
@@ -186,7 +185,7 @@ Future versions may support custom certificates or an external reverse proxy.
 
 `SESSION_MAX_AGE_DAYS` and `SESSION_IDLE_HOURS` control session lifetime (default 7 days max, 24 hours idle).
 
-`MANIFEST_URL` and `MANIFEST_PUBLIC_KEY` configure the `update-agent` service: the signed update manifest URL hosted on the VPS, and the Ed25519 public key (PEM) used to verify its signature. Leave `MANIFEST_URL` empty to disable update checks. The update UI is served at `https://<pi-ip>:8080/update` (same TLS cert/origin as the main app, proxied through `frontend`'s nginx — no extra browser approval). See [docs/plans/update-service.md](docs/plans/update-service.md) for the full design.
+`MANIFEST_URL` configures the `update-agent` service: the signed update manifest URL hosted on the VPS. The Ed25519 public key used to verify its signature is baked into the `update-agent` image at build time from the committed `update-agent/manifest-public-key.pem`, not an env var. Leave `MANIFEST_URL` empty to disable update checks. The update UI is served at `https://<pi-ip>:8080/update` (same TLS cert/origin as the main app, proxied through `frontend`'s nginx — no extra browser approval). See [.agents/rules/update-agent.md](.agents/rules/update-agent.md) for the full design.
 
 `frontend`/`backend` are `build:`-based in `docker-compose.yml`, not pinned to a digest — re-running `install.sh` (or a bare `docker compose up -d --build`) rebuilds them from this checkout's source and silently reverts any updates applied via the Update page since. `git pull` the matching release tag first if you want to keep an update, or just use the Update page instead of re-running the installer on an already-updated device.
 

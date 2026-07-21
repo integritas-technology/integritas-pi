@@ -1,4 +1,5 @@
 import { deleteJson, getJson, patchJson, postJson } from "../../lib/api";
+import { buildListQueryString, type ListQueryParams, type PaginatedResponse } from "../../lib/paginated";
 import type { AutomationBlock, AutomationBlockType, AutomationRun, AutomationValidationResult, AutomationWorkflow } from "./automationTypes";
 
 export async function listAutomationWorkflows() {
@@ -45,8 +46,8 @@ export async function runAutomationWorkflow(id: string, triggerPayload?: unknown
   return postJson<{ workflow: AutomationWorkflow; proofId: string | null }>(`/api/automation/workflows/${id}/run`, triggerPayload === undefined ? undefined : { triggerPayload });
 }
 
-export async function listAutomationRuns(limit = 100) {
-  return getJson<{ items: AutomationRun[] }>(`/api/automation/runs?limit=${limit}`);
+export async function listAutomationRuns(params: ListQueryParams = { page: 1, pageSize: 50 }) {
+  return getJson<PaginatedResponse<AutomationRun>>(`/api/automation/runs${buildListQueryString(params)}`);
 }
 
 export async function listAutomationWorkflowRuns(workflowId: string, limit = 20) {
