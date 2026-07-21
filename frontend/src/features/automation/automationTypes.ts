@@ -72,7 +72,7 @@ export type AutomationBlock = {
 
 export type AutomationRun = {
   id: string;
-  workflowId: string;
+  workflowId: string | null;
   workflowName: string;
   startedAt: string;
   finishedAt: string | null;
@@ -89,7 +89,7 @@ export type AutomationRun = {
 export type AutomationBlockRun = {
   id: string;
   runId: string;
-  workflowId: string;
+  workflowId: string | null;
   blockId: string | null;
   order: number;
   blockType: string;

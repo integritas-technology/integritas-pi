@@ -86,6 +86,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - Deleting a device no longer deletes its historical read-history rows; preserved rows keep their recorded source name and URL.
+- Deleting a workflow no longer deletes its historical workflow run logs; preserved logs keep their recorded workflow name.
 
 ## [0.16.0] - 2026-07-15
 

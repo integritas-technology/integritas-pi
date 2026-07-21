@@ -5,6 +5,7 @@ import { Button } from "../components/Button";
 import { DataTable, RowActions, TableIconButton, TableWrap, tableCellClass, tableHeaderCellClass, tableHeadRowClass, tableRowClass } from "../components/DataTable";
 import { JsonPreview } from "../components/JsonPreview";
 import { Page } from "../components/Page";
+import { ProgressModal } from "../components/ProgressModal";
 import { addAutomationBlock, createAutomationWorkflow, deleteAutomationBlock, deleteAutomationWorkflow, duplicateAutomationWorkflow, getAutomationWorkflowValidation, listAutomationWorkflowRuns, listAutomationWorkflows, reorderAutomationBlocks, runAutomationWorkflow, updateAutomationBlock, updateAutomationWorkflow, validateAutomationDraft } from "../features/automation/automationApi";
 import { automationBlockToCanvasBlock, draftBlockDescription, draftBlockTitle, isDataBlock, WorkflowBlockLibrary, WorkflowCanvas, WorkflowWorkspaceShell, type DraftWorkflowBlock, type WorkflowCanvasRuntimeState, type WorkflowCanvasValidationIssue } from "../features/automation/WorkflowCanvas";
 import type { AutomationBlock, AutomationBlockType, AutomationRun, AutomationValidationResult, AutomationWorkflow, ConditionOperator } from "../features/automation/automationTypes";
@@ -55,6 +56,7 @@ export function AutomationPage() {
   const [workspaceValidation, setWorkspaceValidation] = useState<AutomationValidationResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deletingWorkflow, setDeletingWorkflow] = useState<AutomationWorkflow | null>(null);
 
   useEffect(() => {
     refresh().catch((err: Error) => setError(err.message));
@@ -148,6 +150,15 @@ export function AutomationPage() {
     }
   }
 
+  async function deleteWorkflow(workflow: AutomationWorkflow) {
+    setDeletingWorkflow(workflow);
+    try {
+      await run(() => deleteAutomationWorkflow(workflow.id));
+    } finally {
+      setDeletingWorkflow(null);
+    }
+  }
+
   async function submitWorkflow(blocks: { type: AutomationBlockType; config: AutomationBlock["config"]; enabled?: boolean; parentBlockId?: string | null }[]) {
     setBusy(true);
     setError(null);
@@ -237,6 +248,14 @@ export function AutomationPage() {
 
       {error && <p className={errorText}>{error}</p>}
 
+      {deletingWorkflow && (
+        <ProgressModal
+          title="Deleting workflow"
+          headline="Deleting in progress"
+          message={`Removing ${deletingWorkflow.name}. Large workflow logs can take a few seconds while saved run history is detached from this workflow.`}
+        />
+      )}
+
       {flow.mode === "list" && <section className={cx(cardClass, "grid gap-4")}>
         <div className={statusRowClass}>
           <div><strong>Workflows</strong><p className={mutedText}>Search, filter, duplicate, and archive workflows as your test list grows.</p></div>
@@ -283,7 +302,7 @@ export function AutomationPage() {
                       <IconAction disabled={busy || workflow.archived} title={workflow.enabled ? "Pause workflow" : "Enable workflow"} label={`${workflow.enabled ? "Pause" : "Enable"} ${workflow.name}`} onClick={() => run(() => updateAutomationWorkflow(workflow.id, { enabled: !workflow.enabled }))}><RotateCcw size={16} /></IconAction>
                       <IconAction disabled={busy} title="Duplicate workflow" label={`Duplicate ${workflow.name}`} onClick={() => run(() => duplicateAutomationWorkflow(workflow.id))}><Copy size={16} /></IconAction>
                       <IconAction disabled={busy} title={workflow.archived ? "Restore workflow" : "Archive workflow"} label={`${workflow.archived ? "Restore" : "Archive"} ${workflow.name}`} onClick={() => run(() => updateAutomationWorkflow(workflow.id, { archived: !workflow.archived }))}><Archive size={16} /></IconAction>
-                      <IconAction danger disabled={busy} title="Delete workflow" label={`Delete workflow ${workflow.name}`} onClick={() => run(() => deleteAutomationWorkflow(workflow.id))}><Trash2 size={16} /></IconAction>
+                      <IconAction danger disabled={busy} title="Delete workflow" label={`Delete workflow ${workflow.name}`} onClick={() => deleteWorkflow(workflow)}><Trash2 size={16} /></IconAction>
                     </RowActions>
                   </td>
                 </tr>

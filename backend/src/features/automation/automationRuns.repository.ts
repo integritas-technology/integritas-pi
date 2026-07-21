@@ -4,7 +4,7 @@ import type { ParsedListQuery } from "../../shared/list-query.js";
 
 export type AutomationRunRecord = {
   id: string;
-  workflow_id: string;
+  workflow_id: string | null;
   workflow_name: string;
   started_at: string;
   finished_at: string | null;
@@ -20,7 +20,7 @@ export type AutomationRunRecord = {
 export type AutomationBlockRunRecord = {
   id: string;
   run_id: string;
-  workflow_id: string;
+  workflow_id: string | null;
   block_id: string | null;
   order_index: number;
   block_type: string;
