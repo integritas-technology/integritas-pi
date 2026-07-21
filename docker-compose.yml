@@ -90,6 +90,8 @@ services:
     restart: unless-stopped
 
   update-agent:
+    build:
+      context: ./update-agent
     image: ${UPDATE_AGENT_IMAGE}
     profiles:
       - update-agent
