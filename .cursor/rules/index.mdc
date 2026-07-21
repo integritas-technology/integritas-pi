@@ -5,6 +5,8 @@ alwaysApply: true
 
 # Karpathy behavioral guidelines
 
+> **Sync notice:** This file plus `.cursor/rules/*.mdc` are a duplicate of `AGENTS.md`/`.agents/rules/` and `CLAUDE.md`/`.claude/rules/`, kept for tool compatibility — Cursor reads `.cursor/rules/`, other tools read `AGENTS.md`/`.agents/` or `CLAUDE.md`/`.claude/`. When you change one, apply the identical change to its counterparts in the same commit. Do not let them drift. Unlike the other two, Cursor rule files are split into individual `.mdc` files with `globs`/`description` frontmatter so Cursor only loads what's relevant to what you're editing — see the "Rule files" table below for which mode each uses.
+
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
@@ -78,19 +80,38 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 # Project Rules
 
-`AGENTS.md`, `.agents/rules/`, and `SECURITY.md` are the source of truth for project-specific (non-behavioral) rules. Read them before editing. Do not restate or duplicate their content in Cursor rules, chat, or new docs unless the user asks.
+`AGENTS.md`/`CLAUDE.md`, `.agents/rules/`/`.claude/rules/`/`.cursor/rules/`, and `SECURITY.md` are the source of truth for project-specific (non-behavioral) rules.
 
 ## Before you edit
 
-1. `AGENTS.md` — behavioral guidelines (mirrored above), plus an index into `.agents/rules/*.md` for architecture, feature layout, auth/API conventions, verification, and documenting work
+1. `AGENTS.md`/`CLAUDE.md` — behavioral guidelines (mirrored above), plus an index into the per-topic rule files below for architecture, feature layout, auth/API conventions, verification, and documenting work
 2. `SECURITY.md` — security policy and guidelines; full risk register in `docs/security/*.md`
-3. `README.md` — install, runtime config, CLI, operator-facing behavior (when touching those areas)
+3. `README.md` — install, usage, CLI commands, runtime config, API expectations, or operational workflow changes
 
 For auth work, also read `docs/plans/auth-implementation.md` and `docs/plans/auth-security.md`. Docs layout: `docs/README.md`.
 
-## When to update project docs (not Cursor rules)
+## Rule files
 
-Update `.agents/rules/*.md` (linked from `AGENTS.md`) when you change or establish:
+| Doc | Covers | Cursor activation |
+|---|---|---|
+| [.cursor/rules/project-shape.mdc](.cursor/rules/project-shape.mdc) | Architecture, core principles, what to read before editing | Agent Requested |
+| [.cursor/rules/backend.mdc](.cursor/rules/backend.mdc) | Backend feature folders, route/schema conventions, auth rules | Auto Attached: `backend/**` |
+| [.cursor/rules/frontend.mdc](.cursor/rules/frontend.mdc) | Frontend feature folders, API usage, styling conventions | Auto Attached: `frontend/**` |
+| [.cursor/rules/cli.mdc](.cursor/rules/cli.mdc) | CLI conventions and constraints | Auto Attached: `bin/**`, `install.sh` |
+| [.cursor/rules/minima.mdc](.cursor/rules/minima.mdc) | Minima RPC command rules | Auto Attached: `backend/src/features/minima/**` |
+| [.cursor/rules/integritas.mdc](.cursor/rules/integritas.mdc) | Integritas stamping/proof rules | Auto Attached: `**/features/integritas/**` |
+| [.cursor/rules/data-sources.mdc](.cursor/rules/data-sources.mdc) | Data source types and rules | Auto Attached: `**/features/data-sources/**` |
+| [.cursor/rules/automation.mdc](.cursor/rules/automation.mdc) | Automation workflow rules | Auto Attached: `**/features/automation/**` |
+| [.cursor/rules/docker.mdc](.cursor/rules/docker.mdc) | Docker / Raspberry Pi deployment rules | Auto Attached: `docker-compose.yml`, `install.sh`, `**/Dockerfile*`, `docker/**` |
+| [.cursor/rules/update-agent.mdc](.cursor/rules/update-agent.mdc) | Update Agent service rules | Auto Attached: `update-agent/**` |
+| [.cursor/rules/verification.mdc](.cursor/rules/verification.mdc) | Commands to run before finishing changes | Agent Requested |
+| [.cursor/rules/documenting-work.mdc](.cursor/rules/documenting-work.mdc) | Task summaries, doc updates, changelog policy | Agent Requested |
+
+Also see `docs/PROJECT.md` (goals/constraints), `docs/TASKS.md` (current work), and `SECURITY.md` (security policy).
+
+## When to update project docs (not just Cursor rules)
+
+Update `.agents/rules/*.md`/`.claude/rules/*.md`/`.cursor/rules/*.mdc` (all three, kept in sync) when you change or establish:
 
 - Architecture or API-first boundaries (where logic lives, route registration, feature folders)
 - Agent or contributor workflow (read-first paths, verification commands, process)
@@ -105,5 +126,3 @@ Update `docs/security/*.md` when you change or introduce:
 Update `SECURITY.md` itself only for policy-level changes (supported use, guidelines, reporting process).
 
 Update `README.md` for install, deployment, CLI, env vars, or user-visible API/ops changes.
-
-Do **not** add parallel project-specific rules to `.cursor/rules.mdc`. If guidance belongs in the project long-term, put it in `AGENTS.md`, `.agents/rules/`, or `SECURITY.md`/`docs/security/`. The Karpathy behavioral guidelines above are the one exception, mirrored intentionally since Cursor has no cross-tool import mechanism — keep both copies in sync if either changes.

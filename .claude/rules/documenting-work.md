@@ -15,7 +15,7 @@ Update project documentation when behavior changes:
 - Update `CHANGELOG.md` for every user-facing or operator-facing change (see below).
 - Update `README.md` for installation, usage, CLI commands, runtime config, API expectations, or operational workflow changes.
 - Update `SECURITY.md` for security-sensitive changes, new exposure, new credentials/secrets behavior, host access, or risk tradeoffs.
-- Update `AGENTS.md`/`CLAUDE.md` and `.agents/rules/*.md`/`.claude/rules/*.md` (kept in sync, see sync notice at the top of each) for architecture, process, or agent workflow guidance changes.
+- Update `AGENTS.md`/`CLAUDE.md` and `.agents/rules/*.md`/`.claude/rules/*.md`/`.cursor/rules/*.mdc` (kept in sync, see sync notice at the top of each) for architecture, process, or agent workflow guidance changes.
 
 Do not leave undocumented behavior changes that affect installation, deployment, API usage, CLI usage, or operational workflows.
 
