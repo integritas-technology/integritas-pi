@@ -19,7 +19,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- Integritas proof, verification, polling, status, and automation calls now prefer the encrypted API key supplied by Integritas Connect; manually saved and environment API keys remain available as fallbacks.
+- Integritas proof, verification, polling, status, and automation calls now use only the encrypted API key supplied by Integritas Connect (`integritas_auth.api_key_enc`); manual UI and `INTEGRITAS_API_KEY` env fallbacks are removed.
+- Integritas runtime configuration modal is read-only (base URL, request ID, Connect link status, portal link); paste/save/clear/check-key UI removed from the Integritas page.
+- Integritas unauthorized errors now direct operators to reconnect under Settings → Integritas Connect instead of saving a new API key.
 - First-run setup wizard replaces the Integritas API key step with unified Connect onboarding: create a local admin credential → open cloud account signup from one button in a centered small activation popup → see the account-connected confirmation in the same step → ready screen with name/plan/usage before dashboard. Setup now remains gated across refresh/reopen until the first successful Connect link; interrupted users authenticate with the existing credential and resume the cloud-account step. Later device revocation keeps onboarding complete and reconnects from Settings.
 - Local admins can choose either a **6-digit PIN** or a password with at least 8 characters containing uppercase, lowercase, a number, and a symbol during setup and in Account settings. Login supports both credential types, including existing free-form passwords; API request fields remain `password` / `currentPassword` / `newPassword` for compatibility.
 - **Temporary:** local admin auth uses a PIN or password without TOTP. TOTP enrollment/login/settings checks are disabled via `TOTP_ENABLED = false` (backend `auth.constants.ts`, frontend `totpEnabled.ts`). Set both to `true` to restore 2FA or delete if not used.
@@ -32,6 +34,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - After Connect device approval, encrypted tokens are stored (and pending activation cleared) before fetching `/api/me`, so a transient profile failure cannot consume the one-time handoff and leave the Pi permanently unlinked.
 - If Integritas Connect tokens cannot be decrypted (e.g. `APP_SECRET` changed), the Pi clears the local Connect link, returns `TOKEN_DECRYPT_FAILED`, and the Settings panel prompts the user to connect again (no remote Connect revoke).
 - Settings / reconnect **Connect account** opens the Integritas Connect verify popup on the first click (blank window reserved in the click gesture, then navigated after activation starts), so revoke/reconnect no longer needs a second click.
+
+### Removed
+
+- Manual Integritas API key entry: `INTEGRITAS_API_KEY` env var, installer support, setup `integritasApiKey` / `POST /api/setup/integritas/verify`, and Integritas page save/clear/check-key UI. Backend `/api/integritas/api-key*` routes are disabled (commented out in source for now).
 
 ## [0.15.0] - 2026-07-13
 

@@ -86,7 +86,6 @@ MINIMA_AUTO_RESYNC=false
 MINIMA_AUTO_RESYNC_COOLDOWN_MINUTES=30
 INTEGRITAS_CONNECT_BASE_URL=https://integritas.technology
 INTEGRITAS_BASE_URL=https://integritas.technology/core
-INTEGRITAS_API_KEY=
 INTEGRITAS_REQUEST_ID=integritas-pi
 INTEGRITAS_REQUEST_TIMEOUT_MS=15000
 INTEGRITAS_POLL_INTERVAL_SECONDS=30
@@ -124,7 +123,7 @@ GPIO input/output settings for tested button and LED wiring, plus suggested unte
 
 `INTEGRITAS_BASE_URL` is the Integritas core host used for proof stamping (default `https://integritas.technology/core`).
 
-`INTEGRITAS_API_KEY` is optional. After Integritas Connect linking, the backend uses the account API key stored encrypted in `integritas_auth`. A key saved manually from the Integritas page, followed by `INTEGRITAS_API_KEY`, remains available as fallback. API keys are never exposed in the frontend bundle.
+Proof stamping uses the Integritas Connect account API key stored encrypted in `integritas_auth.api_key_enc` after device linking. Link Integritas Connect from Auth Settings or during first-run setup. API keys are never exposed in the frontend bundle.
 
 `INTEGRITAS_DEVICE_POLL_INTERVAL_SECONDS` is how often the Pi polls Connect while device activation is pending (default `5`).
 
@@ -404,7 +403,7 @@ backend container
   - HTTP Collect data rules poll on a schedule. Webhook Collect data rules record pushed JSON at generated `/api/data-source-webhooks/:token` URLs while enabled. MQTT Collect data rules subscribe to the configured broker/topic only while enabled. GPIO Collect data rules watch configured BCM pins only while enabled.
   - Reads /host-files only
   - Reads Minima status from http://minima:9005/status
-  - Calls https://integritas.technology/core with backend-only API key
+  - Calls https://integritas.technology/core with the backend-only Connect API key
   - Reads Docker resource usage through /var/run/docker.sock
 
 minima container
@@ -533,24 +532,21 @@ Integritas:
 
 ```http
 GET /api/integritas/config
-POST /api/integritas/api-key/check
-POST /api/integritas/api-key
-DELETE /api/integritas/api-key
 POST /api/integritas/hash
 POST /api/integritas/stamp
 POST /api/integritas/status
 POST /api/integritas/verify
 ```
 
-`GET /api/integritas/history` and `GET /api/data-reads` return paginated log rows. Query params: `page` (default `1`), `pageSize` (default `50`, clamped `10`–`100`), optional `status`, and optional `q` (substring match on hash/UID/source fields). Response shape: `{ items, page, pageSize, total, totalPages }`. `GET /api/integritas/history/:id` returns a single proof record.
+Integritas Connect (device linking):
 
-The frontend sends canonical bytes and proof payloads to the backend. The backend performs SHA3-256 hashing and calls Integritas with a backend-only API key.
+```http
+POST /api/auth/connect/start
+GET /api/auth/connect/status
+GET /api/user/profile
+```
 
-The API key can come from either:
-
-- Integritas Connect's encrypted `integritas_auth.api_key_enc` value (preferred)
-- encrypted SQLite storage set manually from the frontend UI
-- `INTEGRITAS_API_KEY` in `.env`
+The frontend sends canonical bytes and proof payloads to the backend. The backend performs SHA3-256 hashing and calls Integritas with the Connect-linked API key from `integritas_auth.api_key_enc`.
 
 The backend uses the first available source in that order. Install with a fallback Integritas API key:
 
@@ -571,7 +567,7 @@ See [`SECURITY.md`](./SECURITY.md) for the current risk register, known vulnerab
 - Backend blocks access outside `/host-files`
 - Frontend cannot trigger shell commands
 - Minima RPC binds to `127.0.0.1` by default
-- Integritas API key is backend-only and encrypted at rest in SQLite when saved from the UI
+- Integritas Connect tokens and API key are backend-only and encrypted at rest in SQLite
 - Backend mounts `/var/run/docker.sock:ro` to read container status and resource usage for the App status page. This is useful for the prototype, but Docker socket access is sensitive and should be replaced with a narrower monitoring approach before production.
 - GPIO input sources use the `gpiomon` tool inside the backend container and GPIO LED output targets use `gpioset`; both require explicit GPIO device access on Raspberry Pi deployments. Add an override such as `devices: ["/dev/gpiochip0:/dev/gpiochip0"]` and a suitable GPIO group when enabling GPIO hardware ingestion/control.
 - Admin authentication with a 6-digit PIN or an 8+ character password containing uppercase, lowercase, a number, and a symbol, plus HttpOnly session cookies (see [Authentication](#authentication))

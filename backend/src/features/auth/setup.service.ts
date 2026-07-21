@@ -1,6 +1,5 @@
 import { db } from "../../db/database.js";
 import { getIntegritasAuth } from "../integritas-auth/integritas-auth.repository.js";
-import { saveIntegritasApiKey } from "../settings/secrets.service.js";
 import { getSetting, saveSetting } from "../settings/settings.repository.js";
 import { LOCAL_ADMIN_DISPLAY_NAME, LOCAL_ADMIN_USERNAME, TOTP_ACCOUNT_LABEL, TOTP_ENABLED } from "./auth.constants.js";
 import { recordAuditEvent } from "./audit.service.js";
@@ -12,7 +11,6 @@ import {
   clearSetupPending,
   markSetupPendingVerified
 } from "./auth.repository.js";
-import { validateIntegritasApiKey } from "./integritas-validation.service.js";
 import { adminCredentialValidationError, hashPassword, isValidAdminCredential } from "./password.service.js";
 import { createSession } from "./session.service.js";
 import { decryptTotpSecret, encryptTotpSecret, generateSecret, getOtpAuthUrl, renderQrPngBase64, verifyToken } from "./totp.service.js";
@@ -89,16 +87,7 @@ export async function verifySetupTotp(totpToken: string) {
   return { valid: true };
 }
 
-export async function verifySetupIntegritasKey(apiKey: string) {
-  assertLocalAdminNotCreated();
-  const result = await validateIntegritasApiKey(apiKey);
-  if (!result.ok) {
-    throw new SetupError(result.error, 400);
-  }
-  return { valid: true };
-}
-
-export async function completeSetup(input: { password: string; integritasApiKey?: string }) {
+export async function completeSetup(input: { password: string }) {
   assertLocalAdminNotCreated();
 
   const password = input.password;
@@ -118,12 +107,6 @@ export async function completeSetup(input: { password: string; integritasApiKey?
     totpSecretEncrypted = encryptTotpSecret(generateSecret());
   }
 
-  const integritasApiKey = input.integritasApiKey?.trim() ?? "";
-  if (integritasApiKey) {
-    const validation = await validateIntegritasApiKey(integritasApiKey);
-    if (!validation.ok) throw new SetupError(validation.error, 400);
-  }
-
   const passwordHash = await hashPassword(password);
 
   const complete = db.transaction(() => {
@@ -134,11 +117,6 @@ export async function completeSetup(input: { password: string; integritasApiKey?
       passwordHash,
       totpSecretEncrypted
     });
-
-    if (integritasApiKey) {
-      saveIntegritasApiKey(integritasApiKey);
-      recordAuditEvent("integritas_api_key.save", { userId, detail: "during setup" });
-    }
 
     clearSetupPending();
     recordAuditEvent("setup.complete", { userId, detail: LOCAL_ADMIN_DISPLAY_NAME });
