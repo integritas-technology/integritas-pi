@@ -1,4 +1,3 @@
-import { RefreshCcwIcon } from 'lucide-react';
 import { Button } from '../../components/Button';
 import { ButtonRow } from '../../components/ButtonRow';
 import {
@@ -20,9 +19,7 @@ export function IntegritasHistoryTable({
   records,
   selectedIds,
   filtered,
-  pendingTotal,
   onToggle,
-  onRefreshPending,
   onVerify,
   onDeleteSelected,
   onDownloadSelected,
@@ -31,9 +28,7 @@ export function IntegritasHistoryTable({
   records: IntegritasProofRecord[];
   selectedIds: string[];
   filtered?: boolean;
-  pendingTotal: number;
   onToggle: (id: string) => void;
-  onRefreshPending: () => void;
   onVerify: (record: IntegritasProofRecord) => void;
   onDeleteSelected: () => void;
   onDownloadSelected: () => void;
@@ -42,32 +37,22 @@ export function IntegritasHistoryTable({
   return (
     <TableCard
       title='Proof history'
-      description='Stored timestamp proof requests and status responses. Pending rows update automatically; use refresh to check Integritas now.'
+      description='Stored timestamp proof requests and status responses. Pending rows update automatically.'
       actions={
-        <ButtonRow>
-          <Button
-            type='button'
-            disabled={busy || pendingTotal === 0}
-            onClick={onRefreshPending}
-          >
-            <RefreshCcwIcon size={20} />
-            <span className='text-sm font-medium'>({pendingTotal})</span>
-          </Button>
-          {selectedIds.length > 0 && (
-            <>
-              <Button
-                type='button'
-                disabled={busy}
-                onClick={onDownloadSelected}
-              >
-                Download all selected
-              </Button>
-              <Button type='button' variant='danger' disabled={busy} onClick={onDeleteSelected}>
-                Delete all selected
-              </Button>
-            </>
-          )}
-        </ButtonRow>
+        selectedIds.length > 0 ? (
+          <ButtonRow>
+            <Button
+              type='button'
+              disabled={busy}
+              onClick={onDownloadSelected}
+            >
+              Download all selected
+            </Button>
+            <Button type='button' variant='danger' disabled={busy} onClick={onDeleteSelected}>
+              Delete all selected
+            </Button>
+          </ButtonRow>
+        ) : undefined
       }
     >
       <TableWrap>

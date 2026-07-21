@@ -40,7 +40,7 @@ Plan:
 - Treat "`update-agent` compromised → Pi compromised" as an accepted risk for V1, mitigated by minimal code surface rather than network placement (the mount itself cannot be made safe if the holding process is compromised).
 - Revisit only if a narrower Docker control surface (e.g. a proxy with an explicit allowlist) becomes necessary; out of scope for V1.
 
-Status: Accepted risk, documented. See `docs/plans/update-service.md`.
+Status: Accepted risk, documented. See `.agents/rules/update-agent.md`.
 
 ## Update Manifest Signing Key
 
@@ -59,7 +59,7 @@ Plan:
 
 - If the key is ever suspected compromised, rotate it (generate a new keypair, update the GH secret, ship the new public key in a `update-agent` release) and document the rotation in this file.
 
-Status: Accepted risk, documented. See `docs/plans/update-service.md`.
+Status: Accepted risk, documented. See `.agents/rules/update-agent.md`.
 
 ## File Browser Metadata Exposure
 

@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { db } from "../../db/database.js";
+import type { ParsedListQuery } from "../../shared/list-query.js";
 
 export type AutomationRunRecord = {
   id: string;
@@ -75,8 +76,46 @@ export function finishAutomationBlockRun(id: string, input: { status: "success" 
   return getAutomationBlockRun(id)!;
 }
 
-export function listAutomationRuns(limit = 100) {
-  return db.prepare("SELECT * FROM automation_runs ORDER BY started_at DESC LIMIT ?").all(limit) as AutomationRunRecord[];
+export const AUTOMATION_RUN_LIST_STATUSES = ["running", "success", "failed"] as const;
+
+export type AutomationRunListQuery = ParsedListQuery;
+
+function buildAutomationRunListWhere(query: Pick<AutomationRunListQuery, "status" | "q">) {
+  const clauses: string[] = [];
+  const params: unknown[] = [];
+
+  if (query.status) {
+    clauses.push("status = ?");
+    params.push(query.status);
+  }
+
+  if (query.q) {
+    const like = `%${query.q}%`;
+    clauses.push("(id LIKE ? OR workflow_name LIKE ? OR trigger_type LIKE ? OR trigger_source_id LIKE ? OR error LIKE ?)");
+    params.push(like, like, like, like, like);
+  }
+
+  return {
+    where: clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "",
+    params,
+  };
+}
+
+export function countAutomationRuns(query: Pick<AutomationRunListQuery, "status" | "q"> = {}) {
+  const { where, params } = buildAutomationRunListWhere(query);
+  const row = db.prepare(`SELECT COUNT(*) as count FROM automation_runs ${where}`).get(...params) as { count: number };
+  return row.count;
+}
+
+export function listAutomationRuns(query: AutomationRunListQuery) {
+  const { where, params } = buildAutomationRunListWhere(query);
+  const offset = (query.page - 1) * query.pageSize;
+  return db.prepare(`
+    SELECT * FROM automation_runs
+    ${where}
+    ORDER BY started_at DESC
+    LIMIT ? OFFSET ?
+  `).all(...params, query.pageSize, offset) as AutomationRunRecord[];
 }
 
 export function listAutomationRunsForWorkflow(workflowId: string, limit = 20) {

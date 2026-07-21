@@ -2,7 +2,7 @@
 
 **Status:** Not started. Deferred deliberately — noted during the version-display discussion so it isn't forgotten.
 
-Right now `update-agent` isn't in the manifest and has no self-update path, by original design (`docs/plans/update-agent/archive/update-service.md`: "Self-update: resolved by scope — update-agent is deliberately not in the manifest... no self-update path in V1").
+Right now `update-agent`'s digest is carried in the manifest but excluded from `MANIFEST_SERVICE_KEYS` (`["frontend", "backend"]`), so it has no self-update path — by original design (the deleted `docs/plans/update-agent/archive/update-service.md`, recoverable from git history: "Self-update: resolved by scope — update-agent is deliberately not in the manifest... no self-update path in V1").
 
 The user wants to eventually have `update-agent` itself be built, pushed, tracked in the manifest, and updated like `frontend`/`backend`.
 

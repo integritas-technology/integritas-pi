@@ -21,7 +21,7 @@ import {
   type AutomationBlockRecord,
   type AutomationWorkflowRecord
 } from "./automation.repository.js";
-import { createAutomationBlockRun, createAutomationRun, finishAutomationBlockRun, finishAutomationRun, getAutomationRun, listAutomationBlockRuns, listAutomationRuns, listAutomationRunsForWorkflow, type AutomationBlockRunRecord, type AutomationRunRecord } from "./automationRuns.repository.js";
+import { createAutomationBlockRun, createAutomationRun, finishAutomationBlockRun, finishAutomationRun, getAutomationRun, listAutomationBlockRuns, listAutomationRuns, listAutomationRunsForWorkflow, type AutomationBlockRunRecord, type AutomationRunListQuery, type AutomationRunRecord } from "./automationRuns.repository.js";
 
 type WorkflowTriggerType = "manual" | "schedule" | "webhook" | "mqtt" | "gpio";
 
@@ -151,8 +151,8 @@ export function serializeAutomationBlockRun(record: AutomationBlockRunRecord) {
   };
 }
 
-export function listSerializedAutomationRuns(limit?: number) {
-  return listAutomationRuns(limit).map(serializeAutomationRun);
+export function listSerializedAutomationRuns(query: AutomationRunListQuery) {
+  return listAutomationRuns(query).map(serializeAutomationRun);
 }
 
 export function listSerializedAutomationRunsForWorkflow(workflowId: string, limit?: number) {

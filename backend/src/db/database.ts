@@ -139,6 +139,15 @@ export function runMigrations() {
   `);
 
   db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_automation_runs_status_started
+      ON automation_runs(status, started_at);
+    CREATE INDEX IF NOT EXISTS idx_automation_runs_started
+      ON automation_runs(started_at);
+    CREATE INDEX IF NOT EXISTS idx_automation_block_runs_run_id
+      ON automation_block_runs(run_id);
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS data_source_reads (
       id TEXT PRIMARY KEY,
       created_at TEXT NOT NULL,
