@@ -131,6 +131,70 @@ Plan:
 
 Status: Accepted prototype risk.
 
+## MQTT Output Targets
+
+Risk: MQTT output targets let automation workflows publish JSON messages to configured broker URLs and topics.
+
+Impact: Misconfigured or malicious broker URLs/topics could create unwanted outbound connections, command external devices unexpectedly, or publish sensitive workflow context to a shared broker.
+
+Current Controls:
+
+- MQTT output target creation/editing requires admin role.
+- Output actions are allowlisted workflow blocks, not arbitrary shell commands.
+- MQTT output publishes JSON only to the saved broker/topic.
+- MQTT output payloads are selected per workflow block: custom JSON, workflow context, trigger payload, or latest data.
+- Output payloads must not include raw secrets such as passwords, session cookies, Integritas API keys, or wallet seed phrases.
+
+Plan:
+
+- Add broker allowlists, credentials/secrets handling, TLS/certificate options, and per-target rate limits before production use.
+- Add dynamic payload templating with explicit redaction rules if richer payload shaping is needed.
+
+Status: Accepted prototype risk.
+
+## Local MQTT Broker (optional)
+
+Risk: When `ENABLE_MQTT_BROKER=true` and the `mqtt` Compose profile is active, the app starts a local Mosquitto broker exposed on `${MQTT_PUBLIC_PORT:-1883}`. The current prototype broker allows anonymous LAN connections.
+
+Impact: Any device that can reach the broker port on the trusted LAN can publish or subscribe to broker topics. This may expose device messages or allow unintended commands if topic names are known.
+
+Current Controls:
+
+- Disabled by default.
+- Requires explicit install/runtime configuration.
+- Shown in the Devices page as a local service, not as a workflow target itself.
+- Backend MQTT inputs/outputs still require admin-created configured devices with saved broker/topic details.
+
+Plan:
+
+- Add broker username/password support before production use.
+- Consider TLS, topic ACLs, and LAN bind controls before production use.
+- Document trusted-network-only use clearly in installation guidance.
+
+Status: Accepted prototype risk for local learning deployments only.
+
+## HTTP/API Output Targets
+
+Risk: HTTP/API output targets let automation workflows send JSON requests to configured URLs.
+
+Impact: Misconfigured or malicious URLs could trigger actions on local/network services, create repeated outbound traffic, or expose workflow context to unintended systems.
+
+Current Controls:
+
+- HTTP/API output target creation/editing requires admin role.
+- Output actions are allowlisted workflow blocks, not arbitrary shell commands.
+- Supported methods are limited to `POST`, `PUT`, and `PATCH`.
+- Requests use JSON bodies and bounded timeouts.
+- Request bodies are selected per workflow block: custom JSON, workflow context, trigger payload, latest data, or no body.
+
+Plan:
+
+- Add URL allowlists or network egress policy for production.
+- Add credential/secret handling for headers before exposing custom headers in the UI.
+- Add per-target rate limits if automation volume grows.
+
+Status: Accepted prototype risk.
+
 ## GPIO Input Data Sources
 
 Risk: Enabled GPIO input automation workflows allow the backend container to watch Raspberry Pi GPIO line events through `gpiomon` when `/dev/gpiochip0` is mounted into the container.

@@ -2,7 +2,8 @@ import { getDataSource, updateDataSourceReadResult } from "../data-sources/dataS
 import { getAddressBookEntryById } from "../address-book/address-book.repository.js";
 import { recordAuditEvent } from "../auth/audit.service.js";
 import { pulseGpioOutput } from "../data-sources/gpioOutput.service.js";
-import { parseJsonApiConfig, readJsonApiSource, serializeDataSource } from "../data-sources/dataSources.service.js";
+import { publishMqttOutput } from "../data-sources/mqttOutput.service.js";
+import { parseHttpOutputConfig, parseJsonApiConfig, readJsonApiSource, sendHttpOutput, serializeDataSource } from "../data-sources/dataSources.service.js";
 import { createDataSourceRead, linkDataSourceReadProof } from "../data-reads/dataReads.repository.js";
 import { createProofRecord } from "../integritas/integritas.repository.js";
 import { isIntegritasUnauthorizedErrorCode, isTransientIntegritasErrorCode, requestProofUid } from "../integritas/integritas.service.js";
@@ -55,6 +56,8 @@ type FieldCondition = {
   operator: "equals" | "not_equals" | "greater_than" | "greater_than_or_equals" | "less_than" | "less_than_or_equals" | "exists" | "does_not_exist";
   value?: unknown;
 };
+
+type OutputBodyMode = "custom" | "workflow_context" | "trigger_payload" | "latest_data" | "none";
 
 const runningWorkflowIds = new Set<string>();
 let scheduler: NodeJS.Timeout | null = null;
@@ -237,7 +240,7 @@ function validateStartBlock(block: AutomationBlockRecord, trigger: WorkflowConte
 }
 
 async function executeBlock(workflow: AutomationWorkflowRecord, block: AutomationBlockRecord, context: WorkflowContext, runId: string) {
-  const config = JSON.parse(block.config_json) as { sourceId?: string; targetId?: string; action?: string; durationMs?: number; source?: "trigger" | "data"; fieldPath?: string; operator?: FieldCondition["operator"]; value?: unknown; condition?: FieldCondition | null; recipientAddressBookId?: string; tokenId?: string; amount?: string };
+  const config = JSON.parse(block.config_json) as { sourceId?: string; targetId?: string; action?: string; durationMs?: number; bodyMode?: OutputBodyMode; bodyTemplate?: unknown; bodyTemplateText?: string; source?: "trigger" | "data"; fieldPath?: string; operator?: FieldCondition["operator"]; value?: unknown; condition?: FieldCondition | null; recipientAddressBookId?: string; tokenId?: string; amount?: string };
   const blockRun = createAutomationBlockRun({ runId, workflowId: workflow.id, blockId: block.id, orderIndex: block.order_index, blockType: block.type, blockLabel: blockLabel(block.type), input: contextSummary(context) });
 
   try {
@@ -280,7 +283,7 @@ function recordTriggerEvent(workflow: AutomationWorkflowRecord, block: Automatio
 async function fetchDataSource(workflow: AutomationWorkflowRecord, block: AutomationBlockRecord, context: WorkflowContext, sourceId: string) {
   const source = getDataSource(sourceId);
   if (!source) throw new Error("Data source not found");
-  if (source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output") throw new Error("Fetch data source block requires an HTTP JSON data source");
+  if (source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output" || source.type === "http-output" || source.type === "mqtt-output") throw new Error("Fetch data source block requires an HTTP JSON data source");
   const config = parseJsonApiConfig(JSON.parse(source.config) as unknown);
   try {
     const result = await readJsonApiSource(config);
@@ -361,7 +364,7 @@ function blockToLegacyRule(block: ReturnType<typeof serializeAutomationBlock>) {
 
 function blockLabel(type: string) {
   if (type === "stamp_integritas") return "Stamp with Integritas";
-  if (type === "control_output") return "Control output";
+  if (type === "control_output") return "Control device";
   if (type === "send_transaction") return "Send transaction";
   if (type === "if_payload_field_equals") return "If field matches";
   if (type === "fetch_data_source") return "Fetch data source";
@@ -410,13 +413,46 @@ function deepEqualJson(left: unknown, right: unknown) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-async function controlOutput(config: { targetId?: string; action?: string; durationMs?: number }, context: WorkflowContext) {
-  if (config.action !== "pulse") throw new Error("Only pulse output actions are supported");
+async function controlOutput(config: { targetId?: string; action?: string; durationMs?: number; bodyMode?: OutputBodyMode; bodyTemplate?: unknown; bodyTemplateText?: string }, context: WorkflowContext) {
   if (!config.targetId) throw new Error("Control output block requires a targetId");
-  const result = await pulseGpioOutput({ targetId: config.targetId, durationMs: Number(config.durationMs ?? 0) });
+  const target = getDataSource(config.targetId);
+  if (!target) throw new Error("Control output target was not found");
+
+  const payload = outputPayload(config, context);
+  const result = target.type === "gpio-output"
+    ? await pulseGpioOutput({ targetId: config.targetId, durationMs: Number(config.durationMs ?? 0) })
+    : target.type === "http-output"
+      ? await sendHttpOutput(parseHttpOutputConfig(JSON.parse(target.config) as unknown), payload.body, payload.hasBody)
+    : target.type === "mqtt-output"
+        ? await publishMqttOutput({ targetId: config.targetId, payload: payload.body })
+        : null;
+  if (!result) throw new Error("Control output block requires an output target");
   context.data = undefined;
   context.output = result;
   return result;
+}
+
+function outputPayload(config: { bodyMode?: OutputBodyMode; bodyTemplate?: unknown; bodyTemplateText?: string }, context: WorkflowContext) {
+  const mode = config.bodyMode ?? "workflow_context";
+  if (mode === "none") return { body: undefined, hasBody: false };
+  if (mode === "custom") return { body: parseCustomBody(config), hasBody: true };
+  if (mode === "trigger_payload") return { body: context.trigger.payload ?? {}, hasBody: true };
+  if (mode === "latest_data") {
+    if (!context.data) throw new Error("No recorded or fetched data is available for this output body");
+    return { body: context.data.result.preview, hasBody: true };
+  }
+  return { body: contextSummary(context), hasBody: true };
+}
+
+function parseCustomBody(config: { bodyTemplate?: unknown; bodyTemplateText?: string }) {
+  if (typeof config.bodyTemplateText === "string") {
+    try {
+      return JSON.parse(config.bodyTemplateText) as unknown;
+    } catch {
+      throw new Error("Custom output body must be valid JSON");
+    }
+  }
+  return config.bodyTemplate ?? {};
 }
 
 async function sendTransaction(config: { recipientAddressBookId?: string; tokenId?: string; amount?: string }, context: WorkflowContext, workflow: AutomationWorkflowRecord) {

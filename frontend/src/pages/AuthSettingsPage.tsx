@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Check, CheckCircle2, Copy, Eye, EyeOff, RotateCcw, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Check, CheckCircle2, Copy, Eye, EyeOff, RotateCcw, ShieldAlert, Tag } from "lucide-react";
 import { Button } from "../components/Button";
 import { ButtonRow } from "../components/ButtonRow";
 import { Card } from "../components/Card";
@@ -11,6 +11,7 @@ import { isValidAdminCredential, sanitizePinInput, type AdminCredentialType } fr
 import { PasswordRequirements } from "../features/auth/PasswordRequirements";
 import { TOTP_ENABLED } from "../features/auth/totpEnabled";
 import { IntegritasConnectPanel } from "../features/integritas-auth/IntegritasConnectPanel";
+import { useUpdateStatusRefresh } from "../features/update/useUpdateStatusRefresh";
 
 type TotpResetPhase = "idle" | "scan" | "done";
 
@@ -40,6 +41,9 @@ export function AuthSettingsPage() {
   const [verifyCode, setVerifyCode] = useState("");
   const [verifySubmitting, setVerifySubmitting] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
+
+  const [currentVersion, setCurrentVersion] = useState<string | null>(null);
+  useUpdateStatusRefresh((status) => setCurrentVersion(status?.currentVersion ?? null));
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -415,6 +419,21 @@ export function AuthSettingsPage() {
           )}
         </Card>
       ) : null}
+
+      <Card>
+        <div className="flex items-center gap-2 font-bold">
+          <Tag size={18} /> Version
+        </div>
+        <p className="mt-2 tabular-nums text-slate-500">{currentVersion ?? "Unknown"}</p>
+        <ButtonRow className="mt-3">
+          <a
+            href="/update"
+            className="inline-flex w-fit items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            Check for updates
+          </a>
+        </ButtonRow>
+      </Card>
     </Page>
   );
 }

@@ -55,10 +55,10 @@ export function DataSourcesList({
                   <strong>{source.name}</strong>
                   <MutedText className="m-0 mt-1">{source.description}</MutedText>
                 </td>
-                <td className={tableCellClass}>{source.type === "json-api" || source.type === "internal-json-api" || source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" ? "Input" : "Output"}</td>
+                <td className={tableCellClass}>{isInputSource(source) ? "Input" : "Output"}</td>
                 <td className={tableCellClass}>{source.type}</td>
                 <td className={tableCellClass}>
-                  <code>{source.type === "webhook" ? webhookUrl(source) : source.type === "mqtt" ? mqttEndpoint(source) : source.type === "gpio-input" ? gpioEndpoint(source) : source.type === "gpio-output" ? gpioOutputEndpoint(source) : source.config.url}</code>
+                  <code>{source.type === "webhook" ? webhookUrl(source) : source.type === "mqtt" || source.type === "mqtt-output" ? mqttEndpoint(source) : source.type === "gpio-input" ? gpioEndpoint(source) : source.type === "gpio-output" ? gpioOutputEndpoint(source) : source.config.url}</code>
                 </td>
                 <td className={tableCellClass}>
                   <HealthCell source={source} status={healthStatuses[source.id]} />
@@ -83,19 +83,19 @@ export function DataSourcesList({
                   <RowActions>
                     <TableIconButton
                       type="button"
-                      disabled={busy || source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output"}
+                      disabled={busy || source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output" || source.type === "http-output" || source.type === "mqtt-output"}
                       title="Trigger manually"
                       aria-label={`Trigger ${source.name} manually`}
                       onClick={() => onRead(source)}
                     >
                       <Play size={16} />
                     </TableIconButton>
-                    {source.type === "gpio-output" && (
+                    {(source.type === "gpio-output" || source.type === "http-output" || source.type === "mqtt-output") && (
                       <TableIconButton
                         type="button"
                         disabled={busy}
-                        title="Test pulse"
-                        aria-label={`Test pulse ${source.name}`}
+                        title={source.type === "gpio-output" ? "Test pulse" : "Test output"}
+                        aria-label={`Test output ${source.name}`}
                         onClick={() => onTestOutput(source)}
                       >
                         <Zap size={16} />
@@ -150,8 +150,12 @@ function gpioOutputEndpoint(source: DataSource) {
   return `${source.config.profile ?? "led"} ${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"} active:${source.config.activeState ?? "high"}`;
 }
 
+function isInputSource(source: DataSource) {
+  return source.type === "json-api" || source.type === "internal-json-api" || source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input";
+}
+
 function HealthCell({ source, status }: { source: DataSource; status?: DataSourceHealthStatus }) {
-  if (source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output") return <span className="text-slate-500">Automation controlled</span>;
+  if (source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output" || source.type === "http-output" || source.type === "mqtt-output") return <span className="text-slate-500">Automation controlled</span>;
   if (!source.config.healthStatusUrl) return <span className="text-slate-500">Not configured</span>;
   if (!status) return <HealthStatus pending>Checking</HealthStatus>;
 

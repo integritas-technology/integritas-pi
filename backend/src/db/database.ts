@@ -142,7 +142,7 @@ export function runMigrations() {
     CREATE TABLE IF NOT EXISTS data_source_reads (
       id TEXT PRIMARY KEY,
       created_at TEXT NOT NULL,
-      data_source_id TEXT NOT NULL,
+      data_source_id TEXT,
       workflow_id TEXT,
       integritas_proof_id TEXT,
       source_name TEXT NOT NULL,
@@ -155,7 +155,7 @@ export function runMigrations() {
       trigger_source_id TEXT,
       trigger_payload_json TEXT,
       block_id TEXT,
-      FOREIGN KEY (data_source_id) REFERENCES data_sources(id) ON DELETE CASCADE,
+      FOREIGN KEY (data_source_id) REFERENCES data_sources(id) ON DELETE SET NULL,
       FOREIGN KEY (workflow_id) REFERENCES automation_workflows(id) ON DELETE SET NULL,
       FOREIGN KEY (integritas_proof_id) REFERENCES integritas_proofs(id) ON DELETE SET NULL,
       FOREIGN KEY (block_id) REFERENCES automation_blocks(id) ON DELETE SET NULL
@@ -165,6 +165,7 @@ export function runMigrations() {
   ensureColumn("data_source_reads", "trigger_source_id", "TEXT");
   ensureColumn("data_source_reads", "trigger_payload_json", "TEXT");
   ensureColumn("data_source_reads", "block_id", "TEXT");
+  migrateDataSourceReadsToPreserveDeletedSources();
 
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_data_source_reads_status_created
@@ -343,4 +344,58 @@ function resetLegacyAutomationSchema() {
 function ensureColumn(table: string, column: string, definition: string) {
   const columns = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
   if (!columns.some((item) => item.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+
+function migrateDataSourceReadsToPreserveDeletedSources() {
+  const columns = db.prepare("PRAGMA table_info(data_source_reads)").all() as { name: string; notnull: number }[];
+  const dataSourceIdColumn = columns.find((column) => column.name === "data_source_id");
+  const foreignKeys = db.prepare("PRAGMA foreign_key_list(data_source_reads)").all() as { from: string; table: string; on_delete: string }[];
+  const dataSourceForeignKey = foreignKeys.find((key) => key.from === "data_source_id" && key.table === "data_sources");
+
+  if (dataSourceIdColumn?.notnull !== 1 && dataSourceForeignKey?.on_delete?.toUpperCase() !== "CASCADE") return;
+
+  const foreignKeysEnabled = db.pragma("foreign_keys", { simple: true }) as number;
+  db.pragma("foreign_keys = OFF");
+
+  try {
+    db.exec(`
+    DROP TABLE IF EXISTS data_source_reads_new;
+
+    CREATE TABLE data_source_reads_new (
+      id TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      data_source_id TEXT,
+      workflow_id TEXT,
+      integritas_proof_id TEXT,
+      source_name TEXT NOT NULL,
+      source_url TEXT NOT NULL,
+      trigger_type TEXT NOT NULL,
+      status TEXT NOT NULL,
+      hash TEXT,
+      preview_json TEXT,
+      error TEXT,
+      trigger_source_id TEXT,
+      trigger_payload_json TEXT,
+      block_id TEXT,
+      FOREIGN KEY (data_source_id) REFERENCES data_sources(id) ON DELETE SET NULL,
+      FOREIGN KEY (workflow_id) REFERENCES automation_workflows(id) ON DELETE SET NULL,
+      FOREIGN KEY (integritas_proof_id) REFERENCES integritas_proofs(id) ON DELETE SET NULL,
+      FOREIGN KEY (block_id) REFERENCES automation_blocks(id) ON DELETE SET NULL
+    );
+
+    INSERT INTO data_source_reads_new (
+      id, created_at, data_source_id, workflow_id, integritas_proof_id, source_name, source_url,
+      trigger_type, status, hash, preview_json, error, trigger_source_id, trigger_payload_json, block_id
+    )
+    SELECT
+      id, created_at, data_source_id, workflow_id, integritas_proof_id, source_name, source_url,
+      trigger_type, status, hash, preview_json, error, trigger_source_id, trigger_payload_json, block_id
+    FROM data_source_reads;
+
+    DROP TABLE data_source_reads;
+    ALTER TABLE data_source_reads_new RENAME TO data_source_reads;
+  `);
+  } finally {
+    db.pragma(`foreign_keys = ${foreignKeysEnabled ? "ON" : "OFF"}`);
+  }
 }

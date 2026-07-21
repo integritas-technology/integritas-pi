@@ -5,7 +5,7 @@ import type { ParsedListQuery } from "../../shared/list-query.js";
 export type DataSourceReadRecord = {
   id: string;
   created_at: string;
-  data_source_id: string;
+  data_source_id: string | null;
   workflow_id: string | null;
   integritas_proof_id: string | null;
   source_name: string;

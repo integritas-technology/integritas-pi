@@ -37,6 +37,14 @@ curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi
 
 `ENABLE_GPIO=true` writes `/opt/integritas-pi/docker-compose.override.yml` with `/dev/gpiochip0` mounted into the backend container and detects the host GPIO group id. Leave it disabled unless this deployment needs GPIO hardware ingestion.
 
+To enable the optional local MQTT broker during install, pass `ENABLE_MQTT_BROKER=true`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/install.sh | sudo env ENABLE_MQTT_BROKER=true bash
+```
+
+The broker is exposed on `${MQTT_PUBLIC_PORT:-1883}` for trusted LAN devices and is available to backend containers as `mqtt://mqtt:1883`. It is disabled by default.
+
 The installer will:
 
 - Check that it runs as root or through `sudo`
@@ -76,7 +84,13 @@ APP_SECRET=dev-change-me
 DOCKER_GID=0
 ENABLE_GPIO=false
 GPIO_GID=0
+ENABLE_MQTT_BROKER=false
+COMPOSE_PROFILES=
+MQTT_PUBLIC_HOST=
+MQTT_PUBLIC_PORT=1883
+MQTT_INTERNAL_URL=mqtt://mqtt:1883
 MINIMA_DATA_DIR=./minima
+MINIMA_BACKUP_DIR=./minima-backup
 MINIMA_P2P_PORT=9003
 MINIMA_RPC_BIND=127.0.0.1
 MINIMA_RPC_PORT=9005
@@ -95,13 +109,20 @@ INTEGRITAS_PORTAL_URL=
 COOKIE_SECURE=true
 SESSION_MAX_AGE_DAYS=7
 SESSION_IDLE_HOURS=24
+MANIFEST_URL=
+MANIFEST_PUBLIC_KEY=
+RELEASE_CHANNEL=stable
+UPDATE_HEALTH_CHECK_TIMEOUT_MS=60000
+UPDATE_HEALTH_CHECK_INTERVAL_MS=2000
+UPDATE_PULL_TIMEOUT_MS=300000
+UPDATE_AGENT_STATE_DIR=./update-agent-state
 ```
 
 The installer sets `COOKIE_SECURE=true` for the default HTTPS Docker deploy. Use `COOKIE_SECURE=false` only for native `npm run dev` (HTTP on port 5173).
 
 `HOST_FILES_DIR` is mounted into the backend container as `/host-files:ro`. The `:ro` flag is intentional for this prototype.
 
-`MINIMA_DATA_DIR` is mounted into the Minima container as `/home/minima/data` so node data survives container restarts and updates.
+`MINIMA_DATA_DIR` is mounted into the Minima container as `/home/minima/data` so node data survives container restarts and updates. `MINIMA_BACKUP_DIR` is a separate host path `update-agent` copies that data into before a Minima update, and restores from if the update fails its health check. `UPDATE_AGENT_STATE_DIR` persists `update-agent`'s own bookkeeping (currently just the last successfully applied manifest's timestamp, used to reject replayed or downgraded manifests) across container restarts.
 
 `MINIMA_RPC_BIND` defaults to `127.0.0.1`, which means Minima RPC is only exposed on the Pi itself. Set it to `0.0.0.0` only on a trusted network.
 
@@ -126,6 +147,7 @@ GPIO input/output settings for tested button and LED wiring, plus suggested unte
 Proof stamping uses the Integritas Connect account API key stored encrypted in `integritas_auth.api_key_enc` after device linking. Link Integritas Connect from Auth Settings or during first-run setup. API keys are never exposed in the frontend bundle.
 
 `INTEGRITAS_DEVICE_POLL_INTERVAL_SECONDS` is how often the Pi polls Connect while device activation is pending (default `5`).
+`ENABLE_MQTT_BROKER=true` enables the optional local Mosquitto broker when `COMPOSE_PROFILES=mqtt` is also set. The installer sets both values when launched with `ENABLE_MQTT_BROKER=true`. The Devices page shows the LAN broker URL for external devices and the internal Docker URL for Integritas Pi MQTT input/output configs.
 
 The backend polls Integritas for pending proof UIDs in the background (`INTEGRITAS_POLL_INTERVAL_SECONDS`, default 30). Pending proofs that never reach on-chain status are marked failed after `INTEGRITAS_PROOF_POLL_TIMEOUT_MINUTES` (default 5). Automation workflows retry Integritas stamps on the next run after transient upstream errors. Manual poll in Diagnostics still works and uses the same refresh logic.
 
@@ -169,6 +191,10 @@ docker compose up -d --build frontend
 Future versions may support custom certificates or an external reverse proxy.
 
 `SESSION_MAX_AGE_DAYS` and `SESSION_IDLE_HOURS` control session lifetime (default 7 days max, 24 hours idle).
+
+`MANIFEST_URL` and `MANIFEST_PUBLIC_KEY` configure the `update-agent` service: the signed update manifest URL hosted on the VPS, and the Ed25519 public key (PEM) used to verify its signature. Leave `MANIFEST_URL` empty to disable update checks. The update UI is served at `https://<pi-ip>:8080/update` (same TLS cert/origin as the main app, proxied through `frontend`'s nginx — no extra browser approval). See [docs/plans/update-service.md](docs/plans/update-service.md) for the full design.
+
+`frontend`/`backend` are `build:`-based in `docker-compose.yml`, not pinned to a digest — re-running `install.sh` (or a bare `docker compose up -d --build`) rebuilds them from this checkout's source and silently reverts any updates applied via the Update page since. `git pull` the matching release tag first if you want to keep an update, or just use the Update page instead of re-running the installer on an already-updated device.
 
 To install with another file root or port:
 
@@ -279,6 +305,18 @@ Public API routes (no session required):
 - `POST /api/auth/login`
 
 All other `/api/*` routes require a valid session cookie.
+
+## Feedback Export
+
+Authenticated users can open the Feedback modal from the app shell sidebar. Feedback is saved locally on the Pi as one aggregate JSON file:
+
+```txt
+DATA_DIR/feedback/feedback-submissions.json
+```
+
+In the default Docker deploy this is inside the backend container at `/data/feedback/feedback-submissions.json` and on the host under the configured `DATA_DIR`.
+
+After submitting feedback, the modal offers a download action for the same aggregate JSON file so the user can send it manually. The export includes the current page, feedback area, feedback type, optional bug/feature details, description, browser context, non-secret app/user/device metadata, and lightweight app stats. It must not include passwords, TOTP secrets, session cookies, Integritas API keys, wallet seed phrases, or raw encrypted secret values.
 
 The CLI does not send session cookies in V1. Operational CLI commands that call protected APIs return `401 Unauthorized` until a future CLI auth story is added. Use the browser UI for authenticated operations.
 
@@ -429,6 +467,15 @@ Health:
 GET /api/health
 GET /api/status/overview
 ```
+
+Feedback:
+
+```http
+POST /api/feedback
+GET /api/feedback/export
+```
+
+`POST /api/feedback` appends a submission to the local aggregate JSON feedback export. `GET /api/feedback/export` downloads that file as `feedback-submissions.json`. Both routes require an authenticated browser session.
 
 `/api/status/overview` returns status for the frontend, backend, Minima node, and Integritas API, plus Docker container CPU/memory/image-size data when the Docker socket is available.
 

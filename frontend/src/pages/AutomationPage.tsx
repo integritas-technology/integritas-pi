@@ -452,7 +452,7 @@ function CreateWorkflowWorkspace({ name, enabled, sources, addressBook, walletSt
 function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChange, onAttachedChange, onAttachedRemove }: { block: DraftWorkflowBlock; sources: DataSource[]; addressBook: AddressBookEntry[]; walletStatus: WalletStatus | null; onChange: (config: AutomationBlock["config"]) => void; onAttachedChange: (attachedId: string, config: AutomationBlock["config"]) => void; onAttachedRemove: (attachedId: string) => void }) {
   const startSources = sourcesForStart(block.type, sources);
   const httpSources = sources.filter((source) => source.type === "json-api" || source.type === "internal-json-api");
-  const outputTargets = sources.filter((source) => source.type === "gpio-output");
+  const outputTargets = sources.filter((source) => isOutputTarget(source));
   const nativeTokens = nativeMinimaTokens(walletStatus);
 
   if (block.type.endsWith("_start")) {
@@ -499,13 +499,25 @@ function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChan
 
   if (block.type === "control_output") {
     const selectedOutput = outputTargets.find((source) => source.id === block.config.targetId);
+    const selectedAction = selectedOutput?.type === "gpio-output" ? "pulse" : selectedOutput?.type === "http-output" ? "send_request" : selectedOutput?.type === "mqtt-output" ? "publish" : "pulse";
+    const selectedBodyTargetType = selectedOutput?.type === "http-output" || selectedOutput?.type === "mqtt-output" ? selectedOutput.type : null;
+    const bodyMode = block.config.bodyMode ?? "workflow_context";
     return (
       <Panel className={formGridClass}>
         <strong>Selected block</strong>
-        <label>Output target<select value={block.config.targetId ?? ""} onChange={(event) => onChange({ targetId: event.target.value, action: "pulse", durationMs: block.config.durationMs ?? 500 })}><option value="">Select GPIO output...</option>{outputTargets.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>
-        <label>Pulse duration ms<input value={String(block.config.durationMs ?? 500)} inputMode="numeric" onChange={(event) => onChange({ ...block.config, action: "pulse", durationMs: Number(event.target.value) })} /></label>
-        {selectedOutput && <p className={mutedText}>Selected device active state: <strong>{selectedOutput.config.activeState ?? "high"}</strong>. Use High for common GPIO to resistor to LED to GND wiring. Change this from Devices by editing the GPIO Output target.</p>}
-        <p className={mutedText}>LED output only. Verify resistor wiring and test pulse before enabling.</p>
+        <label>Output target<select value={block.config.targetId ?? ""} onChange={(event) => {
+          const target = outputTargets.find((source) => source.id === event.target.value);
+          onChange(defaultOutputBlockConfig(target, block.config.durationMs ?? 500));
+        }}><option value="">Select output target...</option>{outputTargets.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>
+        {selectedOutput?.type === "gpio-output" && <label>Pulse duration ms<input value={String(block.config.durationMs ?? 500)} inputMode="numeric" onChange={(event) => onChange({ ...block.config, action: "pulse", durationMs: Number(event.target.value) })} /></label>}
+        {selectedOutput?.type === "gpio-output" && <p className={mutedText}>Selected device active state: <strong>{selectedOutput.config.activeState ?? "high"}</strong>. Use High for common GPIO to resistor to LED to GND wiring. Change this from Devices by editing the GPIO Output target.</p>}
+        {selectedBodyTargetType && <>
+          <label>{selectedBodyTargetType === "http-output" ? "Request body" : "Message payload"}<select value={bodyMode} onChange={(event) => onChange(outputBodyModeConfig(block.config, event.target.value as NonNullable<AutomationBlock["config"]["bodyMode"]>, selectedBodyTargetType))}>{outputBodyModes(selectedBodyTargetType).map((mode) => <option key={mode.value} value={mode.value}>{mode.label}</option>)}</select></label>
+          {bodyMode === "custom" && <label>Custom JSON<textarea rows={6} value={block.config.bodyTemplateText ?? defaultCustomBodyText()} onChange={(event) => onChange({ ...block.config, bodyMode: "custom", bodyTemplateText: event.target.value })} /></label>}
+          <p className={mutedText}>{bodyModeDescription(bodyMode, selectedBodyTargetType)}</p>
+        </>}
+        {!selectedOutput && <p className={mutedText}>Choose a configured output target from Devices.</p>}
+        {selectedAction === "pulse" && <p className={mutedText}>Verify resistor wiring and test pulse before enabling GPIO output workflows.</p>}
       </Panel>
     );
   }
@@ -543,7 +555,7 @@ function AttachedStampSettings({ block, onAttachedChange, onAttachedRemove }: { 
 
   return (
     <div className={cx(softCardClass, formGridClass)}>
-      <strong>+ Stamp with Integritas attached</strong>
+      <strong>+ Stamp data attached</strong>
       <label className="grid grid-cols-[auto_minmax(0,1fr)] items-center justify-start gap-2.5"><input className="w-auto" type="checkbox" checked={Boolean(conditionObject)} onChange={(event) => onAttachedChange(stamp.id, { condition: event.target.checked ? { source: "data", fieldPath: "active", operator: "equals", value: true } : null })} /> Only stamp when this block's data matches</label>
       {conditionObject && <>
         <p className={mutedText}>The condition checks the data produced by the Record/Fetch block this stamp is attached to.</p>
@@ -574,7 +586,10 @@ function defaultDraftConfig(type: AutomationBlockType, sources: DataSource[], po
   if (type === "gpio_event_start" || type === "webhook_event_start" || type === "mqtt_event_start") return { sourceId: defaultSourceForStart(type, sources)?.id ?? "" };
   if (type === "if_payload_field_equals") return { source: "trigger", fieldPath: "active", operator: "equals", value: true };
   if (type === "wait") return { durationMs: 1000 };
-  if (type === "control_output") return { targetId: sources.find((source) => source.type === "gpio-output")?.id ?? "", action: "pulse", durationMs: 500 };
+  if (type === "control_output") {
+    const target = sources.find((source) => isOutputTarget(source));
+    return defaultOutputBlockConfig(target, 500);
+  }
   if (type === "send_transaction") return { recipientAddressBookId: "", tokenId: "0x00", amount: "" };
   if (type === "stamp_integritas") return { condition: null };
   return {};
@@ -1005,9 +1020,9 @@ function blockLabel(block: AutomationBlock) {
   if (block.type === "fetch_data_source") return "Fetch data source";
   if (block.type === "if_payload_field_equals") return `If ${conditionSourceLabel(block.config.source ?? "trigger")} field matches`;
   if (block.type === "wait") return "Wait";
-  if (block.type === "stamp_integritas") return "Stamp with Integritas";
-  if (block.type === "control_output") return "Control output";
-  if (block.type === "send_transaction") return "Send transaction";
+  if (block.type === "stamp_integritas") return "Stamp data";
+  if (block.type === "control_output") return "Control device";
+  if (block.type === "send_transaction") return "Send payment";
   return block.type;
 }
 
@@ -1017,8 +1032,8 @@ function blockShortLabel(block: AutomationBlock) {
   if (block.type === "fetch_data_source") return "Fetch source";
   if (block.type === "if_payload_field_equals") return "If payload matches";
   if (block.type === "stamp_integritas") return "Stamp";
-  if (block.type === "control_output") return "Control output";
-  if (block.type === "send_transaction") return "Send transaction";
+  if (block.type === "control_output") return "Control device";
+  if (block.type === "send_transaction") return "Send payment";
   if (block.type === "wait") return "Wait";
   return block.type;
 }
@@ -1128,7 +1143,56 @@ function sourceLabel(source: DataSource) {
   if (source.type === "mqtt") return `${source.config.brokerUrl ?? "MQTT broker"} ${source.config.topic ?? ""}`;
   if (source.type === "gpio-input") return `${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"}`;
   if (source.type === "gpio-output") return `${source.config.profile ?? "led"} ${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"} active:${source.config.activeState ?? "high"}`;
+  if (source.type === "http-output") return `${source.config.method ?? "POST"} ${source.config.url ?? "HTTP output"}`;
+  if (source.type === "mqtt-output") return `${source.config.brokerUrl ?? "MQTT broker"} ${source.config.topic ?? ""}`;
   return source.config.url ?? "HTTP JSON API";
+}
+
+function isOutputTarget(source: DataSource) {
+  return source.type === "gpio-output" || source.type === "http-output" || source.type === "mqtt-output";
+}
+
+function outputActionForTarget(source: DataSource | undefined) {
+  if (source?.type === "http-output") return "send_request";
+  if (source?.type === "mqtt-output") return "publish";
+  return "pulse";
+}
+
+function defaultOutputBlockConfig(source: DataSource | undefined, durationMs: number): AutomationBlock["config"] {
+  if (source?.type === "gpio-output") return { targetId: source.id, action: "pulse", durationMs };
+  if (source?.type === "http-output") return { targetId: source.id, action: "send_request", bodyMode: "custom", bodyTemplateText: defaultCustomBodyText() };
+  if (source?.type === "mqtt-output") return { targetId: source.id, action: "publish", bodyMode: "workflow_context" };
+  return { targetId: "", action: "pulse", durationMs };
+}
+
+function outputBodyModeConfig(config: AutomationBlock["config"], bodyMode: NonNullable<AutomationBlock["config"]["bodyMode"]>, targetType: "http-output" | "mqtt-output"): AutomationBlock["config"] {
+  const next = { ...config, bodyMode };
+  if (bodyMode === "custom" && !next.bodyTemplateText) next.bodyTemplateText = defaultCustomBodyText();
+  if (bodyMode !== "custom") delete next.bodyTemplateText;
+  if (targetType === "mqtt-output" && bodyMode === "none") return { ...next, bodyMode: "workflow_context" };
+  return next;
+}
+
+function outputBodyModes(targetType: "http-output" | "mqtt-output") {
+  return [
+    { value: "custom", label: "Custom JSON" },
+    { value: "workflow_context", label: "Workflow context" },
+    { value: "trigger_payload", label: "Trigger payload" },
+    { value: "latest_data", label: "Latest data" },
+    ...(targetType === "http-output" ? [{ value: "none", label: "No body" }] : [])
+  ] as { value: NonNullable<AutomationBlock["config"]["bodyMode"]>; label: string }[];
+}
+
+function bodyModeDescription(bodyMode: AutomationBlock["config"]["bodyMode"], targetType: "http-output" | "mqtt-output") {
+  if (bodyMode === "custom") return targetType === "http-output" ? "Send exactly this JSON as the request body." : "Publish exactly this JSON as the message payload.";
+  if (bodyMode === "trigger_payload") return "Send only the event payload that started this workflow.";
+  if (bodyMode === "latest_data") return "Send the data recorded or fetched earlier in this workflow.";
+  if (bodyMode === "none") return "Send the request without a body.";
+  return "Send workflow trigger, data, output, hash, and proof references.";
+}
+
+function defaultCustomBodyText() {
+  return '{\n  "content": "Integritas Pi workflow triggered."\n}';
 }
 
 function formatInterval(seconds: number) {

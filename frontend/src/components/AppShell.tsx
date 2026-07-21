@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Layers3, ShieldCheck } from "lucide-react";
+import { Bug, Layers3, MessageSquare, ShieldCheck, Sparkles } from "lucide-react";
 import { nav } from "../app/nav";
 import type { StatusOverview } from "../app/types";
 import { SidebarUserBox } from "../features/auth/SidebarUserBox";
 import type { AuthUser } from "../features/auth/types";
+import { getDebugPing } from "../features/debug/debugApi";
+import { FeedbackModal } from "../features/feedback/FeedbackModal";
+import { useUpdateStatusRefresh } from "../features/update/useUpdateStatusRefresh";
 import { cx } from "../lib/cx";
+import { Button } from "./Button";
 import { Card } from "./Card";
 import { Clock } from "./Clock";
 import { StatusBadge } from "./StatusBadge";
@@ -20,14 +24,17 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
 
-  const activeItem = useMemo(
-    () => nav.find((item) => pathname === `/${item.id}`) ?? nav[0],
-    [pathname]
-  );
+  const activeItem = useMemo(() => {
+    const item = nav.find((navItem) => pathname === `/${navItem.id}`);
+    if (item) return item;
+    if (pathname === "/settings") return { ...nav[0], id: "settings" as const, label: "Settings" };
+    return nav[0];
+  }, [pathname]);
 
   const [overview, setOverview] = useState<StatusOverview | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/status/overview")
@@ -39,7 +46,27 @@ export function AppShell({
       .catch(() => setOverview(null));
   }, []);
 
-  const serviceIsOk = (name: string) => Boolean(overview?.services.find((service) => service.name === name)?.ok);
+  const serviceIsOk = (name: string) =>
+    Boolean(overview?.services.find((service) => service.name === name)?.ok);
+
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  useUpdateStatusRefresh((status) => {
+    setUpdateAvailable(
+      Boolean(status?.services.some((service) => !service.upToDate)),
+    );
+  });
+
+  const [debugPinging, setDebugPinging] = useState(false);
+  const [debugMessage, setDebugMessage] = useState<string | null>(null);
+
+  function pingDebugEndpoint() {
+    setDebugPinging(true);
+    setDebugMessage(null);
+    getDebugPing()
+      .then((data) => setDebugMessage(data.message))
+      .catch((error) => setDebugMessage(`Error: ${error.message}`))
+      .finally(() => setDebugPinging(false));
+  }
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -50,7 +77,11 @@ export function AppShell({
             <div><p className="m-0 text-[0.86rem] text-slate-400">Minima Edge Stack</p><h1 className="m-0 mt-0.5 text-base font-bold">Edge Workbench</h1></div>
           </div>
 
-          <SidebarUserBox user={user} onSignOut={onSignOut} onSettings={() => navigate("/settings")} />
+          <SidebarUserBox
+            user={user}
+            onSignOut={onSignOut}
+            onSettings={() => navigate("/settings")}
+          />
 
           <nav className="mt-3 grid gap-1">
             {nav.map(({ id, label, icon: Icon, badge }) => (
@@ -72,9 +103,33 @@ export function AppShell({
             ))}
           </nav>
 
+          {updateAvailable && (
+            <a
+              href="/update"
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-violet-700 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-violet-800"
+            >
+              <Sparkles size={16} /> Update available
+            </a>
+          )}
+
+          <Button className="mt-4 w-full" size="sm" variant="secondary" onClick={() => setFeedbackOpen(true)}>
+            <MessageSquare size={16} /> Feedback
+          </Button>
+
           <Card className="mt-6 bg-slate-50">
             <div className="flex items-center gap-2 font-bold"><ShieldCheck size={18} /> Edge gateway prototype</div>
             <p className="mt-3 text-slate-500">A browser-first workbench for node, wallet, verified data, and automation workflows at the edge.</p>
+          </Card>
+
+          <Card className="mt-4 bg-slate-50">
+            <div className="flex items-center gap-2 font-bold"><Bug size={18} /> debug v1</div>
+            <p className="mt-3 text-slate-500">
+              Checks that the frontend and backend you&apos;re looking at were both built from this change.
+            </p>
+            <Button className="mt-3 w-full" size="sm" variant="secondary" onClick={pingDebugEndpoint} disabled={debugPinging}>
+              {debugPinging ? "Pinging…" : "Ping backend"}
+            </Button>
+            {debugMessage && <p className="mt-2 wrap-break-word text-sm text-slate-500">{debugMessage}</p>}
           </Card>
         </aside>
 
@@ -90,7 +145,12 @@ export function AppShell({
                 <StatusBadge ok={serviceIsOk("integritas")}>Integritas connected</StatusBadge>
               </div>
             </div>
-            <div className="flex justify-start lg:justify-end"><Clock /></div>
+            <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
+              <Button size="sm" variant="secondary" className="lg:hidden" onClick={() => setFeedbackOpen(true)}>
+                <MessageSquare size={16} /> Feedback
+              </Button>
+              <Clock />
+            </div>
           </header>
 
           <div className="my-4 flex gap-2 overflow-x-auto pb-2 lg:hidden">
@@ -106,11 +166,17 @@ export function AppShell({
                 {label}
               </NavLink>
             ))}
+            {updateAvailable && (
+              <a href="/update" className="whitespace-nowrap rounded-full bg-violet-700 px-3 py-2 text-sm font-bold text-white">
+                Update
+              </a>
+            )}
           </div>
 
           {children}
         </main>
       </div>
+      {feedbackOpen && <FeedbackModal pagePath={`${pathname}${search}`} pageLabel={activeItem.label} onClose={() => setFeedbackOpen(false)} />}
     </div>
   );
 }

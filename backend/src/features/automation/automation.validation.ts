@@ -40,6 +40,9 @@ export type BlockConfig = {
   targetId?: string;
   action?: string;
   durationMs?: number;
+  bodyMode?: string;
+  bodyTemplateText?: string;
+  bodyTemplate?: unknown;
   source?: "trigger" | "data";
   fieldPath?: string;
   operator?: string;
@@ -158,18 +161,23 @@ function validateBlockReference(block: ValidationBlock, config: BlockConfig, iss
     if (block.type === "gpio_event_start" && source.type !== "gpio-input") addIssue(issues, "error", "gpio_event_start.invalid_source", "GPIO start requires a GPIO input source.", block);
     if (block.type === "webhook_event_start" && source.type !== "webhook") addIssue(issues, "error", "webhook_event_start.invalid_source", "Webhook start requires a webhook source.", block);
     if (block.type === "mqtt_event_start" && source.type !== "mqtt") addIssue(issues, "error", "mqtt_event_start.invalid_source", "MQTT start requires an MQTT source.", block);
-    if (block.type === "fetch_data_source" && (source.type === "gpio-input" || source.type === "gpio-output" || source.type === "webhook" || source.type === "mqtt")) addIssue(issues, "error", "fetch_data_source.invalid_source", "Fetch block requires an HTTP JSON source.", block);
+    if (block.type === "fetch_data_source" && (source.type === "gpio-input" || source.type === "gpio-output" || source.type === "webhook" || source.type === "mqtt" || source.type === "http-output" || source.type === "mqtt-output")) addIssue(issues, "error", "fetch_data_source.invalid_source", "Fetch block requires an HTTP JSON source.", block);
   }
 
   if (block.type === "control_output") {
     const target = config.targetId ? getDataSource(config.targetId) : undefined;
-    if (!target || target.type !== "gpio-output") {
+    if (!target || !isOutputTarget(target.type)) {
       addIssue(issues, "error", "control_output.missing_target", "Control output references a missing or non-output device.", block);
       return;
     }
-    const targetConfig = parseGpioOutputConfig(JSON.parse(target.config) as unknown);
-    if (targetConfig.profile !== "led") addIssue(issues, "error", "control_output.unsupported_profile", "Only LED output targets are supported.", block);
-    addIssue(issues, "warning", "control_output.hardware", "Control output drives GPIO hardware. Verify wiring and test pulse before enabling this workflow.", block);
+    if (target.type === "gpio-output") {
+      const targetConfig = parseGpioOutputConfig(JSON.parse(target.config) as unknown);
+      if (targetConfig.profile !== "led") addIssue(issues, "error", "control_output.unsupported_profile", "Only LED output targets are supported.", block);
+      addIssue(issues, "warning", "control_output.hardware", "Control output drives GPIO hardware. Verify wiring and test pulse before enabling this workflow.", block);
+    }
+    if (target.type === "http-output") addIssue(issues, "warning", "control_output.http", "Control output sends an HTTP request to the configured target when this workflow runs.", block);
+    if (target.type === "mqtt-output") addIssue(issues, "warning", "control_output.mqtt", "Control output publishes an MQTT message to the configured broker/topic when this workflow runs.", block);
+    validateOutputBodyConfig(block, config, target.type, issues);
   }
 
   if (block.type === "send_transaction") {
@@ -178,6 +186,27 @@ function validateBlockReference(block: ValidationBlock, config: BlockConfig, iss
     if (String(config.tokenId ?? "0x00").toLowerCase() !== "0x00") addIssue(issues, "error", "send_transaction.unsupported_token", "Send transaction currently supports only native MINIMA tokenid 0x00.", block);
     if (!isPositiveDecimal(String(config.amount ?? ""))) addIssue(issues, "error", "send_transaction.invalid_amount", "Send transaction requires a positive amount.", block);
     addIssue(issues, "warning", "send_transaction.moves_funds", "This block sends wallet funds automatically when the workflow runs.", block);
+  }
+}
+
+function isOutputTarget(type: string) {
+  return type === "gpio-output" || type === "http-output" || type === "mqtt-output";
+}
+
+function validateOutputBodyConfig(block: ValidationBlock, config: BlockConfig, targetType: string, issues: AutomationValidationIssue[]) {
+  if (targetType !== "http-output" && targetType !== "mqtt-output") return;
+  const bodyMode = String(config.bodyMode ?? "workflow_context");
+  if (bodyMode !== "custom" && bodyMode !== "workflow_context" && bodyMode !== "trigger_payload" && bodyMode !== "latest_data" && bodyMode !== "none") {
+    addIssue(issues, "error", "control_output.invalid_body_mode", "Output body mode is invalid.", block);
+  }
+  if (targetType === "mqtt-output" && bodyMode === "none") addIssue(issues, "error", "control_output.mqtt_body_required", "MQTT output requires a message payload.", block);
+  if (bodyMode === "custom") {
+    const text = typeof config.bodyTemplateText === "string" ? config.bodyTemplateText : JSON.stringify(config.bodyTemplate ?? {});
+    try {
+      JSON.parse(text) as unknown;
+    } catch {
+      addIssue(issues, "error", "control_output.invalid_custom_body", "Custom output body must be valid JSON.", block);
+    }
   }
 }
 

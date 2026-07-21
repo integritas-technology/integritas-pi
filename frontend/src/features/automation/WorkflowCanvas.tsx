@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { DataSource } from "../data-sources/dataSourceTypes";
+import { DarkHeroCard } from "../../components/DarkHeroCard";
 import { cx } from "../../lib/cx";
 import type { AutomationBlock, AutomationBlockType } from "./automationTypes";
 
@@ -30,7 +31,7 @@ export type WorkflowCanvasRuntimeState = {
 
 const mutedText = "text-sm text-slate-500";
 const shellClass = "grid gap-5 rounded-[28px] border border-slate-200 bg-white/92 p-4 shadow-[0_24px_60px_rgba(15,23,42,0.12)] sm:p-5";
-const topbarClass = "flex flex-col gap-4 rounded-[22px] bg-slate-950 p-5 text-white lg:flex-row lg:items-start lg:justify-between";
+const topbarClass = "flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between";
 const gridClass = "grid gap-4 xl:grid-cols-[280px_minmax(360px,1fr)_360px]";
 const rowActionsClass = "flex flex-wrap items-center gap-2";
 const neutralPillClass = "inline-flex w-fit items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-slate-600";
@@ -47,14 +48,14 @@ const blockActionClass = "rounded-full border-0 bg-white/90 px-2 py-1 text-xs fo
 export function WorkflowWorkspaceShell({ eyebrow, title, description, actions, left, center, right, bottom, notices }: { eyebrow: string; title: string; description: ReactNode; actions?: ReactNode; left: ReactNode; center: ReactNode; right: ReactNode; bottom?: ReactNode; notices?: ReactNode }) {
   return (
     <section className={shellClass}>
-      <div className={topbarClass}>
-        <div>
+      <DarkHeroCard layout="none" className={topbarClass}>
+        <div className="relative z-10">
           <span className="inline-flex w-fit items-center rounded-full bg-white/10 px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-slate-200">{eyebrow}</span>
           <h2>{title}</h2>
           {typeof description === "string" ? <p className="text-sm text-slate-300">{description}</p> : description}
         </div>
-        {actions && <div className={rowActionsClass}>{actions}</div>}
-      </div>
+        {actions && <div className={cx("relative z-10", rowActionsClass)}>{actions}</div>}
+      </DarkHeroCard>
       {notices}
       <div className={gridClass}>
         {left}
@@ -86,10 +87,10 @@ export function WorkflowBlockLibrary({ mode = "build", hasStartBlock, selectedBl
       <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("if_payload_field_equals")} title="If field matches" description="Stop unless a trigger/data field matches." />
       <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("wait")} title="Wait" description="Pause before the next block." />
       <strong>Action blocks</strong>
-      <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("control_output")} title="Pulse output" description="Pulse a configured GPIO LED output." />
-      <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("send_transaction")} title="Send transaction" description="Send native MINIMA to an address book recipient." />
+      <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("control_output")} title="Control device" description="Send a command to a configured output target." />
+      <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("send_transaction")} title="Send payment" description="Send funds to a saved recipient." />
       <strong>Attached actions</strong>
-      <LibraryCard disabled={!selectedBlock || !isDataBlock(selectedBlock.type) || Boolean(selectedBlock.attachedBlocks?.some((block) => block.type === "stamp_integritas"))} onClick={() => selectedBlock && onAttachStamp(selectedBlock.id)} title="Stamp with Integritas" description="Select a Record or Fetch block to attach a stamp." />
+      <LibraryCard disabled={!selectedBlock || !isDataBlock(selectedBlock.type) || Boolean(selectedBlock.attachedBlocks?.some((block) => block.type === "stamp_integritas"))} onClick={() => selectedBlock && onAttachStamp(selectedBlock.id)} title="Stamp data" description="Create an Integritas proof for recorded or fetched data." />
     </aside>
   );
 }
@@ -209,9 +210,9 @@ export function draftBlockTitle(block: { type: AutomationBlockType }) {
   if (block.type === "mqtt_event_start") return "MQTT message received";
   if (block.type === "record_trigger_event") return "Record trigger event";
   if (block.type === "fetch_data_source") return "Fetch HTTP JSON";
-  if (block.type === "stamp_integritas") return "Stamp with Integritas";
-  if (block.type === "control_output") return "Pulse output";
-  if (block.type === "send_transaction") return "Send transaction";
+  if (block.type === "stamp_integritas") return "Stamp data";
+  if (block.type === "control_output") return "Control device";
+  if (block.type === "send_transaction") return "Send payment";
   return block.type;
 }
 
@@ -224,8 +225,8 @@ export function draftBlockDescription(block: { type: AutomationBlockType; config
   if (block.type === "record_trigger_event") return "Stores the trigger payload as a data read.";
   if (block.type === "fetch_data_source") return "Fetches JSON and creates a hash.";
   if (block.type === "stamp_integritas") return "Stamp this data block's hash.";
-  if (block.type === "control_output") return `Pulse configured LED output for ${block.config.durationMs ?? 0} ms.`;
-  if (block.type === "send_transaction") return `Send ${block.config.amount || "?"} native MINIMA.`;
+  if (block.type === "control_output") return "Send a command to a configured output target.";
+  if (block.type === "send_transaction") return `Send ${block.config.amount || "?"} to a saved recipient.`;
   return "Select a source in Setup.";
 }
 
