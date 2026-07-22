@@ -43,7 +43,7 @@ To enable Raspberry Pi camera capture devices during install, pass `ENABLE_CAMER
 curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/install.sh | sudo env ENABLE_CAMERA=true bash
 ```
 
-`ENABLE_CAMERA=true` installs and starts a host-side `integritas-pi-camera-helper` systemd service bound to `127.0.0.1`, generates a `CAMERA_HELPER_TOKEN`, and writes backend configuration so the Docker backend can call the helper through `host.docker.internal`. Leave it disabled unless this deployment needs camera capture workflows.
+`ENABLE_CAMERA=true` installs and starts a host-side `integritas-pi-camera-helper` systemd service, generates a `CAMERA_HELPER_TOKEN`, and writes backend configuration so the Docker backend can call the helper through the fixed Integritas Pi Compose gateway. Leave it disabled unless this deployment needs camera capture workflows.
 
 `ENABLE_CAMERA=true` does not install host camera drivers or enable the Raspberry Pi camera stack. Before using camera workflows, verify the Pi host can see the camera with `libcamera-still --list-cameras` or `rpicam-still --list-cameras`. Camera Module 3 (`imx708`) requires a host OS/kernel/libcamera stack that supports it. The helper uses the host camera tools, not camera binaries inside the backend container.
 
@@ -96,13 +96,15 @@ ENABLE_GPIO=false
 GPIO_GID=0
 ENABLE_CAMERA=false
 CAMERA_CAPTURE_DIR=/data/captures
-CAMERA_HELPER_URL=http://host.docker.internal:38180
+CAMERA_HELPER_URL=http://172.30.0.1:38180
 CAMERA_HELPER_TOKEN=
 CAMERA_HELPER_PORT=38180
 CAMERA_MAX_DURATION_SECONDS=30
 CAMERA_RETENTION_DAYS=7
 CAMERA_PHOTO_COMMAND=rpicam-still
 CAMERA_VIDEO_COMMAND=rpicam-vid
+INTEGRITAS_DOCKER_SUBNET=172.30.0.0/24
+INTEGRITAS_DOCKER_GATEWAY=172.30.0.1
 ENABLE_MQTT_BROKER=false
 COMPOSE_PROFILES=
 MQTT_PUBLIC_HOST=
@@ -160,7 +162,7 @@ GPIO input/output settings for tested button and LED wiring, plus suggested unte
 
 `ENABLE_CAMERA=true` lets the installer create a host-side Python camera helper service. The Devices page enables the Pi Camera capture device type only when the helper reports usable host camera commands and at least one detected camera. Camera support stays disabled by default because it grants the app a way to trigger host camera capture and captured images/video may contain private data.
 
-Pi Camera devices are capture/input devices, not generic output targets. Automation workflows use a `Capture camera` data block to capture a photo or short video clip, hash the captured media bytes, store capture metadata in read history, and optionally attach `Stamp data` to create an Integritas proof for the media hash. Captured media is stored locally under `CAMERA_CAPTURE_DIR` (`/data/captures` in Docker, mapped to the host data directory for the helper). `CAMERA_MAX_DURATION_SECONDS` limits per-capture video duration. `CAMERA_PHOTO_COMMAND` and `CAMERA_VIDEO_COMMAND` default to `rpicam-still` and `rpicam-vid`; the Python helper also falls back to `libcamera-still` and `libcamera-vid`. The helper uses only Python's standard library and is intended as the extension point for future USB/RTSP/HTTP camera backends.
+Pi Camera devices are capture/input devices, not generic output targets. Automation workflows use a `Capture camera` data block to capture a photo or short video clip, hash the captured media bytes, store capture metadata in read history, and optionally attach `Stamp data` to create an Integritas proof for the media hash. Captured media is stored locally under `CAMERA_CAPTURE_DIR` (`/data/captures` in Docker, mapped to the host data directory for the helper). `CAMERA_MAX_DURATION_SECONDS` limits per-capture video duration. `CAMERA_PHOTO_COMMAND` and `CAMERA_VIDEO_COMMAND` default to `rpicam-still` and `rpicam-vid`; the Python helper also falls back to `libcamera-still` and `libcamera-vid`. `INTEGRITAS_DOCKER_SUBNET` and `INTEGRITAS_DOCKER_GATEWAY` pin the Compose network so the backend has a stable route to the host helper after reboot/redeploy. The helper uses only Python's standard library and is intended as the extension point for future USB/RTSP/HTTP camera backends.
 
 `INTEGRITAS_CONNECT_BASE_URL` is the Integritas Connect host used for device activation and account linking (default `https://integritas.technology`).
 

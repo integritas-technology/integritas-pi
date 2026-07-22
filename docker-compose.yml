@@ -28,7 +28,7 @@ services:
       MQTT_INTERNAL_URL: ${MQTT_INTERNAL_URL:-mqtt://mqtt:1883}
       ENABLE_CAMERA: ${ENABLE_CAMERA:-false}
       CAMERA_CAPTURE_DIR: ${CAMERA_CAPTURE_DIR:-/data/captures}
-      CAMERA_HELPER_URL: ${CAMERA_HELPER_URL:-http://host.docker.internal:38180}
+      CAMERA_HELPER_URL: ${CAMERA_HELPER_URL:-http://${INTEGRITAS_DOCKER_GATEWAY:-172.30.0.1}:38180}
       CAMERA_HELPER_TOKEN: ${CAMERA_HELPER_TOKEN:-}
       CAMERA_MAX_DURATION_SECONDS: ${CAMERA_MAX_DURATION_SECONDS:-30}
       CAMERA_RETENTION_DAYS: ${CAMERA_RETENTION_DAYS:-7}
@@ -128,3 +128,7 @@ services:
 networks:
   integritas:
     name: integritas-pi
+    ipam:
+      config:
+        - subnet: ${INTEGRITAS_DOCKER_SUBNET:-172.30.0.0/24}
+          gateway: ${INTEGRITAS_DOCKER_GATEWAY:-172.30.0.1}

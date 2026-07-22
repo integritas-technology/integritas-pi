@@ -59,7 +59,7 @@ export async function capturePiCamera(input: { sourceId: string; durationMs?: nu
     durationMs,
     fps: config.fps,
     sourceName: source.name
-  }) as CameraCapturePreview;
+  }, Math.max(durationMs + 10000, 15000)) as CameraCapturePreview;
 
   const filePath = resolveCapturePath(preview.path);
   const [bytes, stat] = await Promise.all([fs.readFile(filePath), fs.stat(filePath)]);
@@ -70,15 +70,27 @@ export async function capturePiCamera(input: { sourceId: string; durationMs?: nu
   return { contentType: verifiedPreview.mediaType, bytesHash: hash, canonicalBytes: `${JSON.stringify(verifiedPreview, null, 2)}\n`, preview: verifiedPreview, sizeBytes: stat.size };
 }
 
-async function cameraHelperRequest(pathname: string, body?: unknown) {
-  const response = await fetch(`${env.cameraHelperUrl.replace(/\/$/, "")}${pathname}`, {
-    method: body === undefined ? "GET" : "POST",
-    headers: {
-      ...(env.cameraHelperToken ? { Authorization: `Bearer ${env.cameraHelperToken}` } : {}),
-      ...(body === undefined ? {} : { "Content-Type": "application/json" })
-    },
-    body: body === undefined ? undefined : JSON.stringify(body)
-  });
+async function cameraHelperRequest(pathname: string, body?: unknown, timeoutMs = 1500) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  let response: Response;
+  try {
+    response = await fetch(`${env.cameraHelperUrl.replace(/\/$/, "")}${pathname}`, {
+      method: body === undefined ? "GET" : "POST",
+      headers: {
+        ...(env.cameraHelperToken ? { Authorization: `Bearer ${env.cameraHelperToken}` } : {}),
+        ...(body === undefined ? {} : { "Content-Type": "application/json" })
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error(`request timed out after ${timeoutMs}ms`);
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const payload = await response.json().catch(() => null) as { error?: string } | null;
   if (!response.ok) throw new Error(payload?.error ?? `Camera helper returned HTTP ${response.status}`);
