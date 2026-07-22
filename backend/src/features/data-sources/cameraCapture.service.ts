@@ -35,7 +35,8 @@ export async function getCameraCapability() {
   }
 
   try {
-    const response = await cameraHelperRequest("/capabilities");
+    await cameraHelperRequest("/health", undefined, 1500, false);
+    const response = await cameraHelperRequest("/capabilities", undefined, 10000);
     return { enabled: true, captureDir: env.cameraCaptureDir, ...response };
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Camera helper is unavailable";
@@ -70,7 +71,7 @@ export async function capturePiCamera(input: { sourceId: string; durationMs?: nu
   return { contentType: verifiedPreview.mediaType, bytesHash: hash, canonicalBytes: `${JSON.stringify(verifiedPreview, null, 2)}\n`, preview: verifiedPreview, sizeBytes: stat.size };
 }
 
-async function cameraHelperRequest(pathname: string, body?: unknown, timeoutMs = 1500) {
+async function cameraHelperRequest(pathname: string, body?: unknown, timeoutMs = 1500, includeAuth = true) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -79,7 +80,7 @@ async function cameraHelperRequest(pathname: string, body?: unknown, timeoutMs =
     response = await fetch(`${env.cameraHelperUrl.replace(/\/$/, "")}${pathname}`, {
       method: body === undefined ? "GET" : "POST",
       headers: {
-        ...(env.cameraHelperToken ? { Authorization: `Bearer ${env.cameraHelperToken}` } : {}),
+        ...(includeAuth && env.cameraHelperToken ? { Authorization: `Bearer ${env.cameraHelperToken}` } : {}),
         ...(body === undefined ? {} : { "Content-Type": "application/json" })
       },
       body: body === undefined ? undefined : JSON.stringify(body),
