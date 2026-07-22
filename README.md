@@ -395,6 +395,40 @@ cd /opt/integritas-pi
 docker compose down
 ```
 
+## Reset The Database
+
+To wipe an installed app's entire SQLite database (all users, sessions, Integritas history, data sources, and automation workflows), run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/scripts/dev/clear-db.sh | sudo bash
+```
+
+It stops the `backend` container, deletes `integritas-pi.db` from the app's data directory, then restarts `backend` so migrations recreate a fresh schema. You'll be prompted to confirm before anything is deleted.
+
+To clear only part of the database instead, set `TARGET`:
+
+```bash
+# Local accounts, sessions, setup wizard state, and Integritas Connect pairing.
+# Forces redoing the setup wizard and Integritas Connect.
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/scripts/dev/clear-db.sh | sudo TARGET=users bash
+
+# Integritas proof history, data source read history, and automation workflow
+# run logs (the Diagnostics tabs). Leaves accounts, data sources, and workflow
+# definitions untouched.
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/scripts/dev/clear-db.sh | sudo TARGET=history bash
+
+# Data sources and automation workflows/blocks. Leaves accounts and history untouched.
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/scripts/dev/clear-db.sh | sudo TARGET=automation bash
+```
+
+`TARGET` defaults to `all` (the full database-file wipe above); the scoped targets run SQL deletes against just those tables using the already-built `backend` image, instead of deleting the whole file.
+
+If the app is installed somewhere other than the default `/opt/integritas-pi`, set `APP_DIR`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/scripts/dev/clear-db.sh | sudo APP_DIR=/opt/integritas-pi bash
+```
+
 ## Update The App
 
 Run the installer again:
