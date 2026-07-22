@@ -299,7 +299,7 @@ resolve_images() {
     log "DEV_MODE enabled: skipping manifest fetch/signature verification and update agent; building frontend/backend from source"
     FRONTEND_IMAGE="integritas-pi-frontend:dev"
     BACKEND_IMAGE="integritas-pi-backend:dev"
-    UPDATE_AGENT_IMAGE=""
+    UPDATE_AGENT_IMAGE="integritas-pi-update-agent:dev"
     MANIFEST_VERSION=""
     MANIFEST_CREATED_AT=""
     return
