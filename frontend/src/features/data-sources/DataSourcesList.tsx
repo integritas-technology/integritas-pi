@@ -12,6 +12,7 @@ import {
   tableRowClass,
 } from "../../components/DataTable";
 import { JsonPreview } from "../../components/JsonPreview";
+import { ErrorDetails } from "../../components/ErrorDetails";
 import { MutedText } from "../../components/Text";
 import type { DataSource, DataSourceHealthStatus } from "./dataSourceTypes";
 
@@ -74,7 +75,7 @@ export function DataSourcesList({
                   {source.lastPreview ? (
                     <JsonPreview value={source.lastPreview} />
                   ) : source.lastError ? (
-                    <span className="grid gap-2"><HealthStatus ok={false}>Read failed</HealthStatus><JsonPreview value={{ error: source.lastError }} label="View error" /></span>
+                    <span className="grid gap-2"><HealthStatus ok={false}>Device error</HealthStatus><ErrorDetails error={source.lastErrorDetails ?? source.lastError} label="View error" /></span>
                   ) : (
                     <span className="text-slate-500">No preview</span>
                   )}

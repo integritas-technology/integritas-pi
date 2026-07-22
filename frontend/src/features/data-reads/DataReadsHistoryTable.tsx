@@ -1,4 +1,5 @@
 import { DataTable, EmptyTableState, TableCard, TableWrap, tableCellClass, tableHeaderCellClass, tableHeadRowClass, tableRowClass } from "../../components/DataTable";
+import { ErrorDetails } from "../../components/ErrorDetails";
 import { JsonPreview } from "../../components/JsonPreview";
 import { Pill } from "../../components/Pill";
 import { ErrorText, MutedText } from "../../components/Text";
@@ -26,7 +27,7 @@ export function DataReadsHistoryTable({
                 <td className={tableCellClass}>{item.status === "success" ? <Pill tone="good">Success</Pill> : <Pill tone="warn">Failed</Pill>}</td>
                 <td className={tableCellClass}>{item.hash ? <code>{item.hash}</code> : <span className="text-slate-500">No hash</span>}</td>
                 <td className={tableCellClass}>{item.integritasProofId ? <code>{item.integritasProofId}</code> : <span className="text-slate-500">No proof</span>}</td>
-                <td className={tableCellClass}>{item.preview ? <JsonPreview value={item.preview} /> : item.error ? <ErrorText className="m-0">{item.error}</ErrorText> : <span className="text-slate-500">No data</span>}</td>
+                <td className={tableCellClass}>{item.preview ? <JsonPreview value={item.preview} /> : item.error ? <span className="grid gap-2"><ErrorText className="m-0">{item.error}</ErrorText><ErrorDetails error={item.errorDetails ?? item.error} label="View error" /></span> : <span className="text-slate-500">No data</span>}</td>
               </tr>
             ))}
           </tbody>

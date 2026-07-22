@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { env } from "../../config/env.js";
+import { apiErrorFromStatus, unexpected } from "../../shared/api-error.js";
 import { authRateLimiter } from "./rate-limit.middleware.js";
 import {
   completeSetup,
@@ -26,9 +27,9 @@ setupRouter.post("/totp/init", authRateLimiter, async (_req, res) => {
     return res.json(result);
   } catch (error) {
     if (error instanceof SetupError) {
-      return res.status(error.status).json({ error: error.message });
+      return apiErrorFromStatus(res, error.status, error.message);
     }
-    return res.status(500).json({ error: "Failed to initialize TOTP setup" });
+    return unexpected(res, "Failed to initialize TOTP setup", error);
   }
 });
 
@@ -39,9 +40,9 @@ setupRouter.post("/totp/verify", authRateLimiter, async (req, res) => {
     return res.json(result);
   } catch (error) {
     if (error instanceof SetupError) {
-      return res.status(error.status).json({ error: error.message });
+      return apiErrorFromStatus(res, error.status, error.message);
     }
-    return res.status(500).json({ error: "Failed to verify TOTP code" });
+    return unexpected(res, "Failed to verify TOTP code", error);
   }
 });
 
@@ -54,8 +55,8 @@ setupRouter.post("/complete", authRateLimiter, async (req, res) => {
     return res.json({ success: true, user: result.user });
   } catch (error) {
     if (error instanceof SetupError) {
-      return res.status(error.status).json({ error: error.message });
+      return apiErrorFromStatus(res, error.status, error.message);
     }
-    return res.status(500).json({ error: "Failed to complete setup" });
+    return unexpected(res, "Failed to complete setup", error);
   }
 });

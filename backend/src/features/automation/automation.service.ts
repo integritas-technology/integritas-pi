@@ -12,6 +12,7 @@ import type { IntegritasApiFailure } from "../integritas/integritas.types.js";
 import { getIntegritasApiKey } from "../settings/secrets.service.js";
 import { getWalletStatus, recordWalletSendHistory, sendPayment } from "../wallet/wallet.service.js";
 import { sha3HashHex } from "../../shared/crypto.js";
+import { blockError, errorFromUnknown, errorMessage, parseStoredError, workflowError, type StructuredError } from "../../shared/structured-error.js";
 import {
   getAutomationWorkflow,
   listAutomationBlocks,
@@ -75,6 +76,7 @@ const runningWorkflowIds = new Set<string>();
 let scheduler: NodeJS.Timeout | null = null;
 
 export function serializeAutomationWorkflow(record: AutomationWorkflowRecord) {
+  const lastErrorDetails = parseStoredError(record.last_error);
   const blocks = listAutomationBlocks(record.id).map(serializeAutomationBlock);
   return {
     id: record.id,
@@ -87,12 +89,14 @@ export function serializeAutomationWorkflow(record: AutomationWorkflowRecord) {
     nextRunAt: record.next_run_at,
     lastHash: record.last_hash,
     lastProofId: record.last_proof_id,
-    lastError: record.last_error,
+    lastError: errorMessage(record.last_error),
+    lastErrorDetails,
     blocks
   };
 }
 
 export function serializeAutomationBlock(record: AutomationBlockRecord) {
+  const lastErrorDetails = parseStoredError(record.last_error);
   return {
     id: record.id,
     workflowId: record.workflow_id,
@@ -104,11 +108,13 @@ export function serializeAutomationBlock(record: AutomationBlockRecord) {
     parentBlockId: record.parent_block_id,
     config: JSON.parse(record.config_json) as unknown,
     lastRunAt: record.last_run_at,
-    lastError: record.last_error
+    lastError: errorMessage(record.last_error),
+    lastErrorDetails
   };
 }
 
 export function serializeAutomationRun(record: AutomationRunRecord) {
+  const errorDetails = parseStoredError(record.error);
   return {
     id: record.id,
     workflowId: record.workflow_id,
@@ -121,12 +127,14 @@ export function serializeAutomationRun(record: AutomationRunRecord) {
     triggerPayload: record.trigger_payload_json ? JSON.parse(record.trigger_payload_json) as unknown : null,
     durationMs: record.duration_ms,
     blockCount: record.block_count,
-    error: record.error,
+    error: errorMessage(record.error),
+    errorDetails,
     blocks: listAutomationBlockRuns(record.id).map(serializeAutomationBlockRun)
   };
 }
 
 export function serializeAutomationBlockRun(record: AutomationBlockRunRecord) {
+  const errorDetails = parseStoredError(record.error);
   return {
     id: record.id,
     runId: record.run_id,
@@ -141,7 +149,8 @@ export function serializeAutomationBlockRun(record: AutomationBlockRunRecord) {
     durationMs: record.duration_ms,
     input: record.input_json ? JSON.parse(record.input_json) as unknown : null,
     output: record.output_json ? JSON.parse(record.output_json) as unknown : null,
-    error: record.error
+    error: errorMessage(record.error),
+    errorDetails
   };
 }
 
@@ -195,10 +204,10 @@ export async function executeWorkflow(workflow: AutomationWorkflowRecord, trigge
     finishAutomationRun(run.id, { status: "success" });
     return { workflow: serializeAutomationWorkflow(updatedWorkflow), dataSource: context.data?.sourceId ? serializeDataSource(getDataSource(context.data.sourceId)!) : null, proofId: context.proofId ?? null };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Automation workflow failed";
-    const updatedWorkflow = updateAutomationRunError(workflow.id, message, { hash: context.hash ?? null, proofId: context.proofId ?? null, nextRunAt });
-    if (run) finishAutomationRun(run.id, { status: "failed", error: message });
-    throw Object.assign(error instanceof Error ? error : new Error(message), { workflow: serializeAutomationWorkflow(updatedWorkflow) });
+    const details = workflowError({ type: "block_failed", ...errorFromUnknown(error, "Automation workflow failed", { workflowId: workflow.id }), message: error instanceof Error ? error.message : "Automation workflow failed" });
+    const updatedWorkflow = updateAutomationRunError(workflow.id, details, { hash: context.hash ?? null, proofId: context.proofId ?? null, nextRunAt });
+    if (run) finishAutomationRun(run.id, { status: "failed", error: details });
+    throw Object.assign(error instanceof Error ? error : new Error(details.message), { workflow: serializeAutomationWorkflow(updatedWorkflow), errorDetails: details });
   } finally {
     runningWorkflowIds.delete(workflow.id);
   }
@@ -216,13 +225,6 @@ export async function recordPushAutomationPayload(input: {
     sourceId: input.dataSource.id,
     payload: input.result.preview
   });
-}
-
-export function recordPushAutomationError(input: { workflow: AutomationWorkflowRecord; dataSource: { id: string; name: string }; sourceUrl: string; triggerType: "webhook" | "mqtt" | "gpio"; error: string }) {
-  updateDataSourceReadResult(input.dataSource.id, { error: input.error });
-  createDataSourceRead({ dataSourceId: input.dataSource.id, workflowId: input.workflow.id, sourceName: input.dataSource.name, sourceUrl: input.sourceUrl, triggerType: input.triggerType, status: "failed", error: input.error, triggerSourceId: input.dataSource.id });
-  const updatedWorkflow = updateAutomationRunError(input.workflow.id, input.error);
-  return { workflow: serializeAutomationWorkflow(updatedWorkflow) };
 }
 
 function validateStartBlock(block: AutomationBlockRecord, trigger: WorkflowContext["trigger"]) {
@@ -258,10 +260,26 @@ async function executeBlock(workflow: AutomationWorkflowRecord, block: Automatio
     finishAutomationBlockRun(blockRun.id, { status, output: contextSummary(context) });
     return;
   } catch (error) {
-    updateAutomationBlockRun(block.id, { error: error instanceof Error ? error.message : "Block failed" });
-    finishAutomationBlockRun(blockRun.id, { status: "failed", output: contextSummary(context), error: error instanceof Error ? error.message : "Block failed" });
+    const details = blockError({ type: blockErrorType(block.type, error), ...errorFromUnknown(error, "Block failed", { workflowId: workflow.id, blockId: block.id, blockType: block.type, blockLabel: blockLabel(block.type) }), message: friendlyBlockErrorMessage(block.type, error) });
+    updateAutomationBlockRun(block.id, { error: details });
+    finishAutomationBlockRun(blockRun.id, { status: "failed", output: contextSummary(context), error: details });
     throw error;
   }
+}
+
+function blockErrorType(blockType: string, error: unknown) {
+  const code = error && typeof error === "object" && "code" in error ? (error as { code?: unknown }).code : undefined;
+  if (code === "ENOENT") return "command_unavailable";
+  if (blockType === "stamp_integritas") return "stamp_failed";
+  if (blockType === "if_payload_field_equals") return "condition_failed";
+  if (blockType === "capture_camera" || blockType === "control_output" || blockType === "send_transaction") return "action_failed";
+  return "block_failed";
+}
+
+function friendlyBlockErrorMessage(blockType: string, error: unknown) {
+  const code = error && typeof error === "object" && "code" in error ? (error as { code?: unknown }).code : undefined;
+  if (blockType === "capture_camera" && code === "ENOENT") return "Camera command is not available";
+  return error instanceof Error ? error.message : "Block failed";
 }
 
 function recordTriggerEvent(workflow: AutomationWorkflowRecord, block: AutomationBlockRecord, context: WorkflowContext) {

@@ -10,6 +10,7 @@ export type AutomationWorkflow = {
   lastHash: string | null;
   lastProofId: string | null;
   lastError: string | null;
+  lastErrorDetails?: unknown;
   blocks: AutomationBlock[];
 };
 
@@ -69,6 +70,7 @@ export type AutomationBlock = {
   };
   lastRunAt: string | null;
   lastError: string | null;
+  lastErrorDetails?: unknown;
 };
 
 export type AutomationRun = {
@@ -84,6 +86,7 @@ export type AutomationRun = {
   durationMs: number | null;
   blockCount: number;
   error: string | null;
+  errorDetails?: unknown;
   blocks: AutomationBlockRun[];
 };
 
@@ -102,6 +105,7 @@ export type AutomationBlockRun = {
   input: unknown;
   output: unknown;
   error: string | null;
+  errorDetails?: unknown;
 };
 
 export type AutomationValidationIssue = {

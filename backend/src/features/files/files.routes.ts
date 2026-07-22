@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { badRequest, forbidden, notFound, unexpected } from "../../shared/api-error.js";
 import { requireRole } from "../auth/auth.middleware.js";
 import { listFiles } from "./files.service.js";
 
@@ -13,12 +14,12 @@ filesRouter.get("/", async (req, res) => {
     res.json(await listFiles(requestedPath));
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
-    if (code === "OUTSIDE_ROOT") return res.status(403).json({ error: "Path is outside the allowed directory" });
-    if (code === "NOT_DIRECTORY") return res.status(400).json({ error: "Path must be a directory" });
-    if (code === "ENOENT") return res.status(404).json({ error: "Path not found" });
-    if (code === "EACCES" || code === "EPERM") return res.status(403).json({ error: "Permission denied" });
+    if (code === "OUTSIDE_ROOT") return forbidden(res, "Path is outside the allowed directory");
+    if (code === "NOT_DIRECTORY") return badRequest(res, "Path must be a directory", { path: requestedPath });
+    if (code === "ENOENT") return notFound(res, "Path not found");
+    if (code === "EACCES" || code === "EPERM") return forbidden(res, "Permission denied");
 
     console.error(error);
-    return res.status(500).json({ error: "Failed to list files" });
+    return unexpected(res, "Failed to list files", error, { path: requestedPath });
   }
 });

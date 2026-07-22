@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { db } from "../../db/database.js";
+import { serializeStructuredError, type StructuredError } from "../../shared/structured-error.js";
 
 export type AutomationBlockType =
   | "manual_start"
@@ -122,7 +123,7 @@ export function createAutomationWorkflow(input: { name: string; enabled: boolean
   return getAutomationWorkflow(id)!;
 }
 
-export function updateAutomationWorkflow(id: string, input: { name?: string; enabled?: boolean; archived?: boolean; nextRunAt?: string | null; lastError?: string | null }) {
+export function updateAutomationWorkflow(id: string, input: { name?: string; enabled?: boolean; archived?: boolean; nextRunAt?: string | null; lastError?: string | StructuredError | null }) {
   const current = getAutomationWorkflow(id);
   if (!current) return undefined;
   db.prepare(`
@@ -135,7 +136,7 @@ export function updateAutomationWorkflow(id: string, input: { name?: string; ena
     input.enabled === undefined ? current.enabled : input.enabled ? 1 : 0,
     input.archived === undefined ? current.archived : input.archived ? 1 : 0,
     input.nextRunAt === undefined ? current.next_run_at : input.nextRunAt,
-    input.lastError === undefined ? current.last_error : input.lastError,
+    input.lastError === undefined ? current.last_error : serializeStructuredError(input.lastError),
     id
   );
   return getAutomationWorkflow(id)!;
@@ -177,18 +178,18 @@ export function updateAutomationRunSuccess(id: string, input: { hash?: string | 
   return getAutomationWorkflow(id)!;
 }
 
-export function updateAutomationRunError(id: string, error: string, input: { hash?: string | null; proofId?: string | null; nextRunAt?: string | null } = {}) {
+export function updateAutomationRunError(id: string, error: string | StructuredError, input: { hash?: string | null; proofId?: string | null; nextRunAt?: string | null } = {}) {
   db.prepare(`
     UPDATE automation_workflows
     SET updated_at = ?, last_run_at = ?, next_run_at = ?, last_hash = COALESCE(?, last_hash), last_proof_id = COALESCE(?, last_proof_id), last_error = ?
     WHERE id = ?
-  `).run(new Date().toISOString(), new Date().toISOString(), input.nextRunAt ?? null, input.hash ?? null, input.proofId ?? null, error, id);
+  `).run(new Date().toISOString(), new Date().toISOString(), input.nextRunAt ?? null, input.hash ?? null, input.proofId ?? null, serializeStructuredError(error), id);
   return getAutomationWorkflow(id)!;
 }
 
-export function updateAutomationBlockRun(id: string, input: { error?: string | null } = {}) {
+export function updateAutomationBlockRun(id: string, input: { error?: string | StructuredError | null } = {}) {
   db.prepare("UPDATE automation_blocks SET updated_at = ?, last_run_at = ?, last_error = ? WHERE id = ?")
-    .run(new Date().toISOString(), new Date().toISOString(), input.error ?? null, id);
+    .run(new Date().toISOString(), new Date().toISOString(), serializeStructuredError(input.error), id);
   return getAutomationBlock(id)!;
 }
 
