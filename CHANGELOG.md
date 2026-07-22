@@ -4,6 +4,17 @@ All notable changes to `integritas-pi` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html) at the package level.
 
+## [Unreleased]
+
+### Added
+
+- Root Prettier setup (`.prettierrc`, `.prettierignore`, and `prettier` / `prettier-plugin-tailwindcss` / `eslint-config-prettier` deps) for consistent formatting across the monorepo.
+- Backend startup now logs the configured Integritas Connect base URL alongside the other runtime endpoints.
+
+### Changed
+
+- First-run setup wizard UI is split into dedicated step components (`Welcome`, `Account`, `TwoFactor`, `ConnectAccount`, `Complete`) with shared onboarding styles; setup flow and behavior are unchanged.
+
 ## [0.19.0] - 2026-07-21
 
 ### Added
