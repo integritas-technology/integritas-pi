@@ -216,7 +216,7 @@ function isOutputTarget(type: string) {
 function validateOutputBodyConfig(block: ValidationBlock, config: BlockConfig, targetType: string, issues: AutomationValidationIssue[]) {
   if (targetType !== "http-output" && targetType !== "mqtt-output") return;
   const bodyMode = String(config.bodyMode ?? "workflow_context");
-  if (bodyMode !== "custom" && bodyMode !== "workflow_context" && bodyMode !== "trigger_payload" && bodyMode !== "latest_data" && bodyMode !== "none") {
+  if (bodyMode !== "custom" && bodyMode !== "workflow_context" && bodyMode !== "trigger_payload" && bodyMode !== "latest_data" && bodyMode !== "latest_data_with_media" && bodyMode !== "none") {
     addIssue(issues, "error", "control_output.invalid_body_mode", "Output body mode is invalid.", block);
   }
   if (targetType === "mqtt-output" && bodyMode === "none") addIssue(issues, "error", "control_output.mqtt_body_required", "MQTT output requires a message payload.", block);

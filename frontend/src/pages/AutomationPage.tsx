@@ -1263,6 +1263,7 @@ function outputBodyModes(targetType: "http-output" | "mqtt-output") {
     { value: "workflow_context", label: "Workflow context" },
     { value: "trigger_payload", label: "Trigger payload" },
     { value: "latest_data", label: "Latest data" },
+    { value: "latest_data_with_media", label: "Latest data + media" },
     ...(targetType === "http-output" ? [{ value: "none", label: "No body" }] : [])
   ] as { value: NonNullable<AutomationBlock["config"]["bodyMode"]>; label: string }[];
 }
@@ -1271,6 +1272,7 @@ function bodyModeDescription(bodyMode: AutomationBlock["config"]["bodyMode"], ta
   if (bodyMode === "custom") return targetType === "http-output" ? "Send exactly this JSON as the request body." : "Publish exactly this JSON as the message payload.";
   if (bodyMode === "trigger_payload") return "Send only the event payload that started this workflow.";
   if (bodyMode === "latest_data") return "Send the data recorded or fetched earlier in this workflow.";
+  if (bodyMode === "latest_data_with_media") return "Send latest data plus captured media bytes as base64 JSON. Requires a camera capture earlier in the workflow.";
   if (bodyMode === "none") return "Send the request without a body.";
   return "Send workflow trigger, data, output, hash, and proof references.";
 }

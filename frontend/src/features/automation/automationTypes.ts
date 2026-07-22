@@ -50,7 +50,7 @@ export type AutomationBlock = {
     amount?: string;
     intervalSeconds?: number;
     durationMs?: number;
-    bodyMode?: "custom" | "workflow_context" | "trigger_payload" | "latest_data" | "none";
+    bodyMode?: "custom" | "workflow_context" | "trigger_payload" | "latest_data" | "latest_data_with_media" | "none";
     bodyTemplateText?: string;
     bodyTemplate?: unknown;
     variableName?: string;

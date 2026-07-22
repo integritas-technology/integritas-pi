@@ -1,3 +1,4 @@
+import fs from "node:fs/promises";
 import { getDataSource, updateDataSourceReadResult } from "../data-sources/dataSources.repository.js";
 import { getAddressBookEntryById } from "../address-book/address-book.repository.js";
 import { recordAuditEvent } from "../auth/audit.service.js";
@@ -28,6 +29,7 @@ import { createAutomationBlockRun, createAutomationRun, finishAutomationBlockRun
 type WorkflowTriggerType = "manual" | "schedule" | "webhook" | "mqtt" | "gpio";
 
 type ReadResult = {
+  contentType?: string;
   bytesHash: string;
   preview: unknown;
   canonicalBytes: string;
@@ -69,7 +71,7 @@ type WorkflowCondition = {
   value?: unknown;
 };
 
-type OutputBodyMode = "custom" | "workflow_context" | "trigger_payload" | "latest_data" | "none";
+type OutputBodyMode = "custom" | "workflow_context" | "trigger_payload" | "latest_data" | "latest_data_with_media" | "none";
 type VariableSource = "custom_json" | "trigger_field" | "latest_data_field" | "context_field";
 
 const runningWorkflowIds = new Set<string>();
@@ -474,7 +476,7 @@ async function controlOutput(config: { targetId?: string; action?: string; durat
   const target = getDataSource(config.targetId);
   if (!target) throw new Error("Control output target was not found");
 
-  const payload = outputPayload(config, context);
+  const payload = await outputPayload(config, context);
   const result = target.type === "gpio-output"
     ? await pulseGpioOutput({ targetId: config.targetId, durationMs: Number(config.durationMs ?? 0) })
     : target.type === "http-output"
@@ -488,7 +490,7 @@ async function controlOutput(config: { targetId?: string; action?: string; durat
   return result;
 }
 
-function outputPayload(config: { bodyMode?: OutputBodyMode; bodyTemplate?: unknown; bodyTemplateText?: string }, context: WorkflowContext) {
+async function outputPayload(config: { bodyMode?: OutputBodyMode; bodyTemplate?: unknown; bodyTemplateText?: string }, context: WorkflowContext) {
   const mode = config.bodyMode ?? "workflow_context";
   if (mode === "none") return { body: undefined, hasBody: false };
   if (mode === "custom") return { body: interpolateValue(parseCustomBody(config), context.variables), hasBody: true };
@@ -497,7 +499,31 @@ function outputPayload(config: { bodyMode?: OutputBodyMode; bodyTemplate?: unkno
     if (!context.data) throw new Error("No recorded or fetched data is available for this output body");
     return { body: context.data.result.preview, hasBody: true };
   }
+  if (mode === "latest_data_with_media") {
+    if (!context.data) throw new Error("No recorded or fetched data is available for this output body");
+    return { body: await mediaPayload(context.data.result), hasBody: true };
+  }
   return { body: contextSummary(context), hasBody: true };
+}
+
+async function mediaPayload(result: ReadResult) {
+  const preview = result.preview;
+  if (!preview || typeof preview !== "object") throw new Error("Latest data does not include captured media metadata");
+  const record = preview as { source?: unknown; path?: unknown; mediaType?: unknown; fileName?: unknown; sizeBytes?: unknown; sha3?: unknown };
+  if (record.source !== "pi-camera-helper" || typeof record.path !== "string") throw new Error("Latest data is not a Pi Camera capture");
+
+  const bytes = await fs.readFile(record.path);
+  return {
+    media: {
+      fileName: typeof record.fileName === "string" ? record.fileName : null,
+      path: record.path,
+      mediaType: typeof record.mediaType === "string" ? record.mediaType : result.contentType ?? "application/octet-stream",
+      sizeBytes: typeof record.sizeBytes === "number" ? record.sizeBytes : bytes.length,
+      sha3: typeof record.sha3 === "string" ? record.sha3 : result.bytesHash,
+      base64: bytes.toString("base64")
+    },
+    capture: preview
+  };
 }
 
 function interpolateValue(value: unknown, variables: Record<string, unknown>): unknown {

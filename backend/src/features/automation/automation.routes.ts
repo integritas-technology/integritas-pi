@@ -403,7 +403,7 @@ function isOutputTarget(type: string) {
 
 function validateOutputBodyConfig(config: Record<string, unknown>, targetType: string) {
   const bodyMode = typeof config.bodyMode === "string" ? config.bodyMode : "workflow_context";
-  if (bodyMode !== "custom" && bodyMode !== "workflow_context" && bodyMode !== "trigger_payload" && bodyMode !== "latest_data" && bodyMode !== "none") throw new Error("Output body mode is invalid");
+  if (bodyMode !== "custom" && bodyMode !== "workflow_context" && bodyMode !== "trigger_payload" && bodyMode !== "latest_data" && bodyMode !== "latest_data_with_media" && bodyMode !== "none") throw new Error("Output body mode is invalid");
   if (targetType === "mqtt-output" && bodyMode === "none") throw new Error("MQTT output requires a message body");
   config.bodyMode = bodyMode;
   if (bodyMode === "custom") {
