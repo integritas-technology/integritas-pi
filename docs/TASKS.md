@@ -44,6 +44,7 @@
 ## Ideas
 
 - [ ] Sync mechanism (script or CI check) to keep `.claude/`/`.agents/` (rules and skills) from drifting — still unbuilt; this session hit a real, if small, instance of the drift it's meant to prevent, caught manually rather than by tooling.
+- [ ] Supertest-based smoke test asserting every non-public `/api/*` route 401s without a session cookie — catches a route missing `requireAuth` without full per-route HTTP test coverage. See "Future Hardening" in `docs/plans/backend-unit-tests.md`.
 
 ---
 
