@@ -41,59 +41,24 @@ function readPeerCount(response: Record<string, unknown>) {
   return null;
 }
 
-function readConnectingCount(response: Record<string, unknown>) {
-  const network = asRecord(response.network);
-  return typeof network?.connecting === "number" ? network.connecting : 0;
-}
-
-function readExplicitSynced(response: Record<string, unknown>) {
-  if (typeof response.synced === "boolean") return response.synced;
-  const chain = asRecord(response.chain);
-  if (typeof chain?.synced === "boolean") return chain.synced;
-  const cascade = asRecord(chain?.cascade);
-  if (typeof cascade?.synced === "boolean") return cascade.synced;
-  return null;
-}
-
 export type MinimaSyncStatus = "active" | "stale" | "syncing" | "unavailable";
 
 const staleBlockAgeSeconds = 300;
 
-export function deriveSyncStatus(input: {
-  rpcOk: boolean;
-  blockAgeSeconds: number | null;
-  peerCount: number | null;
-  connectingCount: number;
-  explicitSynced: boolean | null;
-}) {
+export function deriveSyncStatus(input: { rpcOk: boolean; blockAgeSeconds: number | null }) {
   if (!input.rpcOk) {
     return { status: "unavailable" as const, synced: null };
   }
 
-  if (input.explicitSynced !== null) {
-    return {
-      status: input.explicitSynced ? ("active" as const) : ("syncing" as const),
-      synced: input.explicitSynced
-    };
+  if (input.blockAgeSeconds === null) {
+    return { status: "unavailable" as const, synced: null };
   }
 
-  if (input.connectingCount > 0) {
-    return { status: "syncing" as const, synced: false };
-  }
-
-  if (input.blockAgeSeconds !== null && input.blockAgeSeconds > staleBlockAgeSeconds) {
+  if (input.blockAgeSeconds > staleBlockAgeSeconds) {
     return { status: "stale" as const, synced: false };
   }
 
-  if (input.blockAgeSeconds !== null && (input.peerCount ?? 0) > 0) {
-    return { status: "active" as const, synced: true };
-  }
-
-  if (input.blockAgeSeconds !== null) {
-    return { status: "active" as const, synced: true };
-  }
-
-  return { status: "unavailable" as const, synced: null };
+  return { status: "active" as const, synced: true };
 }
 
 function readNodeMemory(response: Record<string, unknown>) {
@@ -127,9 +92,7 @@ export function parseStatusResponse(body: unknown) {
   const nodeMemory = response ? readNodeMemory(response) : { ram: null, disk: null };
   const dataPath = typeof response?.data === "string" ? response.data : null;
   const peerCount = response ? readPeerCount(response) : null;
-  const connectingCount = response ? readConnectingCount(response) : 0;
-  const explicitSynced = response ? readExplicitSynced(response) : null;
-  const sync = deriveSyncStatus({ rpcOk, blockAgeSeconds, peerCount, connectingCount, explicitSynced });
+  const sync = deriveSyncStatus({ rpcOk, blockAgeSeconds });
 
   return {
     rpcOk,
@@ -138,9 +101,7 @@ export function parseStatusResponse(body: unknown) {
     blockAgeSeconds,
     synced: sync.synced,
     syncStatus: sync.status,
-    explicitSynced,
     peerCount,
-    connectingCount,
     nodeMemory,
     dataPath
   };

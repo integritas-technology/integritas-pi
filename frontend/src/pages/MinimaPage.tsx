@@ -249,6 +249,7 @@ export function MinimaPage() {
         status={nodeStatus}
         loading={statusLoading && !nodeStatus}
         busy={busy}
+        resyncing={resyncing || restarting}
         onResync={runResync}
       />
       <section className="grid items-stretch gap-4 lg:grid-cols-2">

@@ -85,13 +85,7 @@ describe("parseMegammrResyncMessage", () => {
 
 describe("deriveSyncStatus", () => {
   it("marks stale blocks when age exceeds threshold", () => {
-    const sync = deriveSyncStatus({
-      rpcOk: true,
-      blockAgeSeconds: 400,
-      peerCount: 3,
-      connectingCount: 0,
-      explicitSynced: null
-    });
+    const sync = deriveSyncStatus({ rpcOk: true, blockAgeSeconds: 400 });
 
     assert.equal(sync.status, "stale");
     assert.equal(sync.synced, false);

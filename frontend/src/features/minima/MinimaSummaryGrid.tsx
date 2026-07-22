@@ -30,11 +30,13 @@ export function MinimaSummaryGrid({
   status,
   loading,
   busy,
+  resyncing,
   onResync,
 }: {
   status: MinimaNodeStatus | null;
   loading: boolean;
   busy: boolean;
+  resyncing: boolean;
   onResync: () => void;
 }) {
   const chainDataLabel = status?.storage.chainDataDisk
@@ -59,7 +61,7 @@ export function MinimaSummaryGrid({
       <SummaryCard
         icon={RefreshCw}
         title='Sync status'
-        text={formatSyncStatus(status?.sync.status, loading)}
+        text={resyncing ? 'Resyncing…' : formatSyncStatus(status?.sync.status, loading)}
       >
         <button
           type='button'

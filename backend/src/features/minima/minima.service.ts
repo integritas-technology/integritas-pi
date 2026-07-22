@@ -89,7 +89,6 @@ export async function getMinimaNodeStatus(): Promise<MinimaNodeStatus> {
   let synced = parsed.synced;
   let peerCount = parsed.peerCount;
   let peersKnown: number | null = null;
-  const connectingCount = parsed.connectingCount;
 
   if (blockAgeSeconds === null && parsed.rpcOk && block !== null) {
     try {
@@ -115,13 +114,7 @@ export async function getMinimaNodeStatus(): Promise<MinimaNodeStatus> {
     }
   }
 
-  const sync = deriveSyncStatus({
-    rpcOk: parsed.rpcOk,
-    blockAgeSeconds,
-    peerCount,
-    connectingCount,
-    explicitSynced: parsed.explicitSynced
-  });
+  const sync = deriveSyncStatus({ rpcOk: parsed.rpcOk, blockAgeSeconds });
   synced = sync.synced;
   syncStatus = sync.status;
 
