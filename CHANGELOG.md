@@ -4,6 +4,12 @@ All notable changes to `integritas-pi` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html) at the package level.
 
+## [Unreleased] test/unit-tests-and-ci
+
+### Added
+
+- Backend unit test coverage for `auth`: password/PIN validation and hashing, session create/validate/expiry/idle-timeout, and login/change-password flows, plus a reusable temp-SQLite test database harness (`backend/tests/helpers/testDatabase.ts`).
+
 ## [0.21.4] - 2026-07-22
 
 ### Added

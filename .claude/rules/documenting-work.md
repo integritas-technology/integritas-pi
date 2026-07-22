@@ -24,8 +24,9 @@ Do not leave undocumented behavior changes that affect installation, deployment,
 Keep `CHANGELOG.md` up to date as part of finishing work, not as a follow-up task.
 
 - Follow [Keep a Changelog](https://keepachangelog.com/) sections: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
-- Add new entries under `## [Unreleased]` while work is in progress on a branch.
-- When a branch or release is completed, move `Unreleased` items into a dated version section (for example `## [0.2.0] - 2026-06-09`) and leave a fresh empty `## [Unreleased]` section at the top.
+- Add new entries under `## [Unreleased] <branch-name>` (the actual git branch name) while work is in progress — this keeps concurrent branches from editing the same shared heading and colliding on merge. Do not use a bare `## [Unreleased]`.
+- When a branch merges into `main`, leave its `## [Unreleased] <branch-name>` section as-is; multiple such sections can sit above the latest dated release at once.
+- When cutting a release, consolidate every `## [Unreleased] <branch-name>` section into one dated version section (for example `## [0.2.0] - 2026-06-09`), removing the per-branch headings.
 - Write entries for operators and users: what changed, not which files were touched.
 - Include auth, API, UI, config/env, Docker/install, CLI, and security-impacting changes.
 - A one-line entry is fine for small fixes; larger features deserve a short bullet group.
