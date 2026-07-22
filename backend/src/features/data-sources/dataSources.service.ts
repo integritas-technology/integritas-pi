@@ -238,6 +238,26 @@ export async function sendHttpOutput(config: HttpOutputConfig, payload: unknown,
   return { targetUrl: config.url, method: config.method, status: response.status, response: responseBody, sentAt: new Date().toISOString() };
 }
 
+export async function sendMultipartMediaOutput(config: HttpOutputConfig, input: { fileFieldName: string; fileName: string; mediaType: string; bytes: Buffer; jsonFieldName?: string; jsonPayload?: unknown }) {
+  const form = new FormData();
+  const fileBytes = input.bytes.buffer.slice(input.bytes.byteOffset, input.bytes.byteOffset + input.bytes.byteLength) as ArrayBuffer;
+  if (input.jsonFieldName) form.append(input.jsonFieldName, JSON.stringify(input.jsonPayload ?? {}));
+  form.append(input.fileFieldName, new Blob([fileBytes], { type: input.mediaType }), input.fileName);
+
+  const headers = Object.fromEntries(Object.entries(config.headers ?? {}).filter(([key]) => key.toLowerCase() !== "content-type"));
+  const response = await fetch(config.url, {
+    method: config.method,
+    headers,
+    body: form,
+    signal: AbortSignal.timeout(config.timeoutMs ?? 5000)
+  });
+  const responseBody = await response.json().catch(() => null) as unknown;
+
+  if (!response.ok) throw new Error(`HTTP output returned HTTP ${response.status}${responseBody === null ? "" : `: ${JSON.stringify(responseBody)}`}`);
+
+  return { targetUrl: config.url, method: config.method, status: response.status, response: responseBody, sentAt: new Date().toISOString(), sentMedia: { fieldName: input.fileFieldName, fileName: input.fileName, mediaType: input.mediaType, sizeBytes: input.bytes.length }, sentJsonField: input.jsonFieldName ?? null };
+}
+
 export function processWebhookPayload(payload: unknown) {
   const canonical = `${JSON.stringify(payload, null, 2)}\n`;
   return { contentType: "application/json", bytesHash: sha3HashHex(canonical), canonicalBytes: canonical, preview: payload, receivedAt: new Date().toISOString() };

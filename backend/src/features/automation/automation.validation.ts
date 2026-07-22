@@ -44,6 +44,9 @@ export type BlockConfig = {
   bodyMode?: string;
   bodyTemplateText?: string;
   bodyTemplate?: unknown;
+  multipartFileField?: string;
+  multipartJsonField?: string;
+  multipartJsonText?: string;
   variableName?: string;
   variableSource?: string;
   valueJsonText?: string;
@@ -216,16 +219,31 @@ function isOutputTarget(type: string) {
 function validateOutputBodyConfig(block: ValidationBlock, config: BlockConfig, targetType: string, issues: AutomationValidationIssue[]) {
   if (targetType !== "http-output" && targetType !== "mqtt-output") return;
   const bodyMode = String(config.bodyMode ?? "workflow_context");
-  if (bodyMode !== "custom" && bodyMode !== "workflow_context" && bodyMode !== "trigger_payload" && bodyMode !== "latest_data" && bodyMode !== "latest_data_with_media" && bodyMode !== "none") {
+  if (bodyMode !== "custom" && bodyMode !== "workflow_context" && bodyMode !== "trigger_payload" && bodyMode !== "latest_data" && bodyMode !== "latest_data_with_media" && bodyMode !== "multipart_media" && bodyMode !== "none") {
     addIssue(issues, "error", "control_output.invalid_body_mode", "Output body mode is invalid.", block);
   }
   if (targetType === "mqtt-output" && bodyMode === "none") addIssue(issues, "error", "control_output.mqtt_body_required", "MQTT output requires a message payload.", block);
+  if (targetType !== "http-output" && bodyMode === "multipart_media") addIssue(issues, "error", "control_output.multipart_http_required", "Multipart media upload requires an HTTP output target.", block);
+  if (bodyMode === "multipart_media") validateMultipartConfig(block, config, issues);
   if (bodyMode === "custom") {
     const text = typeof config.bodyTemplateText === "string" ? config.bodyTemplateText : JSON.stringify(config.bodyTemplate ?? {});
     try {
       JSON.parse(text) as unknown;
     } catch {
       addIssue(issues, "error", "control_output.invalid_custom_body", "Custom output body must be valid JSON.", block);
+    }
+  }
+}
+
+function validateMultipartConfig(block: ValidationBlock, config: BlockConfig, issues: AutomationValidationIssue[]) {
+  const fileField = String(config.multipartFileField ?? "file").trim();
+  const jsonField = String(config.multipartJsonField ?? "").trim();
+  if (!fileField) addIssue(issues, "error", "control_output.multipart_file_field_required", "Multipart file field name is required.", block);
+  if (jsonField && typeof config.multipartJsonText === "string" && config.multipartJsonText.trim()) {
+    try {
+      JSON.parse(config.multipartJsonText) as unknown;
+    } catch {
+      addIssue(issues, "error", "control_output.multipart_json_invalid", "Multipart JSON field must be valid JSON.", block);
     }
   }
 }

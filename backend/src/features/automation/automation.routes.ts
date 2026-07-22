@@ -403,9 +403,11 @@ function isOutputTarget(type: string) {
 
 function validateOutputBodyConfig(config: Record<string, unknown>, targetType: string) {
   const bodyMode = typeof config.bodyMode === "string" ? config.bodyMode : "workflow_context";
-  if (bodyMode !== "custom" && bodyMode !== "workflow_context" && bodyMode !== "trigger_payload" && bodyMode !== "latest_data" && bodyMode !== "latest_data_with_media" && bodyMode !== "none") throw new Error("Output body mode is invalid");
+  if (bodyMode !== "custom" && bodyMode !== "workflow_context" && bodyMode !== "trigger_payload" && bodyMode !== "latest_data" && bodyMode !== "latest_data_with_media" && bodyMode !== "multipart_media" && bodyMode !== "none") throw new Error("Output body mode is invalid");
   if (targetType === "mqtt-output" && bodyMode === "none") throw new Error("MQTT output requires a message body");
+  if (targetType !== "http-output" && bodyMode === "multipart_media") throw new Error("Multipart media upload requires an HTTP output target");
   config.bodyMode = bodyMode;
+  if (bodyMode === "multipart_media") validateMultipartBodyConfig(config);
   if (bodyMode === "custom") {
     const text = typeof config.bodyTemplateText === "string" ? config.bodyTemplateText : JSON.stringify(config.bodyTemplate ?? {});
     try {
@@ -417,6 +419,24 @@ function validateOutputBodyConfig(config: Record<string, unknown>, targetType: s
   } else {
     delete config.bodyTemplateText;
     delete config.bodyTemplate;
+  }
+}
+
+function validateMultipartBodyConfig(config: Record<string, unknown>) {
+  const fileField = typeof config.multipartFileField === "string" ? config.multipartFileField.trim() : "file";
+  const jsonField = typeof config.multipartJsonField === "string" ? config.multipartJsonField.trim() : "";
+  if (!fileField) throw new Error("Multipart file field name is required");
+  config.multipartFileField = fileField;
+  if (jsonField) config.multipartJsonField = jsonField;
+  else delete config.multipartJsonField;
+  if (typeof config.multipartJsonText === "string" && config.multipartJsonText.trim()) {
+    try {
+      JSON.parse(config.multipartJsonText) as unknown;
+    } catch {
+      throw new Error("Multipart JSON field must be valid JSON");
+    }
+  } else {
+    delete config.multipartJsonText;
   }
 }
 

@@ -562,6 +562,12 @@ function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChan
         {selectedBodyTargetType && <>
           <label>{selectedBodyTargetType === "http-output" ? "Request body" : "Message payload"}<select value={bodyMode} onChange={(event) => onChange(outputBodyModeConfig(block.config, event.target.value as NonNullable<AutomationBlock["config"]["bodyMode"]>, selectedBodyTargetType))}>{outputBodyModes(selectedBodyTargetType).map((mode) => <option key={mode.value} value={mode.value}>{mode.label}</option>)}</select></label>
           {bodyMode === "custom" && <label>Custom JSON<textarea rows={6} value={block.config.bodyTemplateText ?? defaultCustomBodyText()} onChange={(event) => onChange({ ...block.config, bodyMode: "custom", bodyTemplateText: event.target.value })} /></label>}
+          {bodyMode === "multipart_media" && <>
+            <label>File field name<input value={block.config.multipartFileField ?? "file"} onChange={(event) => onChange({ ...block.config, bodyMode: "multipart_media", multipartFileField: event.target.value })} placeholder="file" /></label>
+            <label>JSON field name<input value={block.config.multipartJsonField ?? ""} onChange={(event) => onChange({ ...block.config, bodyMode: "multipart_media", multipartJsonField: event.target.value })} placeholder="metadata" /></label>
+            <label>JSON field payload<textarea rows={6} value={block.config.multipartJsonText ?? defaultMultipartJsonText()} onChange={(event) => onChange({ ...block.config, bodyMode: "multipart_media", multipartJsonText: event.target.value })} /></label>
+            <p className={mutedText}>Template values: <code>{"{{hash}}"}</code>, <code>{"{{readId}}"}</code>, <code>{"{{sourceName}}"}</code>, <code>{"{{fileName}}"}</code>, <code>{"{{mediaType}}"}</code>, <code>{"{{sizeBytes}}"}</code>.</p>
+          </>}
           <p className={mutedText}>{bodyModeDescription(bodyMode, selectedBodyTargetType)}</p>
         </>}
         {!selectedOutput && <p className={mutedText}>Choose a configured output target from Devices.</p>}
@@ -1242,6 +1248,15 @@ function outputBodyModeConfig(config: AutomationBlock["config"], bodyMode: NonNu
   const next = { ...config, bodyMode };
   if (bodyMode === "custom" && !next.bodyTemplateText) next.bodyTemplateText = defaultCustomBodyText();
   if (bodyMode !== "custom") delete next.bodyTemplateText;
+  if (bodyMode === "multipart_media") {
+    next.multipartFileField = next.multipartFileField ?? "file";
+    next.multipartJsonField = next.multipartJsonField ?? "metadata";
+    next.multipartJsonText = next.multipartJsonText ?? defaultMultipartJsonText();
+  } else {
+    delete next.multipartFileField;
+    delete next.multipartJsonField;
+    delete next.multipartJsonText;
+  }
   if (targetType === "mqtt-output" && bodyMode === "none") return { ...next, bodyMode: "workflow_context" };
   return next;
 }
@@ -1264,6 +1279,7 @@ function outputBodyModes(targetType: "http-output" | "mqtt-output") {
     { value: "trigger_payload", label: "Trigger payload" },
     { value: "latest_data", label: "Latest data" },
     { value: "latest_data_with_media", label: "Latest data + media" },
+    ...(targetType === "http-output" ? [{ value: "multipart_media", label: "Multipart media upload" }] : []),
     ...(targetType === "http-output" ? [{ value: "none", label: "No body" }] : [])
   ] as { value: NonNullable<AutomationBlock["config"]["bodyMode"]>; label: string }[];
 }
@@ -1273,12 +1289,17 @@ function bodyModeDescription(bodyMode: AutomationBlock["config"]["bodyMode"], ta
   if (bodyMode === "trigger_payload") return "Send only the event payload that started this workflow.";
   if (bodyMode === "latest_data") return "Send the data recorded or fetched earlier in this workflow.";
   if (bodyMode === "latest_data_with_media") return "Send latest data plus captured media bytes as base64 JSON. Requires a camera capture earlier in the workflow.";
+  if (bodyMode === "multipart_media") return "Upload the latest camera capture as a multipart file attachment. Configure field names to match the target service.";
   if (bodyMode === "none") return "Send the request without a body.";
   return "Send workflow trigger, data, output, hash, and proof references.";
 }
 
 function defaultCustomBodyText() {
   return '{\n  "content": "Integritas Pi workflow triggered."\n}';
+}
+
+function defaultMultipartJsonText() {
+  return '{\n  "message": "Integritas Pi camera capture",\n  "hash": "{{hash}}",\n  "readId": "{{readId}}",\n  "sourceName": "{{sourceName}}",\n  "fileName": "{{fileName}}"\n}';
 }
 
 function formatInterval(seconds: number) {

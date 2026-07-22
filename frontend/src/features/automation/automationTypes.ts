@@ -50,9 +50,12 @@ export type AutomationBlock = {
     amount?: string;
     intervalSeconds?: number;
     durationMs?: number;
-    bodyMode?: "custom" | "workflow_context" | "trigger_payload" | "latest_data" | "latest_data_with_media" | "none";
+    bodyMode?: "custom" | "workflow_context" | "trigger_payload" | "latest_data" | "latest_data_with_media" | "multipart_media" | "none";
     bodyTemplateText?: string;
     bodyTemplate?: unknown;
+    multipartFileField?: string;
+    multipartJsonField?: string;
+    multipartJsonText?: string;
     variableName?: string;
     variableSource?: "custom_json" | "trigger_field" | "latest_data_field" | "context_field";
     valueJsonText?: string;

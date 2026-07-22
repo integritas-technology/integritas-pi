@@ -5,7 +5,7 @@ import { recordAuditEvent } from "../auth/audit.service.js";
 import { pulseGpioOutput } from "../data-sources/gpioOutput.service.js";
 import { publishMqttOutput } from "../data-sources/mqttOutput.service.js";
 import { capturePiCamera } from "../data-sources/cameraCapture.service.js";
-import { parseHttpOutputConfig, parseJsonApiConfig, readJsonApiSource, sendHttpOutput, serializeDataSource } from "../data-sources/dataSources.service.js";
+import { parseHttpOutputConfig, parseJsonApiConfig, readJsonApiSource, sendHttpOutput, sendMultipartMediaOutput, serializeDataSource } from "../data-sources/dataSources.service.js";
 import { createDataSourceRead, linkDataSourceReadProof } from "../data-reads/dataReads.repository.js";
 import { createProofRecord } from "../integritas/integritas.repository.js";
 import { isIntegritasUnauthorizedErrorCode, isTransientIntegritasErrorCode, requestProofUid } from "../integritas/integritas.service.js";
@@ -71,7 +71,7 @@ type WorkflowCondition = {
   value?: unknown;
 };
 
-type OutputBodyMode = "custom" | "workflow_context" | "trigger_payload" | "latest_data" | "latest_data_with_media" | "none";
+type OutputBodyMode = "custom" | "workflow_context" | "trigger_payload" | "latest_data" | "latest_data_with_media" | "multipart_media" | "none";
 type VariableSource = "custom_json" | "trigger_field" | "latest_data_field" | "context_field";
 
 const runningWorkflowIds = new Set<string>();
@@ -238,7 +238,7 @@ function validateStartBlock(block: AutomationBlockRecord, trigger: WorkflowConte
 }
 
 async function executeBlock(workflow: AutomationWorkflowRecord, block: AutomationBlockRecord, context: WorkflowContext, runId: string) {
-  const config = JSON.parse(block.config_json) as { sourceId?: string; targetId?: string; action?: string; durationMs?: number; bodyMode?: OutputBodyMode; bodyTemplate?: unknown; bodyTemplateText?: string; variableName?: string; variableSource?: VariableSource; valueJsonText?: string; source?: "trigger" | "variable"; fieldPath?: string; operator?: FieldCondition["operator"]; value?: unknown; condition?: FieldCondition | null; recipientAddressBookId?: string; tokenId?: string; amount?: string };
+  const config = JSON.parse(block.config_json) as { sourceId?: string; targetId?: string; action?: string; durationMs?: number; bodyMode?: OutputBodyMode; bodyTemplate?: unknown; bodyTemplateText?: string; multipartFileField?: string; multipartJsonField?: string; multipartJsonText?: string; variableName?: string; variableSource?: VariableSource; valueJsonText?: string; source?: "trigger" | "variable"; fieldPath?: string; operator?: FieldCondition["operator"]; value?: unknown; condition?: FieldCondition | null; recipientAddressBookId?: string; tokenId?: string; amount?: string };
   const blockRun = createAutomationBlockRun({ runId, workflowId: workflow.id, blockId: block.id, orderIndex: block.order_index, blockType: block.type, blockLabel: blockLabel(block.type), input: contextSummary(context) });
 
   try {
@@ -471,19 +471,26 @@ function getRequiredPathValue(value: unknown, path: string, label: string) {
   return result;
 }
 
-async function controlOutput(config: { targetId?: string; action?: string; durationMs?: number; bodyMode?: OutputBodyMode; bodyTemplate?: unknown; bodyTemplateText?: string }, context: WorkflowContext) {
+async function controlOutput(config: { targetId?: string; action?: string; durationMs?: number; bodyMode?: OutputBodyMode; bodyTemplate?: unknown; bodyTemplateText?: string; multipartFileField?: string; multipartJsonField?: string; multipartJsonText?: string }, context: WorkflowContext) {
   if (!config.targetId) throw new Error("Control output block requires a targetId");
   const target = getDataSource(config.targetId);
   if (!target) throw new Error("Control output target was not found");
 
-  const payload = await outputPayload(config, context);
-  const result = target.type === "gpio-output"
-    ? await pulseGpioOutput({ targetId: config.targetId, durationMs: Number(config.durationMs ?? 0) })
-    : target.type === "http-output"
-      ? await sendHttpOutput(parseHttpOutputConfig(JSON.parse(target.config) as unknown), payload.body, payload.hasBody)
-    : target.type === "mqtt-output"
-        ? await publishMqttOutput({ targetId: config.targetId, payload: payload.body })
-        : null;
+  let result: unknown = null;
+  if (target.type === "gpio-output") {
+    result = await pulseGpioOutput({ targetId: config.targetId, durationMs: Number(config.durationMs ?? 0) });
+  } else if (target.type === "http-output") {
+    const httpConfig = parseHttpOutputConfig(JSON.parse(target.config) as unknown);
+    if (config.bodyMode === "multipart_media") result = await sendMultipartMediaOutput(httpConfig, await multipartMediaPayload(config, context));
+    else {
+      const payload = await outputPayload(config, context);
+      result = await sendHttpOutput(httpConfig, payload.body, payload.hasBody);
+    }
+  } else if (target.type === "mqtt-output") {
+    const payload = await outputPayload(config, context);
+    result = await publishMqttOutput({ targetId: config.targetId, payload: payload.body });
+  }
+
   if (!result) throw new Error("Control output block requires an output target");
   context.data = undefined;
   context.output = result;
@@ -506,7 +513,46 @@ async function outputPayload(config: { bodyMode?: OutputBodyMode; bodyTemplate?:
   return { body: contextSummary(context), hasBody: true };
 }
 
+async function multipartMediaPayload(config: { multipartFileField?: string; multipartJsonField?: string; multipartJsonText?: string }, context: WorkflowContext) {
+  if (!context.data) throw new Error("No camera capture is available for multipart media upload");
+  const media = await capturedMedia(context.data.result);
+  const templateValues = { ...context.variables, hash: media.sha3, readId: context.data.readId, sourceName: context.data.sourceName, fileName: media.fileName, mediaType: media.mediaType, sizeBytes: media.sizeBytes };
+  const jsonFieldName = String(config.multipartJsonField ?? "").trim() || undefined;
+  return {
+    fileFieldName: String(config.multipartFileField ?? "file").trim() || "file",
+    fileName: media.fileName,
+    mediaType: media.mediaType,
+    bytes: media.bytes,
+    jsonFieldName,
+    jsonPayload: jsonFieldName ? interpolateValue(parseMultipartJson(config.multipartJsonText, context, media), templateValues) : undefined
+  };
+}
+
+function parseMultipartJson(text: string | undefined, context: WorkflowContext, media: { fileName: string; mediaType: string; sizeBytes: number; sha3: string }) {
+  if (!text?.trim()) return { data: contextSummary(context), media: { fileName: media.fileName, mediaType: media.mediaType, sizeBytes: media.sizeBytes, sha3: media.sha3 } };
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    throw new Error("Multipart JSON field must be valid JSON");
+  }
+}
+
 async function mediaPayload(result: ReadResult) {
+  const media = await capturedMedia(result);
+  return {
+    media: {
+      fileName: media.fileName,
+      path: media.path,
+      mediaType: media.mediaType,
+      sizeBytes: media.sizeBytes,
+      sha3: media.sha3,
+      base64: media.bytes.toString("base64")
+    },
+    capture: result.preview
+  };
+}
+
+async function capturedMedia(result: ReadResult) {
   const preview = result.preview;
   if (!preview || typeof preview !== "object") throw new Error("Latest data does not include captured media metadata");
   const record = preview as { source?: unknown; path?: unknown; mediaType?: unknown; fileName?: unknown; sizeBytes?: unknown; sha3?: unknown };
@@ -514,15 +560,12 @@ async function mediaPayload(result: ReadResult) {
 
   const bytes = await fs.readFile(record.path);
   return {
-    media: {
-      fileName: typeof record.fileName === "string" ? record.fileName : null,
-      path: record.path,
-      mediaType: typeof record.mediaType === "string" ? record.mediaType : result.contentType ?? "application/octet-stream",
-      sizeBytes: typeof record.sizeBytes === "number" ? record.sizeBytes : bytes.length,
-      sha3: typeof record.sha3 === "string" ? record.sha3 : result.bytesHash,
-      base64: bytes.toString("base64")
-    },
-    capture: preview
+    fileName: typeof record.fileName === "string" ? record.fileName : "camera-capture",
+    path: record.path,
+    mediaType: typeof record.mediaType === "string" ? record.mediaType : result.contentType ?? "application/octet-stream",
+    sizeBytes: typeof record.sizeBytes === "number" ? record.sizeBytes : bytes.length,
+    sha3: typeof record.sha3 === "string" ? record.sha3 : result.bytesHash,
+    bytes
   };
 }
 
