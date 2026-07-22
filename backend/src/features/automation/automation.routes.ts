@@ -9,6 +9,7 @@ import { createAutomationBlock, createAutomationWorkflow, deleteAutomationBlock,
 import { getSerializedAutomationRun, listSerializedAutomationRuns, listSerializedAutomationRunsForWorkflow, runAutomationWorkflow, serializeAutomationBlock, serializeAutomationWorkflow } from "./automation.service.js";
 import { AUTOMATION_RUN_LIST_STATUSES, countAutomationRuns } from "./automationRuns.repository.js";
 import { validateAutomationDraft, validateAutomationWorkflow, type AutomationDraftValidationBlock } from "./automation.validation.js";
+import { badRequest, dependencyUnavailable, notFound, validationFailed } from "../../shared/api-error.js";
 import { parseListQuery, toPaginatedResult } from "../../shared/list-query.js";
 
 export const automationRouter = Router();
@@ -19,7 +20,7 @@ automationRouter.get("/workflows", (_req, res) => {
 
 automationRouter.get("/runs", (req, res) => {
   const parsed = parseListQuery(req.query, { allowedStatuses: AUTOMATION_RUN_LIST_STATUSES });
-  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+  if (!parsed.ok) return badRequest(res, parsed.error);
 
   const total = countAutomationRuns(parsed.value);
   const items = listSerializedAutomationRuns(parsed.value);
@@ -28,20 +29,20 @@ automationRouter.get("/runs", (req, res) => {
 
 automationRouter.get("/runs/:id", (req, res) => {
   const run = getSerializedAutomationRun(req.params.id);
-  if (!run) return res.status(404).json({ error: "Automation run not found" });
+  if (!run) return notFound(res, "Automation run not found");
   res.json({ item: run });
 });
 
 automationRouter.get("/workflows/:id/runs", (req, res) => {
   const workflow = getAutomationWorkflow(req.params.id);
-  if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
+  if (!workflow) return notFound(res, "Automation workflow not found");
   const limit = limitFromQuery(req.query.limit, 20);
   res.json({ items: listSerializedAutomationRunsForWorkflow(workflow.id, limit) });
 });
 
 automationRouter.get("/workflows/:id/validation", async (req, res) => {
   const workflow = getAutomationWorkflow(req.params.id);
-  if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
+  if (!workflow) return notFound(res, "Automation workflow not found");
   res.json({ item: await validateAutomationWorkflow(workflow.id) });
 });
 
@@ -54,9 +55,9 @@ automationRouter.post("/workflows", requireRole("admin"), (req, res) => {
   const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
   const enabled = Boolean(req.body?.enabled);
 
-  if (!name) return res.status(400).json({ error: "name is required" });
+  if (!name) return validationFailed(res, "name is required", { name: "name is required" });
 
-  if (!Array.isArray(req.body?.blocks)) return res.status(400).json({ error: "blocks are required" });
+  if (!Array.isArray(req.body?.blocks)) return validationFailed(res, "blocks are required", { blocks: "blocks are required" });
   try {
     const blocks = parseWorkflowBlocks(req.body.blocks);
     const workflow = createAutomationWorkflow({
@@ -69,13 +70,13 @@ automationRouter.post("/workflows", requireRole("admin"), (req, res) => {
     syncGpioDataSources();
     return res.json({ item: serializeAutomationWorkflow(workflow) });
   } catch (error) {
-    return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid workflow blocks" });
+    return badRequest(res, error instanceof Error ? error.message : "Invalid workflow blocks");
   }
 });
 
 automationRouter.patch("/workflows/:id", requireRole("admin"), (req, res) => {
   const current = getAutomationWorkflow(req.params.id);
-  if (!current) return res.status(404).json({ error: "Automation workflow not found" });
+  if (!current) return notFound(res, "Automation workflow not found");
   const enabled = typeof req.body?.enabled === "boolean" ? req.body.enabled : undefined;
   const archived = typeof req.body?.archived === "boolean" ? req.body.archived : undefined;
 
@@ -93,7 +94,7 @@ automationRouter.patch("/workflows/:id", requireRole("admin"), (req, res) => {
 
 automationRouter.post("/workflows/:id/duplicate", requireRole("admin"), (req, res) => {
   const workflow = duplicateAutomationWorkflow(req.params.id);
-  if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
+  if (!workflow) return notFound(res, "Automation workflow not found");
   syncMqttDataSources();
   syncGpioDataSources();
   return res.json({ item: serializeAutomationWorkflow(workflow) });
@@ -101,9 +102,9 @@ automationRouter.post("/workflows/:id/duplicate", requireRole("admin"), (req, re
 
 automationRouter.post("/workflows/:id/blocks", requireRole("admin"), (req, res) => {
   const workflow = getAutomationWorkflow(req.params.id);
-  if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
+  if (!workflow) return notFound(res, "Automation workflow not found");
   const type = typeof req.body?.type === "string" ? req.body.type as AutomationBlockType : "" as AutomationBlockType;
-  if (!isAutomationBlockType(type)) return res.status(400).json({ error: "Invalid block type" });
+  if (!isAutomationBlockType(type)) return badRequest(res, "Invalid block type");
   try {
     const config = req.body?.config && typeof req.body.config === "object" && !Array.isArray(req.body.config) ? req.body.config as Record<string, unknown> : {};
     const parentBlockId = typeof req.body?.parentBlockId === "string" ? req.body.parentBlockId : null;
@@ -114,28 +115,28 @@ automationRouter.post("/workflows/:id/blocks", requireRole("admin"), (req, res) 
     syncGpioDataSources();
     return res.json({ item: serializeAutomationBlock(block), workflow: serializeAutomationWorkflow(getAutomationWorkflow(workflow.id)!) });
   } catch (error) {
-    return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid block" });
+    return badRequest(res, error instanceof Error ? error.message : "Invalid block");
   }
 });
 
 automationRouter.patch("/workflows/:workflowId/blocks/:blockId", requireRole("admin"), (req, res) => {
   const workflow = getAutomationWorkflow(req.params.workflowId);
-  if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
+  if (!workflow) return notFound(res, "Automation workflow not found");
   const currentBlock = listAutomationBlocks(workflow.id).find((block) => block.id === req.params.blockId);
-  if (!currentBlock) return res.status(404).json({ error: "Block not found" });
+  if (!currentBlock) return notFound(res, "Block not found");
   const config = req.body?.config && typeof req.body.config === "object" && !Array.isArray(req.body.config) ? req.body.config as Record<string, unknown> : undefined;
   if (config) {
     try {
       validateBlockConfig(currentBlock.type, config);
     } catch (error) {
-      return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid block config" });
+      return badRequest(res, error instanceof Error ? error.message : "Invalid block config");
     }
   }
   const block = updateAutomationBlock(req.params.workflowId, req.params.blockId, {
     config,
     enabled: typeof req.body?.enabled === "boolean" ? req.body.enabled : undefined
   });
-  if (!block) return res.status(404).json({ error: "Block not found" });
+  if (!block) return notFound(res, "Block not found");
   syncMqttDataSources();
   syncGpioDataSources();
   return res.json({ item: serializeAutomationBlock(block), workflow: serializeAutomationWorkflow(getAutomationWorkflow(workflow.id)!) });
@@ -143,7 +144,7 @@ automationRouter.patch("/workflows/:workflowId/blocks/:blockId", requireRole("ad
 
 automationRouter.post("/workflows/:id/blocks/reorder", requireRole("admin"), (req, res) => {
   const workflow = getAutomationWorkflow(req.params.id);
-  if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
+  if (!workflow) return notFound(res, "Automation workflow not found");
   const blockIds = Array.isArray(req.body?.blockIds) ? req.body.blockIds.filter((id: unknown): id is string => typeof id === "string") : [];
   try {
     const blocks = reorderAutomationBlocks(workflow.id, blockIds);
@@ -151,13 +152,13 @@ automationRouter.post("/workflows/:id/blocks/reorder", requireRole("admin"), (re
     syncGpioDataSources();
     return res.json({ items: blocks.map(serializeAutomationBlock), workflow: serializeAutomationWorkflow(getAutomationWorkflow(workflow.id)!) });
   } catch (error) {
-    return res.status(400).json({ error: error instanceof Error ? error.message : "Could not reorder blocks" });
+    return badRequest(res, error instanceof Error ? error.message : "Could not reorder blocks");
   }
 });
 
 automationRouter.delete("/workflows/:workflowId/blocks/:blockId", requireRole("admin"), (req, res) => {
   const deleted = deleteAutomationBlock(req.params.workflowId, req.params.blockId);
-  if (!deleted) return res.status(404).json({ error: "Block not found" });
+  if (!deleted) return notFound(res, "Block not found");
   syncMqttDataSources();
   syncGpioDataSources();
   return res.json({ deleted: true, workflow: serializeAutomationWorkflow(getAutomationWorkflow(req.params.workflowId)!) });
@@ -172,17 +173,17 @@ automationRouter.delete("/workflows/:id", requireRole("admin"), (req, res) => {
 
 automationRouter.post("/workflows/:id/run", requireRole("admin"), async (req, res) => {
   const workflow = getAutomationWorkflow(req.params.id);
-  if (!workflow) return res.status(404).json({ error: "Automation workflow not found" });
+  if (!workflow) return notFound(res, "Automation workflow not found");
   const startBlock = listAutomationBlocks(workflow.id)[0];
   const startConfig = startBlock ? JSON.parse(startBlock.config_json) as { sourceId?: string } : {};
   const hasCustomPayload = Object.prototype.hasOwnProperty.call(req.body ?? {}, "triggerPayload");
   const triggerPayload = hasCustomPayload ? req.body.triggerPayload as unknown : defaultManualTriggerPayload(workflow.id, workflow.name);
 
-  if (hasCustomPayload && !isJsonCompatible(triggerPayload)) return res.status(400).json({ error: "triggerPayload must be JSON-compatible" });
+  if (hasCustomPayload && !isJsonCompatible(triggerPayload)) return badRequest(res, "triggerPayload must be JSON-compatible", { field: "triggerPayload" });
 
   try {
     const validation = await validateAutomationWorkflow(workflow.id);
-    if (!validation.ok) return res.status(400).json({ error: "Workflow validation failed", validation });
+    if (!validation.ok) return validationFailed(res, "Workflow validation failed", undefined, { validation });
     const result = await runAutomationWorkflow(req.params.id, {
       type: "manual",
       sourceId: startConfig.sourceId,
@@ -191,7 +192,7 @@ automationRouter.post("/workflows/:id/run", requireRole("admin"), async (req, re
     return res.json(result);
   } catch (error) {
     const errorWorkflow = error && typeof error === "object" && "workflow" in error ? (error as { workflow: unknown }).workflow : null;
-    return res.status(502).json({ error: error instanceof Error ? error.message : "Automation workflow failed", workflow: errorWorkflow });
+    return dependencyUnavailable(res, error instanceof Error ? error.message : "Automation workflow failed", error instanceof Error ? error.message : undefined, { workflowId: workflow.id }, { workflow: errorWorkflow });
   }
 });
 

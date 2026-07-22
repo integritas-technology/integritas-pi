@@ -1,11 +1,12 @@
 import { Router } from "express";
+import { badRequest, unauthorized, unexpected } from "../../shared/api-error.js";
 import { recordAuditEvent } from "../auth/audit.service.js";
 import { appendFeedbackSubmission, FeedbackValidationError, getFeedbackExport } from "./feedback.service.js";
 
 export const feedbackRouter = Router();
 
 feedbackRouter.post("/", (req, res) => {
-  if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+  if (!req.user) return unauthorized(res);
 
   try {
     const result = appendFeedbackSubmission(req.body, req.user);
@@ -15,14 +16,14 @@ feedbackRouter.post("/", (req, res) => {
     });
     return res.status(201).json({ id: result.submission.id, fileName: result.fileName, exportUrl: result.exportUrl });
   } catch (error) {
-    if (error instanceof FeedbackValidationError) return res.status(400).json({ error: error.message });
+    if (error instanceof FeedbackValidationError) return badRequest(res, error.message);
     console.error("Failed to save feedback", error);
-    return res.status(500).json({ error: "Failed to save feedback" });
+    return unexpected(res, "Failed to save feedback", error);
   }
 });
 
 feedbackRouter.get("/export", (req, res) => {
-  if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+  if (!req.user) return unauthorized(res);
 
   try {
     const body = getFeedbackExport(req.user);
@@ -31,6 +32,6 @@ feedbackRouter.get("/export", (req, res) => {
     return res.send(body);
   } catch (error) {
     console.error("Failed to export feedback", error);
-    return res.status(500).json({ error: "Failed to export feedback" });
+    return unexpected(res, "Failed to export feedback", error);
   }
 });

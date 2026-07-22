@@ -111,7 +111,8 @@ dataSourcesRouter.get("/:id/health", async (req, res) => {
   try {
     const config = parseJsonApiConfig(JSON.parse(record.config) as unknown);
     const result = await checkDataSourceHealth(config);
-    return res.status(result.ok ? 200 : 502).json(result);
+    if (!result.ok) return dependencyUnavailable(res, "Failed to check data source health", undefined, { sourceId: record.id }, result);
+    return res.json(result);
   } catch (error) {
     return dependencyUnavailable(res, error instanceof Error ? error.message : "Failed to check data source health", error instanceof Error ? error.message : undefined, { sourceId: record.id });
   }
@@ -139,7 +140,7 @@ dataSourcesRouter.post("/:id/read", requireRole("admin"), async (req, res) => {
 
 dataSourcesRouter.post("/:id/test-output", requireRole("admin"), async (req, res) => {
   const record = getDataSource(req.params.id);
-  if (!record) return res.status(404).json({ error: "Device not found" });
+  if (!record) return notFound(res, "Device not found");
 
   try {
     const payload = req.body?.payload ?? { test: true, deviceId: record.id, deviceName: record.name, sentAt: new Date().toISOString() };
@@ -150,10 +151,10 @@ dataSourcesRouter.post("/:id/test-output", requireRole("admin"), async (req, res
         : record.type === "mqtt-output"
           ? await publishMqttOutput({ targetId: record.id, payload })
           : null;
-    if (!result) return res.status(400).json({ error: "Only output devices can be tested" });
+    if (!result) return badRequest(res, "Only output devices can be tested", { sourceId: record.id, type: record.type });
     return res.json({ item: serializeDataSource(record), result });
   } catch (error) {
-    return res.status(502).json({ error: error instanceof Error ? error.message : "Failed to test output" });
+    return dependencyUnavailable(res, error instanceof Error ? error.message : "Failed to test output", error instanceof Error ? error.message : undefined, { sourceId: record.id, type: record.type });
   }
 });
 

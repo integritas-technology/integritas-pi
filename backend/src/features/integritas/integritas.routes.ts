@@ -2,6 +2,8 @@ import { Router } from "express";
 import type { Response } from "express";
 import fs from "node:fs/promises";
 import { sha3HashHex } from "../../shared/crypto.js";
+import { badRequest, notFound, sendApiError, unexpected, dependencyUnavailable } from "../../shared/api-error.js";
+import { appError, systemError } from "../../shared/structured-error.js";
 import { getIntegritasApiKey } from "../settings/secrets.service.js";
 import { createProofRecord, deleteProofRecords, getProofRecord, listProofRecords, countProofRecords, countPollablePendingProofRecords, PROOF_LIST_STATUSES, updateVerifyResponse } from "./integritas.repository.js";
 import { getIntegritasConfig, hashCanonicalBytes, parseProofPayload, pollProofStatus, refreshProofRecord, requestProofUid, sha3HashFile, verifyProof, writeProofExport } from "./integritas.service.js";
@@ -37,8 +39,9 @@ function proofHistoryPage(query: { page: number; pageSize: number; status?: stri
 function sendIntegritasError(res: Response, result: IntegritasApiFailure) {
   // Reserve HTTP 401 for browser session auth; upstream key rejection is an app error.
   const status = result.errorCode === "unauthorized" ? 403 : result.status;
-  return res.status(status).json({
-    error: result.error,
+  return sendApiError(res, status, status >= 500
+    ? systemError({ type: "dependency_unavailable", message: result.error, context: { upstreamStatus: result.status } })
+    : appError({ type: result.errorCode === "unauthorized" ? "forbidden" : "bad_request", message: result.error, context: { upstreamStatus: result.status } }), {
     errorCode: result.errorCode,
     responseBody: result.responseBody,
     ...(result.retryAfter ? { retryAfter: result.retryAfter } : {}),
@@ -48,7 +51,7 @@ function sendIntegritasError(res: Response, result: IntegritasApiFailure) {
 function requireIntegritasApiKey(res: Response) {
   const apiKey = getIntegritasApiKey();
   if (apiKey) return apiKey;
-  res.status(400).json({ error: "Integritas Connect is not linked" });
+  badRequest(res, "Integritas Connect is not linked");
   return "";
 }
 
@@ -100,7 +103,7 @@ integritasRouter.get("/config", (_req, res) => {
 
 integritasRouter.post("/hash", (req, res) => {
   const canonicalBytes = typeof req.body?.canonicalBytes === "string" ? req.body.canonicalBytes : "";
-  if (!canonicalBytes) return res.status(400).json({ error: "canonicalBytes is required" });
+  if (!canonicalBytes) return badRequest(res, "canonicalBytes is required", { field: "canonicalBytes" });
   return res.json(hashCanonicalBytes(canonicalBytes));
 });
 
@@ -111,7 +114,7 @@ integritasRouter.post("/stamp", async (req, res) => {
   const canonicalBytes = typeof req.body?.canonicalBytes === "string" ? req.body.canonicalBytes : "";
   const providedHash = typeof req.body?.hash === "string" ? req.body.hash : "";
   const hash = providedHash || (canonicalBytes ? sha3HashHex(canonicalBytes) : "");
-  if (!hash) return res.status(400).json({ error: "hash or canonicalBytes is required" });
+  if (!hash) return badRequest(res, "hash or canonicalBytes is required", { fields: ["hash", "canonicalBytes"] });
 
   const result = await requestProofUid({ apiKey, hash });
   if (!result.ok) return sendIntegritasError(res, result);
@@ -121,7 +124,7 @@ integritasRouter.post("/stamp", async (req, res) => {
 integritasRouter.post("/stamp-file", upload.single("file"), async (req, res) => {
   const apiKey = requireIntegritasApiKey(res);
   if (!apiKey) return;
-  if (!req.file) return res.status(400).json({ error: "file is required" });
+  if (!req.file) return badRequest(res, "file is required", { field: "file" });
 
   try {
     const hash = await sha3HashFile(req.file.path);
@@ -144,38 +147,36 @@ integritasRouter.get("/history", (req, res) => {
   const parsed = parseListQuery(req.query, {
     allowedStatuses: PROOF_LIST_STATUSES,
   });
-  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+  if (!parsed.ok) return badRequest(res, parsed.error);
 
   return res.json(proofHistoryPage(parsed.value));
 });
 
 integritasRouter.get("/history/:id", (req, res) => {
   const record = getProofRecord(req.params.id);
-  if (!record) return res.status(404).json({ error: "Proof record not found" });
+  if (!record) return notFound(res, "Proof record not found");
   return res.json({ record });
 });
 
 integritasRouter.post("/history/delete-selected", (req, res) => {
   const parsed = parseSelectedIds(req);
-  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+  if (!parsed.ok) return badRequest(res, parsed.error, { field: "ids" });
   deleteProofRecords(parsed.ids);
   return res.json({ deleted: parsed.ids.length });
 });
 
 integritasRouter.post("/history/export-selected", async (req, res) => {
   const parsed = parseSelectedIds(req);
-  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+  if (!parsed.ok) return badRequest(res, parsed.error, { field: "ids" });
   const ids = parsed.ids;
 
   try {
     const merged = ids.flatMap((id: string) => parseProofPayload(getProofRecord(id)?.proof_payload ?? null) ?? []);
-    if (merged.length === 0) return res.status(400).json({ error: "Selected rows do not contain proof payloads" });
+    if (merged.length === 0) return badRequest(res, "Selected rows do not contain proof payloads", { field: "ids" });
     const filePath = await writeProofExport(merged);
     return res.download(filePath);
   } catch (error) {
-    return res.status(500).json({
-      error: error instanceof Error ? error.message : "Proof export failed",
-    });
+    return unexpected(res, error instanceof Error ? error.message : "Proof export failed", error);
   }
 });
 
@@ -184,7 +185,7 @@ integritasRouter.post("/history/:id/poll", async (req, res) => {
   if (!apiKey) return;
 
   const result = await refreshProofRecord(apiKey, req.params.id);
-  if (result.notFound) return res.status(404).json({ error: result.error });
+  if (result.notFound) return notFound(res, result.error);
   if (!result.ok) return sendIntegritasError(res, result.upstream);
   return res.json({ record: result.record, status: result.status });
 });
@@ -193,9 +194,9 @@ integritasRouter.post("/history/:id/verify", async (req, res) => {
   const apiKey = requireIntegritasApiKey(res);
   if (!apiKey) return;
   const record = getProofRecord(req.params.id);
-  if (!record) return res.status(404).json({ error: "Proof record not found" });
+  if (!record) return notFound(res, "Proof record not found");
   const proofPayload = parseProofPayload(record.proof_payload);
-  if (!proofPayload) return res.status(400).json({ error: "Proof record has no proof payload" });
+  if (!proofPayload) return badRequest(res, "Proof record has no proof payload");
   const result = await verifyProof({ apiKey, proofPayload });
   if (!result.ok) return sendIntegritasError(res, result);
   const updated = updateVerifyResponse(req.params.id, result.response);
@@ -209,12 +210,12 @@ integritasRouter.post("/history/:id/verify", async (req, res) => {
 integritasRouter.post("/verify-proof-file", upload.single("file"), async (req, res) => {
   const apiKey = requireIntegritasApiKey(res);
   if (!apiKey) return;
-  if (!req.file) return res.status(400).json({ error: "file is required" });
+  if (!req.file) return badRequest(res, "file is required", { field: "file" });
 
   try {
     const text = await fs.readFile(req.file.path, "utf8");
     const proofPayload = JSON.parse(text) as unknown;
-    if (!Array.isArray(proofPayload) || proofPayload.length === 0) return res.status(400).json({ error: "proof JSON must be a non-empty array" });
+    if (!Array.isArray(proofPayload) || proofPayload.length === 0) return badRequest(res, "proof JSON must be a non-empty array", { field: "file" });
     const result = await verifyProof({ apiKey, proofPayload });
     if (!result.ok) return sendIntegritasError(res, result);
     return res.json({ response: result.response });
@@ -228,16 +229,14 @@ integritasRouter.post("/status", async (req, res) => {
   if (!apiKey) return;
 
   const uids = Array.isArray(req.body?.uids) ? req.body.uids.filter((uid: unknown) => typeof uid === "string" && uid) : [];
-  if (uids.length === 0) return res.status(400).json({ error: "uids must contain at least one UID" });
+  if (uids.length === 0) return badRequest(res, "uids must contain at least one UID", { field: "uids" });
 
   try {
     const result = await pollProofStatus({ apiKey, uids });
     if (!result.ok) return sendIntegritasError(res, result);
     return res.json(result);
   } catch (error) {
-    return res.status(502).json({
-      error: error instanceof Error ? error.message : "Integritas proof status failed",
-    });
+    return dependencyUnavailable(res, error instanceof Error ? error.message : "Integritas proof status failed", error instanceof Error ? error.message : undefined);
   }
 });
 
@@ -249,16 +248,15 @@ integritasRouter.post("/verify", async (req, res) => {
   const storedHash = typeof req.body?.storedHash === "string" ? req.body.storedHash : "";
   const proofPayload = req.body?.proofPayload;
 
-  if (!canonicalBytes || !storedHash) return res.status(400).json({ error: "canonicalBytes and storedHash are required" });
+  if (!canonicalBytes || !storedHash) return badRequest(res, "canonicalBytes and storedHash are required", { fields: ["canonicalBytes", "storedHash"] });
 
   const currentHash = sha3HashHex(canonicalBytes);
   if (currentHash !== storedHash)
-    return res.status(400).json({
-      error: "The current document bytes do not match the stamped hash",
+    return badRequest(res, "The current document bytes do not match the stamped hash", undefined, {
       currentHash,
       storedHash,
     });
-  if (!Array.isArray(proofPayload) || proofPayload.length === 0) return res.status(400).json({ error: "proofPayload must be a non-empty array" });
+  if (!Array.isArray(proofPayload) || proofPayload.length === 0) return badRequest(res, "proofPayload must be a non-empty array", { field: "proofPayload" });
 
   const result = await verifyProof({ apiKey, proofPayload });
   if (!result.ok) return sendIntegritasError(res, result);

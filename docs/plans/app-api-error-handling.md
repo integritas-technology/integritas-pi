@@ -1,6 +1,6 @@
 # App/API Error Handling Plan
 
-Status: In progress. Shared backend helpers and frontend parsing are in place; Data Sources/Webhook routes have initial structured responses, and remaining route groups should be converted opportunistically.
+Status: Implemented for active route-level API error responses. Shared backend helpers and frontend parsing are in place; active routes now return structured `errorDetails` while preserving existing compatibility fields. Status endpoints may still embed plain nested service-error strings inside successful status payloads.
 
 This plan covers request, validation, authorization, and unexpected system errors. It is separate from domain/operational errors such as data-source failures and workflow block failures; see `docs/plans/structured-error-handling.md` for those.
 
