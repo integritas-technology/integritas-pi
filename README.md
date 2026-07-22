@@ -429,6 +429,16 @@ If the app is installed somewhere other than the default `/opt/integritas-pi`, s
 curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/scripts/dev/clear-db.sh | sudo APP_DIR=/opt/integritas-pi bash
 ```
 
+## Tune Update Agent Poll Interval
+
+`update-agent` checks the update manifest in the background every 12 hours by default (`STATUS_POLL_INTERVAL_MS=43200000`). To lower this on an installed app, for example for QA/testing:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/scripts/dev/set-status-poll-interval.sh | sudo STATUS_POLL_INTERVAL_MS=300000 bash
+```
+
+It updates only that one line in the app's `.env`, leaving every other value untouched, then recreates the `update-agent` container to apply it -- only if `update-agent` is already running, so this never starts it on installs that leave it off (e.g. `DEV_MODE`). Set `APP_DIR` the same way as above if the app isn't installed at `/opt/integritas-pi`.
+
 ## Update The App
 
 Run the installer again:
