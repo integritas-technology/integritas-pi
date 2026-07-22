@@ -22,6 +22,8 @@
 ## Next
 
 - [ ] Document the `DEV_MODE` install flag in `README.md`'s runtime-config section and note its manifest-signature-verification bypass in `SECURITY.md`/`docs/security/host-and-infrastructure.md` — flagged during code review, deliberately deferred as a separate concern from the pagination work.
+- [ ] Implement structured error handling for data sources vs workflow/block failures — see `docs/plans/structured-error-handling.md`.
+- [ ] Implement structured app/API/system error responses and frontend parsing — see `docs/plans/app-api-error-handling.md`.
 
 ## Done
 
