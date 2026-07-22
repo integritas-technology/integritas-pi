@@ -130,7 +130,8 @@ function safeFileName(value: string) {
 
 function commandExists(command: string) {
   const result = spawnSync(command, ["--help"], { shell: false, stdio: "ignore" });
-  return !result.error || result.error.message !== "spawnSync ENOENT";
+  if (!result.error) return true;
+  return (result.error as NodeJS.ErrnoException).code !== "ENOENT";
 }
 
 function resolveCameraCommand(mode: "photo" | "video") {
