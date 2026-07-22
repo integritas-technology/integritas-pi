@@ -11,7 +11,11 @@
 - Import source with the compiled `.js` extension (NodeNext ESM resolution), e.g. `../../../src/features/auth/password.service.js`.
 - Pure-function modules (parsing, validation) need no setup.
 - DB-backed modules (repositories, services that hit `db`) use `backend/tests/helpers/testDatabase.ts` — sets `DATABASE_PATH` to a unique temp file, dynamically imports `db/database.js` so the singleton binds to it, runs `runMigrations()`, and returns `{ db, teardown }`. Dependent modules (repository/service) must also be dynamically imported inside `beforeAll`, after the DB is set up, since they statically import the `db` singleton.
-- Network-calling modules (Minima RPC, Integritas HTTP client, MQTT) aren't covered yet — need a mocking/fixture strategy decision before starting (see Open Questions).
+- Network-calling modules: mock at the boundary closest to the module under test, not further down the stack.
+  - For the module that owns the actual `fetch` call (e.g. `minima.rpc.ts`), stub `global.fetch` with `vi.stubGlobal("fetch", vi.fn())` in `beforeEach`/`afterEach` (`vi.unstubAllGlobals()` after) — this exercises the module's own URL-building/parsing logic for real, only the network I/O is faked.
+  - For modules one level up that *depend on* an already-tested lower module (e.g. `minima.service.ts` depends on `minima.rpc.ts`/`minima.docker.ts`), mock the dependency module itself with `vi.mock("<relative-path-from-the-test-file>.js", factory)`. Because `vi.mock` calls are hoisted above imports, any mock function referenced in the factory must be declared via `vi.hoisted(() => ({ ... }))` first, or you'll hit a "Cannot access before initialization" error.
+  - Modules with module-level mutable state (e.g. `minima-monitoring.ts`'s in-memory snapshot) should `vi.resetModules()` and re-`import()` fresh in `beforeEach` so tests don't leak state into each other; this also gives a clean way to re-read `env` after changing `process.env` for a specific test (see `minima-poll.service.test.ts`'s `MINIMA_AUTO_RESYNC` toggle).
+  - Time-dependent logic (cooldowns, expiry) uses `vi.useFakeTimers()` + `vi.setSystemTime()`, restored with `vi.useRealTimers()` in `afterEach`.
 - Routes (`*.routes.ts`) are **not** unit-tested directly. Decision: treat them as thin wiring — pull input off `req`, call an already-tested service function, map the result/error to a response — and consider service/repository coverage sufficient. Revisit for a specific route only if it grows real logic beyond that. See "Future Hardening" for the gap this leaves.
 
 ## Progress
@@ -19,7 +23,7 @@
 | Feature | Status | Notes |
 |---|---|---|
 | `auth` | Done | Covered: `password.service.ts`, `session.service.ts`, `auth.service.ts` (`login`/`changePassword`), `auth.repository.ts` setup-pending lifecycle, `audit.service.ts`, `auth.middleware.ts` (`requireAuth`/`requireRole`), `setup.service.ts` (admin-creation/setup-complete state machine, `completeSetup`, guarded TOTP error paths). Deliberately skipped: `totp.service.ts` (dead code, `TOTP_ENABLED = false`) and the happy-path "valid TOTP code" branches of `verifySetupTotp`/`initSetupTotp` (same reason — not worth the investment). Also skipped: `rate-limit.middleware.ts` (trivial `express-rate-limit` config, no logic) and `integritas-validation.service.ts` (fully commented out, no live exports). `auth.routes.ts`/`setup.routes.ts` intentionally out of scope — see the routes decision above and "Future Hardening" below. |
-| `minima` | Partial | `minima.parse.ts` covered (pre-existing, before this plan). Not started: `minima.service.ts`, `minima.rpc.ts`, `minima-poll.service.ts`, `minima-monitoring.ts`, `minima.docker.ts` — mostly RPC/Docker-socket calls. |
+| `minima` | Done | Covered: `minima.parse.ts` (pre-existing), `minima.errors.ts` (pure), `minima.rpc.ts` (global `fetch` stubbed via `vi.stubGlobal` — established the network-mocking pattern), `minima-monitoring.ts` (stall detection, cooldown via `vi.useFakeTimers`/`vi.setSystemTime`, snapshot state via `vi.resetModules()` per test), `minima.docker.ts` (`getMinimaContainerStats` with `../status/docker.service.js` mocked via `vi.mock`, `getMinimaStorageInfo` pure), `minima.service.ts` (full orchestration — `getMinimaNodeStatus`'s state derivation, block/peers fallback-and-failure paths, config, peers/wallet/resync/restart — with `minima.rpc.js`/`minima.docker.js`/`status/docker.control.js` mocked via `vi.mock`+`vi.hoisted`, DB harness for settings), `minima-poll.service.ts` (`pollMinimaHealth`'s concurrency guard, stall/no-stall, auto-resync gate/cooldown/success/failure — mocking `minima.service.js`/`minima-monitoring.js`, `vi.resetModules()` + `process.env.MINIMA_AUTO_RESYNC` to flip `env` per describe block). Not covered: `minima.routes.ts` — out of scope per the routes decision above. |
 | `tokens` | Partial | `tokens.parse.ts` covered (pre-existing). Not started: `tokens.service.ts`, `tokens.repository.ts`. |
 | `automation` | Not started | `automation.validation.ts` (323 lines, pure When/Condition/Then rule validation) is the highest-value/lowest-friction next target — no DB/network. `automation.service.ts`/`automation.repository.ts`/`automationRuns.repository.ts` need the DB harness. |
 | `wallet` | Not started | `wallet.parse.ts` is a pure-function module, same shape as `minima.parse.ts`/`tokens.parse.ts` — cheap next target. `wallet.service.ts` likely needs Minima RPC mocking. |
@@ -33,10 +37,6 @@
 | `feedback` | Not started | `feedback.service.ts` (339 lines) — check for DB/network dependencies before scoping. |
 | `files` | Not started | `files.service.ts` — host filesystem access, needs a fixture/sandbox strategy. |
 | `debug`, `health` | Not started | Thin route wiring — likely low priority, may skip. |
-
-## Open Questions
-
-- Network-calling modules (Minima RPC over HTTP, Integritas HTTP client, MQTT ingestion/output): mock at the `fetch`/client boundary, or leave to integration/manual testing? Needs a decision before those feature areas are picked up.
 
 ## Future Hardening
 
