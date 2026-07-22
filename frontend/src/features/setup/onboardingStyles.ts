@@ -1,6 +1,6 @@
 export const panelClass = "grid content-start gap-4 max-[700px]:gap-3";
 export const eyebrowClass =
-  "m-0 text-xs font-bold uppercase tracking-[0.18em] text-[var(--brand-accent)]";
+  "m-0 text-xs font-bold uppercase tracking-[0.18em] text-brand-accent";
 export const headingClass =
   "m-0 text-[clamp(1.5rem,2.4vw,2rem)] font-extrabold leading-tight tracking-[-0.03em] text-slate-950";
 export const leadClass = "m-0 max-w-3xl text-base leading-relaxed font-medium text-slate-600";

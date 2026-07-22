@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Layers3 } from "lucide-react";
+import { BrandLineGrid } from "../../components/BrandLineGrid";
 import { Button } from "../../components/Button";
 import { ErrorText } from "../../components/Text";
 import { cx } from "../../lib/cx";
@@ -180,62 +181,73 @@ export function OnboardingWizard({
   };
 
   const hideFooterContinue = currentStep.id === "connectAccount" && status?.status !== "connected";
+  const canGoBack = stepIndex > 0 && !localAdminReady;
   const connectWaitingLabel =
     status?.status === "pending"
       ? "Waiting for Integritas Connect…"
       : "Preparing Integritas Connect…";
+  const continueLabel = submitting
+    ? "Securing device…"
+    : connectReady
+      ? "Enter Edge Workbench"
+      : currentStep.id === "welcome"
+        ? "Get started"
+        : "Continue";
+  const headerStatus = connectReady
+    ? "Ready"
+    : isWorkStep
+      ? `Step ${workStepIndex + 1} of ${onboardingWorkSteps.length}`
+      : "Getting started";
 
   return (
-    <div className="fixed inset-0 z-50 flex min-h-0 flex-col overflow-hidden overscroll-contain bg-white">
+    <div className="fixed inset-0 z-50 flex min-h-0 flex-col overflow-hidden overscroll-contain bg-[#f5f3ed] text-[#1a1a1a]">
+      <BrandLineGrid />
       <div
-        className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-white"
+        className="relative z-10 flex h-full min-h-0 w-full flex-col overflow-hidden"
         role="main"
-        aria-label="First-time setup"
+        aria-label="Setup Wizard"
       >
-        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-200/80 bg-white px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white">
-              <Layers3 size={22} aria-hidden="true" strokeWidth={2.25} />
-            </div>
-            <div>
-              <p className="m-0 text-xs font-bold tracking-[0.16em] text-slate-500 uppercase">
-                Edge Workbench
-              </p>
-              <h1 className="m-0 mt-1 text-lg font-bold tracking-[-0.02em] text-slate-950">
-                First-time setup
+        <header className="bg-brand-white shrink-0 border-b border-slate-200/80">
+          <div className="flex items-center justify-between gap-4 px-6 py-3 lg:px-10">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-slate-950 text-white">
+                <Layers3 size={18} aria-hidden="true" strokeWidth={2.25} />
+              </div>
+              <h1 className="m-0 truncate text-sm font-bold tracking-[-0.02em] text-slate-950">
+                Edge Studio Setup
               </h1>
             </div>
+            <p className={cx(mutedClass, "m-0 shrink-0 text-xs sm:text-sm")}>{headerStatus}</p>
+          </div>
+          <div
+            className="h-0.5 bg-slate-200"
+            role="progressbar"
+            aria-label="Setup progress"
+            aria-valuemin={0}
+            aria-valuemax={onboardingWorkSteps.length}
+            aria-valuenow={
+              currentStep.id === "welcome"
+                ? 0
+                : connectReady
+                  ? onboardingWorkSteps.length
+                  : workStepIndex + 1
+            }
+            aria-valuetext={
+              connectReady
+                ? "Setup complete"
+                : isWorkStep
+                  ? `Step ${workStepIndex + 1} of ${onboardingWorkSteps.length}`
+                  : "Getting started"
+            }
+          >
+            <span
+              className="bg-brand-accent block h-full transition-[width] duration-200 ease-out motion-reduce:transition-none"
+              style={{ width: `${progress}%` }}
+            />
           </div>
         </header>
 
-        <div
-          className="h-1 shrink-0 bg-slate-200"
-          role="progressbar"
-          aria-label="Setup progress"
-          aria-valuemin={0}
-          aria-valuemax={onboardingWorkSteps.length}
-          aria-valuenow={
-            currentStep.id === "welcome"
-              ? 0
-              : connectReady
-                ? onboardingWorkSteps.length
-                : workStepIndex + 1
-          }
-          aria-valuetext={
-            connectReady
-              ? "Setup complete"
-              : isWorkStep
-                ? `Step ${workStepIndex + 1} of ${onboardingWorkSteps.length}`
-                : "Getting started"
-          }
-        >
-          <span
-            className="block h-full rounded-full bg-[var(--brand-accent)] transition-[width] duration-200 ease-out motion-reduce:transition-none"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-[linear-gradient(180deg,#fafafa_0%,#ffffff_28%)]">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent] overflow-y-auto px-6 py-8 max-[700px]:py-5 lg:px-10 lg:py-10">
             <div className="mx-auto w-full max-w-2xl">
               {currentStep.id === "welcome" && <WelcomeStep />}
@@ -278,10 +290,10 @@ export function OnboardingWizard({
             </ErrorText>
           ) : null}
 
-          <footer className="shrink-0 border-t border-slate-200 bg-white">
-            <div className="mx-auto flex w-full max-w-2xl flex-col items-stretch gap-3 px-6 py-3 max-[900px]:gap-3 sm:flex-row sm:items-center sm:justify-between lg:px-10">
-              <div>
-                {stepIndex > 0 && !localAdminReady ? (
+          <footer className="bg-brand-white shrink-0 border-t border-slate-200">
+            <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-4 px-6 py-4 lg:px-10">
+              <div className="flex min-h-11 min-w-0 flex-1 items-center">
+                {canGoBack ? (
                   <Button
                     type="button"
                     variant="ghost"
@@ -291,16 +303,9 @@ export function OnboardingWizard({
                   >
                     <ArrowLeft size={16} /> Back
                   </Button>
-                ) : (
-                  <span />
-                )}
+                ) : null}
               </div>
-              <div className="flex items-center justify-between gap-3.5 max-[900px]:justify-between">
-                <span className={mutedClass}>
-                  {isWorkStep && !connectReady
-                    ? `Step ${workStepIndex + 1} of ${onboardingWorkSteps.length}`
-                    : "\u00a0"}
-                </span>
+              <div className="flex shrink-0 items-center justify-end">
                 {hideFooterContinue ? (
                   <span
                     className={cx(mutedClass, "text-right text-xs sm:text-sm")}
@@ -313,16 +318,12 @@ export function OnboardingWizard({
                   <Button
                     type="button"
                     variant="primary"
-                    size="sm"
+                    size="md"
                     disabled={!canContinue || submitting}
                     onClick={() => void goNext()}
                   >
-                    {submitting
-                      ? "Securing device…"
-                      : connectReady
-                        ? "Enter Edge Workbench"
-                        : "Continue"}
-                    {!connectReady && !submitting && <ArrowRight size={16} />}
+                    {continueLabel}
+                    {!connectReady && !submitting ? <ArrowRight size={16} /> : null}
                   </Button>
                 )}
               </div>

@@ -9,13 +9,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - Shared `ErrorAlert` UI component for in-page errors with optional title and recovery action.
-- Edge Studio primary colour tokens: White (`--brand-white`), Graphite (`--brand-graphite`), Accent (`--brand-accent`, muted Minima-linked orange); plus supporting `--brand-bg` / `--brand-graphite-muted`. Manrope as the app UI font.
+- Edge Studio brand colour tokens as Tailwind theme utilities (`brand-white`, `brand-graphite`, `brand-accent`, plus supporting shades and semantic `error` / `warning` / `success` / `info` colours). Manrope as the app UI font.
 
 ### Changed
 
 - First-run setup wizard is a single-column flow (no step sidebar): welcome → secure device → Integritas Connect, with progress tracked only on the work steps.
 - Integritas Connect is the final setup step; once connected, the same screen shows the ready state and **Enter Edge Workbench** (the separate "Ready to use" step is gone).
-- Setup branding and copy lean on Edge Workbench / Integritas Connect, with a clearer welcome overview of upcoming steps.
+- Setup welcome leads with the Edge Studio name, a short product intro, and a clearer list of upcoming steps; header shows progress and status, welcome CTA is **Get started**, and the shell uses a subtle line-grid background.
+- Shared buttons use brand tokens (including status/danger and on-dark variants) with squarer corners.
 
 ### Removed
 
