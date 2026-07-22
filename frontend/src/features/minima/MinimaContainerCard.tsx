@@ -1,4 +1,5 @@
 import type { MinimaNodeStatus } from "../../app/types";
+import { LoadingDots } from "../../components/LoadingDots";
 import { MinimaStatCell, MinimaStatGrid } from "./MinimaStatCell";
 
 function formatContainerMemory(container: MinimaNodeStatus["container"] | undefined) {
@@ -26,7 +27,7 @@ export function MinimaContainerCard({
   onRestart?: () => void;
 }) {
   const container = refreshing ? undefined : status?.container;
-  const unavailable = (loading || refreshing) && !container ? "Checking…" : "—";
+  const unavailable = (loading || refreshing) && !container ? <LoadingDots /> : "—";
 
   const cpuLabel = container?.cpuPercent != null ? `${container.cpuPercent}%` : unavailable;
   const memoryLabel = formatContainerMemory(container) ?? unavailable;

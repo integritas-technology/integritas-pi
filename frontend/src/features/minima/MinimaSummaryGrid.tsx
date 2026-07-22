@@ -1,7 +1,9 @@
 import { HardDrive, Layers3, RefreshCw } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
 import type { MinimaNodeStatus } from '../../app/types';
 import { Card } from '../../components/Card';
+import { LoadingDots } from '../../components/LoadingDots';
 import { cx } from '../../lib/cx';
 import { formatNodeState, formatSyncStatus } from './minimaFormat';
 
@@ -13,8 +15,8 @@ function SummaryCard({
 }: {
   icon: LucideIcon;
   title: string;
-  text: string;
-  children?: React.ReactNode;
+  text: ReactNode;
+  children?: ReactNode;
 }) {
   return (
     <Card className='flex flex-col p-5! transition hover:-translate-y-0.5 hover:shadow-md'>
@@ -47,7 +49,7 @@ export function MinimaSummaryGrid({
     : effectiveStatus?.node.memoryDisk
       ? `${effectiveStatus.node.memoryDisk} chain data`
       : effectiveLoading
-        ? 'Checking…'
+        ? <LoadingDots />
         : 'Unavailable';
   const containerDiskLabel = effectiveStatus?.storage.containerDisk
     ? `${effectiveStatus.storage.containerDisk} Docker container`
@@ -58,13 +60,19 @@ export function MinimaSummaryGrid({
       <SummaryCard
         icon={Layers3}
         title='Minima'
-        text={formatNodeState(effectiveStatus?.state ?? null, effectiveLoading)}
+        text={effectiveLoading && !effectiveStatus?.state ? <LoadingDots /> : formatNodeState(effectiveStatus?.state ?? null)}
       />
 
       <SummaryCard
         icon={RefreshCw}
         title='Sync status'
-        text={formatSyncStatus(effectiveStatus?.sync.status, effectiveLoading)}
+        text={
+          effectiveLoading && !effectiveStatus?.sync.status ? (
+            <LoadingDots />
+          ) : (
+            formatSyncStatus(effectiveStatus?.sync.status)
+          )
+        }
       >
         <button
           type='button'

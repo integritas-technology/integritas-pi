@@ -1,5 +1,6 @@
 import type { MinimaNodeStatus } from "../../app/types";
 import { JsonPreview } from "../../components/JsonPreview";
+import { LoadingDots } from "../../components/LoadingDots";
 import { ErrorText } from "../../components/Text";
 import { formatBlockAge } from "./minimaFormat";
 import { shouldShowMinimaRpcError } from "./minimaStatusDisplay";
@@ -20,12 +21,12 @@ export function MinimaHealthCard({
   const effectiveStatus = refreshing ? null : status;
   const effectiveLoading = loading || refreshing;
 
-  const memoryLabel = effectiveStatus?.node.memoryRam ?? (effectiveLoading ? "Checking…" : "—");
+  const memoryLabel = effectiveStatus?.node.memoryRam ?? (effectiveLoading ? <LoadingDots /> : "—");
   const peerLabel =
     effectiveStatus?.health.peerCount != null
       ? String(effectiveStatus.health.peerCount)
       : effectiveLoading
-        ? "Checking…"
+        ? <LoadingDots />
         : "—";
   const blockAgeLabel =
     effectiveStatus?.sync.blockAgeSeconds != null
@@ -33,10 +34,10 @@ export function MinimaHealthCard({
       : effectiveStatus?.sync.blockTime
         ? formatLocalTime(effectiveStatus.sync.blockTime)
         : effectiveLoading
-          ? "Checking…"
+          ? <LoadingDots />
           : "—";
   const currentBlockLabel =
-    effectiveStatus?.sync.block != null ? String(effectiveStatus.sync.block) : effectiveLoading ? "Checking…" : "—";
+    effectiveStatus?.sync.block != null ? String(effectiveStatus.sync.block) : effectiveLoading ? <LoadingDots /> : "—";
 
   const checkedLine = effectiveStatus?.checkedAt
     ? `Checked ${formatLocalTime(effectiveStatus.checkedAt)} local · ${formatUtcTime(effectiveStatus.checkedAt)} UTC`

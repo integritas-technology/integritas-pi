@@ -8,16 +8,14 @@ export function formatBlockAge(seconds: number | null) {
   return `${Math.floor(seconds / 86400)} days ago`;
 }
 
-export function formatNodeState(state: MinimaNodeState | null, loading = false) {
-  if (loading && !state) return "Checking…";
+export function formatNodeState(state: MinimaNodeState | null) {
   if (!state) return "—";
   if (state === "running") return "Running";
   if (state === "stopped") return "Stopped";
   return "Error";
 }
 
-export function formatSyncStatus(status: MinimaSyncStatus | null | undefined, loading = false) {
-  if (loading && !status) return "Checking…";
+export function formatSyncStatus(status: MinimaSyncStatus | null | undefined) {
   if (!status || status === "unavailable") return "Unavailable";
   if (status === "active") return "Active";
   if (status === "stale") return "Stale";

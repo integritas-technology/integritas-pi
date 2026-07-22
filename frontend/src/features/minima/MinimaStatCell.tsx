@@ -1,7 +1,8 @@
+import type { ReactNode } from "react";
 import { Card } from "../../components/Card";
 import { cx } from "../../lib/cx";
 
-export function MinimaStatCell({ label, value }: { label: string; value: string }) {
+export function MinimaStatCell({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="h-full rounded-2xl bg-slate-50 p-4">
       <p className="m-0 text-sm text-slate-500">{label}</p>
