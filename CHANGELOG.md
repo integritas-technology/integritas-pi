@@ -10,10 +10,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Pi Camera capture devices can now be enabled with `ENABLE_CAMERA=true`, configured from Devices, and used in Automation through a `Capture camera` data block that hashes captured media bytes and can attach Integritas stamping.
 - Camera command detection now tries `rpicam-still`/`rpicam-vid` and `libcamera-still`/`libcamera-vid`, and the backend image attempts to install available Raspberry Pi/libcamera app packages.
+- Structured error details are now available for device/source errors, read-history failures, workflow runs, and failed workflow blocks.
 
 ### Changed
 
 - Docs now describe the implemented block-based automation/device model more accurately, including GPIO output targets, Pi Camera privacy risks, and the moved GPIO device settings guide.
+- Failed device/read/workflow rows now show a dedicated error details view instead of making raw JSON the primary error display.
+
+### Fixed
+
+- Downstream workflow block failures, such as a missing camera command after a GPIO trigger, no longer overwrite the triggering data source's last error.
 
 ## [0.21.0] - 2026-07-21
 

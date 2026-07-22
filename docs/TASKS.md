@@ -22,8 +22,7 @@
 ## Next
 
 - [ ] Document the `DEV_MODE` install flag in `README.md`'s runtime-config section and note its manifest-signature-verification bypass in `SECURITY.md`/`docs/security/host-and-infrastructure.md` — flagged during code review, deliberately deferred as a separate concern from the pagination work.
-- [ ] Implement structured error handling for data sources vs workflow/block failures — see `docs/plans/structured-error-handling.md`.
-- [ ] Implement structured app/API/system error responses and frontend parsing — see `docs/plans/app-api-error-handling.md`.
+- [ ] Continue structured app/API/system error response migration for remaining route groups — see `docs/plans/app-api-error-handling.md`.
 
 ## Done
 
@@ -40,6 +39,8 @@
 - [x] Ran a multi-agent code + security review of `chore/workflow-pagination`; security review was clean; fixed 7 of 10 code-review findings (shared backend pageSize=0 bug, duplicated tab-dispatch logic, an orphaned API route, a stale hardcoded default, dead code, a refresh-icon busy-state paper cut, and an empty `CHANGELOG.md [Unreleased]`).
 - [x] Added `commit-message` and `session-notes` skills (mirrored in `.claude/skills/` and `.agents/skills/`).
 - [x] Added Pi Camera capture devices and `Capture camera` automation blocks; cleaned up stale docs README plan rows and GPIO guide links.
+- [x] Implemented structured data-source/workflow/block error attribution and UI details — see `docs/plans/structured-error-handling.md`.
+- [x] Added structured app/API error helpers, frontend parser support, and initial Data Sources/Webhook route conversion — see `docs/plans/app-api-error-handling.md`.
 
 ## Ideas
 

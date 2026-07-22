@@ -113,7 +113,7 @@ function runCaptureCommand(config: PiCameraConfig, outputPath: string) {
     });
 
     child.on("error", (error) => {
-      reject(new Error(`Camera command failed to start (${command}): ${error.message}`));
+      reject(Object.assign(new Error(`Camera command failed to start (${command}): ${error.message}`), { code: "code" in error ? error.code : undefined, command }));
     });
 
     child.on("close", (code) => {

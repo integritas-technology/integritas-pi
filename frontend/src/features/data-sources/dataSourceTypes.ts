@@ -35,6 +35,7 @@ export type DataSource = {
   };
   lastReadAt: string | null;
   lastError: string | null;
+  lastErrorDetails?: unknown;
   lastPreview: unknown;
   lastHash: string | null;
 };

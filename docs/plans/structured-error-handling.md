@@ -1,5 +1,7 @@
 # Structured Error Handling Plan
 
+Status: Implemented. Existing text-error columns are still used for storage; new writers serialize structured errors as JSON and serializers normalize both legacy strings and structured errors.
+
 This plan defines how backend and frontend should separate data-source errors from workflow/block errors, while still preserving native upstream error details for debugging.
 
 ## Problem

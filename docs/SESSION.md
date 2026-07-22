@@ -15,14 +15,21 @@ Scratch log for the session in progress. Update it as you go; reset it when a se
 - Added `commit-message` and `session-notes` skills, mirrored in both `.claude/skills/` and `.agents/skills/`.
 - Added Pi Camera capture devices and a `Capture camera` automation data block that hashes captured media bytes, stores metadata in read history, and can attach Integritas stamping.
 - Updated installer/env/Compose docs for `ENABLE_CAMERA=true`, camera device mounts, capture retention, and camera privacy/security notes.
+- Implemented structured operational errors for data sources, data reads, automation runs, and block runs while preserving legacy string-error compatibility.
+- Stopped downstream workflow/block failures from overwriting trigger data-source errors; GPIO/MQTT workflow execution failures now stay in workflow logs while source-level failures remain on the source.
+- Added frontend error normalization and `ErrorDetails` views for Devices, read history, and workflow run/block failures.
+- Added shared API error helpers and converted high-impact Data Sources/Webhook routes to return structured app/API details while keeping top-level string compatibility.
+- Verified `npm --prefix backend run build`, `npm --prefix frontend run build`, and `npm run check` through typecheck/tests; `npm run check` still fails at `audit:moderate` due to existing dependency advisories.
 
 ## Next Steps
 
 - Manual browser pass through all three Diagnostics tabs (pagination, filters, search, refresh) before merging — not click-tested live this session due to the TOTP-gated setup flow.
 - Decide whether to merge `chore/workflow-pagination` into `main` now or fold in the deferred README/SECURITY `DEV_MODE` doc note first.
 - Verify camera capture on real Raspberry Pi hardware with camera devices and `rpicam-still`/`rpicam-vid` available in the backend runtime.
+- Continue migrating remaining API route groups to the structured app/API envelope from `docs/plans/app-api-error-handling.md`.
 
 ## Notes / Open Questions
 
 - Deliberately left unfixed from the code review: unescaped `%`/`_` in the new LIKE search (matches an existing pattern in `dataReads.repository.ts`/`integritas.repository.ts`; fixing it would mean touching unrelated pre-existing files); the free-text search index-coverage gap (needs FTS5, a real feature, not a cleanup); the `DEV_MODE` docs gap in `README.md`/`SECURITY.md` (separate concern from this branch).
 - Considered adding a `docs/MEMORY.md` file; decided against it — the need is already covered by `docs/notes/*.md` (deferred items), `docs/plans/*.md` (active work), and `CHANGELOG.md` (shipped history).
+- Audit gate currently reports advisories for `body-parser`, `brace-expansion`, `esbuild`, `multer`, and `tar` via `@mapbox/node-pre-gyp`; code/type/test verification passed before audit.

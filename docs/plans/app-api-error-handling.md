@@ -1,5 +1,7 @@
 # App/API Error Handling Plan
 
+Status: In progress. Shared backend helpers and frontend parsing are in place; Data Sources/Webhook routes have initial structured responses, and remaining route groups should be converted opportunistically.
+
 This plan covers request, validation, authorization, and unexpected system errors. It is separate from domain/operational errors such as data-source failures and workflow block failures; see `docs/plans/structured-error-handling.md` for those.
 
 ## Problem

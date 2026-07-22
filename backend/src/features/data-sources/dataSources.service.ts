@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { sha3HashHex } from "../../shared/crypto.js";
 import { fetchJsonWithTimeout } from "../../shared/http.js";
+import { errorMessage, parseStoredError } from "../../shared/structured-error.js";
 import type { DataSourceRecord } from "./dataSources.repository.js";
 
 export type JsonApiConfig = {
@@ -61,6 +62,7 @@ export type PiCameraConfig = {
 };
 
 export function serializeDataSource(record: DataSourceRecord) {
+  const lastErrorDetails = parseStoredError(record.last_error);
   return {
     id: record.id,
     createdAt: record.created_at,
@@ -71,7 +73,8 @@ export function serializeDataSource(record: DataSourceRecord) {
     description: record.description,
     config: JSON.parse(record.config) as unknown,
     lastReadAt: record.last_read_at,
-    lastError: record.last_error,
+    lastError: errorMessage(record.last_error),
+    lastErrorDetails,
     lastPreview: record.last_preview ? JSON.parse(record.last_preview) as unknown : null,
     lastHash: record.last_hash
   };
