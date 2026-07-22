@@ -26,7 +26,7 @@ export function WelcomeStep() {
   return (
     <div className="onboarding-enter grid gap-8 motion-safe:animate-[onboarding-fade-up_0.45s_ease-out_both] max-[700px]:gap-6">
       <header className="grid gap-3">
-        <p className="m-0 text-xs font-bold tracking-[0.2em] text-[var(--brand-primary)] uppercase">
+        <p className="m-0 text-xs font-bold tracking-[0.2em] text-[var(--brand-accent)] uppercase">
           Edge Workbench
         </p>
         <h2 className="m-0 max-w-xl text-[clamp(1.75rem,3.5vw,2.35rem)] leading-[1.15] font-extrabold tracking-[-0.03em] text-slate-950">
@@ -63,7 +63,7 @@ export function WelcomeStep() {
                 )}
                 style={{ animationDelay: `${120 + index * 70}ms` }}
               >
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded bg-white text-[var(--brand-primary)] shadow-[0_1px_0_rgba(15,23,42,0.04)] ring-1 ring-slate-200/90">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded bg-white text-[var(--brand-accent)] shadow-[0_1px_0_rgba(15,23,42,0.04)] ring-1 ring-slate-200/90">
                   <Icon size={18} strokeWidth={2.25} aria-hidden="true" />
                 </span>
                 <div className="min-w-0 pt-0.5">

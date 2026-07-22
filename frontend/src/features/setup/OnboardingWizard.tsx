@@ -230,7 +230,7 @@ export function OnboardingWizard({
           }
         >
           <span
-            className="block h-full rounded-full bg-[var(--brand-primary)] transition-[width] duration-200 ease-out motion-reduce:transition-none"
+            className="block h-full rounded-full bg-[var(--brand-accent)] transition-[width] duration-200 ease-out motion-reduce:transition-none"
             style={{ width: `${progress}%` }}
           />
         </div>

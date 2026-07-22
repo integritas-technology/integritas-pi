@@ -328,6 +328,7 @@ export function runMigrations() {
     )
   `);
 
+  // Keep this only for backwards compatibility.
   db.exec(`
     INSERT OR IGNORE INTO settings (key, value, updated_at)
     SELECT 'setup.completed_at', auth.updated_at, CURRENT_TIMESTAMP

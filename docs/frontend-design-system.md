@@ -44,6 +44,7 @@ Use these before writing bespoke markup:
 - `ButtonRow`: wrapping button groups.
 - `Pill`: compact status/category label.
 - `Text`: shared muted, error, and eyebrow text helpers.
+- `ErrorAlert`: in-page error alert with optional title and recovery action.
 - `Modal`: portal-backed dialog shell.
 - `DataTable`: workflow-style table shell, wrapper, rows, and action cells.
 - `StatusRow`: compact label/value/status presentation.
@@ -80,9 +81,15 @@ Avoid exporting these constants or moving them into shared files unless more tha
 
 ## Tokens
 
-This repo does not currently define a Tailwind config or CSS token layer. Use Tailwind's default scale directly unless a repeated value becomes a real maintenance issue.
+Edge Studio primary palette is **White**, **Graphite**, and **Accent** (one complementary colour used sparingly). Tokens live in `frontend/src/styles.css`:
 
-Add tokens only when there is a concrete need, such as a brand color used across many surfaces or a spacing/type rule that cannot be expressed clearly with Tailwind defaults.
+| Brief name | Token | Role |
+|---|---|---|
+| White | `--brand-white` | Near-white surfaces / panels (not raw `#ffffff`) |
+| Graphite | `--brand-graphite` | Text and strong UI |
+| Accent | `--brand-accent` | Sparse highlights (CTA accents, progress) |
+
+Supporting shades of those primaries: `--brand-bg` (off-white page ground), `--brand-graphite-muted`. Values are placeholders until design delivers — change hex in `:root`, not component classes. Use Tailwind defaults for everything else until a repeated need appears.
 
 ## Do Not Add Yet
 

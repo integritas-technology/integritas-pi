@@ -4,6 +4,23 @@ All notable changes to `integritas-pi` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html) at the package level.
 
+## [Unreleased]
+
+### Added
+
+- Shared `ErrorAlert` UI component for in-page errors with optional title and recovery action.
+- Edge Studio primary colour tokens: White (`--brand-white`), Graphite (`--brand-graphite`), Accent (`--brand-accent`, muted Minima-linked orange); plus supporting `--brand-bg` / `--brand-graphite-muted`. Manrope as the app UI font.
+
+### Changed
+
+- First-run setup wizard is a single-column flow (no step sidebar): welcome → secure device → Integritas Connect, with progress tracked only on the work steps.
+- Integritas Connect is the final setup step; once connected, the same screen shows the ready state and **Enter Edge Workbench** (the separate "Ready to use" step is gone).
+- Setup branding and copy lean on Edge Workbench / Integritas Connect, with a clearer welcome overview of upcoming steps.
+
+### Removed
+
+- Separate first-run "Ready to use" / complete step after Connect.
+
 ## [0.21.2] - 2026-07-22
 
 ### Added
