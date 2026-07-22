@@ -395,6 +395,50 @@ cd /opt/integritas-pi
 docker compose down
 ```
 
+## Reset The Database
+
+To wipe an installed app's entire SQLite database (all users, sessions, Integritas history, data sources, and automation workflows), run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/scripts/dev/clear-db.sh | sudo bash
+```
+
+It stops the `backend` container, deletes `integritas-pi.db` from the app's data directory, then restarts `backend` so migrations recreate a fresh schema. You'll be prompted to confirm before anything is deleted.
+
+To clear only part of the database instead, set `TARGET`:
+
+```bash
+# Local accounts, sessions, setup wizard state, and Integritas Connect pairing.
+# Forces redoing the setup wizard and Integritas Connect.
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/scripts/dev/clear-db.sh | sudo TARGET=users bash
+
+# Integritas proof history, data source read history, and automation workflow
+# run logs (the Diagnostics tabs). Leaves accounts, data sources, and workflow
+# definitions untouched.
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/scripts/dev/clear-db.sh | sudo TARGET=history bash
+
+# Data sources and automation workflows/blocks. Leaves accounts and history untouched.
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/scripts/dev/clear-db.sh | sudo TARGET=automation bash
+```
+
+`TARGET` defaults to `all` (the full database-file wipe above); the scoped targets run SQL deletes against just those tables using the already-built `backend` image, instead of deleting the whole file.
+
+If the app is installed somewhere other than the default `/opt/integritas-pi`, set `APP_DIR`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/scripts/dev/clear-db.sh | sudo APP_DIR=/opt/integritas-pi bash
+```
+
+## Tune Update Agent Poll Interval
+
+`update-agent` checks the update manifest in the background every 12 hours by default (`STATUS_POLL_INTERVAL_MS=43200000`). To lower this on an installed app, for example for QA/testing:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/scripts/dev/set-status-poll-interval.sh | sudo STATUS_POLL_INTERVAL_MS=300000 bash
+```
+
+It updates only that one line in the app's `.env`, leaving every other value untouched, then recreates the `update-agent` container to apply it -- only if `update-agent` is already running, so this never starts it on installs that leave it off (e.g. `DEV_MODE`). Set `APP_DIR` the same way as above if the app isn't installed at `/opt/integritas-pi`.
+
 ## Update The App
 
 Run the installer again:
