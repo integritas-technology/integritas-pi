@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - Pi Camera capture devices can now be enabled with `ENABLE_CAMERA=true`, configured from Devices, and used in Automation through a `Capture camera` data block that hashes captured media bytes and can attach Integritas stamping.
-- Camera command detection now tries `rpicam-still`/`rpicam-vid` and `libcamera-still`/`libcamera-vid`, and the backend image attempts to install available Raspberry Pi/libcamera app packages.
+- Camera capture now uses an opt-in host-side Python helper service so Raspberry Pi camera commands run against the host camera stack instead of inside the backend container.
 - Structured error details are now available for device/source errors, read-history failures, workflow runs, and failed workflow blocks.
 - Structured app/API error details are now returned by active route-level API error responses while preserving existing top-level compatibility fields.
 - Agent rules now document the structured backend/frontend error-handling conventions for future route, domain-error, and UI work.

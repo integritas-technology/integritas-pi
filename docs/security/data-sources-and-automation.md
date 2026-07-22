@@ -241,15 +241,16 @@ Status: Accepted prototype risk for local learning hardware only.
 
 ## Pi Camera Capture Devices
 
-Risk: Enabled Pi Camera workflows allow the backend container to access Raspberry Pi camera devices and capture photos or short video clips through configured camera commands.
+Risk: Enabled Pi Camera workflows allow the backend to ask a localhost host-side camera helper to capture photos or short video clips through configured camera commands.
 
-Impact: Captures can contain private images/video. Camera device access expands the backend container's host hardware access, and stored captures can consume disk space if workflows run frequently.
+Impact: Captures can contain private images/video. The helper expands app control over host camera hardware, and stored captures can consume disk space if workflows run frequently.
 
 Current Controls:
 
 - Pi Camera device creation/editing requires admin role.
-- Camera access is opt-in through `ENABLE_CAMERA=true`; the installer writes a Compose override with detected camera device nodes and `/run/udev:ro`.
-- Camera capability reporting checks that camera commands exist and that the container can list at least one detected camera before enabling Pi Camera device creation.
+- Camera access is opt-in through `ENABLE_CAMERA=true`; the installer creates a localhost-only `integritas-pi-camera-helper` systemd service.
+- The helper requires a generated bearer token shared with the backend through `.env`.
+- Camera capability reporting checks that host camera commands exist and that the helper can list at least one detected camera before enabling Pi Camera device creation.
 - Camera capture is a narrow workflow data block, not arbitrary shell execution or a generic output target.
 - Captured media stays local under the configured capture directory; read history stores JSON metadata and the media hash.
 - Integritas stamping uses the captured media file hash, not the raw image/video content.

@@ -84,5 +84,7 @@ export const env = {
   cameraMaxDurationSeconds: Number(process.env.CAMERA_MAX_DURATION_SECONDS ?? 30),
   cameraRetentionDays: Number(process.env.CAMERA_RETENTION_DAYS ?? 7),
   cameraPhotoCommand: process.env.CAMERA_PHOTO_COMMAND ?? "rpicam-still",
-  cameraVideoCommand: process.env.CAMERA_VIDEO_COMMAND ?? "rpicam-vid"
+  cameraVideoCommand: process.env.CAMERA_VIDEO_COMMAND ?? "rpicam-vid",
+  cameraHelperUrl: process.env.CAMERA_HELPER_URL ?? "http://host.docker.internal:38180",
+  cameraHelperToken: process.env.CAMERA_HELPER_TOKEN ?? ""
 };

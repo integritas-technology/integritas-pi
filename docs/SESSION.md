@@ -14,7 +14,8 @@ Scratch log for the session in progress. Update it as you go; reset it when a se
 - Duplicated `.agents/` → `.claude/` and `AGENTS.md` → `CLAUDE.md`, with a sync notice in both against drift.
 - Added `commit-message` and `session-notes` skills, mirrored in both `.claude/skills/` and `.agents/skills/`.
 - Added Pi Camera capture devices and a `Capture camera` automation data block that hashes captured media bytes, stores metadata in read history, and can attach Integritas stamping.
-- Updated installer/env/Compose docs for `ENABLE_CAMERA=true`, camera device mounts, capture retention, and camera privacy/security notes.
+- Pivoted camera execution to an opt-in host-side Python camera helper service so Raspberry Pi camera commands use the host camera stack instead of the backend container.
+- Updated installer/env/Compose docs for `ENABLE_CAMERA=true`, camera helper setup, capture retention, and camera privacy/security notes.
 - Implemented structured operational errors for data sources, data reads, automation runs, and block runs while preserving legacy string-error compatibility.
 - Stopped downstream workflow/block failures from overwriting trigger data-source errors; GPIO/MQTT workflow execution failures now stay in workflow logs while source-level failures remain on the source.
 - Added frontend error normalization and `ErrorDetails` views for Devices, read history, and workflow run/block failures.
@@ -29,7 +30,7 @@ Scratch log for the session in progress. Update it as you go; reset it when a se
 
 - Manual browser pass through all three Diagnostics tabs (pagination, filters, search, refresh) before merging — not click-tested live this session due to the TOTP-gated setup flow.
 - Decide whether to merge `chore/workflow-pagination` into `main` now or fold in the deferred README/SECURITY `DEV_MODE` doc note first.
-- Verify camera capture on real Raspberry Pi hardware with camera devices and `rpicam-still`/`rpicam-vid` available in the backend runtime.
+- Verify camera capture on real Raspberry Pi hardware with the host camera helper and host `rpicam-still`/`libcamera-still` camera stack.
 - Review whether status payloads that embed service errors should eventually use structured nested error details; they are not HTTP error responses today.
 
 ## Notes / Open Questions

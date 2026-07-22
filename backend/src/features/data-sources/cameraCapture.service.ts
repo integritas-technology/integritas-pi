@@ -1,10 +1,9 @@
-import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { env } from "../../config/env.js";
 import { sha3HashHex } from "../../shared/crypto.js";
 import { getDataSource } from "./dataSources.repository.js";
-import { parsePiCameraConfig, type PiCameraConfig } from "./dataSources.service.js";
+import { parsePiCameraConfig } from "./dataSources.service.js";
 
 export type CameraCaptureResult = {
   contentType: "image/jpeg" | "video/h264";
@@ -15,7 +14,7 @@ export type CameraCaptureResult = {
 };
 
 type CameraCapturePreview = {
-  source: "pi-camera";
+  source: "pi-camera-helper";
   mode: "photo" | "video";
   fileName: string;
   path: string;
@@ -26,141 +25,70 @@ type CameraCapturePreview = {
   width: number;
   height: number;
   durationMs: number;
-  fps?: number;
+  fps?: number | null;
+  command?: string;
 };
 
-export function getCameraCapability() {
+export async function getCameraCapability() {
   if (!env.cameraEnabled) {
     return { available: false, enabled: false, captureDir: env.cameraCaptureDir, reason: "Camera support is disabled. Set ENABLE_CAMERA=true and restart the app." };
   }
 
-  const photoCommand = resolveCameraCommand("photo");
-  if (!photoCommand) {
-    return { available: false, enabled: true, captureDir: env.cameraCaptureDir, reason: `Camera photo command was not found. Tried: ${cameraCommandCandidates("photo").join(", ")}` };
+  try {
+    const response = await cameraHelperRequest("/capabilities");
+    return { enabled: true, captureDir: env.cameraCaptureDir, ...response };
+  } catch (error) {
+    return { available: false, enabled: true, captureDir: env.cameraCaptureDir, reason: error instanceof Error ? error.message : "Camera helper is unavailable" };
   }
-
-  const videoCommand = resolveCameraCommand("video");
-  if (!videoCommand) {
-    return { available: false, enabled: true, captureDir: env.cameraCaptureDir, reason: `Camera video command was not found. Tried: ${cameraCommandCandidates("video").join(", ")}` };
-  }
-
-  const cameraList = listCameras(photoCommand);
-  if (!cameraList.detected) {
-    return { available: false, enabled: true, captureDir: env.cameraCaptureDir, reason: cameraList.reason, photoCommand, videoCommand };
-  }
-
-  return { available: true, enabled: true, captureDir: env.cameraCaptureDir, reason: null, photoCommand, videoCommand, cameras: cameraList.output };
 }
 
 export async function capturePiCamera(input: { sourceId: string; durationMs?: number }): Promise<CameraCaptureResult> {
-  const capability = getCameraCapability();
+  const capability = await getCameraCapability();
   if (!capability.available) throw new Error(capability.reason ?? "Camera support is unavailable");
 
   const source = getDataSource(input.sourceId);
   if (!source || source.type !== "pi-camera") throw new Error("Capture camera block requires a Pi Camera device");
 
-  const config = normalizeCaptureConfig(parsePiCameraConfig(JSON.parse(source.config) as unknown), input.durationMs);
-  const capturedAt = new Date().toISOString();
-  const extension = config.outputFormat;
-  const fileName = `${safeFileName(source.name)}-${capturedAt.replace(/[:.]/g, "-")}.${extension}`;
-  const outputPath = path.join(env.cameraCaptureDir, fileName);
-
-  await fs.mkdir(env.cameraCaptureDir, { recursive: true });
-  await pruneOldCaptures();
-  await runCaptureCommand(config, outputPath);
-
-  const [bytes, stat] = await Promise.all([fs.readFile(outputPath), fs.stat(outputPath)]);
-  const hash = sha3HashHex(bytes);
-  const mediaType = config.mode === "photo" ? "image/jpeg" : "video/h264";
-  const preview: CameraCapturePreview = {
-    source: "pi-camera",
+  const config = parsePiCameraConfig(JSON.parse(source.config) as unknown);
+  const durationMs = input.durationMs ?? config.durationMs;
+  const preview = await cameraHelperRequest("/capture", {
     mode: config.mode,
-    fileName,
-    path: outputPath,
-    mediaType,
-    sizeBytes: stat.size,
-    sha3: hash,
-    capturedAt,
     width: config.width,
     height: config.height,
-    durationMs: config.mode === "photo" ? 0 : config.durationMs,
-    fps: config.mode === "video" ? config.fps : undefined
-  };
+    durationMs,
+    fps: config.fps,
+    sourceName: source.name
+  }) as CameraCapturePreview;
 
-  return { contentType: mediaType, bytesHash: hash, canonicalBytes: `${JSON.stringify(preview, null, 2)}\n`, preview, sizeBytes: stat.size };
+  const filePath = resolveCapturePath(preview.path);
+  const [bytes, stat] = await Promise.all([fs.readFile(filePath), fs.stat(filePath)]);
+  const hash = sha3HashHex(bytes);
+  const verifiedPreview = { ...preview, path: filePath, sizeBytes: stat.size, sha3: hash };
+
+  await pruneOldCaptures();
+  return { contentType: verifiedPreview.mediaType, bytesHash: hash, canonicalBytes: `${JSON.stringify(verifiedPreview, null, 2)}\n`, preview: verifiedPreview, sizeBytes: stat.size };
 }
 
-function normalizeCaptureConfig(config: PiCameraConfig, durationMs?: number): PiCameraConfig {
-  const maxDurationMs = Math.max(1, env.cameraMaxDurationSeconds) * 1000;
-  const nextDurationMs = durationMs === undefined ? config.durationMs : Number(durationMs);
-  if (!Number.isFinite(nextDurationMs) || nextDurationMs < 100 || nextDurationMs > maxDurationMs) throw new Error(`Camera duration must be between 100 and ${maxDurationMs} ms`);
-  return { ...config, durationMs: Math.min(nextDurationMs, maxDurationMs) };
-}
-
-function runCaptureCommand(config: PiCameraConfig, outputPath: string) {
-  const command = resolveCameraCommand(config.mode);
-  if (!command) throw new Error(`Camera ${config.mode} command was not found. Tried: ${cameraCommandCandidates(config.mode).join(", ")}`);
-  const args = config.mode === "photo"
-    ? ["-n", "-o", outputPath, "--width", String(config.width), "--height", String(config.height), "--timeout", String(config.durationMs)]
-    : ["-n", "-o", outputPath, "--width", String(config.width), "--height", String(config.height), "--timeout", String(config.durationMs), "--framerate", String(config.fps)];
-
-  return new Promise<void>((resolve, reject) => {
-    const child = spawn(command, args, { shell: false });
-    let stderr = "";
-
-    child.stderr.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString("utf8");
-    });
-
-    child.on("error", (error) => {
-      reject(Object.assign(new Error(`Camera command failed to start (${command}): ${error.message}`), { code: "code" in error ? error.code : undefined, command }));
-    });
-
-    child.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`Camera command exited with ${code}${stderr.trim() ? `: ${stderr.trim()}` : ""}`));
-    });
+async function cameraHelperRequest(pathname: string, body?: unknown) {
+  const response = await fetch(`${env.cameraHelperUrl.replace(/\/$/, "")}${pathname}`, {
+    method: body === undefined ? "GET" : "POST",
+    headers: {
+      ...(env.cameraHelperToken ? { Authorization: `Bearer ${env.cameraHelperToken}` } : {}),
+      ...(body === undefined ? {} : { "Content-Type": "application/json" })
+    },
+    body: body === undefined ? undefined : JSON.stringify(body)
   });
+
+  const payload = await response.json().catch(() => null) as { error?: string } | null;
+  if (!response.ok) throw new Error(payload?.error ?? `Camera helper returned HTTP ${response.status}`);
+  return payload as Record<string, unknown>;
 }
 
-function safeFileName(value: string) {
-  const name = value.toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
-  return name || "camera";
-}
-
-function commandExists(command: string) {
-  const result = spawnSync(command, ["--help"], { shell: false, stdio: "ignore" });
-  if (!result.error) return true;
-  return (result.error as NodeJS.ErrnoException).code !== "ENOENT";
-}
-
-function resolveCameraCommand(mode: "photo" | "video") {
-  return cameraCommandCandidates(mode).find(commandExists) ?? null;
-}
-
-function cameraCommandCandidates(mode: "photo" | "video") {
-  const configured = mode === "photo" ? env.cameraPhotoCommand : env.cameraVideoCommand;
-  const fallbacks = mode === "photo" ? ["rpicam-still", "libcamera-still"] : ["rpicam-vid", "libcamera-vid"];
-  return [...new Set([configured, ...fallbacks].filter(Boolean))];
-}
-
-function listCameras(command: string) {
-  const result = spawnSync(command, ["--list-cameras"], { shell: false, encoding: "utf8", timeout: 5000 });
-  const output = `${result.stdout ?? ""}${result.stderr ?? ""}`.trim();
-
-  if (result.error) {
-    return { detected: false, output, reason: `Could not list cameras with ${command}: ${result.error.message}` };
-  }
-
-  if (/no cameras available/i.test(output)) {
-    return { detected: false, output, reason: `No cameras were detected by ${command}. Verify the camera ribbon, host OS camera support, and /boot/config.txt before using Integritas Pi camera workflows.` };
-  }
-
-  if (!output) {
-    return { detected: false, output, reason: `${command} did not report any cameras.` };
-  }
-
-  return { detected: true, output, reason: null };
+function resolveCapturePath(value: string) {
+  const captureRoot = path.resolve(env.cameraCaptureDir);
+  const filePath = path.resolve(value);
+  if (filePath !== captureRoot && !filePath.startsWith(`${captureRoot}${path.sep}`)) throw new Error("Camera helper returned a path outside the capture directory");
+  return filePath;
 }
 
 async function pruneOldCaptures() {

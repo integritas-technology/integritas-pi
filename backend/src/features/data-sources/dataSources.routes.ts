@@ -36,7 +36,7 @@ dataSourcesRouter.get("/", (_req, res) => {
   res.json({ items: listDataSources().map(serializeDataSource) });
 });
 
-dataSourcesRouter.get("/capabilities", (_req, res) => {
+dataSourcesRouter.get("/capabilities", async (_req, res) => {
   res.json({
     gpioInput: getGpioInputCapability(),
     mqttBroker: {
@@ -45,11 +45,11 @@ dataSourcesRouter.get("/capabilities", (_req, res) => {
       publicHost: env.mqttPublicHost,
       publicPort: env.mqttPublicPort
     },
-    camera: getCameraCapability()
+    camera: await getCameraCapability()
   });
 });
 
-dataSourcesRouter.post("/", requireRole("admin"), (req, res) => {
+dataSourcesRouter.post("/", requireRole("admin"), async (req, res) => {
   const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
   const type = typeof req.body?.type === "string" ? req.body.type : "json-api";
   const description = typeof req.body?.description === "string" ? req.body.description : "";
@@ -57,7 +57,8 @@ dataSourcesRouter.post("/", requireRole("admin"), (req, res) => {
   if (!name) return badRequest(res, "name is required", { field: "name" });
   if (!isSupportedDeviceType(type)) return badRequest(res, "Only HTTP JSON API, webhook, MQTT, GPIO input/output, Pi Camera, HTTP output, and MQTT output devices are supported", { type });
   if ((type === "gpio-input" || type === "gpio-output") && !getGpioInputCapability().available) return badRequest(res, getGpioInputCapability().reason ?? "GPIO is unavailable", { type });
-  if (type === "pi-camera" && !getCameraCapability().available) return badRequest(res, getCameraCapability().reason ?? "Pi Camera is unavailable", { type });
+  const cameraCapability = type === "pi-camera" ? await getCameraCapability() : null;
+  if (cameraCapability && !cameraCapability.available) return badRequest(res, cameraCapability.reason ?? "Pi Camera is unavailable", { type });
 
   try {
     const config = parseDataSourceConfig(type, req.body?.config);
@@ -78,7 +79,7 @@ dataSourcesRouter.delete("/:id", requireRole("admin"), (req, res) => {
   res.json({ deleted: true });
 });
 
-dataSourcesRouter.patch("/:id", requireRole("admin"), (req, res) => {
+dataSourcesRouter.patch("/:id", requireRole("admin"), async (req, res) => {
   const existing = getDataSource(req.params.id);
   if (!existing) return notFound(res, "Data source not found");
 
@@ -89,7 +90,8 @@ dataSourcesRouter.patch("/:id", requireRole("admin"), (req, res) => {
   if (!name) return badRequest(res, "name is required", { field: "name" });
   if (!isSupportedDeviceType(type)) return badRequest(res, "Only HTTP JSON API, webhook, MQTT, GPIO input/output, Pi Camera, HTTP output, and MQTT output devices are supported", { type });
   if ((type === "gpio-input" || type === "gpio-output") && !getGpioInputCapability().available) return badRequest(res, getGpioInputCapability().reason ?? "GPIO is unavailable", { type });
-  if (type === "pi-camera" && !getCameraCapability().available) return badRequest(res, getCameraCapability().reason ?? "Pi Camera is unavailable", { type });
+  const cameraCapability = type === "pi-camera" ? await getCameraCapability() : null;
+  if (cameraCapability && !cameraCapability.available) return badRequest(res, cameraCapability.reason ?? "Pi Camera is unavailable", { type });
 
   try {
     const config = parseDataSourceConfig(type, req.body?.config, JSON.parse(existing.config) as unknown);

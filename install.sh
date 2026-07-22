@@ -16,8 +16,9 @@ ENABLE_MQTT_BROKER_INPUT="${ENABLE_MQTT_BROKER-}"
 MQTT_PUBLIC_HOST_INPUT="${MQTT_PUBLIC_HOST-}"
 MQTT_PUBLIC_PORT_INPUT="${MQTT_PUBLIC_PORT-}"
 ENABLE_CAMERA_INPUT="${ENABLE_CAMERA-}"
-CAMERA_GID_INPUT="${CAMERA_GID-}"
 CAMERA_CAPTURE_DIR_INPUT="${CAMERA_CAPTURE_DIR-}"
+CAMERA_HELPER_TOKEN_INPUT="${CAMERA_HELPER_TOKEN-}"
+CAMERA_HELPER_PORT_INPUT="${CAMERA_HELPER_PORT-}"
 CAMERA_MAX_DURATION_SECONDS_INPUT="${CAMERA_MAX_DURATION_SECONDS-}"
 CAMERA_RETENTION_DAYS_INPUT="${CAMERA_RETENTION_DAYS-}"
 CAMERA_PHOTO_COMMAND_INPUT="${CAMERA_PHOTO_COMMAND-}"
@@ -43,8 +44,9 @@ ENABLE_MQTT_BROKER="${ENABLE_MQTT_BROKER:-false}"
 MQTT_PUBLIC_HOST="${MQTT_PUBLIC_HOST:-}"
 MQTT_PUBLIC_PORT="${MQTT_PUBLIC_PORT:-1883}"
 ENABLE_CAMERA="${ENABLE_CAMERA:-false}"
-CAMERA_GID="${CAMERA_GID:-}"
 CAMERA_CAPTURE_DIR="${CAMERA_CAPTURE_DIR:-/data/captures}"
+CAMERA_HELPER_TOKEN="${CAMERA_HELPER_TOKEN:-}"
+CAMERA_HELPER_PORT="${CAMERA_HELPER_PORT:-38180}"
 CAMERA_MAX_DURATION_SECONDS="${CAMERA_MAX_DURATION_SECONDS:-30}"
 CAMERA_RETENTION_DAYS="${CAMERA_RETENTION_DAYS:-7}"
 CAMERA_PHOTO_COMMAND="${CAMERA_PHOTO_COMMAND:-rpicam-still}"
@@ -141,14 +143,16 @@ prepare_app_directory() {
 prepare_runtime_directories() {
   log "Preparing runtime directories"
   local resolved_data_dir
-  case "$DATA_DIR" in
-    /*) resolved_data_dir="$DATA_DIR" ;;
-    ./*) resolved_data_dir="$APP_DIR/${DATA_DIR#./}" ;;
-    *) resolved_data_dir="$APP_DIR/$DATA_DIR" ;;
-  esac
+  resolved_data_dir="$(resolved_data_dir)"
   mkdir -p "$resolved_data_dir"
   chown -R 1000:1000 "$resolved_data_dir"
   chmod 700 "$resolved_data_dir"
+
+  if is_truthy "$ENABLE_CAMERA"; then
+    mkdir -p "$(resolved_camera_capture_dir)"
+    chown -R 1000:1000 "$(resolved_camera_capture_dir)"
+    chmod 700 "$(resolved_camera_capture_dir)"
+  fi
 
   case "$MINIMA_DATA_DIR" in
     /*) mkdir -p "$MINIMA_DATA_DIR" ;;
@@ -188,8 +192,9 @@ load_existing_config() {
   MQTT_PUBLIC_HOST="${MQTT_PUBLIC_HOST_INPUT:-${MQTT_PUBLIC_HOST:-}}"
   MQTT_PUBLIC_PORT="${MQTT_PUBLIC_PORT_INPUT:-${MQTT_PUBLIC_PORT:-1883}}"
   ENABLE_CAMERA="${ENABLE_CAMERA_INPUT:-${ENABLE_CAMERA:-false}}"
-  CAMERA_GID="${CAMERA_GID_INPUT:-${CAMERA_GID:-}}"
   CAMERA_CAPTURE_DIR="${CAMERA_CAPTURE_DIR_INPUT:-${CAMERA_CAPTURE_DIR:-/data/captures}}"
+  CAMERA_HELPER_TOKEN="${CAMERA_HELPER_TOKEN_INPUT:-${CAMERA_HELPER_TOKEN:-}}"
+  CAMERA_HELPER_PORT="${CAMERA_HELPER_PORT_INPUT:-${CAMERA_HELPER_PORT:-38180}}"
   CAMERA_MAX_DURATION_SECONDS="${CAMERA_MAX_DURATION_SECONDS_INPUT:-${CAMERA_MAX_DURATION_SECONDS:-30}}"
   CAMERA_RETENTION_DAYS="${CAMERA_RETENTION_DAYS_INPUT:-${CAMERA_RETENTION_DAYS:-7}}"
   CAMERA_PHOTO_COMMAND="${CAMERA_PHOTO_COMMAND_INPUT:-${CAMERA_PHOTO_COMMAND:-rpicam-still}}"
@@ -213,6 +218,32 @@ ensure_app_secret() {
 
   log "Generating APP_SECRET for encrypted local settings"
   APP_SECRET="$(openssl rand -hex 32)"
+}
+
+ensure_camera_helper_token() {
+  if ! is_truthy "$ENABLE_CAMERA" || [ -n "$CAMERA_HELPER_TOKEN" ]; then
+    return
+  fi
+
+  log "Generating CAMERA_HELPER_TOKEN for local camera helper"
+  CAMERA_HELPER_TOKEN="$(openssl rand -hex 32)"
+}
+
+resolved_data_dir() {
+  case "$DATA_DIR" in
+    /*) echo "$DATA_DIR" ;;
+    ./*) echo "$APP_DIR/${DATA_DIR#./}" ;;
+    *) echo "$APP_DIR/$DATA_DIR" ;;
+  esac
+}
+
+resolved_camera_capture_dir() {
+  case "$CAMERA_CAPTURE_DIR" in
+    /data/*) echo "$(resolved_data_dir)/${CAMERA_CAPTURE_DIR#/data/}" ;;
+    /*) echo "$CAMERA_CAPTURE_DIR" ;;
+    ./*) echo "$APP_DIR/${CAMERA_CAPTURE_DIR#./}" ;;
+    *) echo "$APP_DIR/$CAMERA_CAPTURE_DIR" ;;
+  esac
 }
 
 detect_docker_gid() {
@@ -260,27 +291,6 @@ normalize_mqtt_broker_config() {
     ENABLE_MQTT_BROKER="true"
   else
     ENABLE_MQTT_BROKER="false"
-  fi
-}
-
-detect_camera_gid() {
-  if ! is_truthy "$ENABLE_CAMERA"; then
-    ENABLE_CAMERA="false"
-    return
-  fi
-
-  ENABLE_CAMERA="true"
-
-  if [ -n "$CAMERA_GID" ]; then
-    return
-  fi
-
-  if [ -e /dev/video0 ]; then
-    CAMERA_GID="$(stat -c '%g' /dev/video0)"
-  elif getent group video >/dev/null 2>&1; then
-    CAMERA_GID="$(getent group video | cut -d: -f3)"
-  else
-    CAMERA_GID="0"
   fi
 }
 
@@ -454,8 +464,10 @@ DOCKER_GID=$DOCKER_GID
 ENABLE_GPIO=$ENABLE_GPIO
 GPIO_GID=$GPIO_GID
 ENABLE_CAMERA=$ENABLE_CAMERA
-CAMERA_GID=$CAMERA_GID
 CAMERA_CAPTURE_DIR=$CAMERA_CAPTURE_DIR
+CAMERA_HELPER_URL=http://host.docker.internal:$CAMERA_HELPER_PORT
+CAMERA_HELPER_TOKEN=$CAMERA_HELPER_TOKEN
+CAMERA_HELPER_PORT=$CAMERA_HELPER_PORT
 CAMERA_MAX_DURATION_SECONDS=$CAMERA_MAX_DURATION_SECONDS
 CAMERA_RETENTION_DAYS=$CAMERA_RETENTION_DAYS
 CAMERA_PHOTO_COMMAND=$CAMERA_PHOTO_COMMAND
@@ -485,18 +497,14 @@ EOF
 write_compose_override() {
   local docker_group
   local gpio_group
-  local camera_group
-  local camera_devices=()
-  local device
 
-  if ! is_truthy "$ENABLE_GPIO" && ! is_truthy "$ENABLE_CAMERA"; then
+  if ! is_truthy "$ENABLE_GPIO"; then
     rm -f "$APP_DIR/docker-compose.override.yml"
     return
   fi
 
   docker_group="${DOCKER_GID:-0}"
   gpio_group="${GPIO_GID:-0}"
-  camera_group="${CAMERA_GID:-0}"
 
   cat > "$APP_DIR/docker-compose.override.yml" <<EOF
 services:
@@ -516,49 +524,86 @@ EOF
 EOF
   fi
 
-  if is_truthy "$ENABLE_CAMERA"; then
-    log "Enabling camera device access"
-
-    for device in /dev/video* /dev/media* /dev/v4l-subdev* /dev/vchiq; do
-      [ -e "$device" ] && camera_devices+=("$device")
-    done
-
-    if [ "${#camera_devices[@]}" -eq 0 ]; then
-      log "Warning: no /dev/video*, /dev/media*, /dev/v4l-subdev*, or /dev/vchiq camera devices were found on this host. Camera capture will not work until devices exist."
-    else
-      if ! is_truthy "$ENABLE_GPIO"; then
-        cat >> "$APP_DIR/docker-compose.override.yml" <<EOF
-    devices:
-EOF
-      fi
-      for device in "${camera_devices[@]}"; do
-        cat >> "$APP_DIR/docker-compose.override.yml" <<EOF
-      - $device:$device
-EOF
-      done
-    fi
-
-    cat >> "$APP_DIR/docker-compose.override.yml" <<EOF
-    volumes:
-      - /run/udev:/run/udev:ro
-EOF
-  fi
-
-  if [ "$gpio_group" != "$docker_group" ] || [ "$camera_group" != "$docker_group" ]; then
+  if [ "$gpio_group" != "$docker_group" ]; then
     cat >> "$APP_DIR/docker-compose.override.yml" <<EOF
     group_add:
 EOF
-    if [ "$gpio_group" != "$docker_group" ]; then
-      cat >> "$APP_DIR/docker-compose.override.yml" <<EOF
+    cat >> "$APP_DIR/docker-compose.override.yml" <<EOF
       - "\${GPIO_GID:-0}"
 EOF
-    fi
-    if [ "$camera_group" != "$docker_group" ]; then
-      cat >> "$APP_DIR/docker-compose.override.yml" <<EOF
-      - "\${CAMERA_GID:-0}"
-EOF
-    fi
   fi
+}
+
+install_camera_helper() {
+  local service_file="/etc/systemd/system/integritas-pi-camera-helper.service"
+  local helper_user
+  local supplementary_groups=""
+  local capture_dir
+
+  if ! is_truthy "$ENABLE_CAMERA"; then
+    if [ -f "$service_file" ]; then
+      log "Disabling camera helper service"
+      systemctl disable --now integritas-pi-camera-helper.service >/dev/null 2>&1 || true
+      rm -f "$service_file"
+      systemctl daemon-reload
+    fi
+    return
+  fi
+
+  helper_user="${SUDO_USER:-pi}"
+  if ! id "$helper_user" >/dev/null 2>&1; then
+    helper_user="root"
+  fi
+  if getent group video >/dev/null 2>&1; then
+    supplementary_groups="SupplementaryGroups=video"
+  fi
+
+  capture_dir="$(resolved_camera_capture_dir)"
+  mkdir -p "$capture_dir"
+  if [ "$helper_user" != "root" ]; then
+    chown -R "$helper_user:$helper_user" "$capture_dir"
+  fi
+  chmod 700 "$capture_dir"
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "python3 is required for the camera helper but was not found."
+    exit 1
+  fi
+
+  if ! command -v rpicam-still >/dev/null 2>&1 && ! command -v libcamera-still >/dev/null 2>&1; then
+    log "Warning: neither rpicam-still nor libcamera-still was found on the host. Install Raspberry Pi camera apps before using camera workflows."
+  fi
+
+  log "Installing camera helper service"
+  cat > "$service_file" <<EOF
+[Unit]
+Description=Integritas Pi Camera Helper
+After=network.target
+
+[Service]
+Type=simple
+User=$helper_user
+$supplementary_groups
+WorkingDirectory=$APP_DIR
+Environment=CAMERA_HELPER_HOST=127.0.0.1
+Environment=CAMERA_HELPER_PORT=$CAMERA_HELPER_PORT
+Environment=CAMERA_HELPER_TOKEN=$CAMERA_HELPER_TOKEN
+Environment=CAMERA_CAPTURE_DIR=$capture_dir
+Environment=CAMERA_CONTAINER_CAPTURE_DIR=$CAMERA_CAPTURE_DIR
+Environment=CAMERA_MAX_DURATION_SECONDS=$CAMERA_MAX_DURATION_SECONDS
+Environment=CAMERA_PHOTO_COMMAND=$CAMERA_PHOTO_COMMAND
+Environment=CAMERA_VIDEO_COMMAND=$CAMERA_VIDEO_COMMAND
+ExecStart=/usr/bin/python3 $APP_DIR/camera-helper/integritas_camera_helper.py
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  chmod 600 "$service_file"
+  systemctl daemon-reload
+  systemctl enable --now integritas-pi-camera-helper.service
 }
 
 generate_tls_cert() {
@@ -622,9 +667,9 @@ main() {
   prepare_app_directory
   load_existing_config
   ensure_app_secret
+  ensure_camera_helper_token
   detect_docker_gid
   detect_gpio_gid
-  detect_camera_gid
   normalize_mqtt_broker_config
   normalize_dev_mode
   download_app
@@ -633,6 +678,7 @@ main() {
   record_applied_manifest
   write_env_file
   write_compose_override
+  install_camera_helper
   generate_tls_cert
   install_cli
   start_app
