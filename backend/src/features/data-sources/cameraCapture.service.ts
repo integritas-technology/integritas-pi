@@ -44,7 +44,12 @@ export function getCameraCapability() {
     return { available: false, enabled: true, captureDir: env.cameraCaptureDir, reason: `Camera video command was not found. Tried: ${cameraCommandCandidates("video").join(", ")}` };
   }
 
-  return { available: true, enabled: true, captureDir: env.cameraCaptureDir, reason: null, photoCommand, videoCommand };
+  const cameraList = listCameras(photoCommand);
+  if (!cameraList.detected) {
+    return { available: false, enabled: true, captureDir: env.cameraCaptureDir, reason: cameraList.reason, photoCommand, videoCommand };
+  }
+
+  return { available: true, enabled: true, captureDir: env.cameraCaptureDir, reason: null, photoCommand, videoCommand, cameras: cameraList.output };
 }
 
 export async function capturePiCamera(input: { sourceId: string; durationMs?: number }): Promise<CameraCaptureResult> {
@@ -136,6 +141,25 @@ function cameraCommandCandidates(mode: "photo" | "video") {
   const configured = mode === "photo" ? env.cameraPhotoCommand : env.cameraVideoCommand;
   const fallbacks = mode === "photo" ? ["rpicam-still", "libcamera-still"] : ["rpicam-vid", "libcamera-vid"];
   return [...new Set([configured, ...fallbacks].filter(Boolean))];
+}
+
+function listCameras(command: string) {
+  const result = spawnSync(command, ["--list-cameras"], { shell: false, encoding: "utf8", timeout: 5000 });
+  const output = `${result.stdout ?? ""}${result.stderr ?? ""}`.trim();
+
+  if (result.error) {
+    return { detected: false, output, reason: `Could not list cameras with ${command}: ${result.error.message}` };
+  }
+
+  if (/no cameras available/i.test(output)) {
+    return { detected: false, output, reason: `No cameras were detected by ${command}. Verify the camera ribbon, host OS camera support, and /boot/config.txt before using Integritas Pi camera workflows.` };
+  }
+
+  if (!output) {
+    return { detected: false, output, reason: `${command} did not report any cameras.` };
+  }
+
+  return { detected: true, output, reason: null };
 }
 
 async function pruneOldCaptures() {

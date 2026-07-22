@@ -72,5 +72,8 @@ export type DataSourceCapabilities = {
     enabled: boolean;
     captureDir: string;
     reason: string | null;
+    photoCommand?: string;
+    videoCommand?: string;
+    cameras?: string;
   };
 };

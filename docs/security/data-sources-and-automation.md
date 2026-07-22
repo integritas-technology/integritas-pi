@@ -249,6 +249,7 @@ Current Controls:
 
 - Pi Camera device creation/editing requires admin role.
 - Camera access is opt-in through `ENABLE_CAMERA=true`; the installer writes a Compose override with detected camera device nodes and `/run/udev:ro`.
+- Camera capability reporting checks that camera commands exist and that the container can list at least one detected camera before enabling Pi Camera device creation.
 - Camera capture is a narrow workflow data block, not arbitrary shell execution or a generic output target.
 - Captured media stays local under the configured capture directory; read history stores JSON metadata and the media hash.
 - Integritas stamping uses the captured media file hash, not the raw image/video content.

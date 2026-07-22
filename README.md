@@ -45,6 +45,8 @@ curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi
 
 `ENABLE_CAMERA=true` writes a Docker Compose override with detected `/dev/video*`, `/dev/media*`, `/dev/v4l-subdev*`, and `/dev/vchiq` devices plus `/run/udev:ro` mounted into the backend container. Leave it disabled unless this deployment needs camera capture workflows.
 
+`ENABLE_CAMERA=true` does not install host camera drivers or enable the Raspberry Pi camera stack. Before using camera workflows, verify the Pi host can see the camera with `libcamera-still --list-cameras` or `rpicam-still --list-cameras`. Camera Module 3 (`imx708`) requires a host OS/kernel/libcamera stack that supports it.
+
 To enable the optional local MQTT broker during install, pass `ENABLE_MQTT_BROKER=true`:
 
 ```bash
