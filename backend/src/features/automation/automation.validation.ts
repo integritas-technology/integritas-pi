@@ -1,4 +1,5 @@
 import { getAddressBookEntryById } from "../address-book/address-book.repository.js";
+import { getCameraCapability } from "../data-sources/cameraCapture.service.js";
 import { getDataSource } from "../data-sources/dataSources.repository.js";
 import { parseGpioOutputConfig } from "../data-sources/dataSources.service.js";
 import { getIntegritasApiKey } from "../settings/secrets.service.js";
@@ -104,6 +105,7 @@ async function validateAutomationBlockGraph(blocks: ValidationBlock[]): Promise<
   const variables = new Set<string>();
   const startType = startBlock?.type;
   const startConfig = startBlock?.config ?? {};
+  const cameraCapability = blocks.some((block) => block.enabled && block.type === "capture_camera") ? await getCameraCapability() : null;
 
   for (const block of mainBlocks) {
     if (!block.enabled) continue;
@@ -124,6 +126,8 @@ async function validateAutomationBlockGraph(blocks: ValidationBlock[]): Promise<
     }
 
     if (block.type === "capture_camera") {
+      if (cameraCapability && !cameraCapability.enabled) addIssue(issues, "error", "capture_camera.disabled", cameraCapability.reason ?? "Pi Camera support is disabled.", block);
+      else if (cameraCapability && !cameraCapability.available) addIssue(issues, "warning", "capture_camera.unavailable", cameraCapability.reason ?? "Pi Camera capture is not ready.", block);
       hasData = true;
     }
 

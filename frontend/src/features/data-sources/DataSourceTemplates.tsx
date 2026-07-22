@@ -31,7 +31,7 @@ export function DataSourceTemplates({ mode, capabilities, onSelect }: { mode: "i
       <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
         {templates.map((template) => {
           const Icon = template.type === "json-api" || template.type === "http-output" ? Globe2 : template.type === "webhook" ? Webhook : template.type === "mqtt" || template.type === "mqtt-output" ? Radio : template.type === "gpio-output" ? Lightbulb : template.type === "pi-camera" ? Camera : Cpu;
-          const disabled = ((template.type === "gpio-input" || template.type === "gpio-output") && capabilities?.gpioInput.available === false) || (template.type === "pi-camera" && capabilities?.camera?.available === false);
+          const disabled = ((template.type === "gpio-input" || template.type === "gpio-output") && capabilities?.gpioInput.available === false) || (template.type === "pi-camera" && capabilities?.camera?.enabled === false);
           const config = template.type === "mqtt" || template.type === "mqtt-output" ? { ...template.config, brokerUrl } : template.config;
           return (
             <Card className="grid gap-3 transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]" key={template.title}>
@@ -40,6 +40,7 @@ export function DataSourceTemplates({ mode, capabilities, onSelect }: { mode: "i
               <MutedText className="m-0">{template.description}</MutedText>
               {template.type === "gpio-output" && <MutedText className="m-0">LED profile only. Use a 220-330 ohm resistor in series with the LED.</MutedText>}
               {template.type === "pi-camera" && <MutedText className="m-0">Captures are stored locally under <code>{capabilities?.camera?.captureDir ?? "/data/captures"}</code> and hashed for stamping.</MutedText>}
+              {template.type === "pi-camera" && capabilities?.camera?.enabled && capabilities.camera.available === false && <MutedText className="m-0">Camera capture is not ready yet: {capabilities.camera.reason}</MutedText>}
               {(template.type === "mqtt" || template.type === "mqtt-output") && capabilities?.mqttBroker?.enabled && <MutedText className="m-0">Local broker available: <code>{capabilities.mqttBroker.internalUrl}</code></MutedText>}
               {disabled && <MutedText className="m-0">{template.type === "pi-camera" ? capabilities?.camera?.reason : capabilities?.gpioInput.reason}</MutedText>}
               <Button type="button" disabled={disabled} onClick={() => onSelect({ ...template, config })}>{mode === "input" ? "Add input" : "Add output"}</Button>

@@ -38,7 +38,8 @@ export async function getCameraCapability() {
     const response = await cameraHelperRequest("/capabilities");
     return { enabled: true, captureDir: env.cameraCaptureDir, ...response };
   } catch (error) {
-    return { available: false, enabled: true, captureDir: env.cameraCaptureDir, reason: error instanceof Error ? error.message : "Camera helper is unavailable" };
+    const detail = error instanceof Error ? error.message : "Camera helper is unavailable";
+    return { available: false, enabled: true, captureDir: env.cameraCaptureDir, reason: `Camera helper is unavailable at ${env.cameraHelperUrl}: ${detail}` };
   }
 }
 
