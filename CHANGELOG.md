@@ -4,22 +4,29 @@ All notable changes to `integritas-pi` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html) at the package level.
 
+## [0.21.3] - 2026-07-22
+
+### Fixed
+
+- `scripts/dev/clear-db.sh`: `TARGET=users|history|automation` no longer silently truncates when the script is run via `curl | sudo bash`. `docker compose run` was attaching to stdin, which consumed the remainder of the piped script before it reached the "start backend" step, leaving `backend` stopped (502) without clearing anything.
+
 ## [0.21.2] - 2026-07-22
 
 ### Added
 
 - Root Prettier setup (`.prettierrc`, `.prettierignore`, and `prettier` / `prettier-plugin-tailwindcss` / `eslint-config-prettier` deps) for consistent formatting across the monorepo.
 - Backend startup now logs the configured Integritas Connect base URL alongside the other runtime endpoints.
+- `scripts/dev/set-status-poll-interval.sh` operational script to change an installed app's `STATUS_POLL_INTERVAL_MS` (update-agent's manifest poll interval) in place and recreate `update-agent` to apply it.
 
 ### Changed
 
 - First-run setup wizard UI is split into dedicated step components (`Welcome`, `Account`, `TwoFactor`, `ConnectAccount`, `Complete`) with shared onboarding styles; setup flow and behavior are unchanged.
+
+## [0.21.1] - 2026-07-22
+
+### Added
+
 - `scripts/dev/clear-db.sh` operational script to wipe an installed app's SQLite database (stops the backend, deletes `integritas-pi.db`, restarts so migrations recreate a fresh schema). `TARGET=users|history|automation` scopes the clear to just accounts/Integritas Connect, Diagnostics history, or data sources/workflows instead of the whole database.
-- `scripts/dev/set-status-poll-interval.sh` operational script to change an installed app's `STATUS_POLL_INTERVAL_MS` (update-agent's manifest poll interval) in place and recreate `update-agent` to apply it.
-
-### Fixed
-
-- `scripts/dev/clear-db.sh`: `TARGET=users|history|automation` no longer silently truncates when the script is run via `curl | sudo bash`. `docker compose run` was attaching to stdin, which consumed the remainder of the piped script before it reached the "start backend" step, leaving `backend` stopped (502) without clearing anything.
 
 ## [0.21.0] - 2026-07-21
 
