@@ -30,24 +30,27 @@ export function MinimaSummaryGrid({
   status,
   loading,
   busy,
-  resyncing,
+  refreshing,
   onResync,
 }: {
   status: MinimaNodeStatus | null;
   loading: boolean;
   busy: boolean;
-  resyncing: boolean;
+  refreshing: boolean;
   onResync: () => void;
 }) {
-  const chainDataLabel = status?.storage.chainDataDisk
-    ? `${status.storage.chainDataDisk} chain data`
-    : status?.node.memoryDisk
-      ? `${status.node.memoryDisk} chain data`
-      : loading
+  const effectiveStatus = refreshing ? null : status;
+  const effectiveLoading = loading || refreshing;
+
+  const chainDataLabel = effectiveStatus?.storage.chainDataDisk
+    ? `${effectiveStatus.storage.chainDataDisk} chain data`
+    : effectiveStatus?.node.memoryDisk
+      ? `${effectiveStatus.node.memoryDisk} chain data`
+      : effectiveLoading
         ? 'Checking…'
         : 'Unavailable';
-  const containerDiskLabel = status?.storage.containerDisk
-    ? `${status.storage.containerDisk} Docker container`
+  const containerDiskLabel = effectiveStatus?.storage.containerDisk
+    ? `${effectiveStatus.storage.containerDisk} Docker container`
     : null;
 
   return (
@@ -55,13 +58,13 @@ export function MinimaSummaryGrid({
       <SummaryCard
         icon={Layers3}
         title='Minima'
-        text={formatNodeState(status?.state ?? null, loading)}
+        text={formatNodeState(effectiveStatus?.state ?? null, effectiveLoading)}
       />
 
       <SummaryCard
         icon={RefreshCw}
         title='Sync status'
-        text={resyncing ? 'Resyncing…' : formatSyncStatus(status?.sync.status, loading)}
+        text={formatSyncStatus(effectiveStatus?.sync.status, effectiveLoading)}
       >
         <button
           type='button'

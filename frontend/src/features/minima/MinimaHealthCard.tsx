@@ -9,39 +9,49 @@ import { formatLocalTime, formatUtcTime } from "../../lib/time";
 export function MinimaHealthCard({
   status,
   error,
-  loading
+  loading,
+  refreshing
 }: {
   status: MinimaNodeStatus | null;
   error: string | null;
   loading: boolean;
+  refreshing: boolean;
 }) {
-  const memoryLabel = status?.node.memoryRam ?? (loading ? "Checking…" : "—");
+  const effectiveStatus = refreshing ? null : status;
+  const effectiveLoading = loading || refreshing;
+
+  const memoryLabel = effectiveStatus?.node.memoryRam ?? (effectiveLoading ? "Checking…" : "—");
   const peerLabel =
-    status?.health.peerCount != null ? String(status.health.peerCount) : loading ? "Checking…" : "—";
+    effectiveStatus?.health.peerCount != null
+      ? String(effectiveStatus.health.peerCount)
+      : effectiveLoading
+        ? "Checking…"
+        : "—";
   const blockAgeLabel =
-    status?.sync.blockAgeSeconds != null
-      ? formatBlockAge(status.sync.blockAgeSeconds)
-      : status?.sync.blockTime
-        ? formatLocalTime(status.sync.blockTime)
-        : loading
+    effectiveStatus?.sync.blockAgeSeconds != null
+      ? formatBlockAge(effectiveStatus.sync.blockAgeSeconds)
+      : effectiveStatus?.sync.blockTime
+        ? formatLocalTime(effectiveStatus.sync.blockTime)
+        : effectiveLoading
           ? "Checking…"
           : "—";
-  const currentBlockLabel = status?.sync.block != null ? String(status.sync.block) : loading ? "Checking…" : "—";
+  const currentBlockLabel =
+    effectiveStatus?.sync.block != null ? String(effectiveStatus.sync.block) : effectiveLoading ? "Checking…" : "—";
 
-  const checkedLine = status?.checkedAt
-    ? `Checked ${formatLocalTime(status.checkedAt)} local · ${formatUtcTime(status.checkedAt)} UTC`
+  const checkedLine = effectiveStatus?.checkedAt
+    ? `Checked ${formatLocalTime(effectiveStatus.checkedAt)} local · ${formatUtcTime(effectiveStatus.checkedAt)} UTC`
     : "Chain and process metrics from Minima RPC.";
 
-  const monitoring = status?.monitoring;
+  const monitoring = effectiveStatus?.monitoring;
 
   const footer = (
     <>
       {error && <p className="mb-2 text-sm text-amber-800">{error}</p>}
-      {shouldShowMinimaRpcError(status) && (
-        <ErrorText className="mb-2">{status?.rpc.error}</ErrorText>
+      {shouldShowMinimaRpcError(effectiveStatus) && (
+        <ErrorText className="mb-2">{effectiveStatus?.rpc.error}</ErrorText>
       )}
-      {status?.rpc.raw !== undefined ? (
-        <JsonPreview value={status.rpc.raw} label="View RPC debug" />
+      {effectiveStatus?.rpc.raw !== undefined ? (
+        <JsonPreview value={effectiveStatus.rpc.raw} label="View RPC debug" />
       ) : null}
     </>
   );

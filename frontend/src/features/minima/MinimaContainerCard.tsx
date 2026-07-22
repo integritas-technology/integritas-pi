@@ -1,8 +1,8 @@
 import type { MinimaNodeStatus } from "../../app/types";
 import { MinimaStatCell, MinimaStatGrid } from "./MinimaStatCell";
 
-function formatContainerMemory(status: MinimaNodeStatus | null) {
-  const memory = status?.container?.memory;
+function formatContainerMemory(container: MinimaNodeStatus["container"] | undefined) {
+  const memory = container?.memory;
   if (!memory?.usage) return null;
   return memory.limit ? `${memory.usage} / ${memory.limit}` : memory.usage;
 }
@@ -16,18 +16,20 @@ export function MinimaContainerCard({
   status,
   loading,
   busy,
+  refreshing,
   onRestart
 }: {
   status: MinimaNodeStatus | null;
   loading: boolean;
   busy?: boolean;
+  refreshing?: boolean;
   onRestart?: () => void;
 }) {
-  const container = status?.container;
-  const unavailable = loading && !container ? "Checking…" : "—";
+  const container = refreshing ? undefined : status?.container;
+  const unavailable = (loading || refreshing) && !container ? "Checking…" : "—";
 
   const cpuLabel = container?.cpuPercent != null ? `${container.cpuPercent}%` : unavailable;
-  const memoryLabel = formatContainerMemory(status) ?? unavailable;
+  const memoryLabel = formatContainerMemory(container) ?? unavailable;
   const stateLabel = formatContainerState(container?.state) ?? unavailable;
   const runtimeLabel = container?.status ?? unavailable;
 

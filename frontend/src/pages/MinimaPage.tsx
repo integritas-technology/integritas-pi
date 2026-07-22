@@ -133,9 +133,8 @@ export function MinimaPage() {
       showToast({ tone: "error", title: "Minima restart failed", message, timeoutMs: 9000 });
       throw error;
     } finally {
-      setRestarting(false);
-      setStatusError(null);
       await refreshAfterOperation();
+      setRestarting(false);
     }
   }
 
@@ -202,11 +201,12 @@ export function MinimaPage() {
       const message = error instanceof Error ? error.message : "Resync failed";
       showToast({ tone: "error", title: "Megammr resync failed", message, timeoutMs: 9000 });
     } finally {
+      if (!restartedContainer) {
+        await refreshAfterOperation();
+      }
       setBusy(false);
       setResyncing(false);
       setRestarting(false);
-      setStatusError(null);
-      await refreshAfterOperation();
     }
   }
 
@@ -249,15 +249,21 @@ export function MinimaPage() {
         status={nodeStatus}
         loading={statusLoading && !nodeStatus}
         busy={busy}
-        resyncing={resyncing || restarting}
+        refreshing={resyncing || restarting}
         onResync={runResync}
       />
       <section className="grid items-stretch gap-4 lg:grid-cols-2">
-        <MinimaHealthCard status={nodeStatus} error={statusError} loading={statusLoading && !nodeStatus} />
+        <MinimaHealthCard
+          status={nodeStatus}
+          error={statusError}
+          loading={statusLoading && !nodeStatus}
+          refreshing={resyncing || restarting}
+        />
         <MinimaContainerCard
           status={nodeStatus}
           loading={statusLoading && !nodeStatus}
           busy={busy}
+          refreshing={restarting}
           onRestart={runRestart}
         />
       </section>
