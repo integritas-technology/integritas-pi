@@ -83,8 +83,9 @@ export function WorkflowBlockLibrary({ mode = "build", hasStartBlock, selectedBl
       <strong>Data blocks</strong>
       <LibraryCard disabled={!canAddMainBlock || !canAddRecordTriggerEvent} onClick={() => onAddBlock("record_trigger_event")} title="Record trigger event" description="Store the trigger payload as data." />
       <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("fetch_data_source")} title="Fetch HTTP JSON" description="Fetch a configured HTTP source." />
+      <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("set_variable")} title="Add variable" description="Save a value for later blocks." />
       <strong>Logic blocks</strong>
-      <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("if_payload_field_equals")} title="If field matches" description="Stop unless a trigger/data field matches." />
+      <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("if_payload_field_equals")} title="If field matches" description="Stop unless a trigger field or variable matches." />
       <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("wait")} title="Wait" description="Pause before the next block." />
       <strong>Action blocks</strong>
       <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("control_output")} title="Control device" description="Send a command to a configured output target." />
@@ -193,7 +194,7 @@ function capabilityBadges(block: DraftWorkflowBlock) {
   const badges: string[] = [];
   if (block.type.endsWith("_start")) badges.push("Provides trigger event");
   if (isDataBlock(block.type)) badges.push("Provides latest data");
-  if (block.type === "if_payload_field_equals") badges.push((block.config.source ?? "trigger") === "data" ? "Reads latest data" : "Reads trigger event");
+  if (block.type === "if_payload_field_equals") badges.push((block.config.source ?? "trigger") === "variable" ? "Reads variable" : "Reads trigger event");
   if (block.type === "stamp_integritas") badges.push("Reads parent data");
   return badges;
 }
@@ -210,6 +211,7 @@ export function draftBlockTitle(block: { type: AutomationBlockType }) {
   if (block.type === "mqtt_event_start") return "MQTT message received";
   if (block.type === "record_trigger_event") return "Record trigger event";
   if (block.type === "fetch_data_source") return "Fetch HTTP JSON";
+  if (block.type === "set_variable") return "Set variable";
   if (block.type === "stamp_integritas") return "Stamp data";
   if (block.type === "control_output") return "Control device";
   if (block.type === "send_transaction") return "Send payment";
@@ -224,6 +226,7 @@ export function draftBlockDescription(block: { type: AutomationBlockType; config
   if (block.type === "manual_start") return "Runs only from a manual test/action.";
   if (block.type === "record_trigger_event") return "Stores the trigger payload as a data read.";
   if (block.type === "fetch_data_source") return "Fetches JSON and creates a hash.";
+  if (block.type === "set_variable") return `Save ${block.config.variableName || "a variable"} for later blocks.`;
   if (block.type === "stamp_integritas") return "Stamp this data block's hash.";
   if (block.type === "control_output") return "Send a command to a configured output target.";
   if (block.type === "send_transaction") return `Send ${block.config.amount || "?"} to a saved recipient.`;
@@ -232,7 +235,7 @@ export function draftBlockDescription(block: { type: AutomationBlockType; config
 
 function blockCategoryClass(type: AutomationBlockType) {
   if (type.endsWith("_start")) return "bg-gradient-to-br from-amber-500 to-orange-500";
-  if (type === "record_trigger_event" || type === "fetch_data_source") return "bg-gradient-to-br from-blue-600 to-sky-500";
+  if (type === "record_trigger_event" || type === "fetch_data_source" || type === "set_variable") return "bg-gradient-to-br from-blue-600 to-sky-500";
   return "bg-gradient-to-br from-violet-600 to-purple-500";
 }
 

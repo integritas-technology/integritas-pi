@@ -143,6 +143,7 @@ Current Controls:
 - Output actions are allowlisted workflow blocks, not arbitrary shell commands.
 - MQTT output publishes JSON only to the saved broker/topic.
 - MQTT output payloads are selected per workflow block: custom JSON, workflow context, trigger payload, or latest data.
+- Custom output JSON can interpolate per-run workflow variables using `{{variableName}}`; interpolation is data substitution only, not code execution.
 - Output payloads must not include raw secrets such as passwords, session cookies, Integritas API keys, or wallet seed phrases.
 
 Plan:
@@ -186,6 +187,7 @@ Current Controls:
 - Supported methods are limited to `POST`, `PUT`, and `PATCH`.
 - Requests use JSON bodies and bounded timeouts.
 - Request bodies are selected per workflow block: custom JSON, workflow context, trigger payload, latest data, or no body.
+- Custom output JSON can interpolate per-run workflow variables using `{{variableName}}`; variables may contain untrusted input from triggers or fetched data.
 
 Plan:
 

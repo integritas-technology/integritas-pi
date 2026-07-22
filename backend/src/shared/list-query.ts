@@ -39,7 +39,7 @@ export function parseListQuery(
   const page = Number.isFinite(rawPage) && rawPage >= 1 ? Math.trunc(rawPage) : 1;
 
   const rawPageSize = query.pageSize ? Number(query.pageSize) : defaultPageSize;
-  const pageSize = Number.isFinite(rawPageSize)
+  const pageSize = Number.isFinite(rawPageSize) && rawPageSize > 0
     ? Math.min(maxPageSize, Math.max(minPageSize, Math.trunc(rawPageSize)))
     : defaultPageSize;
 

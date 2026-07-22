@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { ListPagerFilterBar } from '../components/ListPagerFilterBar';
 import { Page } from '../components/Page';
@@ -14,7 +13,7 @@ import type { AutomationRun } from '../features/automation/automationTypes';
 import { listDataReads } from '../features/data-reads/dataReadsApi';
 import { DataReadsHistoryTable } from '../features/data-reads/DataReadsHistoryTable';
 import type { DataSourceRead } from '../features/data-reads/dataReadTypes';
-import { deleteSelected, downloadSelected, getHistory, pollPendingRecords, verifyRecord } from '../features/integritas/integritasApi';
+import { deleteSelected, downloadSelected, getHistory, verifyRecord } from '../features/integritas/integritasApi';
 import { integritasErrorToast } from '../features/integritas/integritasErrors';
 import { IntegritasHistoryTable } from '../features/integritas/IntegritasHistoryTable';
 import type { IntegritasHistoryPage, IntegritasProofRecord } from '../features/integritas/integritasTypes';
@@ -28,6 +27,7 @@ import {
   parseDiagnosticsTab,
   PROOF_STATUS_OPTIONS,
   READ_STATUS_OPTIONS,
+  WORKFLOW_STATUS_OPTIONS,
   type DiagnosticsListQuery,
   type DiagnosticsTab,
 } from './diagnosticsQuery';
@@ -59,10 +59,11 @@ export function DiagnosticsPage() {
   );
   const [proofsPage, setProofsPage] = useState(emptyProofsPage);
   const [readsPage, setReadsPage] = useState(emptyPaginatedPage<DataSourceRead>);
-  const [workflowRuns, setWorkflowRuns] = useState<AutomationRun[]>([]);
+  const [workflowRunsPage, setWorkflowRunsPage] = useState(emptyPaginatedPage<AutomationRun>);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const updateListQuery = useCallback((patch: Partial<DiagnosticsListQuery>) => {
     const current = parseDiagnosticsListQuery(searchParams, activeTab);
@@ -105,28 +106,33 @@ export function DiagnosticsPage() {
     setSelectedIds([]);
   }, [activeTab, listQuery.page, listQuery.pageSize, listQuery.status, listQuery.q]);
 
+  const loadActiveTab = useCallback(async (query: DiagnosticsListQuery, isCancelled: () => boolean = () => false) => {
+    if (activeTab === 'proofs') {
+      const response = await getHistory(query);
+      if (isCancelled()) return;
+      applyPaginatedPage(response, query.page, setProofsPage, clampPage);
+      return;
+    }
+
+    if (activeTab === 'reads') {
+      const response = await listDataReads(query);
+      if (isCancelled()) return;
+      applyPaginatedPage(response, query.page, setReadsPage, clampPage);
+      return;
+    }
+
+    const response = await listAutomationRuns(query);
+    if (isCancelled()) return;
+    applyPaginatedPage(response, query.page, setWorkflowRunsPage, clampPage);
+  }, [activeTab, clampPage]);
+
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       setError(null);
       try {
-        if (activeTab === 'proofs') {
-          const response = await getHistory(listQuery);
-          if (cancelled) return;
-          applyPaginatedPage(response, listQuery.page, setProofsPage, clampPage);
-          return;
-        }
-
-        if (activeTab === 'reads') {
-          const response = await listDataReads(listQuery);
-          if (cancelled) return;
-          applyPaginatedPage(response, listQuery.page, setReadsPage, clampPage);
-          return;
-        }
-
-        const response = await listAutomationRuns(100);
-        if (!cancelled) setWorkflowRuns(response.items);
+        await loadActiveTab(listQuery, () => cancelled);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Failed to load diagnostics history.');
@@ -138,7 +144,7 @@ export function DiagnosticsPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, listQuery, clampPage]);
+  }, [listQuery, loadActiveTab]);
 
   useIntegritasHistoryAutoRefresh(proofsPage.items, undefined, {
     enabled: activeTab === 'proofs',
@@ -176,31 +182,20 @@ export function DiagnosticsPage() {
     }
   }
 
-  async function handleRefreshPending() {
-    await run(async () => {
-      applyPaginatedPage(
-        await pollPendingRecords(listQuery),
-        listQuery.page,
-        setProofsPage,
-        clampPage,
-      );
-    }, { refresh: false });
-  }
-
-  async function handleRefreshWorkflowRuns() {
-    setBusy(true);
+  async function handleRefresh() {
+    setRefreshing(true);
+    setError(null);
     try {
-      const response = await listAutomationRuns(100);
-      setWorkflowRuns(response.items);
+      await loadActiveTab(listQuery);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to refresh workflow logs.');
+      setError(err instanceof Error ? err.message : 'Failed to refresh diagnostics history.');
     } finally {
-      setBusy(false);
+      setRefreshing(false);
     }
   }
 
-  const activePager = activeTab === 'proofs' ? proofsPage : readsPage;
-  const statusOptions = activeTab === 'proofs' ? PROOF_STATUS_OPTIONS : READ_STATUS_OPTIONS;
+  const activePager = activeTab === 'proofs' ? proofsPage : activeTab === 'reads' ? readsPage : workflowRunsPage;
+  const statusOptions = activeTab === 'proofs' ? PROOF_STATUS_OPTIONS : activeTab === 'reads' ? READ_STATUS_OPTIONS : WORKFLOW_STATUS_OPTIONS;
   const listFiltered = Boolean(listQuery.status || listQuery.q);
 
   return (
@@ -220,33 +215,31 @@ export function DiagnosticsPage() {
         onChange={selectTab}
       />
 
-      {activeTab !== 'workflow-runs' && (
-        <ListPagerFilterBar
-          page={listQuery.page}
-          pageSize={listQuery.pageSize}
-          total={activePager.total}
-          totalPages={activePager.totalPages}
-          status={listQuery.status}
-          q={listQuery.q}
-          statusOptions={statusOptions}
-          onPageChange={(page) => updateListQuery({ page })}
-          onPageSizeChange={(pageSize) => updateListQuery({ pageSize })}
-          onStatusChange={(status) => updateListQuery({ status })}
-          onQueryChange={(q) => updateListQuery({ q })}
-        />
-      )}
+      <ListPagerFilterBar
+        page={listQuery.page}
+        pageSize={listQuery.pageSize}
+        total={activePager.total}
+        totalPages={activePager.totalPages}
+        status={listQuery.status}
+        q={listQuery.q}
+        statusOptions={statusOptions}
+        onPageChange={(page) => updateListQuery({ page })}
+        onPageSizeChange={(pageSize) => updateListQuery({ pageSize })}
+        onStatusChange={(status) => updateListQuery({ status })}
+        onQueryChange={(q) => updateListQuery({ q })}
+        onRefresh={() => void handleRefresh()}
+        refreshing={refreshing}
+      />
 
       {activeTab === 'proofs' ? (
         <IntegritasHistoryTable
           records={proofsPage.items}
           selectedIds={selectedIds}
           filtered={listFiltered}
-          pendingTotal={proofsPage.pendingTotal}
           busy={busy}
           onToggle={(id) => {
             setSelectedIds((ids) => ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id]);
           }}
-          onRefreshPending={() => void handleRefreshPending()}
           onVerify={(record) => run(() => verifyRecord(record.id))}
           onDeleteSelected={() => run(async () => {
             await deleteSelected(selectedIds);
@@ -263,11 +256,8 @@ export function DiagnosticsPage() {
               <strong>Workflow logs</strong>
               <MutedText className="m-0 mt-1">Recent automated and manual workflow runs across all workflows.</MutedText>
             </div>
-            <Button type="button" disabled={busy} onClick={() => void handleRefreshWorkflowRuns()}>
-              Refresh
-            </Button>
           </StatusRow>
-          <AutomationRunsTable runs={workflowRuns} />
+          <AutomationRunsTable runs={workflowRunsPage.items} />
         </Card>
       )}
 

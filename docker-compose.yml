@@ -1,5 +1,7 @@
 services:
   backend:
+    build:
+      context: ./backend
     image: ${BACKEND_IMAGE}
     environment:
       PORT: 3000
@@ -46,6 +48,8 @@ services:
       - integritas
 
   frontend:
+    build:
+      context: ./frontend
     image: ${FRONTEND_IMAGE}
     ports:
       - "${FRONTEND_PORT:-8080}:443"
@@ -87,6 +91,8 @@ services:
 
   update-agent:
     image: ${UPDATE_AGENT_IMAGE}
+    profiles:
+      - update-agent
     environment:
       PORT: 8081
       DOCKER_SOCKET_PATH: /var/run/docker.sock

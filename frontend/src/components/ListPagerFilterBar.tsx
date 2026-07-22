@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { RefreshCcwIcon } from 'lucide-react';
+import { TableIconButton } from './DataTable';
 import { DEFAULT_PAGE_SIZE_OPTIONS, listRangeLabel } from '../lib/paginated';
 
 type ListPagerFilterStatusOption = {
@@ -18,6 +20,8 @@ type ListPagerFilterBarProps = {
   onPageSizeChange: (pageSize: number) => void;
   onStatusChange: (status: string) => void;
   onQueryChange: (q: string) => void;
+  onRefresh?: () => void;
+  refreshing?: boolean;
 };
 
 export function ListPagerFilterBar({
@@ -32,6 +36,8 @@ export function ListPagerFilterBar({
   onPageSizeChange,
   onStatusChange,
   onQueryChange,
+  onRefresh,
+  refreshing = false,
 }: ListPagerFilterBarProps) {
   const [searchInput, setSearchInput] = useState(q);
 
@@ -77,9 +83,20 @@ export function ListPagerFilterBar({
         </label>
       </div>
       <div className='flex flex-wrap items-center justify-between gap-3'>
-        <p className='text-sm text-slate-500'>
-          {listRangeLabel(currentPage, pageSize, total)}
-        </p>
+        <div className='flex items-center gap-2'>
+          <p className='text-sm text-slate-500'>
+            {listRangeLabel(currentPage, pageSize, total)}
+          </p>
+          {onRefresh && (
+            <TableIconButton
+              aria-label='Refresh'
+              disabled={refreshing}
+              onClick={onRefresh}
+            >
+              <RefreshCcwIcon size={16} className={refreshing ? 'animate-spin' : undefined} />
+            </TableIconButton>
+          )}
+        </div>
         <div className='flex flex-wrap items-center gap-2'>
           <label className='flex items-center gap-2 text-sm'>
             <span className='text-slate-500'>Rows</span>

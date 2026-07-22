@@ -21,7 +21,7 @@ import {
   type AutomationBlockRecord,
   type AutomationWorkflowRecord
 } from "./automation.repository.js";
-import { createAutomationBlockRun, createAutomationRun, finishAutomationBlockRun, finishAutomationRun, getAutomationRun, listAutomationBlockRuns, listAutomationRuns, listAutomationRunsForWorkflow, type AutomationBlockRunRecord, type AutomationRunRecord } from "./automationRuns.repository.js";
+import { createAutomationBlockRun, createAutomationRun, finishAutomationBlockRun, finishAutomationRun, getAutomationRun, listAutomationBlockRuns, listAutomationRuns, listAutomationRunsForWorkflow, type AutomationBlockRunRecord, type AutomationRunListQuery, type AutomationRunRecord } from "./automationRuns.repository.js";
 
 type WorkflowTriggerType = "manual" | "schedule" | "webhook" | "mqtt" | "gpio";
 
@@ -48,6 +48,7 @@ type WorkflowContext = {
   proofId?: string | null;
   output?: unknown;
   stopped?: boolean;
+  variables: Record<string, unknown>;
 };
 
 type FieldCondition = {
@@ -57,26 +58,22 @@ type FieldCondition = {
   value?: unknown;
 };
 
+type WorkflowCondition = {
+  source?: "trigger" | "variable";
+  fieldPath?: string;
+  variableName?: string;
+  operator?: FieldCondition["operator"];
+  value?: unknown;
+};
+
 type OutputBodyMode = "custom" | "workflow_context" | "trigger_payload" | "latest_data" | "none";
+type VariableSource = "custom_json" | "trigger_field" | "latest_data_field" | "context_field";
 
 const runningWorkflowIds = new Set<string>();
 let scheduler: NodeJS.Timeout | null = null;
 
 export function serializeAutomationWorkflow(record: AutomationWorkflowRecord) {
   const blocks = listAutomationBlocks(record.id).map(serializeAutomationBlock);
-  const mainBlocks = blocks.filter((block) => !block.parentBlockId);
-  const startBlock = mainBlocks[0];
-  const fetchBlock = blocks.find((block) => block.type === "fetch_data_source");
-  const stampBlock = blocks.find((block) => block.type === "stamp_integritas");
-  const dataSourceId = typeof fetchBlock?.config === "object" && fetchBlock.config && "sourceId" in fetchBlock.config
-    ? String(fetchBlock.config.sourceId)
-    : typeof startBlock?.config === "object" && startBlock.config && "sourceId" in startBlock.config
-      ? String(startBlock.config.sourceId)
-      : "";
-  const pollingIntervalSeconds = startBlock?.type === "schedule_start" && typeof startBlock.config === "object" && startBlock.config && "intervalSeconds" in startBlock.config
-    ? Number(startBlock.config.intervalSeconds)
-    : 0;
-
   return {
     id: record.id,
     createdAt: record.created_at,
@@ -89,12 +86,7 @@ export function serializeAutomationWorkflow(record: AutomationWorkflowRecord) {
     lastHash: record.last_hash,
     lastProofId: record.last_proof_id,
     lastError: record.last_error,
-    blocks,
-    // Temporary compatibility fields for the existing frontend while the block UI is built.
-    dataSourceId,
-    pollingIntervalSeconds,
-    stampWithIntegritas: Boolean(stampBlock),
-    rules: blocks.filter((block) => !block.type.endsWith("_start") && !block.parentBlockId).map(blockToLegacyRule)
+    blocks
   };
 }
 
@@ -151,8 +143,8 @@ export function serializeAutomationBlockRun(record: AutomationBlockRunRecord) {
   };
 }
 
-export function listSerializedAutomationRuns(limit?: number) {
-  return listAutomationRuns(limit).map(serializeAutomationRun);
+export function listSerializedAutomationRuns(query: AutomationRunListQuery) {
+  return listAutomationRuns(query).map(serializeAutomationRun);
 }
 
 export function listSerializedAutomationRunsForWorkflow(workflowId: string, limit?: number) {
@@ -176,7 +168,7 @@ export async function executeWorkflow(workflow: AutomationWorkflowRecord, trigge
   if (!workflow.enabled && trigger.type !== "manual") throw new Error("Automation workflow is disabled");
 
   runningWorkflowIds.add(workflow.id);
-  const context: WorkflowContext = { trigger };
+  const context: WorkflowContext = { trigger, variables: {} };
   let nextRunAt: string | null = workflow.next_run_at;
   let run = null as ReturnType<typeof createAutomationRun> | null;
 
@@ -240,7 +232,7 @@ function validateStartBlock(block: AutomationBlockRecord, trigger: WorkflowConte
 }
 
 async function executeBlock(workflow: AutomationWorkflowRecord, block: AutomationBlockRecord, context: WorkflowContext, runId: string) {
-  const config = JSON.parse(block.config_json) as { sourceId?: string; targetId?: string; action?: string; durationMs?: number; bodyMode?: OutputBodyMode; bodyTemplate?: unknown; bodyTemplateText?: string; source?: "trigger" | "data"; fieldPath?: string; operator?: FieldCondition["operator"]; value?: unknown; condition?: FieldCondition | null; recipientAddressBookId?: string; tokenId?: string; amount?: string };
+  const config = JSON.parse(block.config_json) as { sourceId?: string; targetId?: string; action?: string; durationMs?: number; bodyMode?: OutputBodyMode; bodyTemplate?: unknown; bodyTemplateText?: string; variableName?: string; variableSource?: VariableSource; valueJsonText?: string; source?: "trigger" | "variable"; fieldPath?: string; operator?: FieldCondition["operator"]; value?: unknown; condition?: FieldCondition | null; recipientAddressBookId?: string; tokenId?: string; amount?: string };
   const blockRun = createAutomationBlockRun({ runId, workflowId: workflow.id, blockId: block.id, orderIndex: block.order_index, blockType: block.type, blockLabel: blockLabel(block.type), input: contextSummary(context) });
 
   try {
@@ -252,6 +244,7 @@ async function executeBlock(workflow: AutomationWorkflowRecord, block: Automatio
     }
     if (block.type === "record_trigger_event") await recordTriggerEvent(workflow, block, context);
     else if (block.type === "fetch_data_source") await fetchDataSource(workflow, block, context, String(config.sourceId ?? ""));
+    else if (block.type === "set_variable") setVariable(config, context);
     else if (block.type === "if_payload_field_equals") checkPayloadFieldEquals(config, context);
     else if (block.type === "wait") await wait(Number(config.durationMs ?? 0));
     else if (block.type === "stamp_integritas") status = await stampLatestHash(workflow, context, config.condition ?? null);
@@ -344,28 +337,11 @@ function sourceUrlForRecord(source: { type: string; config: string }) {
   return String(config.url ?? "data source");
 }
 
-function blockToLegacyRule(block: ReturnType<typeof serializeAutomationBlock>) {
-  return {
-    id: block.id,
-    workflowId: block.workflowId,
-    createdAt: block.createdAt,
-    updatedAt: block.updatedAt,
-    name: blockLabel(block.type),
-    type: block.type === "stamp_integritas" ? "stamp_integritas" : "collect_data",
-    enabled: block.enabled,
-    order: block.order,
-    when: block.type.endsWith("_start") ? block.config : { type: "after_previous_block" },
-    condition: { type: "block_enabled" },
-    then: block.config,
-    lastRunAt: block.lastRunAt,
-    lastError: block.lastError
-  };
-}
-
 function blockLabel(type: string) {
-  if (type === "stamp_integritas") return "Stamp with Integritas";
+  if (type === "stamp_integritas") return "Stamp data";
+  if (type === "set_variable") return "Set variable";
   if (type === "control_output") return "Control device";
-  if (type === "send_transaction") return "Send transaction";
+  if (type === "send_transaction") return "Send payment";
   if (type === "if_payload_field_equals") return "If field matches";
   if (type === "fetch_data_source") return "Fetch data source";
   if (type === "record_trigger_event") return "Record trigger event";
@@ -373,10 +349,17 @@ function blockLabel(type: string) {
   return "Start workflow";
 }
 
-function checkPayloadFieldEquals(config: { source?: "trigger" | "data"; fieldPath?: string; operator?: FieldCondition["operator"]; value?: unknown }, context: WorkflowContext) {
-  const result = evaluateCondition(context, { source: config.source ?? "trigger", fieldPath: String(config.fieldPath ?? ""), operator: config.operator!, value: config.value });
+function checkPayloadFieldEquals(config: WorkflowCondition, context: WorkflowContext) {
+  const result = evaluateWorkflowCondition(context, config);
   context.output = { ...result, action: result.matched ? "continued" : "stopped" };
   if (!result.matched) context.stopped = true;
+}
+
+function evaluateWorkflowCondition(context: WorkflowContext, condition: WorkflowCondition) {
+  const source = condition.source ?? "trigger";
+  const actual = source === "variable" ? context.variables[String(condition.variableName ?? "")] : getPathValue(context.trigger.payload, String(condition.fieldPath ?? ""));
+  const matched = evaluateOperator(actual, condition.operator!, condition.value);
+  return { source, fieldPath: condition.fieldPath, variableName: condition.variableName, operator: condition.operator, expected: condition.value, actual, matched };
 }
 
 function evaluateCondition(context: WorkflowContext, condition: FieldCondition & { source: "trigger" | "data" }) {
@@ -413,6 +396,36 @@ function deepEqualJson(left: unknown, right: unknown) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+function setVariable(config: { variableName?: string; variableSource?: VariableSource; valueJsonText?: string; fieldPath?: string }, context: WorkflowContext) {
+  const name = String(config.variableName ?? "").trim();
+  if (!isVariableName(name)) throw new Error("Set variable requires a valid variable name");
+  const source = config.variableSource ?? "custom_json";
+  const value = source === "custom_json"
+    ? parseVariableJson(config.valueJsonText ?? "null")
+    : source === "trigger_field"
+      ? getRequiredPathValue(context.trigger.payload, String(config.fieldPath ?? ""), "Trigger field")
+      : source === "latest_data_field"
+        ? getRequiredPathValue(context.data?.result.preview, String(config.fieldPath ?? ""), "Latest data field")
+        : getRequiredPathValue(contextSummary(context), String(config.fieldPath ?? ""), "Workflow context field");
+  context.variables[name] = value;
+  context.output = { action: "set_variable", name, value };
+}
+
+function parseVariableJson(text: string) {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    throw new Error("Variable custom JSON must be valid JSON");
+  }
+}
+
+function getRequiredPathValue(value: unknown, path: string, label: string) {
+  if (!path.trim()) throw new Error(`${label} requires a field path`);
+  const result = getPathValue(value, path);
+  if (result === undefined) throw new Error(`${label} was not found: ${path}`);
+  return result;
+}
+
 async function controlOutput(config: { targetId?: string; action?: string; durationMs?: number; bodyMode?: OutputBodyMode; bodyTemplate?: unknown; bodyTemplateText?: string }, context: WorkflowContext) {
   if (!config.targetId) throw new Error("Control output block requires a targetId");
   const target = getDataSource(config.targetId);
@@ -435,13 +448,42 @@ async function controlOutput(config: { targetId?: string; action?: string; durat
 function outputPayload(config: { bodyMode?: OutputBodyMode; bodyTemplate?: unknown; bodyTemplateText?: string }, context: WorkflowContext) {
   const mode = config.bodyMode ?? "workflow_context";
   if (mode === "none") return { body: undefined, hasBody: false };
-  if (mode === "custom") return { body: parseCustomBody(config), hasBody: true };
+  if (mode === "custom") return { body: interpolateValue(parseCustomBody(config), context.variables), hasBody: true };
   if (mode === "trigger_payload") return { body: context.trigger.payload ?? {}, hasBody: true };
   if (mode === "latest_data") {
     if (!context.data) throw new Error("No recorded or fetched data is available for this output body");
     return { body: context.data.result.preview, hasBody: true };
   }
   return { body: contextSummary(context), hasBody: true };
+}
+
+function interpolateValue(value: unknown, variables: Record<string, unknown>): unknown {
+  if (typeof value === "string") return interpolateString(value, variables);
+  if (Array.isArray(value)) return value.map((item) => interpolateValue(item, variables));
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, interpolateValue(item, variables)]));
+  return value;
+}
+
+function interpolateString(value: string, variables: Record<string, unknown>) {
+  const exact = value.match(/^\s*\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}\s*$/);
+  if (exact) return variableValue(exact[1], variables);
+  return value.replace(/\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g, (_match, name: string) => stringifyTemplateValue(variableValue(name, variables)));
+}
+
+function variableValue(name: string, variables: Record<string, unknown>) {
+  if (!Object.prototype.hasOwnProperty.call(variables, name)) throw new Error(`Output template references unknown variable: ${name}`);
+  return variables[name];
+}
+
+function stringifyTemplateValue(value: unknown) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") return String(value);
+  return JSON.stringify(value);
+}
+
+function isVariableName(value: string) {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(value);
 }
 
 function parseCustomBody(config: { bodyTemplate?: unknown; bodyTemplateText?: string }) {
@@ -518,7 +560,8 @@ function contextSummary(context: WorkflowContext) {
     output: context.output ?? null,
     hash: context.hash ?? null,
     proofId: context.proofId ?? null,
-    stopped: context.stopped ?? false
+    stopped: context.stopped ?? false,
+    variables: context.variables
   };
 }
 

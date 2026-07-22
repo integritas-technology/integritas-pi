@@ -3,6 +3,7 @@ import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { Modal } from "../components/Modal";
 import { Page } from "../components/Page";
+import { ProgressModal } from "../components/ProgressModal";
 import { MutedText } from "../components/Text";
 import { useToast } from "../components/ToastProvider";
 import { checkDataSourceHealth, createDataSource, deleteDataSource, getDataSourceCapabilities, listDataSources, readDataSource, testDataSourceOutput, updateDataSource } from "../features/data-sources/dataSourcesApi";
@@ -35,6 +36,7 @@ export function DataSourcesPage() {
   const [method, setMethod] = useState<"GET" | "POST" | "PUT" | "PATCH">("GET");
   const [healthStatuses, setHealthStatuses] = useState<Record<string, DataSourceHealthStatus>>({});
   const [busy, setBusy] = useState(false);
+  const [deletingSource, setDeletingSource] = useState<DataSource | null>(null);
 
   useEffect(() => {
     refresh().catch((err: Error) => showToast({ tone: "error", title: "Could not load devices", message: err.message }));
@@ -144,6 +146,15 @@ export function DataSourcesPage() {
     }
   }
 
+  async function deleteSource(source: DataSource) {
+    setDeletingSource(source);
+    try {
+      await run(() => deleteDataSource(source.id), "Device deleted");
+    } finally {
+      setDeletingSource(null);
+    }
+  }
+
   return (
       <Page eyebrow="Devices" title="Connect inputs and outputs" desc="Add input sources for data and events, then prepare output targets for automation workflows.">
       <Card className="grid gap-4">
@@ -210,6 +221,14 @@ export function DataSourcesPage() {
         </Modal>
       )}
 
+      {deletingSource && (
+        <ProgressModal
+          title="Deleting device"
+          headline="Deleting in progress"
+          message={`Removing ${deletingSource.name}. Large read histories can take a few seconds while saved read rows are detached from this device.`}
+        />
+      )}
+
       <DataSourcesList
         items={items}
         healthStatuses={healthStatuses}
@@ -217,7 +236,7 @@ export function DataSourcesPage() {
         onRead={(source) => run(() => readDataSource(source.id), "Manual read completed")}
         onTestOutput={(source) => run(() => testDataSourceOutput(source.id), "Test pulse sent")}
         onEdit={editSource}
-        onDelete={(source) => run(() => deleteDataSource(source.id), "Device deleted")}
+        onDelete={deleteSource}
       />
     </Page>
   );

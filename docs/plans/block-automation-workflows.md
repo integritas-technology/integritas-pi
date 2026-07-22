@@ -35,13 +35,13 @@ Later workflows should support safe GPIO output blocks:
 ## Current State
 
 - Data sources define HTTP JSON APIs, webhooks, MQTT subscriptions, and GPIO input sources.
-- Automation workflows are currently tied to one `data_source_id`.
-- Rules are represented as `when_json`, `condition_json`, and `then_json`.
-- GPIO input workflows currently record GPIO events themselves.
-- Scheduled HTTP workflows currently fetch one source at an interval.
-- Optional Integritas stamping is represented as a separate rule plus workflow-level `stamp_with_integritas` state.
+- Automation workflows are ordered block pipelines with one start block and follow-on data, logic, Integritas, output, and transaction blocks.
+- Workflow trigger/source summaries are derived from block config instead of workflow-level compatibility fields.
+- GPIO, webhook, MQTT, schedule, and manual starts all route through the central block executor.
+- Integritas stamping is represented as an attached side block on record/fetch data blocks.
+- The old rule API, rule response shape, and workflow-level compatibility fields have been removed.
 
-This works for simple pipelines but makes it hard to express workflows such as:
+The pivot now supports workflows such as:
 
 ```txt
 When GPIO17 is pressed, fetch a separate HTTP data source.
@@ -509,6 +509,7 @@ Current implementation:
 - Workflow log tables now use `Show on canvas` links to `/automation?flow=watch&id=<workflowId>&run=<runId>` instead of expanding raw logs inline.
 - Watch mode polls while a selected/latest run is active, selects the newest run after manual/test execution, and marks the canvas as live-updating vs historic review.
 - Watch historic runs and Diagnostics workflow logs keep canvas viewing as the primary action while exposing full raw run JSON through a secondary `Raw details` action.
+- The old rule compatibility endpoints and response fields have been removed; workflows are exposed through blocks only.
 - The center canvas previews the generated block chain before creation.
 - The right inspector configures workflow name and selected-block settings.
 - The draft canvas owns an editable draft block list and supports add/remove/move controls for supported draft blocks.
@@ -516,7 +517,6 @@ Current implementation:
 Remaining basic block-library work:
 
 - Add clearer draft validation on affected blocks.
-- Add Watch mode on the shared canvas, including a test-run payload editor, live block status, outputs, and read/proof links.
 
 ### 2. Workflow Templates
 
@@ -782,6 +782,7 @@ Button -> fetch API -> blink LED.
 ### Milestone 5: Block-Based API And UI
 
 - [x] Replace rule API with block API.
+- [x] Remove old rule compatibility endpoints, frontend helpers, and response fields.
 - [x] Build simple block-list workflow UI.
 - [x] Add block picker categories.
 - [ ] Add configure-block modal/refinement.
@@ -831,3 +832,7 @@ Button -> fetch API -> blink LED.
 - Added workflow run history: each execution records a run row and per-block rows with status, timing, errors, and context summaries. Recent runs are visible in the workflow workspace and globally under Diagnostics -> Workflow logs.
 - Added the first safe GPIO output path: GPIO Output targets with LED profile, reusable `control_output` pulse blocks, backend pin conflict checks, and hardware safety documentation.
 - Added near-term planning for the remaining block workspace improvements: workflow templates first, then pre-run validation, run-log navigation, workflow organization, configure-block modal refinement, full draft saves, and later branching/else flow.
+
+### 2026-07-20
+
+- Removed the leftover rule-based automation compatibility surface after the canvas implementation. The backend no longer accepts `/rules` workflow mutations or emits legacy `rules`, `dataSourceId`, `pollingIntervalSeconds`, or `stampWithIntegritas` workflow fields. The frontend derives source and interval summaries from workflow blocks directly.

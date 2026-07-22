@@ -3,18 +3,14 @@ export type AutomationWorkflow = {
   createdAt: string;
   updatedAt: string;
   name: string;
-  dataSourceId: string;
   enabled: boolean;
   archived: boolean;
-  pollingIntervalSeconds: number;
-  stampWithIntegritas: boolean;
   lastRunAt: string | null;
   nextRunAt: string | null;
   lastHash: string | null;
   lastProofId: string | null;
   lastError: string | null;
   blocks: AutomationBlock[];
-  rules: AutomationRule[];
 };
 
 export type AutomationBlockType =
@@ -25,6 +21,7 @@ export type AutomationBlockType =
   | "mqtt_event_start"
   | "record_trigger_event"
   | "fetch_data_source"
+  | "set_variable"
   | "if_payload_field_equals"
   | "wait"
   | "stamp_integritas"
@@ -54,8 +51,11 @@ export type AutomationBlock = {
     bodyMode?: "custom" | "workflow_context" | "trigger_payload" | "latest_data" | "none";
     bodyTemplateText?: string;
     bodyTemplate?: unknown;
+    variableName?: string;
+    variableSource?: "custom_json" | "trigger_field" | "latest_data_field" | "context_field";
+    valueJsonText?: string;
     activeOnly?: boolean;
-    source?: "trigger" | "data";
+    source?: "trigger" | "variable";
     fieldPath?: string;
     operator?: ConditionOperator;
     value?: unknown;
@@ -72,7 +72,7 @@ export type AutomationBlock = {
 
 export type AutomationRun = {
   id: string;
-  workflowId: string;
+  workflowId: string | null;
   workflowName: string;
   startedAt: string;
   finishedAt: string | null;
@@ -89,7 +89,7 @@ export type AutomationRun = {
 export type AutomationBlockRun = {
   id: string;
   runId: string;
-  workflowId: string;
+  workflowId: string | null;
   blockId: string | null;
   order: number;
   blockType: string;
@@ -117,18 +117,3 @@ export type AutomationValidationResult = {
   warnings: AutomationValidationIssue[];
 };
 
-export type AutomationRule = {
-  id: string;
-  workflowId: string;
-  createdAt: string;
-  updatedAt: string;
-  name: string;
-  type: "collect_data" | "stamp_integritas";
-  enabled: boolean;
-  order: number;
-  when: unknown;
-  condition: unknown;
-  then: unknown;
-  lastRunAt: string | null;
-  lastError: string | null;
-};

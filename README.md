@@ -110,7 +110,6 @@ COOKIE_SECURE=true
 SESSION_MAX_AGE_DAYS=7
 SESSION_IDLE_HOURS=24
 MANIFEST_URL=
-MANIFEST_PUBLIC_KEY=
 RELEASE_CHANNEL=stable
 UPDATE_HEALTH_CHECK_TIMEOUT_MS=60000
 UPDATE_HEALTH_CHECK_INTERVAL_MS=2000
@@ -192,7 +191,7 @@ Future versions may support custom certificates or an external reverse proxy.
 
 `SESSION_MAX_AGE_DAYS` and `SESSION_IDLE_HOURS` control session lifetime (default 7 days max, 24 hours idle).
 
-`MANIFEST_URL` and `MANIFEST_PUBLIC_KEY` configure the `update-agent` service: the signed update manifest URL hosted on the VPS, and the Ed25519 public key (PEM) used to verify its signature. Leave `MANIFEST_URL` empty to disable update checks. The update UI is served at `https://<pi-ip>:8080/update` (same TLS cert/origin as the main app, proxied through `frontend`'s nginx — no extra browser approval). See [docs/plans/update-service.md](docs/plans/update-service.md) for the full design.
+`MANIFEST_URL` configures the `update-agent` service: the signed update manifest URL hosted on the VPS. The Ed25519 public key used to verify its signature is baked into the `update-agent` image at build time from the committed `update-agent/manifest-public-key.pem`, not an env var. Leave `MANIFEST_URL` empty to disable update checks. The update UI is served at `https://<pi-ip>:8080/update` (same TLS cert/origin as the main app, proxied through `frontend`'s nginx — no extra browser approval). See [.agents/rules/update-agent.md](.agents/rules/update-agent.md) for the full design.
 
 `frontend`/`backend` are `build:`-based in `docker-compose.yml`, not pinned to a digest — re-running `install.sh` (or a bare `docker compose up -d --build`) rebuilds them from this checkout's source and silently reverts any updates applied via the Update page since. `git pull` the matching release tag first if you want to keep an update, or just use the Update page instead of re-running the installer on an already-updated device.
 
@@ -394,6 +393,40 @@ On the Pi:
 ```bash
 cd /opt/integritas-pi
 docker compose down
+```
+
+## Reset The Database
+
+To wipe an installed app's entire SQLite database (all users, sessions, Integritas history, data sources, and automation workflows), run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/scripts/dev/clear-db.sh | sudo bash
+```
+
+It stops the `backend` container, deletes `integritas-pi.db` from the app's data directory, then restarts `backend` so migrations recreate a fresh schema. You'll be prompted to confirm before anything is deleted.
+
+To clear only part of the database instead, set `TARGET`:
+
+```bash
+# Local accounts, sessions, setup wizard state, and Integritas Connect pairing.
+# Forces redoing the setup wizard and Integritas Connect.
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/scripts/dev/clear-db.sh | sudo TARGET=users bash
+
+# Integritas proof history, data source read history, and automation workflow
+# run logs (the Diagnostics tabs). Leaves accounts, data sources, and workflow
+# definitions untouched.
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/scripts/dev/clear-db.sh | sudo TARGET=history bash
+
+# Data sources and automation workflows/blocks. Leaves accounts and history untouched.
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/scripts/dev/clear-db.sh | sudo TARGET=automation bash
+```
+
+`TARGET` defaults to `all` (the full database-file wipe above); the scoped targets run SQL deletes against just those tables using the already-built `backend` image, instead of deleting the whole file.
+
+If the app is installed somewhere other than the default `/opt/integritas-pi`, set `APP_DIR`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/integritas-technology/integritas-pi/main/scripts/dev/clear-db.sh | sudo APP_DIR=/opt/integritas-pi bash
 ```
 
 ## Update The App

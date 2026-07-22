@@ -14,6 +14,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - First-run setup wizard UI is split into dedicated step components (`Welcome`, `Account`, `TwoFactor`, `ConnectAccount`, `Complete`) with shared onboarding styles; setup flow and behavior are unchanged.
+- `scripts/dev/clear-db.sh` operational script to wipe an installed app's SQLite database (stops the backend, deletes `integritas-pi.db`, restarts so migrations recreate a fresh schema). `TARGET=users|history|automation` scopes the clear to just accounts/Integritas Connect, Diagnostics history, or data sources/workflows instead of the whole database.
+
+## [0.21.0] - 2026-07-21
+
+### Added
+
+- Diagnostics "Workflow logs" tab now supports pagination, status filtering, and search, matching the existing proof/read history tabs.
+- All three Diagnostics tabs (proofs, reads, workflow logs) now share a single lightweight refresh button.
+
+### Changed
+
+- Diagnostics default page size lowered from 50 to 25.
+
+### Fixed
+
+- Diagnostics "Raw details" panel for a workflow run now expands inline below its row instead of rendering at the bottom of the table.
+- Diagnostics no longer silently falls back to a page size of 10 when no `pageSize` is set in the URL (affected the shared backend pagination helper too, used by proofs/reads/workflow-runs).
+
+## [0.20.0] - 2026-07-21
+
+### Added
+
+- Planned per-run workflow variables and output templating for reusable values in later workflow blocks.
+- Automation workflows now support per-run Set variable blocks and `{{variableName}}` interpolation in custom HTTP/MQTT output JSON.
+- Main workflow `If field matches` blocks can now read previously set workflow variables.
+
+### Changed
+
+- Main workflow `If field matches` blocks now choose between Trigger event and Variable sources; Latest data is no longer a direct condition source, so workflows should use Set variable before condition checks on recorded or fetched data.
+
+### Fixed
+
+- HTTP output failures now include upstream response details when available, making target API errors easier to diagnose.
+
+### Removed
+
+- Removed the old Automation workflow rule compatibility API and response fields; workflows are now exposed through the block API only.
 
 ## [0.19.0] - 2026-07-21
 
@@ -124,6 +161,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - Deleting a device no longer deletes its historical read-history rows; preserved rows keep their recorded source name and URL.
+- Deleting a workflow no longer deletes its historical workflow run logs; preserved logs keep their recorded workflow name.
 
 ## [0.16.0] - 2026-07-15
 
