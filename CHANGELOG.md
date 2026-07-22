@@ -4,6 +4,16 @@ All notable changes to `integritas-pi` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html) at the package level.
 
+## [0.21.4] - 2026-07-22
+
+### Added
+
+- `install.sh` `DEV_MODE` flag: skips manifest fetch/signature verification and the update agent, building `frontend`/`backend` from source instead of pulling pinned images — for local/dev installs.
+
+### Fixed
+
+- `install.sh` `DEV_MODE` no longer leaves `update-agent` unbuildable: `UPDATE_AGENT_IMAGE` is now set to a local `:dev` tag and `docker-compose.yml`'s `update-agent` service gets a `build` context, so DEV_MODE installs build it from source like `frontend`/`backend` instead of bypassing it.
+
 ## [0.21.3] - 2026-07-22
 
 ### Fixed
