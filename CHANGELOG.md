@@ -4,6 +4,12 @@ All notable changes to `integritas-pi` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html) at the package level.
 
+## [0.21.5] - 2026-07-22
+
+### Fixed
+
+- Modal no longer closes on a backdrop click or Escape key press. It previously closed from either even when a modal's `closeDisabled` should have blocked it; the only way to close a modal is now its explicit Close button.
+
 ## [0.21.4] - 2026-07-22
 
 ### Added
