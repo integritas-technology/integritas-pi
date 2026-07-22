@@ -34,15 +34,17 @@ export function getCameraCapability() {
     return { available: false, enabled: false, captureDir: env.cameraCaptureDir, reason: "Camera support is disabled. Set ENABLE_CAMERA=true and restart the app." };
   }
 
-  if (!commandExists(env.cameraPhotoCommand)) {
-    return { available: false, enabled: true, captureDir: env.cameraCaptureDir, reason: `Camera photo command was not found: ${env.cameraPhotoCommand}` };
+  const photoCommand = resolveCameraCommand("photo");
+  if (!photoCommand) {
+    return { available: false, enabled: true, captureDir: env.cameraCaptureDir, reason: `Camera photo command was not found. Tried: ${cameraCommandCandidates("photo").join(", ")}` };
   }
 
-  if (!commandExists(env.cameraVideoCommand)) {
-    return { available: false, enabled: true, captureDir: env.cameraCaptureDir, reason: `Camera video command was not found: ${env.cameraVideoCommand}` };
+  const videoCommand = resolveCameraCommand("video");
+  if (!videoCommand) {
+    return { available: false, enabled: true, captureDir: env.cameraCaptureDir, reason: `Camera video command was not found. Tried: ${cameraCommandCandidates("video").join(", ")}` };
   }
 
-  return { available: true, enabled: true, captureDir: env.cameraCaptureDir, reason: null };
+  return { available: true, enabled: true, captureDir: env.cameraCaptureDir, reason: null, photoCommand, videoCommand };
 }
 
 export async function capturePiCamera(input: { sourceId: string; durationMs?: number }): Promise<CameraCaptureResult> {
@@ -91,7 +93,8 @@ function normalizeCaptureConfig(config: PiCameraConfig, durationMs?: number): Pi
 }
 
 function runCaptureCommand(config: PiCameraConfig, outputPath: string) {
-  const command = config.mode === "photo" ? env.cameraPhotoCommand : env.cameraVideoCommand;
+  const command = resolveCameraCommand(config.mode);
+  if (!command) throw new Error(`Camera ${config.mode} command was not found. Tried: ${cameraCommandCandidates(config.mode).join(", ")}`);
   const args = config.mode === "photo"
     ? ["-n", "-o", outputPath, "--width", String(config.width), "--height", String(config.height), "--timeout", String(config.durationMs)]
     : ["-n", "-o", outputPath, "--width", String(config.width), "--height", String(config.height), "--timeout", String(config.durationMs), "--framerate", String(config.fps)];
@@ -123,6 +126,16 @@ function safeFileName(value: string) {
 function commandExists(command: string) {
   const result = spawnSync(command, ["--help"], { shell: false, stdio: "ignore" });
   return !result.error || result.error.message !== "spawnSync ENOENT";
+}
+
+function resolveCameraCommand(mode: "photo" | "video") {
+  return cameraCommandCandidates(mode).find(commandExists) ?? null;
+}
+
+function cameraCommandCandidates(mode: "photo" | "video") {
+  const configured = mode === "photo" ? env.cameraPhotoCommand : env.cameraVideoCommand;
+  const fallbacks = mode === "photo" ? ["rpicam-still", "libcamera-still"] : ["rpicam-vid", "libcamera-vid"];
+  return [...new Set([configured, ...fallbacks].filter(Boolean))];
 }
 
 async function pruneOldCaptures() {

@@ -16,7 +16,10 @@ RUN npm prune --omit=dev
 FROM node:20-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
-RUN apt-get update && apt-get install -y --no-install-recommends gpiod \
+RUN apt-get update \
+  && (apt-get install -y --no-install-recommends gpiod rpicam-apps \
+    || apt-get install -y --no-install-recommends gpiod libcamera-apps \
+    || apt-get install -y --no-install-recommends gpiod libcamera-tools) \
   && rm -rf /var/lib/apt/lists/* \
   && mkdir -p /data && chown node:node /data
 COPY package.json package-lock.json* ./

@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - Pi Camera capture devices can now be enabled with `ENABLE_CAMERA=true`, configured from Devices, and used in Automation through a `Capture camera` data block that hashes captured media bytes and can attach Integritas stamping.
+- Camera command detection now tries `rpicam-still`/`rpicam-vid` and `libcamera-still`/`libcamera-vid`, and the backend image attempts to install available Raspberry Pi/libcamera app packages.
 
 ### Changed
 
