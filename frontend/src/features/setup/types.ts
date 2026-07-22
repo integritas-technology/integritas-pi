@@ -1,11 +1,10 @@
 import type { AdminCredentialType } from "../auth/adminCredentials";
 
-export type OnboardingStepId = "welcome" | "account" | "twofa" | "connectAccount" | "complete";
+export type OnboardingStepId = "welcome" | "account" | "twofa" | "connectAccount";
 
 export type OnboardingStep = {
   id: OnboardingStepId;
   label: string;
-  shortLabel: string;
 };
 
 export type OnboardingFormState = {

@@ -43,9 +43,11 @@ function credentialHint(
 export function AccountStep({
   form,
   setForm,
+  onSubmit,
 }: {
   form: OnboardingFormState;
   setForm: (patch: Partial<OnboardingFormState>) => void;
+  onSubmit: () => void;
 }) {
   const hint = credentialHint(form.credentialType, form.password);
   const credentialsMatch = !form.confirmPassword || form.password === form.confirmPassword;
@@ -62,7 +64,13 @@ export function AccountStep({
       <h2 className={headingClass}>Choose a PIN or password</h2>
       <p className={leadClass}>This local credential unlocks Edge Workbench on this hardware.</p>
 
-      <div className={formGridClass}>
+      <form
+        className={cx(formGridClass, "relative")}
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmit();
+        }}
+      >
         <fieldset className="grid gap-2 border-0 p-0">
           <legend className="mb-2 font-bold text-slate-700">Credential type</legend>
           <div className="grid grid-cols-2 gap-2">
@@ -71,10 +79,10 @@ export function AccountStep({
                 key={type}
                 type="button"
                 className={cx(
-                  "rounded-xl border px-3 py-2.5 text-sm font-bold",
+                  "rounded-xl border px-3 py-2.5 text-sm font-bold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950/20 focus-visible:ring-offset-2",
                   form.credentialType === type
                     ? "border-slate-950 bg-slate-950 text-white"
-                    : "border-slate-300 bg-white text-slate-700",
+                    : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50",
                 )}
                 aria-pressed={form.credentialType === type}
                 onClick={() => selectCredentialType(type)}
@@ -132,10 +140,17 @@ export function AccountStep({
             autoComplete="new-password"
           />
           {!credentialsMatch && (
-            <span className={warnHintClass}>{credentialLabel}s do not match</span>
+            <span className={warnHintClass} role="status">
+              {credentialLabel}s do not match
+            </span>
           )}
         </label>
-      </div>
+
+        {/* Hidden submit so Enter activates the form without a visible duplicate Continue. */}
+        <button type="submit" className="absolute h-px w-px overflow-hidden border-0 p-0 [clip:rect(0,0,0,0)]">
+          Continue
+        </button>
+      </form>
     </div>
   );
 }

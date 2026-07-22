@@ -1,18 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Layers3 } from "lucide-react";
+import { Button } from "../../components/Button";
 import { ErrorText } from "../../components/Text";
 import { cx } from "../../lib/cx";
 import { isValidAdminCredential } from "../auth/adminCredentials";
 import { TOTP_ENABLED } from "../auth/totpEnabled";
-import { hasConnectedProfile } from "../integritas-auth/integritasAuthApi";
 import { useIntegritasAuth } from "../integritas-auth/useIntegritasAuth";
 import { completeSetup, initTotp, verifyTotp } from "./api";
-import { mutedClass, primaryButtonClass, secondaryButtonClass } from "./onboardingStyles";
-import { StepIcon } from "./StepIcon";
-import { onboardingSteps } from "./steps";
+import { mutedClass } from "./onboardingStyles";
+import { onboardingSteps, onboardingWorkSteps } from "./steps";
 import { AccountStep } from "./steps/AccountStep";
-import { CompleteStep } from "./steps/CompleteStep";
-import { ConnectAccountStep } from "./steps/ConnectAccountStep";
+import { ConnectIntegritasStep } from "./steps/ConnectIntegritasStep";
 import { TwoFactorStep } from "./steps/TwoFactorStep";
 import { WelcomeStep } from "./steps/WelcomeStep";
 import type { CheckState, OnboardingFormState, OnboardingStepId } from "./types";
@@ -69,7 +67,15 @@ export function OnboardingWizard({
   }, []);
 
   const currentStep = onboardingSteps[stepIndex];
-  const progress = ((stepIndex + 1) / onboardingSteps.length) * 100;
+  const workStepIndex = onboardingWorkSteps.findIndex((step) => step.id === currentStep.id);
+  const isWorkStep = workStepIndex >= 0;
+  const connectReady = currentStep.id === "connectAccount" && status?.status === "connected";
+  const progress =
+    currentStep.id === "welcome"
+      ? 0
+      : connectReady
+        ? 100
+        : ((workStepIndex + 1) / onboardingWorkSteps.length) * 100;
 
   const setForm = (patch: Partial<OnboardingFormState>) => {
     setFormState((prev) => ({ ...prev, ...patch }));
@@ -116,8 +122,6 @@ export function OnboardingWizard({
         return totpCheck === "ok" && Boolean(qrCode) && !qrError;
       case "connectAccount":
         return status?.status === "connected";
-      case "complete":
-        return status?.status === "connected";
       default:
         return false;
     }
@@ -130,7 +134,7 @@ export function OnboardingWizard({
   };
 
   const goNext = async () => {
-    if (currentStep.id === "complete") {
+    if (connectReady) {
       onComplete();
       return;
     }
@@ -175,20 +179,11 @@ export function OnboardingWizard({
     void start({ openPopup: true });
   };
 
-  const connectedStatus = status?.status === "connected" ? status : null;
-
-  const connectedName =
-    connectedStatus && hasConnectedProfile(connectedStatus) ? connectedStatus.user.name : null;
-  const connectedPlan =
-    connectedStatus && hasConnectedProfile(connectedStatus)
-      ? `${connectedStatus.plan.name}${connectedStatus.plan.status ? ` (${connectedStatus.plan.status})` : ""}`
-      : null;
-  const connectedUsage =
-    connectedStatus && hasConnectedProfile(connectedStatus)
-      ? connectedStatus.usage.remaining
-      : null;
-
   const hideFooterContinue = currentStep.id === "connectAccount" && status?.status !== "connected";
+  const connectWaitingLabel =
+    status?.status === "pending"
+      ? "Waiting for Integritas Connect…"
+      : "Preparing Integritas Connect…";
 
   return (
     <div className="fixed inset-0 z-50 flex min-h-0 flex-col overflow-hidden overscroll-contain bg-white">
@@ -197,62 +192,62 @@ export function OnboardingWizard({
         role="main"
         aria-label="First-time setup"
       >
-        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-3">
+        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-200/80 bg-white px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white">
-              <Layers3 size={24} />
+              <Layers3 size={22} aria-hidden="true" strokeWidth={2.25} />
             </div>
             <div>
-              <p className="m-0 text-sm text-slate-500">Minima Edge Stack</p>
-              <h1 className="m-0 mt-0.5 text-lg">First-time setup</h1>
+              <p className="m-0 text-xs font-bold tracking-[0.16em] text-slate-500 uppercase">
+                Edge Workbench
+              </p>
+              <h1 className="m-0 mt-1 text-lg font-bold tracking-[-0.02em] text-slate-950">
+                First-time setup
+              </h1>
             </div>
           </div>
         </header>
 
-        <div className="h-1 shrink-0 bg-slate-200">
+        <div
+          className="h-1 shrink-0 bg-slate-200"
+          role="progressbar"
+          aria-label="Setup progress"
+          aria-valuemin={0}
+          aria-valuemax={onboardingWorkSteps.length}
+          aria-valuenow={
+            currentStep.id === "welcome"
+              ? 0
+              : connectReady
+                ? onboardingWorkSteps.length
+                : workStepIndex + 1
+          }
+          aria-valuetext={
+            connectReady
+              ? "Setup complete"
+              : isWorkStep
+                ? `Step ${workStepIndex + 1} of ${onboardingWorkSteps.length}`
+                : "Getting started"
+          }
+        >
           <span
-            className="block h-full bg-violet-600 transition-[width] duration-200"
+            className="block h-full rounded-full bg-[var(--brand-primary)] transition-[width] duration-200 ease-out motion-reduce:transition-none"
             style={{ width: `${progress}%` }}
           />
         </div>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)]">
-          <aside className="flex min-h-0 flex-col overflow-hidden bg-slate-900 p-4 text-slate-200 max-[900px]:px-4 max-[900px]:py-3">
-            <p className="m-0 mb-3 shrink-0 text-[0.72rem] font-extrabold tracking-widest text-slate-400 uppercase">
-              Setup steps
-            </p>
-            <ol className="m-0 grid min-h-0 [scrollbar-width:thin] [scrollbar-color:rgb(148_163_184_/_0.55)_transparent] list-none gap-2 overflow-y-auto p-0 max-[900px]:auto-cols-[minmax(140px,1fr)] max-[900px]:grid-flow-col max-[900px]:overflow-x-auto max-[900px]:overflow-y-hidden max-[900px]:pb-1">
-              {onboardingSteps.map((step, index) => {
-                const complete = index < stepIndex;
-                const active = index === stepIndex;
-                return (
-                  <li
-                    key={step.id}
-                    className={cx(
-                      "flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-slate-400",
-                      active && "bg-white/10 text-white",
-                      complete && "text-slate-300",
-                    )}
-                  >
-                    <StepIcon id={step.id} active={active} complete={complete} />
-                    <div>
-                      <span className="block text-[0.72rem] font-bold tracking-wide uppercase">
-                        {step.shortLabel}
-                      </span>
-                      <strong className="mt-0.5 block text-[0.88rem] leading-snug">
-                        {step.label}
-                      </strong>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
-          </aside>
-
-          <div className="flex min-h-0 min-w-0 flex-col bg-white">
-            <div className="min-h-0 flex-1 [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent] overflow-y-auto px-6 py-5 max-[700px]:py-3 lg:px-10 lg:py-6">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-[linear-gradient(180deg,#fafafa_0%,#ffffff_28%)]">
+          <div className="min-h-0 flex-1 [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent] overflow-y-auto px-6 py-8 max-[700px]:py-5 lg:px-10 lg:py-10">
+            <div className="mx-auto w-full max-w-2xl">
               {currentStep.id === "welcome" && <WelcomeStep />}
-              {currentStep.id === "account" && <AccountStep form={form} setForm={setForm} />}
+              {currentStep.id === "account" && (
+                <AccountStep
+                  form={form}
+                  setForm={setForm}
+                  onSubmit={() => {
+                    if (canContinue && !submitting) void goNext();
+                  }}
+                />
+              )}
               {currentStep.id === "twofa" && (
                 <TwoFactorStep
                   form={form}
@@ -266,7 +261,7 @@ export function OnboardingWizard({
                 />
               )}
               {currentStep.id === "connectAccount" && (
-                <ConnectAccountStep
+                <ConnectIntegritasStep
                   status={status}
                   starting={starting || connectLoading}
                   error={connectError}
@@ -274,62 +269,65 @@ export function OnboardingWizard({
                   onRetry={retryConnect}
                 />
               )}
-              {currentStep.id === "complete" && (
-                <CompleteStep
-                  passwordSet={localAdminReady}
-                  totpVerified={localAdminReady}
-                  connectedName={connectedName}
-                  connectedPlan={connectedPlan}
-                  connectedUsage={connectedUsage}
-                />
-              )}
             </div>
+          </div>
 
-            {submitError ? <ErrorText className="px-6">{submitError}</ErrorText> : null}
+          {submitError ? (
+            <ErrorText className="px-6" role="alert">
+              {submitError}
+            </ErrorText>
+          ) : null}
 
-            <footer className="flex shrink-0 flex-col items-stretch gap-3 border-t border-slate-200 bg-white px-6 py-3 max-[900px]:gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <footer className="shrink-0 border-t border-slate-200 bg-white">
+            <div className="mx-auto flex w-full max-w-2xl flex-col items-stretch gap-3 px-6 py-3 max-[900px]:gap-3 sm:flex-row sm:items-center sm:justify-between lg:px-10">
               <div>
                 {stepIndex > 0 && !localAdminReady ? (
-                  <button
+                  <Button
                     type="button"
-                    className={secondaryButtonClass}
+                    variant="ghost"
+                    size="sm"
                     onClick={goBack}
                     disabled={submitting}
                   >
                     <ArrowLeft size={16} /> Back
-                  </button>
+                  </Button>
                 ) : (
                   <span />
                 )}
               </div>
               <div className="flex items-center justify-between gap-3.5 max-[900px]:justify-between">
                 <span className={mutedClass}>
-                  Step {stepIndex + 1} of {onboardingSteps.length}
+                  {isWorkStep && !connectReady
+                    ? `Step ${workStepIndex + 1} of ${onboardingWorkSteps.length}`
+                    : "\u00a0"}
                 </span>
                 {hideFooterContinue ? (
-                  <span className={mutedClass}>
-                    {status?.status === "pending"
-                      ? "Waiting for account connection…"
-                      : "Preparing account activation…"}
+                  <span
+                    className={cx(mutedClass, "text-right text-xs sm:text-sm")}
+                    aria-live="polite"
+                    aria-atomic="true"
+                  >
+                    {connectWaitingLabel}
                   </span>
                 ) : (
-                  <button
+                  <Button
                     type="button"
-                    className={primaryButtonClass}
+                    variant="primary"
+                    size="sm"
                     disabled={!canContinue || submitting}
                     onClick={() => void goNext()}
                   >
                     {submitting
                       ? "Securing device…"
-                      : currentStep.id === "complete"
+                      : connectReady
                         ? "Enter Edge Workbench"
                         : "Continue"}
-                    {currentStep.id !== "complete" && !submitting && <ArrowRight size={16} />}
-                  </button>
+                    {!connectReady && !submitting && <ArrowRight size={16} />}
+                  </Button>
                 )}
               </div>
-            </footer>
-          </div>
+            </div>
+          </footer>
         </div>
       </div>
     </div>
