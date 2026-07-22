@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Root Prettier setup (`.prettierrc`, `.prettierignore`, and `prettier` / `prettier-plugin-tailwindcss` / `eslint-config-prettier` deps) for consistent formatting across the monorepo.
+- Backend startup now logs the configured Integritas Connect base URL alongside the other runtime endpoints.
+
+### Changed
+
+- First-run setup wizard UI is split into dedicated step components (`Welcome`, `Account`, `TwoFactor`, `ConnectAccount`, `Complete`) with shared onboarding styles; setup flow and behavior are unchanged.
 - `scripts/dev/clear-db.sh` operational script to wipe an installed app's SQLite database (stops the backend, deletes `integritas-pi.db`, restarts so migrations recreate a fresh schema). `TARGET=users|history|automation` scopes the clear to just accounts/Integritas Connect, Diagnostics history, or data sources/workflows instead of the whole database.
 - `scripts/dev/set-status-poll-interval.sh` operational script to change an installed app's `STATUS_POLL_INTERVAL_MS` (update-agent's manifest poll interval) in place and recreate `update-agent` to apply it.
 
