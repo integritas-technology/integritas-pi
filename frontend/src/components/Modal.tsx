@@ -10,15 +10,6 @@ export function Modal({ title, children, onClose, closeDisabled = false }: { tit
   }, []);
 
   useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && !closeDisabled) onClose();
-    }
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [closeDisabled, onClose]);
-
-  useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -29,13 +20,12 @@ export function Modal({ title, children, onClose, closeDisabled = false }: { tit
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/60 p-5" role="presentation" onClick={closeDisabled ? undefined : onClose}>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/60 p-5" role="presentation">
       <div
         className="max-h-[min(760px,90vh)] w-[min(980px,100%)] min-w-0 rounded-[28px] border border-slate-400 bg-slate-100 p-2 shadow-[0_28px_80px_rgba(15,23,42,0.28)]"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        onClick={(event) => event.stopPropagation()}
       >
         <div className="grid max-h-[calc(min(760px,90vh)-16px)] min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-4 overflow-hidden rounded-[22px] border border-slate-200 bg-white p-4">
           <div className="flex min-w-0 items-center justify-between gap-3">
