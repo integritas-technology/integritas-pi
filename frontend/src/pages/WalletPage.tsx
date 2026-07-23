@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { BookUser, ChevronLeft, ChevronRight, Settings } from 'lucide-react';
+import type { MinimaNodeState } from '../app/types';
 import { Button, IconButton } from '../components/Button';
 import { Card } from '../components/Card';
 import { CopyableCode } from '../components/CopyableCode';
 import { DarkHeroCard } from '../components/DarkHeroCard';
+import { LoadingDots } from '../components/LoadingDots';
 import { MinimaIcon } from '../components/MinimaIcon';
 import { Modal } from '../components/Modal';
 import { Page } from '../components/Page';
@@ -34,6 +36,7 @@ import type {
 import { AddressBookModal } from '../features/address-book/AddressBookPanel';
 import { listAddressBookEntries } from '../features/address-book/addressBookApi';
 import type { AddressBookEntry } from '../features/address-book/addressBookTypes';
+import { useMinimaStatusRefresh } from '../features/minima/useMinimaStatusRefresh';
 
 function isNativeTokenId(tokenId: string): boolean {
   return tokenId.trim().toLowerCase() === '0x00';
@@ -109,12 +112,14 @@ const walletListRowClass = 'w-full rounded-xl border border-slate-200 bg-white p
 function WalletHero({
   loading,
   totalMinima,
+  disabled,
   onReceive,
   onSend,
   onCreateToken,
 }: {
   loading: boolean;
   totalMinima: string;
+  disabled: boolean;
   onReceive: () => void;
   onSend: () => void;
   onCreateToken: () => void;
@@ -129,13 +134,13 @@ function WalletHero({
           <Eyebrow className='text-slate-400'>Node wallet</Eyebrow>
         </div>
         <div className='flex flex-wrap justify-start gap-2 sm:justify-end'>
-          <Button type='button' variant='onDark' onClick={onReceive}>
+          <Button type='button' variant='onDark' onClick={onReceive} disabled={disabled}>
             Receive payment
           </Button>
-          <Button type='button' variant='onDark' onClick={onSend}>
+          <Button type='button' variant='onDark' onClick={onSend} disabled={disabled}>
             Send payment
           </Button>
-          <Button type='button' variant='onDark' onClick={onCreateToken}>
+          <Button type='button' variant='onDark' onClick={onCreateToken} disabled={disabled}>
             Create token
           </Button>
         </div>
@@ -146,9 +151,9 @@ function WalletHero({
           <MinimaIcon size={36} className='mt-[calc((1.1em-36px)/2)] shrink-0 opacity-55' />
           <span
             className='min-w-0 break-all text-[clamp(2.5rem,6vw,3.5rem)] font-bold leading-[1.1] tracking-[-0.04em]'
-            title={loading ? undefined : totalMinima}
+            title={loading || disabled ? undefined : totalMinima}
           >
-            {loading ? '…' : formatAmountThreshold(totalMinima)}
+            {loading || disabled ? <LoadingDots className='scale-125' /> : formatAmountThreshold(totalMinima)}
           </span>
         </div>
       </div>
@@ -174,6 +179,19 @@ export function WalletPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [addressBookOpen, setAddressBookOpen] = useState(false);
   const [mainTab, setMainTab] = useState<'assets' | 'history'>('assets');
+  const [minimaState, setMinimaState] = useState<MinimaNodeState | null>(null);
+
+  useMinimaStatusRefresh(
+    (status) => setMinimaState(status.state),
+    () => {}
+  );
+  // Only allow wallet actions once Minima is confirmed running — any other state
+  // (loading, stopped, error, restarting) means an RPC call would just fail. Buttons
+  // stay disabled during the initial "haven't checked yet" window too, but the warning
+  // banner itself only appears once we've actually confirmed the node isn't running —
+  // otherwise it flashes "unavailable" for a node that's actually fine.
+  const actionsBlocked = minimaState !== 'running';
+  const minimaConfirmedUnavailable = minimaState !== null && minimaState !== 'running';
 
   async function refresh() {
     setLoading(true);
@@ -259,9 +277,16 @@ export function WalletPage() {
         </div>
       }
     >
+      {minimaConfirmedUnavailable && (
+        <div className='rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900'>
+          Wallet actions are unavailable until Minima is running.
+        </div>
+      )}
+
       <WalletHero
         loading={loading}
         totalMinima={totalMinima}
+        disabled={actionsBlocked}
         onReceive={() => setReceiveOpen(true)}
         onSend={() => setSendOpen(true)}
         onCreateToken={() => setCreateTokenOpen(true)}
@@ -405,6 +430,8 @@ export function WalletPage() {
       )}
       {settingsOpen && (
         <WalletSettingsModal
+          actionsBlocked={actionsBlocked}
+          minimaConfirmedUnavailable={minimaConfirmedUnavailable}
           onClose={() => setSettingsOpen(false)}
         />
       )}
@@ -426,6 +453,8 @@ export function WalletPage() {
       {sendOpen && (
         <SendPaymentModal
           walletStatus={walletStatus}
+          actionsBlocked={actionsBlocked}
+          minimaConfirmedUnavailable={minimaConfirmedUnavailable}
           onClose={() => setSendOpen(false)}
         />
       )}
@@ -433,6 +462,8 @@ export function WalletPage() {
       {createTokenOpen && (
         <CreateTokenModal
           walletStatus={walletStatus}
+          actionsBlocked={actionsBlocked}
+          minimaConfirmedUnavailable={minimaConfirmedUnavailable}
           onClose={() => setCreateTokenOpen(false)}
           onCreated={refresh}
         />
@@ -441,7 +472,15 @@ export function WalletPage() {
   );
 }
 
-function WalletSettingsModal({ onClose }: { onClose: () => void }) {
+function WalletSettingsModal({
+  actionsBlocked,
+  minimaConfirmedUnavailable,
+  onClose,
+}: {
+  actionsBlocked: boolean;
+  minimaConfirmedUnavailable: boolean;
+  onClose: () => void;
+}) {
   const { showToast } = useToast();
   const [view, setView] = useState<'menu' | 'import'>('menu');
   const [phrase, setPhrase] = useState('');
@@ -488,7 +527,9 @@ function WalletSettingsModal({ onClose }: { onClose: () => void }) {
           <button
             type='button'
             onClick={() => setView('import')}
-            className='flex w-full items-center justify-between gap-3 py-3 pt-0 text-left hover:bg-slate-50 -mx-1 px-1 rounded-lg transition-colors'
+            disabled={actionsBlocked}
+            title={actionsBlocked ? 'Unavailable until Minima is running' : undefined}
+            className='flex w-full items-center justify-between gap-3 py-3 pt-0 text-left hover:bg-slate-50 -mx-1 px-1 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent'
           >
             <div>
               <p className='text-sm font-semibold text-slate-900'>Import wallet</p>
@@ -559,9 +600,14 @@ function WalletSettingsModal({ onClose }: { onClose: () => void }) {
                   <p className='text-sm text-red-700'>{error}</p>
                 </div>
               )}
+              {minimaConfirmedUnavailable && (
+                <div className='rounded-xl bg-amber-50 border border-amber-200 p-3'>
+                  <p className='text-sm text-amber-800'>Minima isn't running — import is unavailable right now.</p>
+                </div>
+              )}
               <button
                 type='submit'
-                disabled={submitting}
+                disabled={submitting || actionsBlocked}
                 className='rounded-xl border-0 bg-slate-950 px-5 py-3 text-sm font-bold text-white disabled:opacity-50'
               >
                 {submitting ? 'Importing…' : 'Import wallet'}
@@ -672,9 +718,13 @@ function ReceiveAddressModal({ onClose }: { onClose: () => void }) {
 
 function SendPaymentModal({
   walletStatus,
+  actionsBlocked,
+  minimaConfirmedUnavailable,
   onClose,
 }: {
   walletStatus: WalletStatus | null;
+  actionsBlocked: boolean;
+  minimaConfirmedUnavailable: boolean;
   onClose: () => void;
 }) {
   const { showToast } = useToast();
@@ -708,7 +758,7 @@ function SendPaymentModal({
     isPositiveDecimal(amount) &&
     compareDecimalStrings(amount.trim(), availableSendable) > 0,
   );
-  const canSubmit = !exceedsBalance && !submitting;
+  const canSubmit = !exceedsBalance && !submitting && !actionsBlocked;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -876,6 +926,12 @@ function SendPaymentModal({
           </div>
         )}
 
+        {minimaConfirmedUnavailable && (
+          <div className='rounded-xl bg-amber-50 border border-amber-200 p-3'>
+            <p className='text-sm text-amber-800'>Minima isn't running — sending is unavailable right now.</p>
+          </div>
+        )}
+
         <button
           type='submit'
           disabled={!canSubmit}
@@ -890,10 +946,14 @@ function SendPaymentModal({
 
 function CreateTokenModal({
   walletStatus,
+  actionsBlocked,
+  minimaConfirmedUnavailable,
   onClose,
   onCreated,
 }: {
   walletStatus: WalletStatus | null;
+  actionsBlocked: boolean;
+  minimaConfirmedUnavailable: boolean;
   onClose: () => void;
   onCreated: () => Promise<void>;
 }) {
@@ -1041,9 +1101,14 @@ function CreateTokenModal({
             Creating token on the node… this may take up to a minute.
           </p>
         )}
+        {minimaConfirmedUnavailable && (
+          <div className='rounded-xl bg-amber-50 border border-amber-200 p-3'>
+            <p className='text-sm text-amber-800'>Minima isn't running — token creation is unavailable right now.</p>
+          </div>
+        )}
         <button
           type='submit'
-          disabled={submitting || !hasSufficientMinima}
+          disabled={submitting || !hasSufficientMinima || actionsBlocked}
           className='rounded-xl border-0 bg-slate-950 px-5 py-3 text-sm font-bold text-white disabled:opacity-50'
         >
           {submitting ? 'Creating…' : 'Create token'}
