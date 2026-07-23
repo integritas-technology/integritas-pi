@@ -20,7 +20,7 @@ export type DataSource = {
     edge?: "rising" | "falling" | "both";
     debounceMs?: number;
     activeState?: "high" | "low";
-    profile?: "led";
+    profile?: "led" | "pir-motion" | "generic";
     initialState?: "inactive";
     body?: unknown;
     timeoutMs?: number;

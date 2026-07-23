@@ -1,4 +1,4 @@
-import { Camera, Cpu, Globe2, Lightbulb, Radio, Send, Webhook } from "lucide-react";
+import { Camera, Cpu, Globe2, Lightbulb, Radio, Send, ShieldAlert, Webhook } from "lucide-react";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { MutedText } from "../../components/Text";
@@ -9,6 +9,7 @@ export const inputTemplates: DataSourceTemplate[] = [
   { title: "Webhook", description: "Receive pushed JSON from another app, device, or workflow", type: "webhook", config: {} },
   { title: "MQTT", description: "Subscribe to a broker topic and ingest JSON messages", type: "mqtt", config: { brokerUrl: "mqtt://localhost:1883", topic: "sensors/+/data" } },
   { title: "GPIO Input", description: "Record Raspberry Pi GPIO pin edge events as JSON", type: "gpio-input", config: { chip: "gpiochip0", pin: 17, pull: "off", edge: "both", debounceMs: 100, activeState: "high" } },
+  { title: "PIR Motion Sensor", description: "Detect HC-SR501-style motion events from a GPIO input pin", type: "gpio-input", config: { chip: "gpiochip0", pin: 23, profile: "pir-motion", pull: "off", edge: "both", debounceMs: 500, activeState: "high" } },
   { title: "Pi Camera", description: "Capture photos or short video clips from automation workflows", type: "pi-camera", config: { mode: "photo", width: 1280, height: 720, durationMs: 1000, fps: 30, outputFormat: "jpg" } }
 ];
 
@@ -30,7 +31,7 @@ export function DataSourceTemplates({ mode, capabilities, onSelect }: { mode: "i
       </div>
       <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
         {templates.map((template) => {
-          const Icon = template.type === "json-api" || template.type === "http-output" ? Globe2 : template.type === "webhook" ? Webhook : template.type === "mqtt" || template.type === "mqtt-output" ? Radio : template.type === "gpio-output" ? Lightbulb : template.type === "pi-camera" ? Camera : Cpu;
+          const Icon = template.config.profile === "pir-motion" ? ShieldAlert : template.type === "json-api" || template.type === "http-output" ? Globe2 : template.type === "webhook" ? Webhook : template.type === "mqtt" || template.type === "mqtt-output" ? Radio : template.type === "gpio-output" ? Lightbulb : template.type === "pi-camera" ? Camera : Cpu;
           const disabled = ((template.type === "gpio-input" || template.type === "gpio-output") && capabilities?.gpioInput.available === false) || (template.type === "pi-camera" && capabilities?.camera?.enabled === false);
           const config = template.type === "mqtt" || template.type === "mqtt-output" ? { ...template.config, brokerUrl } : template.config;
           return (
@@ -39,6 +40,7 @@ export function DataSourceTemplates({ mode, capabilities, onSelect }: { mode: "i
               <h3 className="m-0">{template.title}</h3>
               <MutedText className="m-0">{template.description}</MutedText>
               {template.type === "gpio-output" && <MutedText className="m-0">LED profile only. Use a 220-330 ohm resistor in series with the LED.</MutedText>}
+              {template.config.profile === "pir-motion" && <MutedText className="m-0">Tested default: OUT to GPIO23 / physical pin 16, active high, no pull resistor. Let the sensor warm up for 60-90 seconds.</MutedText>}
               {template.type === "pi-camera" && <MutedText className="m-0">Captures are stored locally under <code>{capabilities?.camera?.captureDir ?? "/data/captures"}</code> and hashed for stamping.</MutedText>}
               {template.type === "pi-camera" && capabilities?.camera?.enabled && capabilities.camera.available === false && <MutedText className="m-0">Camera capture is not ready yet: {capabilities.camera.reason}</MutedText>}
               {(template.type === "mqtt" || template.type === "mqtt-output") && capabilities?.mqttBroker?.enabled && <MutedText className="m-0">Local broker available: <code>{capabilities.mqttBroker.internalUrl}</code></MutedText>}

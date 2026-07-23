@@ -57,7 +57,7 @@ export function DataSourcesList({
                   <MutedText className="m-0 mt-1">{source.description}</MutedText>
                 </td>
                 <td className={tableCellClass}>{source.type === "pi-camera" ? "Capture" : isInputSource(source) ? "Input" : "Output"}</td>
-                <td className={tableCellClass}>{source.type}</td>
+                <td className={tableCellClass}>{sourceTypeLabel(source)}</td>
                 <td className={tableCellClass}>
                   <code>{source.type === "webhook" ? webhookUrl(source) : source.type === "mqtt" || source.type === "mqtt-output" ? mqttEndpoint(source) : source.type === "gpio-input" ? gpioEndpoint(source) : source.type === "gpio-output" ? gpioOutputEndpoint(source) : source.type === "pi-camera" ? cameraEndpoint(source) : source.config.url}</code>
                 </td>
@@ -144,7 +144,12 @@ function mqttEndpoint(source: DataSource) {
 }
 
 function gpioEndpoint(source: DataSource) {
-  return `${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"} ${source.config.edge ?? "both"}`;
+  return `${source.config.profile === "pir-motion" ? "PIR motion " : ""}${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"} ${source.config.edge ?? "both"}`;
+}
+
+function sourceTypeLabel(source: DataSource) {
+  if (source.type === "gpio-input" && source.config.profile === "pir-motion") return "PIR Motion Sensor";
+  return source.type;
 }
 
 function gpioOutputEndpoint(source: DataSource) {

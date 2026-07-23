@@ -88,6 +88,72 @@ Use the Devices page `Test pulse` action before adding the LED to an automation 
 
 If the LED turns on after a pulse and stays on, check the output target's active-state setting. The wiring above must use `Active state: high`. `Active state: low` is only for wiring where the LED/resistor is tied to 3.3V and the GPIO pin turns the LED on by sinking current.
 
+### HC-SR501 PIR Motion Sensor On GPIO23
+
+Use this for the tested HC-SR501-style PIR motion sensor module. The tested module's 3-pin header was unlabeled, so the pinout was confirmed from a matching pinout diagram and by running a GPIO test.
+
+With the module components facing up and the 3-pin header in front/top as in the matching pinout diagram:
+
+```txt
+left   = OUT
+middle = GND
+right  = VCC
+```
+
+Wiring:
+
+```txt
+PIR OUT -> GPIO23 physical pin 16
+PIR GND -> GND physical pin 6
+PIR VCC -> 5V physical pin 2 or 4
+```
+
+Device settings:
+
+| Field         | Value               |
+| ------------- | ------------------- |
+| Device type   | PIR Motion Sensor   |
+| Chip          | `gpiochip0`         |
+| BCM pin       | `23`                |
+| Pull resistor | `off`               |
+| Edge          | `both`              |
+| Debounce      | `500 ms`            |
+| Active state  | `high`              |
+
+Expected behavior:
+
+```txt
+No motion: GPIO23 is low.
+Motion detected: GPIO23 goes high.
+Motion cleared: GPIO23 returns low after the sensor delay expires.
+```
+
+Standalone Python test used before app integration:
+
+```python
+from gpiozero import MotionSensor
+from signal import pause
+
+pir = MotionSensor(23)
+
+print("PIR test started on GPIO23.")
+print("Waiting for motion...")
+
+pir.when_motion = lambda: print("Motion detected")
+pir.when_no_motion = lambda: print("No motion")
+
+pause()
+```
+
+Troubleshooting:
+
+- Power off the Pi before changing wires.
+- GPIO23 means BCM `23`, physical pin `16`; it is not physical pin `23`.
+- Let the PIR warm up for `60-90` seconds after power-on.
+- If readings are always `HIGH`, check whether `OUT` and `VCC` are swapped or whether the sensor delay knob is holding the output high.
+- If readings are always `LOW`, check power, ground, breadboard rows, and the sensor pin order.
+- Pi GPIO inputs are `3.3V` only. Verify an unknown PIR clone's `OUT` voltage before connecting it to GPIO.
+
 ## Untested
 
 These settings are suggested starting points only. Verify the module's voltage, output type, and wiring before connecting it to the Pi.
@@ -124,20 +190,6 @@ Use this for a magnetic reed switch or other dry contact that closes to GND.
 | Active state  | `low`               |
 
 Use `falling` if you only care about the contact closing. Use `both` if you need open and close events.
-
-### PIR Motion Sensor
-
-Many PIR modules provide a digital output that goes high when motion is detected, but modules vary. Confirm the output voltage is 3.3V-safe before connecting to the Pi.
-
-| Field         | Suggested value    |
-| ------------- | ------------------ |
-| Device type   | GPIO Input         |
-| Pull resistor | `off`              |
-| Edge          | `rising` or `both` |
-| Debounce      | `100-500 ms`       |
-| Active state  | `high`             |
-
-Use `rising` if you only care when motion starts. Use `both` if you need motion start and end events.
 
 ### Open-Collector Or Open-Drain Sensor
 

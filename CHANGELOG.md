@@ -4,6 +4,13 @@ All notable changes to `integritas-pi` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html) at the package level.
 
+## [Unreleased]
+
+### Added
+
+- Devices now include a PIR Motion Sensor input option for HC-SR501-style GPIO motion sensors, with GPIO23-tested defaults and motion-specific trigger payload labels.
+- GPIO device guidance now documents the tested HC-SR501 PIR wiring, standalone GPIO test script, and troubleshooting notes.
+
 ## [0.22.0] - 2026-07-23
 
 ### Added

@@ -21,6 +21,7 @@
 
 ## Next
 
+- [ ] Add HC-SR501 PIR motion sensor as a first-class GPIO input workflow source - see `docs/plans/pir-motion-sensor-workflows.md`.
 - [ ] Document the `DEV_MODE` install flag in `README.md`'s runtime-config section and note its manifest-signature-verification bypass in `SECURITY.md`/`docs/security/host-and-infrastructure.md` — flagged during code review, deliberately deferred as a separate concern from the pagination work.
 
 ## Done

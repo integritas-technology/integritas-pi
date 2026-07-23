@@ -38,6 +38,7 @@ export type MqttOutputConfig = {
 export type GpioInputConfig = {
   chip: string;
   pin: number;
+  profile: "generic" | "pir-motion";
   pull: "off" | "up" | "down";
   edge: "rising" | "falling" | "both";
   debounceMs: number;
@@ -149,6 +150,7 @@ export function parseGpioInputConfig(value: unknown): GpioInputConfig {
   const config = value as Partial<GpioInputConfig> | undefined;
   const chip = typeof config?.chip === "string" && config.chip.trim() ? config.chip.trim() : "gpiochip0";
   const pin = Number(config?.pin);
+  const profile = config?.profile === "pir-motion" ? "pir-motion" : "generic";
   const pull = config?.pull === "up" || config?.pull === "down" || config?.pull === "off" ? config.pull : "off";
   const edge = config?.edge === "rising" || config?.edge === "falling" || config?.edge === "both" ? config.edge : "both";
   const debounceMs = Number(config?.debounceMs ?? 100);
@@ -158,7 +160,7 @@ export function parseGpioInputConfig(value: unknown): GpioInputConfig {
   if (!Number.isInteger(pin) || pin < 0 || pin > 27) throw new Error("config.pin must be a BCM GPIO number from 0 to 27");
   if (!Number.isFinite(debounceMs) || debounceMs < 0 || debounceMs > 60000) throw new Error("config.debounceMs must be between 0 and 60000");
 
-  return { chip, pin, pull, edge, debounceMs, activeState };
+  return { chip, pin, profile, pull, edge, debounceMs, activeState };
 }
 
 export function parseGpioOutputConfig(value: unknown): GpioOutputConfig {

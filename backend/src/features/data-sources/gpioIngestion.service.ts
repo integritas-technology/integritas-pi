@@ -51,7 +51,7 @@ export function syncGpioDataSources() {
     const source = gpioSources.get(sourceId)!;
     try {
       const config = parseGpioInputConfig(JSON.parse(source.config) as unknown);
-      const key = `${workflow.id}|${workflow.updated_at}|${config.chip}|${config.pin}|${config.pull}|${config.edge}|${config.debounceMs}|${config.activeState}`;
+      const key = `${workflow.id}|${workflow.updated_at}|${config.chip}|${config.pin}|${config.profile}|${config.pull}|${config.edge}|${config.debounceMs}|${config.activeState}`;
       const existing = watchers.get(source.id);
       if (existing?.key === key) continue;
 
@@ -107,10 +107,12 @@ async function handleGpioLine(source: DataSourceRecord, workflow: AutomationWork
     source: "gpio",
     chip: config.chip,
     pin: config.pin,
+    profile: config.profile,
     numbering: "BCM",
     state,
     active: config.activeState === state,
     edge,
+    event: config.profile === "pir-motion" ? edge === "falling" ? "motion_cleared" : "motion_detected" : "gpio_edge",
     pull: config.pull,
     debounceMs: config.debounceMs,
     timestamp: new Date().toISOString(),
@@ -133,5 +135,5 @@ function parseEdge(line: string) {
 }
 
 function sourceUrl(config: GpioInputConfig) {
-  return `${config.chip} GPIO${config.pin}`;
+  return config.profile === "pir-motion" ? `PIR motion ${config.chip} GPIO${config.pin}` : `${config.chip} GPIO${config.pin}`;
 }

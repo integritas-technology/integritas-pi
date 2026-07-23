@@ -1177,8 +1177,10 @@ function examplePayload(workflow: AutomationWorkflow) {
       workflowName: workflow.name,
       triggeredAt: now,
       chip: "gpiochip0",
-      pin: 17,
-      edge: "falling",
+      pin: 23,
+      profile: "pir-motion",
+      edge: "rising",
+      event: "motion_detected",
       active: true
     };
   }
@@ -1219,7 +1221,7 @@ function examplePayload(workflow: AutomationWorkflow) {
 function sourceLabel(source: DataSource) {
   if (source.type === "webhook") return "Webhook receive URL";
   if (source.type === "mqtt") return `${source.config.brokerUrl ?? "MQTT broker"} ${source.config.topic ?? ""}`;
-  if (source.type === "gpio-input") return `${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"}`;
+  if (source.type === "gpio-input") return `${source.config.profile === "pir-motion" ? "PIR motion " : ""}${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"}`;
   if (source.type === "gpio-output") return `${source.config.profile ?? "led"} ${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"} active:${source.config.activeState ?? "high"}`;
   if (source.type === "http-output") return `${source.config.method ?? "POST"} ${source.config.url ?? "HTTP output"}`;
   if (source.type === "mqtt-output") return `${source.config.brokerUrl ?? "MQTT broker"} ${source.config.topic ?? ""}`;

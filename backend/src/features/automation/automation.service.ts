@@ -374,7 +374,7 @@ function nextScheduleRunAt(block: AutomationBlockRecord) {
 
 function sourceUrlForRecord(source: { type: string; config: string }) {
   const config = JSON.parse(source.config) as Record<string, unknown>;
-  if (source.type === "gpio-input") return `${config.chip ?? "gpiochip0"} GPIO${config.pin ?? "?"}`;
+  if (source.type === "gpio-input") return config.profile === "pir-motion" ? `PIR motion ${config.chip ?? "gpiochip0"} GPIO${config.pin ?? "?"}` : `${config.chip ?? "gpiochip0"} GPIO${config.pin ?? "?"}`;
   if (source.type === "mqtt") return `${config.brokerUrl ?? "MQTT"} ${config.topic ?? ""}`;
   if (source.type === "webhook") return `/api/data-source-webhooks/${config.webhookToken ?? ""}`;
   if (source.type === "pi-camera") return `pi-camera:${config.mode ?? "photo"}`;
