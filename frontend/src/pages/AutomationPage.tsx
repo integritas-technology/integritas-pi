@@ -471,6 +471,7 @@ function CreateWorkflowWorkspace({ name, enabled, sources, addressBook, walletSt
 function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChange, onAttachedChange, onAttachedRemove }: { block: DraftWorkflowBlock; sources: DataSource[]; addressBook: AddressBookEntry[]; walletStatus: WalletStatus | null; onChange: (config: AutomationBlock["config"]) => void; onAttachedChange: (attachedId: string, config: AutomationBlock["config"]) => void; onAttachedRemove: (attachedId: string) => void }) {
   const startSources = sourcesForStart(block.type, sources);
   const httpSources = sources.filter((source) => source.type === "json-api" || source.type === "internal-json-api");
+  const cameraSources = sources.filter((source) => source.type === "pi-camera");
   const outputTargets = sources.filter((source) => isOutputTarget(source));
   const nativeTokens = nativeMinimaTokens(walletStatus);
 
@@ -490,6 +491,20 @@ function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChan
         <strong>Selected block</strong>
         <p className={mutedText}>Fetch JSON from an HTTP device/source.</p>
         <label>HTTP source<select value={block.config.sourceId ?? ""} onChange={(event) => onChange({ sourceId: event.target.value })}><option value="">Select HTTP source...</option>{httpSources.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>
+        <AttachedStampSettings block={block} onAttachedChange={onAttachedChange} onAttachedRemove={onAttachedRemove} />
+      </Panel>
+    );
+  }
+
+  if (block.type === "capture_camera") {
+    const selectedCamera = cameraSources.find((source) => source.id === block.config.sourceId);
+    return (
+      <Panel className={formGridClass}>
+        <strong>Selected block</strong>
+        <p className={mutedText}>Capture a photo or video clip from a configured Pi Camera. The media bytes are hashed; read history stores capture metadata.</p>
+        <label>Camera device<select value={block.config.sourceId ?? ""} onChange={(event) => onChange({ ...block.config, sourceId: event.target.value })}><option value="">Select camera...</option>{cameraSources.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>
+        {selectedCamera?.config.mode === "video" && <label>Capture duration ms<input value={String(block.config.durationMs ?? selectedCamera.config.durationMs ?? 5000)} inputMode="numeric" onChange={(event) => onChange({ ...block.config, durationMs: Number(event.target.value) })} /></label>}
+        {selectedCamera?.config.mode === "photo" && <p className={mutedText}>Photo captures use the camera device warmup timeout configured on Devices.</p>}
         <AttachedStampSettings block={block} onAttachedChange={onAttachedChange} onAttachedRemove={onAttachedRemove} />
       </Panel>
     );
@@ -547,6 +562,12 @@ function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChan
         {selectedBodyTargetType && <>
           <label>{selectedBodyTargetType === "http-output" ? "Request body" : "Message payload"}<select value={bodyMode} onChange={(event) => onChange(outputBodyModeConfig(block.config, event.target.value as NonNullable<AutomationBlock["config"]["bodyMode"]>, selectedBodyTargetType))}>{outputBodyModes(selectedBodyTargetType).map((mode) => <option key={mode.value} value={mode.value}>{mode.label}</option>)}</select></label>
           {bodyMode === "custom" && <label>Custom JSON<textarea rows={6} value={block.config.bodyTemplateText ?? defaultCustomBodyText()} onChange={(event) => onChange({ ...block.config, bodyMode: "custom", bodyTemplateText: event.target.value })} /></label>}
+          {bodyMode === "multipart_media" && <>
+            <label>File field name<input value={block.config.multipartFileField ?? "file"} onChange={(event) => onChange({ ...block.config, bodyMode: "multipart_media", multipartFileField: event.target.value })} placeholder="file" /></label>
+            <label>JSON field name<input value={block.config.multipartJsonField ?? ""} onChange={(event) => onChange({ ...block.config, bodyMode: "multipart_media", multipartJsonField: event.target.value })} placeholder="metadata" /></label>
+            <label>JSON field payload<textarea rows={6} value={block.config.multipartJsonText ?? defaultMultipartJsonText()} onChange={(event) => onChange({ ...block.config, bodyMode: "multipart_media", multipartJsonText: event.target.value })} /></label>
+            <p className={mutedText}>Template values: <code>{"{{hash}}"}</code>, <code>{"{{readId}}"}</code>, <code>{"{{sourceName}}"}</code>, <code>{"{{fileName}}"}</code>, <code>{"{{mediaType}}"}</code>, <code>{"{{sizeBytes}}"}</code>.</p>
+          </>}
           <p className={mutedText}>{bodyModeDescription(bodyMode, selectedBodyTargetType)}</p>
         </>}
         {!selectedOutput && <p className={mutedText}>Choose a configured output target from Devices.</p>}
@@ -616,6 +637,7 @@ function defaultDraftConfig(type: AutomationBlockType, sources: DataSource[], po
   if (type === "schedule_start") return { intervalSeconds: pollingIntervalSeconds };
   if (type === "manual_start") return {};
   if (type === "fetch_data_source") return { sourceId: firstHttpSource(sources)?.id ?? "" };
+  if (type === "capture_camera") return { sourceId: firstCameraSource(sources)?.id ?? "" };
   if (type === "gpio_event_start" || type === "webhook_event_start" || type === "mqtt_event_start") return { sourceId: defaultSourceForStart(type, sources)?.id ?? "" };
   if (type === "if_payload_field_equals") return { source: "trigger", fieldPath: "active", operator: "equals", value: true };
   if (type === "wait") return { durationMs: 1000 };
@@ -1052,6 +1074,7 @@ function blockLabel(block: AutomationBlock) {
   if (block.type === "manual_start") return "Start manually";
   if (block.type === "record_trigger_event") return "Record trigger event";
   if (block.type === "fetch_data_source") return "Fetch data source";
+  if (block.type === "capture_camera") return "Capture camera";
   if (block.type === "set_variable") return "Set variable";
   if (block.type === "if_payload_field_equals") return `If ${conditionSourceLabel(block.config.source ?? "trigger")} field matches`;
   if (block.type === "wait") return "Wait";
@@ -1065,6 +1088,7 @@ function blockShortLabel(block: AutomationBlock) {
   if (block.type.endsWith("_start")) return "Start";
   if (block.type === "record_trigger_event") return "Record event";
   if (block.type === "fetch_data_source") return "Fetch source";
+  if (block.type === "capture_camera") return "Capture camera";
   if (block.type === "set_variable") return "Set variable";
   if (block.type === "if_payload_field_equals") return "If field matches";
   if (block.type === "stamp_integritas") return "Stamp";
@@ -1119,8 +1143,9 @@ function defaultSourceForStart(type: AutomationBlockType, sources: DataSource[])
 function workflowPrimarySourceId(workflow: AutomationWorkflow) {
   const mainBlocks = workflow.blocks.filter((block) => !block.parentBlockId);
   const fetchBlock = mainBlocks.find((block) => block.type === "fetch_data_source");
+  const captureBlock = mainBlocks.find((block) => block.type === "capture_camera");
   const startBlock = mainBlocks.find((block) => block.type.endsWith("_start"));
-  return fetchBlock?.config.sourceId ?? startBlock?.config.sourceId ?? "";
+  return fetchBlock?.config.sourceId ?? captureBlock?.config.sourceId ?? startBlock?.config.sourceId ?? "";
 }
 
 function workflowIntervalSeconds(workflow: AutomationWorkflow) {
@@ -1131,6 +1156,10 @@ function workflowIntervalSeconds(workflow: AutomationWorkflow) {
 
 function firstHttpSource(sources: DataSource[]) {
   return sources.find((source) => source.type === "json-api" || source.type === "internal-json-api") ?? null;
+}
+
+function firstCameraSource(sources: DataSource[]) {
+  return sources.find((source) => source.type === "pi-camera") ?? null;
 }
 
 function nativeMinimaTokens(walletStatus: WalletStatus | null) {
@@ -1194,6 +1223,7 @@ function sourceLabel(source: DataSource) {
   if (source.type === "gpio-output") return `${source.config.profile ?? "led"} ${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"} active:${source.config.activeState ?? "high"}`;
   if (source.type === "http-output") return `${source.config.method ?? "POST"} ${source.config.url ?? "HTTP output"}`;
   if (source.type === "mqtt-output") return `${source.config.brokerUrl ?? "MQTT broker"} ${source.config.topic ?? ""}`;
+  if (source.type === "pi-camera") return `${source.config.mode ?? "photo"} ${source.config.width ?? 1280}x${source.config.height ?? 720}`;
   return source.config.url ?? "HTTP JSON API";
 }
 
@@ -1218,6 +1248,15 @@ function outputBodyModeConfig(config: AutomationBlock["config"], bodyMode: NonNu
   const next = { ...config, bodyMode };
   if (bodyMode === "custom" && !next.bodyTemplateText) next.bodyTemplateText = defaultCustomBodyText();
   if (bodyMode !== "custom") delete next.bodyTemplateText;
+  if (bodyMode === "multipart_media") {
+    next.multipartFileField = next.multipartFileField ?? "file";
+    next.multipartJsonField = next.multipartJsonField ?? "metadata";
+    next.multipartJsonText = next.multipartJsonText ?? defaultMultipartJsonText();
+  } else {
+    delete next.multipartFileField;
+    delete next.multipartJsonField;
+    delete next.multipartJsonText;
+  }
   if (targetType === "mqtt-output" && bodyMode === "none") return { ...next, bodyMode: "workflow_context" };
   return next;
 }
@@ -1239,6 +1278,8 @@ function outputBodyModes(targetType: "http-output" | "mqtt-output") {
     { value: "workflow_context", label: "Workflow context" },
     { value: "trigger_payload", label: "Trigger payload" },
     { value: "latest_data", label: "Latest data" },
+    { value: "latest_data_with_media", label: "Latest data + media" },
+    ...(targetType === "http-output" ? [{ value: "multipart_media", label: "Multipart media upload" }] : []),
     ...(targetType === "http-output" ? [{ value: "none", label: "No body" }] : [])
   ] as { value: NonNullable<AutomationBlock["config"]["bodyMode"]>; label: string }[];
 }
@@ -1247,12 +1288,18 @@ function bodyModeDescription(bodyMode: AutomationBlock["config"]["bodyMode"], ta
   if (bodyMode === "custom") return targetType === "http-output" ? "Send exactly this JSON as the request body." : "Publish exactly this JSON as the message payload.";
   if (bodyMode === "trigger_payload") return "Send only the event payload that started this workflow.";
   if (bodyMode === "latest_data") return "Send the data recorded or fetched earlier in this workflow.";
+  if (bodyMode === "latest_data_with_media") return "Send latest data plus captured media bytes as base64 JSON. Requires a camera capture earlier in the workflow.";
+  if (bodyMode === "multipart_media") return "Upload the latest camera capture as a multipart file attachment. Configure field names to match the target service.";
   if (bodyMode === "none") return "Send the request without a body.";
   return "Send workflow trigger, data, output, hash, and proof references.";
 }
 
 function defaultCustomBodyText() {
   return '{\n  "content": "Integritas Pi workflow triggered."\n}';
+}
+
+function defaultMultipartJsonText() {
+  return '{\n  "message": "Integritas Pi camera capture",\n  "hash": "{{hash}}",\n  "readId": "{{readId}}",\n  "sourceName": "{{sourceName}}",\n  "fileName": "{{fileName}}"\n}';
 }
 
 function formatInterval(seconds: number) {

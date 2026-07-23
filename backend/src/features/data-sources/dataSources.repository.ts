@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { db } from "../../db/database.js";
+import { serializeStructuredError, type StructuredError } from "../../shared/structured-error.js";
 
 export type DataSourceRecord = {
   id: string;
@@ -59,11 +60,11 @@ export function deleteDataSource(id: string) {
   db.prepare("DELETE FROM data_sources WHERE id = ?").run(id);
 }
 
-export function updateDataSourceReadResult(id: string, input: { hash?: string; preview?: unknown; error?: string | null }) {
+export function updateDataSourceReadResult(id: string, input: { hash?: string; preview?: unknown; error?: string | StructuredError | null }) {
   db.prepare(`
     UPDATE data_sources
     SET updated_at = ?, last_read_at = ?, last_error = ?, last_preview = ?, last_hash = ?
     WHERE id = ?
-  `).run(new Date().toISOString(), new Date().toISOString(), input.error ?? null, input.preview === undefined ? null : JSON.stringify(input.preview), input.hash ?? null, id);
+  `).run(new Date().toISOString(), new Date().toISOString(), serializeStructuredError(input.error), input.preview === undefined ? null : JSON.stringify(input.preview), input.hash ?? null, id);
   return getDataSource(id)!;
 }

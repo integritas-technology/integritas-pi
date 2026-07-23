@@ -20,15 +20,15 @@ GPIO17 physical pin 11 -> button -> GND physical pin 9
 
 Device settings:
 
-| Field | Value |
-|---|---|
-| Device type | GPIO Input |
-| Chip | `gpiochip0` |
-| BCM pin | `17` |
-| Pull resistor | `up` |
-| Edge | `falling` |
-| Debounce | `100 ms` |
-| Active state | `low` |
+| Field         | Value       |
+| ------------- | ----------- |
+| Device type   | GPIO Input  |
+| Chip          | `gpiochip0` |
+| BCM pin       | `17`        |
+| Pull resistor | `up`        |
+| Edge          | `falling`   |
+| Debounce      | `100 ms`    |
+| Active state  | `low`       |
 
 Expected behavior:
 
@@ -60,22 +60,22 @@ LED cathode -> GND
 
 Device settings:
 
-| Field | Value |
-|---|---|
-| Device type | GPIO Output |
-| Chip | `gpiochip0` |
-| BCM pin | `18` |
-| Profile | `LED` |
-| Active state | `high` |
-| Initial state | `inactive` |
+| Field         | Value       |
+| ------------- | ----------- |
+| Device type   | GPIO Output |
+| Chip          | `gpiochip0` |
+| BCM pin       | `18`        |
+| Profile       | `LED`       |
+| Active state  | `high`      |
+| Initial state | `inactive`  |
 
 Workflow block settings:
 
-| Field | Value |
-|---|---|
-| Block type | Control output |
-| Action | `pulse` |
-| Duration | `500 ms` to start |
+| Field      | Value             |
+| ---------- | ----------------- |
+| Block type | Control output    |
+| Action     | `pulse`           |
+| Duration   | `500 ms` to start |
 
 Expected behavior:
 
@@ -96,13 +96,13 @@ These settings are suggested starting points only. Verify the module's voltage, 
 
 Use this only when the button connects GPIO to 3.3V when pressed.
 
-| Field | Suggested value |
-|---|---|
-| Device type | GPIO Input |
-| Pull resistor | `down` |
-| Edge | `rising` |
-| Debounce | `100 ms` |
-| Active state | `high` |
+| Field         | Suggested value |
+| ------------- | --------------- |
+| Device type   | GPIO Input      |
+| Pull resistor | `down`          |
+| Edge          | `rising`        |
+| Debounce      | `100 ms`        |
+| Active state  | `high`          |
 
 Expected behavior:
 
@@ -115,13 +115,13 @@ Button pressed: GPIO connects to 3.3V and becomes high.
 
 Use this for a magnetic reed switch or other dry contact that closes to GND.
 
-| Field | Suggested value |
-|---|---|
-| Device type | GPIO Input |
-| Pull resistor | `up` |
-| Edge | `falling` or `both` |
-| Debounce | `100-250 ms` |
-| Active state | `low` |
+| Field         | Suggested value     |
+| ------------- | ------------------- |
+| Device type   | GPIO Input          |
+| Pull resistor | `up`                |
+| Edge          | `falling` or `both` |
+| Debounce      | `100-250 ms`        |
+| Active state  | `low`               |
 
 Use `falling` if you only care about the contact closing. Use `both` if you need open and close events.
 
@@ -129,13 +129,13 @@ Use `falling` if you only care about the contact closing. Use `both` if you need
 
 Many PIR modules provide a digital output that goes high when motion is detected, but modules vary. Confirm the output voltage is 3.3V-safe before connecting to the Pi.
 
-| Field | Suggested value |
-|---|---|
-| Device type | GPIO Input |
-| Pull resistor | `off` |
-| Edge | `rising` or `both` |
-| Debounce | `100-500 ms` |
-| Active state | `high` |
+| Field         | Suggested value    |
+| ------------- | ------------------ |
+| Device type   | GPIO Input         |
+| Pull resistor | `off`              |
+| Edge          | `rising` or `both` |
+| Debounce      | `100-500 ms`       |
+| Active state  | `high`             |
 
 Use `rising` if you only care when motion starts. Use `both` if you need motion start and end events.
 
@@ -143,13 +143,13 @@ Use `rising` if you only care when motion starts. Use `both` if you need motion 
 
 Some industrial-style or sensor outputs pull the signal low but do not drive it high. Confirm the output is isolated and 3.3V-safe.
 
-| Field | Suggested value |
-|---|---|
-| Device type | GPIO Input |
-| Pull resistor | `up` |
-| Edge | `falling` or `both` |
-| Debounce | Device-specific |
-| Active state | Usually `low` |
+| Field         | Suggested value     |
+| ------------- | ------------------- |
+| Device type   | GPIO Input          |
+| Pull resistor | `up`                |
+| Edge          | `falling` or `both` |
+| Debounce      | Device-specific     |
+| Active state  | Usually `low`       |
 
 ### Relay, Motor, Solenoid, Or High-Current Buzzer
 
@@ -161,12 +161,12 @@ Current V1 GPIO Output support is only intended for a low-current LED profile wi
 
 Some LED modules turn on when the GPIO is driven low. Confirm the module is 3.3V-safe.
 
-| Field | Suggested value |
-|---|---|
-| Device type | GPIO Output |
-| Profile | `LED` |
-| Active state | `low` |
-| Initial state | `inactive` |
-| Action | `pulse` |
+| Field         | Suggested value |
+| ------------- | --------------- |
+| Device type   | GPIO Output     |
+| Profile       | `LED`           |
+| Active state  | `low`           |
+| Initial state | `inactive`      |
+| Action        | `pulse`         |
 
 Prefer the tested direct LED wiring first. Use active-low only when the module documentation clearly says the input is active-low and safe for Raspberry Pi GPIO.

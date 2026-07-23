@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { db } from "../../db/database.js";
 import type { ParsedListQuery } from "../../shared/list-query.js";
+import { serializeStructuredError, type StructuredError } from "../../shared/structured-error.js";
 
 export type AutomationRunRecord = {
   id: string;
@@ -43,7 +44,7 @@ export function createAutomationRun(input: { workflowId: string; workflowName: s
   return getAutomationRun(id)!;
 }
 
-export function finishAutomationRun(id: string, input: { status: "success" | "failed"; error?: string | null }) {
+export function finishAutomationRun(id: string, input: { status: "success" | "failed"; error?: string | StructuredError | null }) {
   const run = getAutomationRun(id);
   if (!run) return undefined;
   const finishedAt = new Date().toISOString();
@@ -51,7 +52,7 @@ export function finishAutomationRun(id: string, input: { status: "success" | "fa
     UPDATE automation_runs
     SET finished_at = ?, status = ?, duration_ms = ?, error = ?
     WHERE id = ?
-  `).run(finishedAt, input.status, duration(run.started_at, finishedAt), input.error ?? null, id);
+  `).run(finishedAt, input.status, duration(run.started_at, finishedAt), serializeStructuredError(input.error), id);
   return getAutomationRun(id)!;
 }
 
@@ -64,7 +65,7 @@ export function createAutomationBlockRun(input: { runId: string; workflowId: str
   return getAutomationBlockRun(id)!;
 }
 
-export function finishAutomationBlockRun(id: string, input: { status: "success" | "failed" | "skipped"; output?: unknown; error?: string | null }) {
+export function finishAutomationBlockRun(id: string, input: { status: "success" | "failed" | "skipped"; output?: unknown; error?: string | StructuredError | null }) {
   const run = getAutomationBlockRun(id);
   if (!run) return undefined;
   const finishedAt = new Date().toISOString();
@@ -72,7 +73,7 @@ export function finishAutomationBlockRun(id: string, input: { status: "success" 
     UPDATE automation_block_runs
     SET finished_at = ?, status = ?, duration_ms = ?, output_json = ?, error = ?
     WHERE id = ?
-  `).run(finishedAt, input.status, duration(run.started_at, finishedAt), input.output === undefined ? null : JSON.stringify(input.output), input.error ?? null, id);
+  `).run(finishedAt, input.status, duration(run.started_at, finishedAt), input.output === undefined ? null : JSON.stringify(input.output), serializeStructuredError(input.error), id);
   return getAutomationBlockRun(id)!;
 }
 

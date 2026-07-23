@@ -83,6 +83,7 @@ export function WorkflowBlockLibrary({ mode = "build", hasStartBlock, selectedBl
       <strong>Data blocks</strong>
       <LibraryCard disabled={!canAddMainBlock || !canAddRecordTriggerEvent} onClick={() => onAddBlock("record_trigger_event")} title="Record trigger event" description="Store the trigger payload as data." />
       <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("fetch_data_source")} title="Fetch HTTP JSON" description="Fetch a configured HTTP source." />
+      <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("capture_camera")} title="Capture camera" description="Capture media from a configured Pi Camera." />
       <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("set_variable")} title="Add variable" description="Save a value for later blocks." />
       <strong>Logic blocks</strong>
       <LibraryCard disabled={!canAddMainBlock} onClick={() => onAddBlock("if_payload_field_equals")} title="If field matches" description="Stop unless a trigger field or variable matches." />
@@ -200,7 +201,7 @@ function capabilityBadges(block: DraftWorkflowBlock) {
 }
 
 export function isDataBlock(type: AutomationBlockType) {
-  return type === "record_trigger_event" || type === "fetch_data_source";
+  return type === "record_trigger_event" || type === "fetch_data_source" || type === "capture_camera";
 }
 
 export function draftBlockTitle(block: { type: AutomationBlockType }) {
@@ -211,6 +212,7 @@ export function draftBlockTitle(block: { type: AutomationBlockType }) {
   if (block.type === "mqtt_event_start") return "MQTT message received";
   if (block.type === "record_trigger_event") return "Record trigger event";
   if (block.type === "fetch_data_source") return "Fetch HTTP JSON";
+  if (block.type === "capture_camera") return "Capture camera";
   if (block.type === "set_variable") return "Set variable";
   if (block.type === "stamp_integritas") return "Stamp data";
   if (block.type === "control_output") return "Control device";
@@ -226,6 +228,7 @@ export function draftBlockDescription(block: { type: AutomationBlockType; config
   if (block.type === "manual_start") return "Runs only from a manual test/action.";
   if (block.type === "record_trigger_event") return "Stores the trigger payload as a data read.";
   if (block.type === "fetch_data_source") return "Fetches JSON and creates a hash.";
+  if (block.type === "capture_camera") return "Captures media, hashes the file bytes, and stores capture metadata.";
   if (block.type === "set_variable") return `Save ${block.config.variableName || "a variable"} for later blocks.`;
   if (block.type === "stamp_integritas") return "Stamp this data block's hash.";
   if (block.type === "control_output") return "Send a command to a configured output target.";
@@ -235,7 +238,7 @@ export function draftBlockDescription(block: { type: AutomationBlockType; config
 
 function blockCategoryClass(type: AutomationBlockType) {
   if (type.endsWith("_start")) return "bg-gradient-to-br from-amber-500 to-orange-500";
-  if (type === "record_trigger_event" || type === "fetch_data_source" || type === "set_variable") return "bg-gradient-to-br from-blue-600 to-sky-500";
+  if (type === "record_trigger_event" || type === "fetch_data_source" || type === "capture_camera" || type === "set_variable") return "bg-gradient-to-br from-blue-600 to-sky-500";
   return "bg-gradient-to-br from-violet-600 to-purple-500";
 }
 
@@ -253,6 +256,7 @@ function sourceLabel(source: DataSource) {
   if (source.type === "mqtt") return `${source.config.brokerUrl ?? "MQTT broker"} ${source.config.topic ?? ""}`;
   if (source.type === "gpio-input") return `${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"}`;
   if (source.type === "gpio-output") return `${source.config.profile ?? "led"} ${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"}`;
+  if (source.type === "pi-camera") return `${source.config.mode ?? "photo"} ${source.config.width ?? 1280}x${source.config.height ?? 720}`;
   return source.config.url ?? "HTTP JSON API";
 }
 
