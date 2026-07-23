@@ -23,6 +23,13 @@ import { MinimaRuntimeConfig } from "../features/minima/MinimaRuntimeConfig";
 import { MinimaSummaryGrid } from "../features/minima/MinimaSummaryGrid";
 import { useMinimaStatusRefresh } from "../features/minima/useMinimaStatusRefresh";
 
+// A real container restart (JVM stop/start, chain reload) can easily take longer than a
+// few seconds — this needs to stay in the same ballpark as the backend's own operation
+// window (minima-monitoring.ts, ~120s) so the toast doesn't give up on a restart the
+// backend still considers normal and in-progress.
+const REFRESH_AFTER_OPERATION_INTERVAL_MS = 3000;
+const REFRESH_AFTER_OPERATION_MAX_MS = 90000;
+
 export function MinimaPage() {
   const { showToast } = useToast();
   const [config, setConfig] = useState<MinimaConfig | null>(null);
@@ -56,10 +63,9 @@ export function MinimaPage() {
 
   async function refreshAfterOperation(): Promise<boolean> {
     setStatusError(null);
-    const delays = [0, 2000, 4000, 6000];
+    const deadline = Date.now() + REFRESH_AFTER_OPERATION_MAX_MS;
 
-    for (const delayMs of delays) {
-      if (delayMs > 0) await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+    while (true) {
       try {
         const status = await getMinimaNodeStatus();
         handleStatus(status);
@@ -67,8 +73,9 @@ export function MinimaPage() {
       } catch {
         // Keep last known stats; polling will retry when enabled.
       }
+      if (Date.now() >= deadline) return false;
+      await new Promise((resolve) => window.setTimeout(resolve, REFRESH_AFTER_OPERATION_INTERVAL_MS));
     }
-    return false;
   }
 
   useEffect(() => {
