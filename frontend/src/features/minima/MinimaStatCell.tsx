@@ -14,14 +14,12 @@ export function MinimaStatCell({ label, value }: { label: string; value: ReactNo
 export function MinimaStatGrid({
   title,
   description,
-  headerAction,
   footer,
   cols = "md:grid-cols-2",
   children
 }: {
   title: string;
   description?: string;
-  headerAction?: React.ReactNode;
   footer?: React.ReactNode;
   cols?: string;
   children: React.ReactNode;
@@ -35,7 +33,6 @@ export function MinimaStatGrid({
             {description ? <p className="m-0 text-sm text-slate-500">{description}</p> : null}
           </div>
         </div>
-        {headerAction}
       </div>
       <div className={cx("mt-5 grid flex-1 auto-rows-fr gap-4", cols)}>{children}</div>
       <div className="mt-4 min-h-11">{footer}</div>

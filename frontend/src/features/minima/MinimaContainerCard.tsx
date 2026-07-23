@@ -1,4 +1,6 @@
+import { RotateCcw } from "lucide-react";
 import type { MinimaNodeStatus } from "../../app/types";
+import { Button } from "../../components/Button";
 import { LoadingDots } from "../../components/LoadingDots";
 import { MinimaStatCell, MinimaStatGrid } from "./MinimaStatCell";
 
@@ -35,19 +37,15 @@ export function MinimaContainerCard({
   const runtimeLabel = container?.status ?? unavailable;
 
   const restartButton = onRestart ? (
-    <button
-      type="button"
-      className="shrink-0 rounded-[14px] border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-950 disabled:opacity-60"
-      disabled={busy}
-      onClick={onRestart}
-    >
+    <Button type="button" size="sm" variant="secondary" className="w-full" disabled={busy} onClick={onRestart}>
+      <RotateCcw size={16} />
       Restart
-    </button>
+    </Button>
   ) : null;
 
   return (
     <div className="h-full">
-    <MinimaStatGrid title="Container" headerAction={restartButton}>
+    <MinimaStatGrid title="Container" footer={restartButton}>
       <MinimaStatCell label="CPU load" value={cpuLabel} />
       <MinimaStatCell label="Container memory" value={memoryLabel} />
       <MinimaStatCell label="State" value={stateLabel} />

@@ -1,7 +1,8 @@
-import { HardDrive, Layers3, RefreshCw } from 'lucide-react';
+import { HardDrive, Layers3, RefreshCw, RotateCw } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { MinimaNodeStatus } from '../../app/types';
+import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { LoadingDots } from '../../components/LoadingDots';
 import { cx } from '../../lib/cx';
@@ -19,7 +20,7 @@ function SummaryCard({
   children?: ReactNode;
 }) {
   return (
-    <Card className='flex flex-col p-5! transition hover:-translate-y-0.5 hover:shadow-md'>
+    <Card className='flex flex-col p-5!'>
       <Icon className='text-slate-700' size={24} />
       <h3 className='mt-4 mb-0 font-semibold text-slate-950'>{title}</h3>
       <p className='mt-1 mb-0 text-sm leading-6 text-slate-500'>{text}</p>
@@ -74,14 +75,10 @@ export function MinimaSummaryGrid({
           )
         }
       >
-        <button
-          type='button'
-          className='mt-4 w-fit rounded-[14px] border-0 bg-slate-950 px-3.5 py-2 text-sm font-medium text-white disabled:opacity-60'
-          disabled={busy}
-          onClick={onResync}
-        >
+        <Button type='button' size='sm' variant='secondary' className='mt-4 w-full' disabled={busy} onClick={onResync}>
+          <RotateCw size={16} />
           Resync
-        </button>
+        </Button>
       </SummaryCard>
 
       <SummaryCard icon={HardDrive} title='Local storage' text={chainDataLabel}>

@@ -1,3 +1,4 @@
+import { Terminal } from "lucide-react";
 import type { MinimaNodeStatus } from "../../app/types";
 import { JsonPreview } from "../../components/JsonPreview";
 import { LoadingDots } from "../../components/LoadingDots";
@@ -48,9 +49,13 @@ export function MinimaHealthCard({
       {shouldShowMinimaRpcError(effectiveStatus) && (
         <ErrorText className="mb-2">{effectiveStatus?.rpc.error}</ErrorText>
       )}
-      {effectiveStatus?.rpc.raw !== undefined ? (
-        <JsonPreview value={effectiveStatus.rpc.raw} label="View RPC debug" />
-      ) : null}
+      <JsonPreview
+        value={effectiveStatus?.rpc.raw}
+        label="View RPC debug"
+        variant="button"
+        icon={<Terminal size={16} />}
+        disabled={effectiveStatus?.rpc.raw === undefined}
+      />
     </>
   );
 
