@@ -119,42 +119,47 @@ export function DashboardPage() {
 
   useEffect(() => {
     let cancelled = false;
-    let statusTimer: number | undefined;
-    let walletTimer: number | undefined;
+    let timer: number | undefined;
 
-    const scheduleStatus = () => {
+    // Wallet balance is only meaningful when the node can actually answer RPC calls,
+    // so fetch it in lockstep with node status instead of on its own independent timer —
+    // otherwise the two drift out of sync (e.g. wallet still shows a pre-restart balance
+    // after the node status has already flipped to "restarting").
+    const tick = () => {
       getDeviceStatus()
         .then((status) => {
           if (cancelled) return;
           setDeviceStatus(status);
-          const delayMs = status.node.state === 'restarting' ? STATUS_RESTARTING_INTERVAL_MS : DASHBOARD_POLL_INTERVAL_MS;
-          statusTimer = window.setTimeout(scheduleStatus, delayMs);
-        })
-        .catch(() => {
-          if (cancelled) return;
-          statusTimer = window.setTimeout(scheduleStatus, DASHBOARD_POLL_INTERVAL_MS);
-        });
-    };
-    scheduleStatus();
 
-    const scheduleWallet = () => {
-      getWalletStatus()
-        .then((ws) => {
-          if (cancelled) return;
-          const native = ws.tokens.find((t) => t.isNative);
-          setWalletBalance(native?.confirmed ?? '0');
+          if (status.node.state === 'restarting') {
+            setWalletLoading(true);
+            setWalletBalance(null);
+            timer = window.setTimeout(tick, STATUS_RESTARTING_INTERVAL_MS);
+            return;
+          }
+
+          getWalletStatus()
+            .then((ws) => {
+              if (cancelled) return;
+              const native = ws.tokens.find((t) => t.isNative);
+              setWalletBalance(native?.confirmed ?? '0');
+            })
+            .catch(() => {
+              if (cancelled) return;
+              setWalletBalance(null);
+            })
+            .finally(() => {
+              if (cancelled) return;
+              setWalletLoading(false);
+              timer = window.setTimeout(tick, DASHBOARD_POLL_INTERVAL_MS);
+            });
         })
         .catch(() => {
           if (cancelled) return;
-          setWalletBalance(null);
-        })
-        .finally(() => {
-          if (cancelled) return;
-          setWalletLoading(false);
-          walletTimer = window.setTimeout(scheduleWallet, DASHBOARD_POLL_INTERVAL_MS);
+          timer = window.setTimeout(tick, DASHBOARD_POLL_INTERVAL_MS);
         });
     };
-    scheduleWallet();
+    tick();
 
     Promise.all([
       getHistory({ page: 1, pageSize: 100 }),
@@ -168,8 +173,7 @@ export function DashboardPage() {
 
     return () => {
       cancelled = true;
-      if (statusTimer) window.clearTimeout(statusTimer);
-      if (walletTimer) window.clearTimeout(walletTimer);
+      if (timer) window.clearTimeout(timer);
     };
   }, []);
 
@@ -349,6 +353,7 @@ function DeviceStatusCard({
   const device = status?.device ?? null;
   const app = status?.app ?? null;
   const node = status?.node ?? null;
+  const nodeRestarting = node?.state === 'restarting';
   const cpuPct = device ? `${Math.round((device.loadAvg[0] / device.cpuCount) * 100)}%` : null;
   const diskValue = device ? (device.disk ? formatBytes(device.disk.usedBytes) : 'N/A') : null;
   const diskHelper = device
@@ -362,9 +367,9 @@ function DeviceStatusCard({
         <MetricCard
           label='Wallet balance'
           value={
-            walletLoading ? (
+            walletLoading && !nodeRestarting ? (
               <LoadingDots />
-            ) : walletBalance === null ? (
+            ) : nodeRestarting || walletBalance === null ? (
               'Unavailable'
             ) : (
               <span className='flex min-w-0 items-center gap-2'>
@@ -378,7 +383,7 @@ function DeviceStatusCard({
               </span>
             )
           }
-          helper='Primary Pi wallet'
+          helper={nodeRestarting ? 'Unavailable while Minima restarts' : 'Primary Pi wallet'}
           icon={Wallet}
           valueClass={
             walletLoading || walletBalance === null ? 'text-slate-400' : 'text-slate-950'
