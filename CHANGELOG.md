@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Shared `ErrorAlert` UI component for in-page errors with optional title and recovery action.
 - Shared `Input` and `CredentialInput` form fields (`CredentialInput` supports PIN or password mode, including PIN-friendly autocomplete/input attributes).
 - Edge Studio brand colour tokens as Tailwind theme utilities (`brand-white`, `brand-graphite`, `brand-accent`, plus supporting shades and semantic `error` / `warning` / `success` / `info` colours). Manrope as the app UI font.
+- Dashboard **Getting started** next-action card: prompts **Connect devices** when no data sources exist, then **Create your first workflow** once at least one device is connected.
 
 ### Changed
 
@@ -20,6 +21,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Setup shell header/footer use a taller brand bar titled **Edge Studio**; secure-device and Connect steps use a stable-height onboarding card with shared brand form controls (sign-in method toggle, `CredentialInput`, password requirements styling).
 - Integritas Connect step shows numbered open/sign-in/approve steps, switches to a listening state after **Open Integritas Connect**, delays the preparing spinner briefly, and on success lists device security (and 2FA when enabled) plus the connected account.
 - Shared `Card` and buttons use brand tokens (including status/danger and on-dark variants) with squarer corners.
+- Dashboard title uses the shared app name; the static multi-step "Build flow" guide is replaced by the guided next-action card (device status and live activity remain).
+- App shell and sidebar use tighter padding and squarer corners (nav, brand header, mobile tabs, user box).
 
 ### Removed
 
