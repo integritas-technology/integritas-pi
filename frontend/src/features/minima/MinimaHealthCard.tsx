@@ -9,12 +9,10 @@ import { formatLocalTime, formatUtcTime } from "../../lib/time";
 
 export function MinimaHealthCard({
   status,
-  error,
   loading,
   refreshing
 }: {
   status: MinimaNodeStatus | null;
-  error: string | null;
   loading: boolean;
   refreshing: boolean;
 }) {
@@ -47,7 +45,6 @@ export function MinimaHealthCard({
 
   const footer = (
     <>
-      {error && <p className="mb-2 text-sm text-amber-800">{error}</p>}
       {shouldShowMinimaRpcError(effectiveStatus) && (
         <ErrorText className="mb-2">{effectiveStatus?.rpc.error}</ErrorText>
       )}

@@ -232,6 +232,11 @@ export function MinimaPage() {
   // to say either action would do anything useful.
   const actionsBlocked = busy || !nodeStatus || nodeStatus.state === "restarting";
 
+  // Prefer the specific local message for whoever triggered the operation; fall back to
+  // a generic one driven by backend truth so the banner survives navigating away and back
+  // mid-operation (a fresh mount has no local statusError, but the node status still does).
+  const operationBanner = statusError ?? (nodeStatus?.state === "restarting" ? "Minima is restarting. RPC may be briefly unavailable." : null);
+
   return (
     <Page
       eyebrow="Minima node"
@@ -247,6 +252,12 @@ export function MinimaPage() {
         </IconButton>
       }
     >
+      {operationBanner && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {operationBanner}
+        </div>
+      )}
+
       {configOpen && (
         <Modal title="Configure Minima" onClose={() => setConfigOpen(false)}>
           <MinimaRuntimeConfig
@@ -277,7 +288,6 @@ export function MinimaPage() {
       <section className="grid items-stretch gap-4 lg:grid-cols-2">
         <MinimaHealthCard
           status={nodeStatus}
-          error={statusError}
           loading={statusLoading && !nodeStatus}
           refreshing={resyncing || restarting || nodeStatus?.state === "restarting"}
         />
