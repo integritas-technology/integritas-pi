@@ -85,7 +85,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   if (showSetup) {
-    return <OnboardingWizard resumeAtConnect={setupMode === "resume"} onComplete={() => void refreshSession()} />;
+    return (
+      <OnboardingWizard
+        resumeAtConnect={setupMode === "resume"}
+        onComplete={() => void refreshSession()}
+      />
+    );
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

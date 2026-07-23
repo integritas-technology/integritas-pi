@@ -6,8 +6,6 @@ export const headingClass =
 export const leadClass = "m-0 max-w-3xl text-base leading-relaxed font-medium text-slate-600";
 export const formGridClass = "grid max-w-[520px] gap-2.5";
 export const labelClass = "grid gap-2 font-bold text-slate-700";
-export const inputClass =
-  "w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-950 outline-none transition-colors duration-200 focus-visible:border-slate-500 focus-visible:ring-2 focus-visible:ring-slate-950/15";
 export const mutedClass = "text-sm font-medium text-slate-500";
 export const goodHintClass = "text-sm font-medium text-emerald-700";
 export const warnHintClass = "text-sm font-medium text-amber-700";

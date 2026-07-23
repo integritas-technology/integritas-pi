@@ -46,6 +46,8 @@ Use these before writing bespoke markup:
 - `Text`: shared muted, error, and eyebrow text helpers.
 - `ErrorAlert`: in-page error alert with optional title and recovery action.
 - `Modal`: portal-backed dialog shell.
+- `Input`: ordinary text field (brand surface, soft shadow, focus ring).
+- `CredentialInput`: PIN or password field (`mode="pin" | "password"`); wraps `Input`.
 - `DataTable`: workflow-style table shell, wrapper, rows, and action cells.
 - `StatusRow`: compact label/value/status presentation.
 - `ListPagerFilterBar`: list filtering and pagination controls.
@@ -69,7 +71,7 @@ Avoid exporting these constants or moving them into shared files unless more tha
 
 ## Forms
 
-- Use global base input styles for ordinary inputs.
+- Use `Input` for ordinary text fields; use `CredentialInput` for PIN/password.
 - Add Tailwind classes locally when a form needs a special layout or visual treatment.
 - Keep inline validation near the field or form when the user needs to compare the error with entered values.
 - Use toast errors for transient action failures that should not occupy page layout.

@@ -184,7 +184,7 @@ export function OnboardingWizard({
   const canGoBack = stepIndex > 0 && !localAdminReady;
   const connectWaitingLabel =
     status?.status === "pending"
-      ? "Waiting for Integritas Connect…"
+      ? "Open Integritas Connect to continue"
       : "Preparing Integritas Connect…";
   const continueLabel = submitting
     ? "Securing device…"
@@ -208,13 +208,13 @@ export function OnboardingWizard({
         aria-label="Setup Wizard"
       >
         <header className="bg-brand-white shrink-0 border-b border-slate-200/80">
-          <div className="flex items-center justify-between gap-4 px-6 py-3 lg:px-10">
+          <div className="flex min-h-20 items-center justify-between gap-4 px-6 lg:px-10">
             <div className="flex min-w-0 items-center gap-2.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-slate-950 text-white">
-                <Layers3 size={18} aria-hidden="true" strokeWidth={2.25} />
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-slate-950 text-white">
+                <Layers3 size={20} aria-hidden="true" strokeWidth={2.25} />
               </div>
-              <h1 className="m-0 truncate text-sm font-bold tracking-[-0.02em] text-slate-950">
-                Edge Studio Setup
+              <h1 className="m-0 truncate text-lg font-bold tracking-[-0.02em] text-slate-950">
+                Edge Studio
               </h1>
             </div>
             <p className={cx(mutedClass, "m-0 shrink-0 text-xs sm:text-sm")}>{headerStatus}</p>
@@ -279,6 +279,7 @@ export function OnboardingWizard({
                   error={connectError}
                   onVerify={openVerification}
                   onRetry={retryConnect}
+                  credentialType={resumeAtConnect ? null : form.credentialType}
                 />
               )}
             </div>
@@ -290,9 +291,9 @@ export function OnboardingWizard({
             </ErrorText>
           ) : null}
 
-          <footer className="bg-brand-white shrink-0 border-t border-slate-200">
-            <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-4 px-6 py-4 lg:px-10">
-              <div className="flex min-h-11 min-w-0 flex-1 items-center">
+          <footer className="bg-brand-white shrink-0 border-t border-slate-200/80">
+            <div className="flex min-h-20 items-center justify-between gap-4 px-6 lg:px-10">
+              <div className="flex min-w-0 flex-1 items-center">
                 {canGoBack ? (
                   <Button
                     type="button"
@@ -318,7 +319,7 @@ export function OnboardingWizard({
                   <Button
                     type="button"
                     variant="primary"
-                    size="md"
+                    size="sm"
                     disabled={!canContinue || submitting}
                     onClick={() => void goNext()}
                   >
