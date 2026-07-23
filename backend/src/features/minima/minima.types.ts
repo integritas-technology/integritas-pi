@@ -1,4 +1,4 @@
-export type MinimaNodeState = "running" | "stopped" | "error";
+export type MinimaNodeState = "running" | "stopped" | "error" | "restarting";
 export type MinimaSyncStatus = "active" | "stale" | "syncing" | "unavailable";
 
 export type MinimaNodeStatus = {

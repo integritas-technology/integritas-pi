@@ -1,6 +1,11 @@
 import { getSetting, saveSetting } from "../settings/settings.repository.js";
 import { getMinimaContainerStats, getMinimaStorageInfo } from "./minima.docker.js";
-import { buildMinimaMonitoring } from "./minima-monitoring.js";
+import {
+  beginMinimaOperation,
+  buildMinimaMonitoring,
+  endMinimaOperation,
+  isMinimaOperationInProgress
+} from "./minima-monitoring.js";
 import {
   deriveSyncStatus,
   normalizePeerslist,
@@ -42,6 +47,14 @@ function deriveNodeState(
   return "running";
 }
 
+function applyOperationOverride(state: MinimaNodeState): MinimaNodeState {
+  if (state === "running") {
+    endMinimaOperation();
+    return state;
+  }
+  return isMinimaOperationInProgress() ? "restarting" : state;
+}
+
 function emptyNodeStatusFields() {
   return {
     sync: { synced: null, status: "unavailable" as const, block: null, blockTime: null, blockAgeSeconds: null },
@@ -63,7 +76,9 @@ export async function getMinimaNodeStatus(): Promise<MinimaNodeStatus> {
   ]);
 
   if ("failed" in rpcResult) {
-    const state: MinimaNodeState = containerStats && containerStats.state !== "running" ? "stopped" : "error";
+    const state = applyOperationOverride(
+      containerStats && containerStats.state !== "running" ? "stopped" : "error"
+    );
     const empty = emptyNodeStatusFields();
     const status = {
       checkedAt,
@@ -119,7 +134,7 @@ export async function getMinimaNodeStatus(): Promise<MinimaNodeStatus> {
   syncStatus = sync.status;
 
   const rpcReachable = rpcResult.ok;
-  const state = deriveNodeState(containerStats, rpcReachable, parsed.rpcOk);
+  const state = applyOperationOverride(deriveNodeState(containerStats, rpcReachable, parsed.rpcOk));
 
   const status = {
     checkedAt,
@@ -166,7 +181,13 @@ export async function getWalletBalance() {
 export async function resyncMegammr() {
   const { megammrHost } = getMinimaConfig();
   const command = `megammrsync action:resync host:${megammrHost}`;
-  return runMinimaPathCommand(command, 30000);
+  beginMinimaOperation("resync");
+  try {
+    return await runMinimaPathCommand(command, 30000);
+  } catch (error) {
+    endMinimaOperation();
+    throw error;
+  }
 }
 
 export async function getMinimaPeers() {
@@ -189,5 +210,11 @@ export async function addMinimaPeers(peerslist: string) {
 }
 
 export async function restartMinimaContainer() {
-  return restartComposeService("minima");
+  beginMinimaOperation("restart");
+  try {
+    return await restartComposeService("minima");
+  } catch (error) {
+    endMinimaOperation();
+    throw error;
+  }
 }

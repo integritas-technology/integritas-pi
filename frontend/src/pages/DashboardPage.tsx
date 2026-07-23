@@ -265,6 +265,7 @@ function pct(used: number, total: number) {
 
 function nodeStateValueClass(state: DeviceNodeState) {
   if (state === 'running') return 'text-emerald-600';
+  if (state === 'restarting') return 'text-blue-600';
   if (state === 'unknown') return 'text-slate-400';
   return 'text-amber-600';
 }

@@ -12,6 +12,7 @@ export function formatNodeState(state: MinimaNodeState | null) {
   if (!state) return "—";
   if (state === "running") return "Running";
   if (state === "stopped") return "Stopped";
+  if (state === "restarting") return "Restarting";
   return "Error";
 }
 

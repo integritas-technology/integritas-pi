@@ -20,7 +20,7 @@ export type UpdateStatusSummary = {
 export type Health = { status: string; service: string };
 export type FileItem = { name: string; type: "file" | "directory" | "other"; size?: number };
 export type FilesResponse = { path: string; items: FileItem[] };
-export type MinimaNodeState = "running" | "stopped" | "error";
+export type MinimaNodeState = "running" | "stopped" | "error" | "restarting";
 export type MinimaSyncStatus = "active" | "stale" | "syncing" | "unavailable";
 export type MinimaNodeStatus = {
   checkedAt: string;

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { recordAuditEvent } from "../auth/audit.service.js";
 import { requireRole } from "../auth/auth.middleware.js";
+import { normalizeMinimaRpcError } from "./minima.errors.js";
 import {
   addMinimaPeers,
   getMinimaConfig,
@@ -41,7 +42,7 @@ minimaRouter.get("/peers", async (_req, res) => {
     const result = await getMinimaPeers();
     res.status(result.ok ? 200 : 502).json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const message = normalizeMinimaRpcError(error instanceof Error ? error.message : "Unknown error");
     res.status(502).json({ ok: false, error: message });
   }
 });
@@ -56,7 +57,7 @@ minimaRouter.post("/peers/add", requireRole("admin"), async (req, res) => {
     });
     res.status(result.ok ? 200 : 502).json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const message = normalizeMinimaRpcError(error instanceof Error ? error.message : "Unknown error");
     res.status(400).json({ ok: false, error: message });
   }
 });
@@ -70,7 +71,7 @@ minimaRouter.post("/restart", requireRole("admin"), async (req, res) => {
     });
     res.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const message = normalizeMinimaRpcError(error instanceof Error ? error.message : "Unknown error");
     res.status(502).json({ ok: false, error: message });
   }
 });
@@ -80,7 +81,7 @@ minimaRouter.get("/balance", async (_req, res) => {
     const result = await getWalletBalance();
     res.status(result.ok ? 200 : 502).json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const message = normalizeMinimaRpcError(error instanceof Error ? error.message : "Unknown error");
     res.status(502).json({ ok: false, source: "minima", error: message });
   }
 });
@@ -90,7 +91,7 @@ minimaRouter.post("/megammrsync/resync", async (_req, res) => {
     const result = await resyncMegammr();
     res.status(result.ok ? 200 : 502).json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const message = normalizeMinimaRpcError(error instanceof Error ? error.message : "Unknown error");
     res.status(502).json({ ok: false, source: "minima", error: message });
   }
 });

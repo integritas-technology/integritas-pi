@@ -1,4 +1,4 @@
-export type DeviceNodeState = "running" | "stopped" | "error" | "unknown";
+export type DeviceNodeState = "running" | "stopped" | "error" | "restarting" | "unknown";
 
 export type DeviceDisk = {
   path: string;

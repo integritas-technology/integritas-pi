@@ -1,12 +1,12 @@
 import { env } from "../../config/env.js";
-import type { MinimaNodeStatus } from "./minima.types.js";
+import type { MinimaNodeState, MinimaNodeStatus } from "./minima.types.js";
 
 export type MinimaMonitoringSnapshot = {
   lastPollerCheckAt: string | null;
   lastStallDetectedAt: string | null;
   lastAutoResyncAt: string | null;
   lastAutoResyncResult: string | null;
-  lastNodeState: "running" | "stopped" | "error" | "unknown";
+  lastNodeState: MinimaNodeState | "unknown";
 };
 
 const snapshot: MinimaMonitoringSnapshot = {
@@ -63,4 +63,27 @@ export function canAutoResync() {
   if (!snapshot.lastAutoResyncAt) return true;
   const cooldownMs = env.minimaAutoResyncCooldownMinutes * 60 * 1000;
   return Date.now() - new Date(snapshot.lastAutoResyncAt).getTime() >= cooldownMs;
+}
+
+export type MinimaOperationType = "restart" | "resync";
+
+const MINIMA_OPERATION_MAX_WINDOW_MS = 120_000;
+
+let currentOperation: { type: MinimaOperationType; startedAt: number } | null = null;
+
+export function beginMinimaOperation(type: MinimaOperationType) {
+  currentOperation = { type, startedAt: Date.now() };
+}
+
+export function endMinimaOperation() {
+  currentOperation = null;
+}
+
+export function isMinimaOperationInProgress(): boolean {
+  if (!currentOperation) return false;
+  if (Date.now() - currentOperation.startedAt > MINIMA_OPERATION_MAX_WINDOW_MS) {
+    currentOperation = null;
+    return false;
+  }
+  return true;
 }
