@@ -45,7 +45,7 @@ export function MinimaContainerCard({
 
   return (
     <div className="h-full">
-    <MinimaStatGrid title="Container" footer={restartButton}>
+    <MinimaStatGrid title="Container health" footer={restartButton}>
       <MinimaStatCell label="CPU load" value={cpuLabel} />
       <MinimaStatCell label="Container memory" value={memoryLabel} />
       <MinimaStatCell label="State" value={stateLabel} />

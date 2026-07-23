@@ -6,6 +6,7 @@ import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { LoadingDots } from '../../components/LoadingDots';
 import { cx } from '../../lib/cx';
+import { formatLocalTime, formatUtcTime } from '../../lib/time';
 import { formatNodeState, formatSyncStatus } from './minimaFormat';
 
 function SummaryCard({
@@ -55,6 +56,9 @@ export function MinimaSummaryGrid({
   const containerDiskLabel = effectiveStatus?.storage.containerDisk
     ? `${effectiveStatus.storage.containerDisk} Docker container`
     : null;
+  const checkedLabel = effectiveStatus?.checkedAt
+    ? `Checked ${formatLocalTime(effectiveStatus.checkedAt)} local · ${formatUtcTime(effectiveStatus.checkedAt)} UTC`
+    : null;
 
   return (
     <div className={cx('grid gap-4 md:grid-cols-2 lg:grid-cols-3')}>
@@ -62,7 +66,11 @@ export function MinimaSummaryGrid({
         icon={Layers3}
         title='Minima'
         text={effectiveLoading && !effectiveStatus?.state ? <LoadingDots /> : formatNodeState(effectiveStatus?.state ?? null)}
-      />
+      >
+        {checkedLabel && (
+          <p className='mt-1 mb-0 text-sm leading-6 text-slate-500'>{checkedLabel}</p>
+        )}
+      </SummaryCard>
 
       <SummaryCard
         icon={RefreshCw}

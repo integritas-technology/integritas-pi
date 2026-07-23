@@ -6,7 +6,7 @@ import { ErrorText } from "../../components/Text";
 import { formatBlockAge } from "./minimaFormat";
 import { shouldShowMinimaRpcError } from "./minimaStatusDisplay";
 import { MinimaStatCell, MinimaStatGrid } from "./MinimaStatCell";
-import { formatLocalTime, formatUtcTime } from "../../lib/time";
+import { formatLocalTime } from "../../lib/time";
 
 export function MinimaHealthCard({
   status,
@@ -37,10 +37,6 @@ export function MinimaHealthCard({
           : "—";
   const currentBlockLabel =
     effectiveStatus?.sync.block != null ? String(effectiveStatus.sync.block) : effectiveLoading ? <LoadingDots /> : "—";
-
-  const checkedLine = effectiveStatus?.checkedAt
-    ? `Checked ${formatLocalTime(effectiveStatus.checkedAt)} local · ${formatUtcTime(effectiveStatus.checkedAt)} UTC`
-    : "Chain and process metrics from Minima RPC.";
 
   const monitoring = effectiveStatus?.monitoring;
 
@@ -73,7 +69,7 @@ export function MinimaHealthCard({
       )}
 
       <div className="min-h-0 flex-1">
-        <MinimaStatGrid title="Node health" description={checkedLine} footer={footer}>
+        <MinimaStatGrid title="Node health" footer={footer}>
           <MinimaStatCell label="Node memory" value={memoryLabel} />
           <MinimaStatCell label="Active peers" value={peerLabel} />
           <MinimaStatCell label="Last block" value={blockAgeLabel} />
