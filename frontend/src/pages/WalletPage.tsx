@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BookUser, ChevronLeft, ChevronRight, Loader2, Settings } from 'lucide-react';
 import type { MinimaNodeState } from '../app/types';
 import { Button, IconButton } from '../components/Button';
@@ -180,9 +180,21 @@ export function WalletPage() {
   const [addressBookOpen, setAddressBookOpen] = useState(false);
   const [mainTab, setMainTab] = useState<'assets' | 'history'>('assets');
   const [minimaState, setMinimaState] = useState<MinimaNodeState | null>(null);
+  const previousMinimaStateRef = useRef<MinimaNodeState | null>(null);
 
   useMinimaStatusRefresh(
-    (status) => setMinimaState(status.state),
+    (status) => {
+      const previous = previousMinimaStateRef.current;
+      previousMinimaStateRef.current = status.state;
+      setMinimaState(status.state);
+      // Wallet data was fetched once on mount and goes stale/wrong the moment the
+      // node drops out from under it (restart/resync) — reload it once the node
+      // is confirmed running again instead of leaving the page stuck on whatever
+      // it last managed to load until the user navigates away and back.
+      if (previous !== null && previous !== 'running' && status.state === 'running') {
+        refresh();
+      }
+    },
     () => {}
   );
   // Only allow wallet actions once Minima is confirmed running — any other state
