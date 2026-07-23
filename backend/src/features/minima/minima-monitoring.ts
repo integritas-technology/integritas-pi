@@ -46,10 +46,6 @@ export function recordPollerCheck(checkedAt: string, state: MinimaMonitoringSnap
   snapshot.lastNodeState = state;
 }
 
-export function getLastMinimaPollerState(): { state: MinimaMonitoringSnapshot["lastNodeState"]; lastCheckedAt: string | null } {
-  return { state: snapshot.lastNodeState, lastCheckedAt: snapshot.lastPollerCheckAt };
-}
-
 export function recordStallDetected() {
   snapshot.lastStallDetectedAt = new Date().toISOString();
 }

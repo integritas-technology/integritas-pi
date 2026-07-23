@@ -5,7 +5,6 @@ import { fetchJsonWithTimeout } from "../../shared/http.js";
 import { getMinimaNodeStatus } from "../minima/minima.service.js";
 import { dockerServiceResources, diskUsage } from "./docker.service.js";
 import { getDeviceInfo } from "./device.service.js";
-import { getLastMinimaPollerState } from "../minima/minima-monitoring.js";
 import { isSetupComplete } from "../auth/setup.service.js";
 
 type ServiceStatus = {
@@ -42,7 +41,11 @@ async function getIntegritasConnected(apiKey: string): Promise<boolean> {
 
 statusRouter.get("/", async (_req, res) => {
   const device = getDeviceInfo();
-  const node = getLastMinimaPollerState();
+  const minimaStatus = await getMinimaNodeStatus().catch(() => null);
+  const node = {
+    state: minimaStatus?.state ?? ("unknown" as const),
+    lastCheckedAt: minimaStatus?.checkedAt ?? null
+  };
   const integritasApiKey = getIntegritasApiKey();
 
   let integritasConnected: boolean | null = null;

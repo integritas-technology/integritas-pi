@@ -54,7 +54,7 @@ export function MinimaPage() {
     enabled: !resyncing && !restarting && !busy
   });
 
-  async function refreshAfterOperation() {
+  async function refreshAfterOperation(): Promise<boolean> {
     setStatusError(null);
     const delays = [0, 2000, 4000, 6000];
 
@@ -63,11 +63,12 @@ export function MinimaPage() {
       try {
         const status = await getMinimaNodeStatus();
         handleStatus(status);
-        if (status.rpc.ok) return;
+        if (status.rpc.ok) return true;
       } catch {
         // Keep last known stats; polling will retry when enabled.
       }
     }
+    return false;
   }
 
   useEffect(() => {
@@ -116,12 +117,15 @@ export function MinimaPage() {
     }
   }
 
-  async function restartContainer() {
+  async function restartContainer(options?: { silent?: boolean }) {
     setRestarting(true);
     setStatusError("Minima container restart in progress. RPC may be briefly unavailable.");
 
+    let commandSucceeded = false;
+
     try {
       const result = await restartMinimaContainer();
+      commandSucceeded = true;
       showToast({
         tone: "info",
         title: "Minima container restarting",
@@ -133,8 +137,21 @@ export function MinimaPage() {
       showToast({ tone: "error", title: "Minima restart failed", message, timeoutMs: 9000 });
       throw error;
     } finally {
-      await refreshAfterOperation();
+      const recovered = await refreshAfterOperation();
       setRestarting(false);
+
+      if (commandSucceeded && !options?.silent) {
+        showToast(
+          recovered
+            ? { tone: "success", title: "Restart complete", message: "Minima container is back online.", timeoutMs: 8000 }
+            : {
+                tone: "error",
+                title: "Restart taking longer than expected",
+                message: "Minima RPC hasn't responded yet — check Node health.",
+                timeoutMs: 9000
+              }
+        );
+      }
     }
   }
 
@@ -191,7 +208,7 @@ export function MinimaPage() {
       if (meta.needsRestart) {
         setStatusError("Resync complete. Restarting Minima container…");
         setResyncing(false);
-        await restartContainer();
+        await restartContainer({ silent: true });
         restartedContainer = true;
       }
 
@@ -249,7 +266,7 @@ export function MinimaPage() {
         status={nodeStatus}
         loading={statusLoading && !nodeStatus}
         busy={busy}
-        refreshing={resyncing || restarting}
+        refreshing={resyncing || restarting || nodeStatus?.state === "restarting"}
         onResync={runResync}
       />
       <section className="grid items-stretch gap-4 lg:grid-cols-2">
@@ -257,13 +274,13 @@ export function MinimaPage() {
           status={nodeStatus}
           error={statusError}
           loading={statusLoading && !nodeStatus}
-          refreshing={resyncing || restarting}
+          refreshing={resyncing || restarting || nodeStatus?.state === "restarting"}
         />
         <MinimaContainerCard
           status={nodeStatus}
           loading={statusLoading && !nodeStatus}
           busy={busy}
-          refreshing={restarting}
+          refreshing={restarting || nodeStatus?.state === "restarting"}
           onRestart={runRestart}
         />
       </section>
