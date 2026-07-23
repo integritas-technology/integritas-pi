@@ -227,6 +227,11 @@ export function MinimaPage() {
     }
   }
 
+  // Only let Resync/Restart be pressed once we have a confirmed status and it isn't
+  // already mid-operation — before the first successful load, we don't know enough
+  // to say either action would do anything useful.
+  const actionsBlocked = busy || !nodeStatus || nodeStatus.state === "restarting";
+
   return (
     <Page
       eyebrow="Minima node"
@@ -265,7 +270,7 @@ export function MinimaPage() {
       <MinimaSummaryGrid
         status={nodeStatus}
         loading={statusLoading && !nodeStatus}
-        busy={busy}
+        busy={actionsBlocked}
         refreshing={resyncing || restarting || nodeStatus?.state === "restarting"}
         onResync={runResync}
       />
@@ -279,7 +284,7 @@ export function MinimaPage() {
         <MinimaContainerCard
           status={nodeStatus}
           loading={statusLoading && !nodeStatus}
-          busy={busy}
+          busy={actionsBlocked}
           refreshing={restarting || nodeStatus?.state === "restarting"}
           onRestart={runRestart}
         />
