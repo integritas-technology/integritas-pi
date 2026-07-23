@@ -4,7 +4,7 @@ All notable changes to `integritas-pi` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html) at the package level.
 
-## [Unreleased]
+## [0.21.6] - 2026-07-23
 
 ### Added
 
@@ -27,6 +27,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Removed
 
 - Separate first-run "Ready to use" / complete step after Connect.
+
 ## [0.21.5] - 2026-07-22
 
 ### Fixed
