@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CheckCircle2, Copy, Eye, EyeOff } from "lucide-react";
+import { Input } from "../../../components/Input";
 import { ErrorText } from "../../../components/Text";
 import { cx } from "../../../lib/cx";
 import {
@@ -8,7 +9,6 @@ import {
   eyebrowClass,
   formGridClass,
   headingClass,
-  inputClass,
   labelClass,
   leadClass,
   mutedClass,
@@ -122,9 +122,9 @@ export function TwoFactorStep({
                 <strong>{TOTP_ACCOUNT_LABEL}</strong> if your app asks for them.
               </p>
               <div className="flex flex-wrap items-stretch gap-2">
-                <input
+                <Input
                   id="setup-manual-key"
-                  className={cx(inputClass, "min-w-0 flex-1 font-mono text-sm tracking-wide")}
+                  className="min-w-0 flex-1 font-mono tracking-wide"
                   readOnly
                   value={showManualKey ? totpSecret : "•".repeat(Math.min(totpSecret.length, 32))}
                   aria-label="Authenticator setup key"
@@ -144,8 +144,8 @@ export function TwoFactorStep({
 
           <label className={labelClass}>
             Confirmation code
-            <input
-              className="w-full max-w-[12rem] rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-center text-lg font-semibold tracking-[0.35em] text-slate-950"
+            <Input
+              className="max-w-[12rem] text-center text-lg tracking-[0.35em] tabular-nums"
               value={form.twoFactorCode}
               onChange={(event) =>
                 setForm({

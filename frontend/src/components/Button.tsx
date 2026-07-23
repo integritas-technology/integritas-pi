@@ -6,17 +6,21 @@ type ButtonSize = "md" | "sm" | "xs";
 type IconButtonSize = "md" | "sm" | "xs";
 
 const variantClass: Record<ButtonVariant, string> = {
-  primary: "border-transparent bg-slate-950 text-white hover:bg-slate-800",
-  secondary: "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
-  ghost: "border-transparent bg-slate-100 text-slate-700 hover:bg-slate-200",
-  danger: "border-transparent bg-red-600 text-white hover:bg-red-700",
-  onDark: "border-white/10 bg-white/15 text-white hover:bg-white/25",
+  primary:
+    "border-transparent bg-brand-graphite text-brand-white enabled:hover:bg-brand-graphite-hover",
+  secondary:
+    "border-brand-border bg-brand-white text-brand-graphite enabled:hover:bg-brand-bg",
+  ghost:
+    "border-transparent bg-brand-bg text-brand-graphite enabled:hover:bg-brand-graphite-soft",
+  danger: "border-transparent bg-error text-brand-white enabled:hover:bg-error-hover",
+  onDark:
+    "border-brand-on-dark-border bg-brand-on-dark text-brand-white enabled:hover:bg-brand-on-dark-hover",
 };
 
 const sizeClass: Record<ButtonSize, string> = {
-  md: "rounded-2xl px-4 py-3 text-sm",
-  sm: "rounded-xl px-3 py-2 text-sm",
-  xs: "rounded-full px-3 py-1.5 text-xs",
+  md: "rounded px-4 py-3 text-sm",
+  sm: "rounded px-3 py-2 text-sm",
+  xs: "rounded px-3 py-1.5 text-xs",
 };
 
 const iconSizeClass: Record<IconButtonSize, string> = {
@@ -32,7 +36,11 @@ export function Button({
   variant = "primary",
   type = "button",
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode; size?: ButtonSize; variant?: ButtonVariant }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  children: ReactNode;
+  size?: ButtonSize;
+  variant?: ButtonVariant;
+}) {
   return (
     <button
       type={type}
@@ -56,7 +64,11 @@ export function IconButton({
   variant = "secondary",
   type = "button",
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode; size?: IconButtonSize; variant?: ButtonVariant }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  children: ReactNode;
+  size?: IconButtonSize;
+  variant?: ButtonVariant;
+}) {
   return (
     <button
       type={type}
