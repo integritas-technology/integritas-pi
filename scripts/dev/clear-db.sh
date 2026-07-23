@@ -120,14 +120,19 @@ if [ "$TARGET" = "all" ]; then
   rm -f "$DB_PATH" "$DB_PATH-wal" "$DB_PATH-shm"
 else
   echo "Clearing tables: $tables"
-  docker compose run --rm --no-deps -e DB_TABLES="$tables" backend node -e '
+  # -T and </dev/null: docker compose run otherwise allocates a tty and
+  # forwards stdin, which -- when this script itself is streamed in via
+  # `curl | bash` -- consumes the remaining piped script source as the
+  # container's input and silently truncates this script before it reaches
+  # the "Starting backend" step below.
+  docker compose run --rm -T --no-deps -e DB_TABLES="$tables" backend node -e '
     const Database = require("better-sqlite3");
     const db = new Database(process.env.DATABASE_PATH);
     db.pragma("foreign_keys = ON");
     for (const table of process.env.DB_TABLES.split(" ")) {
       db.prepare(`DELETE FROM ${table}`).run();
     }
-  '
+  ' < /dev/null
 fi
 
 echo "Starting backend"

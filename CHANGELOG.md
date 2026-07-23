@@ -27,6 +27,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Removed
 
 - Separate first-run "Ready to use" / complete step after Connect.
+## [0.21.5] - 2026-07-22
+
+### Fixed
+
+- Modal no longer closes on a backdrop click or Escape key press. It previously closed from either even when a modal's `closeDisabled` should have blocked it; the only way to close a modal is now its explicit Close button.
+
+## [0.21.4] - 2026-07-22
+
+### Added
+
+- `install.sh` `DEV_MODE` flag: skips manifest fetch/signature verification and the update agent, building `frontend`/`backend` from source instead of pulling pinned images — for local/dev installs.
+
+### Fixed
+
+- `install.sh` `DEV_MODE` no longer leaves `update-agent` unbuildable: `UPDATE_AGENT_IMAGE` is now set to a local `:dev` tag and `docker-compose.yml`'s `update-agent` service gets a `build` context, so DEV_MODE installs build it from source like `frontend`/`backend` instead of bypassing it.
+
+## [0.21.3] - 2026-07-22
+
+### Fixed
+
+- `scripts/dev/clear-db.sh`: `TARGET=users|history|automation` no longer silently truncates when the script is run via `curl | sudo bash`. `docker compose run` was attaching to stdin, which consumed the remainder of the piped script before it reached the "start backend" step, leaving `backend` stopped (502) without clearing anything.
 
 ## [0.21.2] - 2026-07-22
 
@@ -34,12 +55,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Root Prettier setup (`.prettierrc`, `.prettierignore`, and `prettier` / `prettier-plugin-tailwindcss` / `eslint-config-prettier` deps) for consistent formatting across the monorepo.
 - Backend startup now logs the configured Integritas Connect base URL alongside the other runtime endpoints.
+- `scripts/dev/set-status-poll-interval.sh` operational script to change an installed app's `STATUS_POLL_INTERVAL_MS` (update-agent's manifest poll interval) in place and recreate `update-agent` to apply it.
 
 ### Changed
 
 - First-run setup wizard UI is split into dedicated step components (`Welcome`, `Account`, `TwoFactor`, `ConnectAccount`, `Complete`) with shared onboarding styles; setup flow and behavior are unchanged.
+
+## [0.21.1] - 2026-07-22
+
+### Added
+
 - `scripts/dev/clear-db.sh` operational script to wipe an installed app's SQLite database (stops the backend, deletes `integritas-pi.db`, restarts so migrations recreate a fresh schema). `TARGET=users|history|automation` scopes the clear to just accounts/Integritas Connect, Diagnostics history, or data sources/workflows instead of the whole database.
-- `scripts/dev/set-status-poll-interval.sh` operational script to change an installed app's `STATUS_POLL_INTERVAL_MS` (update-agent's manifest poll interval) in place and recreate `update-agent` to apply it.
 
 ## [0.21.0] - 2026-07-21
 
