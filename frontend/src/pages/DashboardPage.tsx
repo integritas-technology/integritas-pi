@@ -383,7 +383,7 @@ function DeviceStatusCard({
               </span>
             )
           }
-          helper={nodeRestarting ? 'Unavailable while Minima restarts' : 'Primary Pi wallet'}
+          helper='Primary wallet'
           icon={Wallet}
           valueClass={
             walletLoading || walletBalance === null ? 'text-slate-400' : 'text-slate-950'
