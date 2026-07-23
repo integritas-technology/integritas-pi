@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BookUser, ChevronLeft, ChevronRight, Settings } from 'lucide-react';
+import { BookUser, ChevronLeft, ChevronRight, Loader2, Settings } from 'lucide-react';
 import type { MinimaNodeState } from '../app/types';
 import { Button, IconButton } from '../components/Button';
 import { Card } from '../components/Card';
@@ -321,42 +321,46 @@ export function WalletPage() {
                 ))}
               </div>
             </div>
-            {loading && <MutedText>Loading…</MutedText>}
-            {!loading && visibleAssets.length === 0 && (
+            {loading || actionsBlocked ? (
+              <div className='flex justify-center py-10'>
+                <Loader2 className='size-10 animate-spin text-slate-400' aria-hidden='true' />
+              </div>
+            ) : visibleAssets.length === 0 ? (
               <MutedText>
                 {assetTab === 'tokens'
                   ? 'No custom tokens in wallet.'
                   : 'No assets found.'}
               </MutedText>
+            ) : (
+              <div className={walletListClass}>
+                {visibleAssets.map((token) => (
+                  <button
+                    key={token.tokenId}
+                    type='button'
+                    onClick={() => setSelectedAsset(token)}
+                    className={walletListRowClass}
+                  >
+                    <div className='flex items-start justify-between gap-3'>
+                      <div className='min-w-0'>
+                        <p className='truncate text-sm font-semibold text-slate-900'>
+                          {token.name}
+                        </p>
+                        <p className='truncate font-mono text-xs text-slate-400'>
+                          {token.tokenId}
+                        </p>
+                      </div>
+                      <div className='shrink-0 text-right'>
+                        <p className='inline-flex items-center gap-1.5 text-sm font-bold tabular-nums text-slate-900'>
+                          <TokenGlyph isNative={token.isNative} />
+                          {formatAmountThreshold(token.sendable)}
+                        </p>
+                        <p className='text-xs text-slate-400'>sendable</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
             )}
-            <div className={walletListClass}>
-              {visibleAssets.map((token) => (
-                <button
-                  key={token.tokenId}
-                  type='button'
-                  onClick={() => setSelectedAsset(token)}
-                  className={walletListRowClass}
-                >
-                  <div className='flex items-start justify-between gap-3'>
-                    <div className='min-w-0'>
-                      <p className='truncate text-sm font-semibold text-slate-900'>
-                        {token.name}
-                      </p>
-                      <p className='truncate font-mono text-xs text-slate-400'>
-                        {token.tokenId}
-                      </p>
-                    </div>
-                    <div className='shrink-0 text-right'>
-                      <p className='inline-flex items-center gap-1.5 text-sm font-bold tabular-nums text-slate-900'>
-                        <TokenGlyph isNative={token.isNative} />
-                        {formatAmountThreshold(token.sendable)}
-                      </p>
-                      <p className='text-xs text-slate-400'>sendable</p>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
           </>
         ) : (
           <>
@@ -369,45 +373,50 @@ export function WalletPage() {
                   variant='secondary'
                   className='rounded-xl px-3 py-2 text-xs'
                   onClick={refresh}
-                  disabled={loading}
+                  disabled={loading || actionsBlocked}
                 >
                   Refresh
                 </Button>
               </div>
             </div>
-            {loading && <MutedText>Loading…</MutedText>}
-            {error && <ErrorText>{error}</ErrorText>}
-            {!loading && !error && sendHistory.length === 0 && (
+            {loading || actionsBlocked ? (
+              <div className='flex justify-center py-10'>
+                <Loader2 className='size-10 animate-spin text-slate-400' aria-hidden='true' />
+              </div>
+            ) : error ? (
+              <ErrorText>{error}</ErrorText>
+            ) : sendHistory.length === 0 ? (
               <MutedText>No send activity yet.</MutedText>
-            )}
-            <div className={walletListClass}>
-              {sendHistory.map((entry) => (
-                <button
-                  key={entry.id}
-                  type='button'
-                  onClick={() => setSelectedHistoryItem(entry)}
-                  className={walletListRowClass}
-                >
-                  <div className='flex items-start justify-between gap-3'>
-                    <div>
-                      <p className='text-sm font-semibold text-slate-900 inline-flex items-center gap-1.5'>
-                        <TokenGlyph isNative={isNativeTokenId(entry.tokenId)} />
-                        {entry.amount} {entry.tokenName}
-                      </p>
-                      <p className='text-xs text-slate-500 mt-1'>
-                        {formatHistoryFlow(entry)}
-                      </p>
-                      <p className='text-xs text-slate-400 mt-1'>
-                        {new Date(entry.createdAt).toLocaleString()}
-                      </p>
+            ) : (
+              <div className={walletListClass}>
+                {sendHistory.map((entry) => (
+                  <button
+                    key={entry.id}
+                    type='button'
+                    onClick={() => setSelectedHistoryItem(entry)}
+                    className={walletListRowClass}
+                  >
+                    <div className='flex items-start justify-between gap-3'>
+                      <div>
+                        <p className='text-sm font-semibold text-slate-900 inline-flex items-center gap-1.5'>
+                          <TokenGlyph isNative={isNativeTokenId(entry.tokenId)} />
+                          {entry.amount} {entry.tokenName}
+                        </p>
+                        <p className='text-xs text-slate-500 mt-1'>
+                          {formatHistoryFlow(entry)}
+                        </p>
+                        <p className='text-xs text-slate-400 mt-1'>
+                          {new Date(entry.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                      <span className='text-xs font-semibold uppercase tracking-wide text-slate-500'>
+                        {entry.status}
+                      </span>
                     </div>
-                    <span className='text-xs font-semibold uppercase tracking-wide text-slate-500'>
-                      {entry.status}
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
+                  </button>
+                ))}
+              </div>
+            )}
             {isDev && (
               <div className='mt-4 flex justify-start'>
                 <Button
