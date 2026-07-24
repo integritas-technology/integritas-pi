@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Settings } from "lucide-react";
+import { ChevronDown, ChevronRight, Settings } from "lucide-react";
 import type { MinimaNodeStatus } from "../app/types";
 import { Card } from "../components/Card";
 import { IconButton } from "../components/Button";
@@ -35,6 +35,7 @@ export function MinimaPage() {
   const [resyncing, setResyncing] = useState(false);
   const [restarting, setRestarting] = useState(false);
   const [consoleWhitelistOpen, setConsoleWhitelistOpen] = useState(false);
+  const [consoleOpen, setConsoleOpen] = useState(false);
 
   const handleStatus = useCallback((status: MinimaNodeStatus) => {
     setNodeStatus((previous) => mergeMinimaStatus(previous, status));
@@ -200,11 +201,19 @@ export function MinimaPage() {
       </section>
 
       <Card>
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
-            <h3 className="m-0">RPC console</h3>
-            <p className="mt-1 text-sm text-slate-500">Run whitelisted Minima RPC commands and see the raw response.</p>
-          </div>
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setConsoleOpen((open) => !open)}
+            aria-expanded={consoleOpen}
+            className="flex flex-1 items-center gap-2 border-0 bg-transparent p-0 text-left"
+          >
+            {consoleOpen ? <ChevronDown size={18} className="shrink-0 text-slate-500" /> : <ChevronRight size={18} className="shrink-0 text-slate-500" />}
+            <div>
+              <h3 className="m-0">RPC console</h3>
+              <p className="mt-1 text-sm text-slate-500">Run whitelisted Minima RPC commands and see the raw response.</p>
+            </div>
+          </button>
           <IconButton
             aria-label="Edit console command whitelist"
             variant="secondary"
@@ -213,7 +222,11 @@ export function MinimaPage() {
             <Settings size={16} />
           </IconButton>
         </div>
-        <MinimaConsolePanel disabled={actionsBlocked} />
+        {consoleOpen && (
+          <div className="mt-3">
+            <MinimaConsolePanel disabled={actionsBlocked} />
+          </div>
+        )}
       </Card>
 
       {consoleWhitelistOpen && <MinimaConsoleWhitelistModal onClose={() => setConsoleWhitelistOpen(false)} />}
