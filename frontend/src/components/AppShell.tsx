@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Bug, Layers3, MessageSquare, ShieldCheck, Sparkles } from "lucide-react";
 import { nav } from "../app/nav";
@@ -7,12 +7,45 @@ import { SidebarUserBox } from "../features/auth/SidebarUserBox";
 import type { AuthUser } from "../features/auth/types";
 import { getDebugPing } from "../features/debug/debugApi";
 import { FeedbackModal } from "../features/feedback/FeedbackModal";
+import { useStatusOverviewRefresh } from "../features/status/useStatusOverviewRefresh";
 import { useUpdateStatusRefresh } from "../features/update/useUpdateStatusRefresh";
 import { cx } from "../lib/cx";
 import { Button } from "./Button";
 import { Card } from "./Card";
 import { Clock } from "./Clock";
-import { StatusBadge } from "./StatusBadge";
+import { StatusDot, type StatusDotTone } from "./StatusDot";
+
+function findService(overview: StatusOverview | null, name: string) {
+  return overview?.services.find((service) => service.name === name);
+}
+
+function serviceTone(service: ReturnType<typeof findService>): StatusDotTone {
+  if (!service) return "unknown";
+  return service.ok ? "good" : "warn";
+}
+
+function ServiceDetail({
+  service,
+  generatedAt,
+  refreshError,
+}: {
+  service: ReturnType<typeof findService>;
+  generatedAt: string | undefined;
+  refreshError: string | null;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="m-0 font-bold text-slate-900">{service ? service.status : "Not checked yet"}</p>
+      {service?.error && <p className="m-0 text-red-600">{service.error}</p>}
+      {generatedAt && (
+        <p className="m-0 text-slate-400">Checked {new Date(generatedAt).toLocaleTimeString()}</p>
+      )}
+      {refreshError && (
+        <p className="m-0 text-amber-600">Could not refresh — showing last known status.</p>
+      )}
+    </div>
+  );
+}
 
 export function AppShell({
   user,
@@ -33,21 +66,11 @@ export function AppShell({
     return nav[0];
   }, [pathname]);
 
-  const [overview, setOverview] = useState<StatusOverview | null>(null);
+  const { overview, error: statusRefreshError } = useStatusOverviewRefresh();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/status/overview")
-      .then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json() as Promise<StatusOverview>;
-      })
-      .then(setOverview)
-      .catch(() => setOverview(null));
-  }, []);
-
-  const serviceIsOk = (name: string) =>
-    Boolean(overview?.services.find((service) => service.name === name)?.ok);
+  const minimaService = findService(overview, "minima");
+  const integritasService = findService(overview, "integritas");
 
   const [updateAvailable, setUpdateAvailable] = useState(false);
   useUpdateStatusRefresh((status) => {
@@ -183,9 +206,20 @@ export function AppShell({
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <StatusBadge ok={serviceIsOk("backend")}>Node online</StatusBadge>
-                <StatusBadge ok={serviceIsOk("minima")}>Wallet ready</StatusBadge>
-                <StatusBadge ok={serviceIsOk("integritas")}>Integritas connected</StatusBadge>
+                <StatusDot label="Node" tone={serviceTone(minimaService)}>
+                  <ServiceDetail
+                    service={minimaService}
+                    generatedAt={overview?.generatedAt}
+                    refreshError={statusRefreshError}
+                  />
+                </StatusDot>
+                <StatusDot label="Integritas" tone={serviceTone(integritasService)}>
+                  <ServiceDetail
+                    service={integritasService}
+                    generatedAt={overview?.generatedAt}
+                    refreshError={statusRefreshError}
+                  />
+                </StatusDot>
               </div>
             </div>
             <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">

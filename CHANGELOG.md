@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- The header status pills on every page (previously "Node online"/"Wallet ready"/"Integritas connected", fetched once on page load and never refreshed) are now two clickable Node/Integritas status dots, bordered to match the secondary button style, that poll `/api/status/overview` every 30s, keep showing the last known status (flagged as stale) if a refresh fails instead of silently going blank, and open a popover with status detail, error text, and last-checked time on click. The old "Wallet" pill silently reused the Minima node's status and was dropped as redundant with the Dashboard's own wallet balance display.
 - Wallet settings (import wallet) and Minima node settings (megammr host, peer list/add) moved from page-level modals into Account Settings panels.
 - Minima's post-restart status retry window is extended from ~12s to up to 90s, matching the backend's own restart/resync operation-tracking window.
 - Peer connections list in Minima settings is now scrollable instead of growing the panel indefinitely.
