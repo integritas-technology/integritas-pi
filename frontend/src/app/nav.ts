@@ -3,7 +3,7 @@ import type { NavItem } from "./types";
 
 export const nav: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: Gauge },
-  { id: "setup", label: "Setup", icon: Settings },
+  // { id: "setup", label: "Setup", icon: Settings },
   { id: "node", label: "Minima Core", icon: RadioTower },
   { id: "wallet", label: "Wallet", icon: Wallet },
   { id: "integritas", label: "Integritas", icon: ShieldCheck },

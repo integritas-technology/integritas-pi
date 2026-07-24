@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Bug, Layers3, MessageSquare, ShieldCheck, Sparkles } from "lucide-react";
+import { Bug, LogOut, MessageSquare, Settings, ShieldCheck, Sparkles } from "lucide-react";
+import { APP_NAME, APP_TAGLINE } from "../app/brand";
 import { nav } from "../app/nav";
 import type { StatusOverview } from "../app/types";
 import { SidebarUserBox } from "../features/auth/SidebarUserBox";
@@ -10,6 +11,7 @@ import { FeedbackModal } from "../features/feedback/FeedbackModal";
 import { useStatusOverviewRefresh } from "../features/status/useStatusOverviewRefresh";
 import { useUpdateStatusRefresh } from "../features/update/useUpdateStatusRefresh";
 import { cx } from "../lib/cx";
+import { BrandMark } from "./BrandMark";
 import { Button } from "./Button";
 import { Card } from "./Card";
 import { Clock } from "./Clock";
@@ -44,6 +46,29 @@ function ServiceDetail({
         <p className="m-0 text-amber-600">Could not refresh — showing last known status.</p>
       )}
     </div>
+  );
+}
+
+function StatusDots({
+  minimaService,
+  integritasService,
+  generatedAt,
+  refreshError,
+}: {
+  minimaService: ReturnType<typeof findService>;
+  integritasService: ReturnType<typeof findService>;
+  generatedAt: string | undefined;
+  refreshError: string | null;
+}) {
+  return (
+    <>
+      <StatusDot label="Node" tone={serviceTone(minimaService)}>
+        <ServiceDetail service={minimaService} generatedAt={generatedAt} refreshError={refreshError} />
+      </StatusDot>
+      <StatusDot label="Integritas" tone={serviceTone(integritasService)}>
+        <ServiceDetail service={integritasService} generatedAt={generatedAt} refreshError={refreshError} />
+      </StatusDot>
+    </>
   );
 }
 
@@ -95,25 +120,73 @@ export function AppShell({
         <aside className="hidden w-72 shrink-0 border-r border-slate-200 bg-white p-2 lg:block">
           <div className="flex items-center gap-3 rounded bg-slate-950 p-4 text-white">
             <div className="flex size-11 items-center justify-center rounded bg-white/10">
-              <Layers3 size={24} />
+              <BrandMark size={32} />
             </div>
             <div>
-              <p className="m-0 text-[0.86rem] text-slate-400">Minima Edge Stack</p>
-              <h1 className="m-0 mt-0.5 text-base font-bold">Edge Workbench</h1>
+              <p className="m-0 text-[0.86rem] text-slate-400">{APP_TAGLINE}</p>
+              <h1 className="m-0 mt-0.5 text-base font-bold">{APP_NAME}</h1>
             </div>
           </div>
 
+          {/*
           <SidebarUserBox
             user={user}
             onSignOut={onSignOut}
             onSettings={() => navigate("/settings")}
           />
+          */}
+
+          <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-3">
+            <Clock />
+          </div>
+
+          <div className="mt-3 flex flex-wrap justify-center gap-2">
+            <StatusDots
+              minimaService={minimaService}
+              integritasService={integritasService}
+              generatedAt={overview?.generatedAt}
+              refreshError={statusRefreshError}
+            />
+          </div>
 
           <nav className="mt-3 grid gap-1">
-            {nav.map(({ id, label, icon: Icon, badge }) => (
+            <div className="grid gap-1 border-t border-slate-200 pt-2">
+              {nav.map(({ id, label, icon: Icon, badge }) => (
+                <NavLink
+                  key={id}
+                  to={`/${id}`}
+                  className={({ isActive }) =>
+                    cx(
+                      "flex w-full items-center justify-between rounded px-3 py-3 text-left text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950",
+                      isActive && "bg-slate-950 text-white hover:bg-slate-950 hover:text-white",
+                    )
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <span className="flex items-center gap-3 text-[0.92rem] font-semibold">
+                        <Icon size={19} />
+                        {label}
+                      </span>
+                      {badge && (
+                        <span
+                          className={cx(
+                            "rounded bg-violet-100 px-2 py-0.5 text-[0.63rem] font-extrabold text-violet-700",
+                            isActive && "bg-white/15 text-white",
+                          )}
+                        >
+                          {badge}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </div>
+
+            <div className="mt-2 grid gap-1 border-t border-slate-200 pt-2">
               <NavLink
-                key={id}
-                to={`/${id}`}
+                to="/settings"
                 className={({ isActive }) =>
                   cx(
                     "flex w-full items-center justify-between rounded px-3 py-3 text-left text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950",
@@ -121,26 +194,22 @@ export function AppShell({
                   )
                 }
               >
-                {({ isActive }) => (
-                  <>
-                    <span className="flex items-center gap-3 text-[0.92rem] font-semibold">
-                      <Icon size={19} />
-                      {label}
-                    </span>
-                    {badge && (
-                      <span
-                        className={cx(
-                          "rounded bg-violet-100 px-2 py-0.5 text-[0.63rem] font-extrabold text-violet-700",
-                          isActive && "bg-white/15 text-white",
-                        )}
-                      >
-                        {badge}
-                      </span>
-                    )}
-                  </>
-                )}
+                <span className="flex items-center gap-3 text-[0.92rem] font-semibold">
+                  <Settings size={19} />
+                  Account settings
+                </span>
               </NavLink>
-            ))}
+              <button
+                type="button"
+                onClick={onSignOut}
+                className="flex w-full items-center justify-between rounded px-3 py-3 text-left text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950"
+              >
+                <span className="flex items-center gap-3 text-[0.92rem] font-semibold">
+                  <LogOut size={19} />
+                  Sign out
+                </span>
+              </button>
+            </div>
           </nav>
 
           {updateAvailable && (
@@ -195,6 +264,7 @@ export function AppShell({
         </aside>
 
         <main className="min-w-0 flex-1 p-2 lg:p-2">
+          {/*
           <header className="flex flex-col gap-4 rounded border border-slate-200 bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
               <div className="flex items-center gap-3">
@@ -206,20 +276,12 @@ export function AppShell({
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <StatusDot label="Node" tone={serviceTone(minimaService)}>
-                  <ServiceDetail
-                    service={minimaService}
-                    generatedAt={overview?.generatedAt}
-                    refreshError={statusRefreshError}
-                  />
-                </StatusDot>
-                <StatusDot label="Integritas" tone={serviceTone(integritasService)}>
-                  <ServiceDetail
-                    service={integritasService}
-                    generatedAt={overview?.generatedAt}
-                    refreshError={statusRefreshError}
-                  />
-                </StatusDot>
+                <StatusDots
+                  minimaService={minimaService}
+                  integritasService={integritasService}
+                  generatedAt={overview?.generatedAt}
+                  refreshError={statusRefreshError}
+                />
               </div>
             </div>
             <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
@@ -231,9 +293,12 @@ export function AppShell({
               >
                 <MessageSquare size={16} /> Feedback
               </Button>
-              <Clock />
+              <div className="min-w-[210px] rounded-[20px] border border-slate-200 bg-white p-3 shadow-[0_12px_26px_rgba(15,23,42,0.05)]">
+                <Clock />
+              </div>
             </div>
           </header>
+          */}
 
           <div className="my-4 flex gap-2 overflow-x-auto pb-2 lg:hidden">
             {nav.map(({ id, label }) => (

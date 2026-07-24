@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Layers3, LogIn } from "lucide-react";
+import { ArrowLeft, ArrowRight, LogIn } from "lucide-react";
+import { APP_NAME, APP_TAGLINE } from "../../app/brand";
+import { BrandMark } from "../../components/BrandMark";
 import { ErrorText } from "../../components/Text";
 import { login } from "./api";
 import { TOTP_ENABLED } from "./totpEnabled";
@@ -62,11 +64,11 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
             className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white"
             aria-hidden="true"
           >
-            <Layers3 size={24} />
+            <BrandMark size={32} />
           </div>
           <div>
-            <p className="m-0 text-sm text-slate-500">Minima Edge Stack</p>
-            <h1 className="m-0 text-xl text-slate-950">Edge Workbench</h1>
+            <p className="m-0 text-sm text-slate-500">{APP_TAGLINE}</p>
+            <h1 className="m-0 text-xl text-slate-950">{APP_NAME}</h1>
           </div>
         </div>
 
