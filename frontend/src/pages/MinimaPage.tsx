@@ -1,5 +1,8 @@
 import { useCallback, useState } from "react";
+import { Settings } from "lucide-react";
 import type { MinimaNodeStatus } from "../app/types";
+import { Card } from "../components/Card";
+import { IconButton } from "../components/Button";
 import { Page } from "../components/Page";
 import { useToast } from "../components/ToastProvider";
 import {
@@ -7,6 +10,8 @@ import {
   resyncMegammr,
   restartMinimaContainer
 } from "../features/minima/minimaApi";
+import { MinimaConsolePanel } from "../features/minima/MinimaConsolePanel";
+import { MinimaConsoleWhitelistModal } from "../features/minima/MinimaConsoleWhitelistModal";
 import { MinimaContainerCard } from "../features/minima/MinimaContainerCard";
 import { MinimaHealthCard } from "../features/minima/MinimaHealthCard";
 import { mergeMinimaStatus } from "../features/minima/mergeMinimaStatus";
@@ -29,6 +34,7 @@ export function MinimaPage() {
   const [busy, setBusy] = useState(false);
   const [resyncing, setResyncing] = useState(false);
   const [restarting, setRestarting] = useState(false);
+  const [consoleWhitelistOpen, setConsoleWhitelistOpen] = useState(false);
 
   const handleStatus = useCallback((status: MinimaNodeStatus) => {
     setNodeStatus((previous) => mergeMinimaStatus(previous, status));
@@ -192,6 +198,25 @@ export function MinimaPage() {
           onRestart={runRestart}
         />
       </section>
+
+      <Card>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h3 className="m-0">RPC console</h3>
+            <p className="mt-1 text-sm text-slate-500">Run whitelisted Minima RPC commands and see the raw response.</p>
+          </div>
+          <IconButton
+            aria-label="Edit console command whitelist"
+            variant="secondary"
+            onClick={() => setConsoleWhitelistOpen(true)}
+          >
+            <Settings size={16} />
+          </IconButton>
+        </div>
+        <MinimaConsolePanel disabled={actionsBlocked} />
+      </Card>
+
+      {consoleWhitelistOpen && <MinimaConsoleWhitelistModal onClose={() => setConsoleWhitelistOpen(false)} />}
     </Page>
   );
 }

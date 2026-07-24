@@ -1,7 +1,9 @@
 import { Router } from "express";
-import { badRequest, dependencyUnavailable } from "../../shared/api-error.js";
+import { apiErrorFromStatus, badRequest, dependencyUnavailable, unauthorized, unexpected } from "../../shared/api-error.js";
 import { recordAuditEvent } from "../auth/audit.service.js";
 import { requireRole } from "../auth/auth.middleware.js";
+import { authRateLimiter } from "../auth/rate-limit.middleware.js";
+import { getConsoleWhitelist, MinimaConsoleError, runConsoleCommand, updateConsoleWhitelist } from "./minima-console.service.js";
 import { normalizeMinimaRpcError } from "./minima.errors.js";
 import {
   addMinimaPeers,
@@ -99,6 +101,40 @@ minimaRouter.post("/megammrsync/resync", async (_req, res) => {
     if (!result.ok) return dependencyUnavailable(res, "Megammr resync failed", undefined, undefined, result);
     res.json(result);
   } catch (error) {
+    const nativeMessage = error instanceof Error ? error.message : "Unknown error";
+    const message = normalizeMinimaRpcError(nativeMessage);
+    dependencyUnavailable(res, message, nativeMessage, undefined, { ok: false, source: "minima" });
+  }
+});
+
+minimaRouter.get("/console/whitelist", requireRole("admin"), (_req, res) => {
+  res.json(getConsoleWhitelist());
+});
+
+minimaRouter.post("/console/whitelist", requireRole("admin"), authRateLimiter, async (req, res) => {
+  if (!req.user) return unauthorized(res);
+  try {
+    const enabledKeys = Array.isArray(req.body?.enabledKeys) ? req.body.enabledKeys : [];
+    const currentPassword = typeof req.body?.currentPassword === "string" ? req.body.currentPassword : "";
+    const result = await updateConsoleWhitelist(req.user.id, { enabledKeys, currentPassword });
+    res.json(result);
+  } catch (error) {
+    if (error instanceof MinimaConsoleError) {
+      return apiErrorFromStatus(res, error.status, error.message);
+    }
+    unexpected(res, "Failed to update console whitelist", error);
+  }
+});
+
+minimaRouter.post("/console/run", requireRole("admin"), async (req, res) => {
+  try {
+    const command = typeof req.body?.command === "string" ? req.body.command : "";
+    const result = await runConsoleCommand(req.user?.id, command);
+    res.json(result);
+  } catch (error) {
+    if (error instanceof MinimaConsoleError) {
+      return apiErrorFromStatus(res, error.status, error.message);
+    }
     const nativeMessage = error instanceof Error ? error.message : "Unknown error";
     const message = normalizeMinimaRpcError(nativeMessage);
     dependencyUnavailable(res, message, nativeMessage, undefined, { ok: false, source: "minima" });

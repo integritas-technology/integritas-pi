@@ -86,6 +86,18 @@ export type MinimaRestartResult = {
   service: string;
   containerId: string;
 };
+export type MinimaConsoleCatalogEntry = {
+  key: string;
+  verb: string;
+  label: string;
+  kind: "read" | "write";
+  defaultEnabled: boolean;
+};
+export type MinimaConsoleWhitelist = {
+  catalog: MinimaConsoleCatalogEntry[];
+  enabledKeys: string[];
+};
+export type MinimaConsoleRunResult = MinimaCommandResult;
 export type IntegritasConfig = { baseUrl: string; requestId: string; hasApiKey: boolean; apiKeySource: "connect" | "database" | "environment" | "none"; portalUrl: string };
 export type StatusOverview = {
   generatedAt: string;

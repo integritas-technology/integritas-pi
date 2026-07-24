@@ -12,9 +12,8 @@
 
 ## Current Focus
 
-- [ ] Commit the pending `MinimaSettingsPanel` change on `fix/minima-sync-missmatch` (new file + `AuthSettingsPage.tsx`/`MinimaPage.tsx` edits) — typecheck/build clean, container verified, not yet `git commit`ed.
-- [ ] Manual browser click-through of `fix/minima-sync-missmatch` before merging: restart/resync from Minima Core, Dashboard tile during restart, Wallet page gating/spinners/auto-repoll, and the new Wallet-settings/Minima-node-settings panels on Account settings — no authenticated browser session was available to click-test this session.
-- [ ] `CHANGELOG.md` `[Unreleased]` section now exists but only covers the peers-toast fix (see Done) — still needs entries for `fix/minima-sync-missmatch`'s other user-facing changes (Minima restart/resync UX, Wallet page gating, settings moved to Account settings).
+- [ ] Commit the Minima RPC console changes on `fix/minima-sync-missmatch` (new `minima-console.catalog.ts`/`minima-console.service.ts`/`MinimaConsolePanel.tsx`/`MinimaConsoleWhitelistModal.tsx`/`minimaConsoleApi.ts` + modified routes/page/types/docs) — typecheck/build/container-health verified, not yet `git commit`ed.
+- [ ] Manual browser click-through of the full `fix/minima-sync-missmatch` branch before merging: restart/resync from Minima Core, Dashboard tile during restart, Wallet page gating/spinners/auto-repoll, the Wallet-settings/Minima-node-settings panels, and the new RPC console (whitelist toggle with correct/incorrect PIN, whitelisted read command, rejected non-whitelisted command, `megammrsync`/`peers action:addpeers` parity with their existing buttons) — no authenticated browser session has been available in any session on this branch.
 
 ## In Progress
 
@@ -23,10 +22,9 @@
 
 ## Next
 
-- [ ] Minima RPC console on the Minima Core page — see `docs/plans/minima-rpc-console.md`.
 - [ ] Document the `DEV_MODE` install flag in `README.md`'s runtime-config section and note its manifest-signature-verification bypass in `SECURITY.md`/`docs/security/host-and-infrastructure.md` — flagged during code review, deliberately deferred as a separate concern from the pagination work.
 - [ ] Consider a shared Minima-node-state hook/context: `WalletPage`, `WalletSettingsPanel`, and `MinimaSettingsPanel` each run their own independent `useMinimaStatusRefresh` subscription today (accepted duplication, no shared store exists yet).
-- [ ] Check whether `README.md` needs updating now that Account settings gained Wallet settings and Minima node settings sections (moved off `WalletPage`/`MinimaPage`).
+- [ ] Sanity-check two catalog exclusions added beyond `docs/plans/minima-rpc-console.md`'s named list during `help`-output reconciliation: `createtokenfrom` (same raw-`privatekey:` risk as the named `*from` commands) and `decryptbackup` (can turn an encrypted backup into plaintext key material) — see `docs/SESSION.md` Notes for reasoning.
 
 ## Done
 
@@ -52,6 +50,8 @@
 - [x] Fixed Wallet page going stale after a resync/restart performed from another page by auto-refreshing balance/assets/history on the node's return to `"running"`.
 - [x] Moved Wallet settings and Minima node settings out of page-level modals into new `WalletSettingsPanel`/`MinimaSettingsPanel` cards on the Account settings page; removed the now-unused settings buttons/modals from `WalletPage.tsx`/`MinimaPage.tsx`. (Still needs a commit — see Current Focus.)
 - [x] Fixed a false-positive "Failed to load peers" toast on Account Settings: `MinimaSettingsPanel` now only fetches peers once the node is confirmed `"running"` (reusing the existing `actionsBlocked` gate) instead of fetching unconditionally on mount, so a user-triggered resync/restart no longer surfaces the toast as a false error.
+- [x] Moved Address book from a Wallet page modal into its own tab; made the peer connections list in Minima settings scrollable; `CHANGELOG.md` `[Unreleased] fix/minima-sync-missmatch` section now covers all of this branch's user-facing changes to date.
+- [x] Implemented the Minima RPC console on the Minima Core page: admin-curated, closed-world checkbox whitelist (96 catalog entries reconciled against Minima's live `help` output) with re-auth-gated whitelist edits and a terminal-style scrollback; `megammrsync`/`peers action:addpeers` dispatch through the existing narrow actions — see `docs/plans/minima-rpc-console.md` and `docs/security/host-and-infrastructure.md`. Typecheck/build/container-health verified; not yet committed or click-tested (see Current Focus).
 
 ## Ideas
 

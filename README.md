@@ -612,6 +612,16 @@ POST /api/minima/peers/add
 
 `POST /api/minima/restart` restarts the Minima Docker container via the backend Docker socket (see `SECURITY.md`). `POST /api/minima/peers/add` accepts `{ "peerslist": "host:port" }` or comma-separated addresses and calls Minima `peers action:addpeers`.
 
+Minima RPC console (admin session required for all three):
+
+```http
+GET /api/minima/console/whitelist
+POST /api/minima/console/whitelist
+POST /api/minima/console/run
+```
+
+The RPC console on the Minima Core page runs a typed Minima RPC command string only if it is both in the backend's static command catalog and enabled in the admin whitelist — it is not a generic RPC proxy (see `.agents/rules/minima.md` and `docs/security/host-and-infrastructure.md`). `GET /api/minima/console/whitelist` returns the catalog and currently enabled command keys. `POST /api/minima/console/whitelist` accepts `{ "enabledKeys": string[], "currentPassword": string }` and requires re-entering the admin PIN/password, same as changing the admin credential. `POST /api/minima/console/run` accepts `{ "command": string }` (the exact RPC command text, e.g. `status` or `peers action:addpeers peerslist:host:port`) and returns the RPC/action result.
+
 Wallet and account APIs:
 
 ```http

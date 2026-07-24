@@ -21,6 +21,30 @@ Plan:
 
 Status: Open. Accepted only for prototype operator convenience.
 
+## Minima RPC Console
+
+Risk: The RPC console (`backend/src/features/minima/minima-console.catalog.ts`, `minima-console.service.ts`, `POST /api/minima/console/run`) lets an admin type and run raw Minima RPC command strings, replicating the feel of Minima's own Terminal MiniDapp. A free-text RPC proxy would let any authenticated admin session run `vault` (dumps the seed phrase/private keys in the response) or `sendfrom`/`signfrom`/`createfrom`/`postfrom`/`createtokenfrom` (accept a raw private key as a request argument), and `quit` would halt the node with no UI recovery path.
+
+Impact: Uncontrolled RPC access could leak wallet secrets to the browser/client, allow direct fund movement bypassing normal UI safeguards, or take the node down.
+
+Current Controls:
+
+- Closed-world catalog: nothing runs unless it is both listed in the static `minimaConsoleCatalog` array and enabled in the admin whitelist (`minima_console_whitelist` setting). No request body can whitelist a command outside the catalog — `updateConsoleWhitelist` rejects unknown keys.
+- `vault`, `sendfrom`, `signfrom`, `createfrom`, `postfrom`, `createtokenfrom`, `decryptbackup`, `keys`, and `quit` have no catalog entry at all for v1, so no whitelist edit can ever enable them. The first six can expose or accept a raw wallet private key or seed phrase; `quit` can shut the node down with no in-UI recovery.
+- Every other catalog command defaults to enabled only if it is read-only (no side effects); anything that can mutate funds, chain state, config, network, or the wallet defaults to disabled and must be explicitly turned on.
+- Whitelist edits (`POST /api/minima/console/whitelist`) require re-entering the admin PIN/password, the same re-auth pattern `changePassword` uses, and are rate-limited (`authRateLimiter`). This raises the bar against a hijacked-but-not-credentialed session; it does not help if the admin credential itself is compromised (accepted, user-level risk).
+- `GET`/`POST /api/minima/console/whitelist` and `POST /api/minima/console/run` all require an admin session (`requireRole("admin")`).
+- Where a whitelisted command already has a dedicated narrow backend action (`megammrsync` → `resyncMegammr()`, `peers action:addpeers` → `addMinimaPeers()`), the console dispatches to that same function instead of re-implementing the RPC call, so operation-tracking, audit logging, and error normalization stay a single source of truth.
+- Audit events record which command verb ran (`minima.console.run`) and which whitelist keys changed (`minima.console.whitelist_updated`), never the raw RPC response body — consistent with how the rest of the codebase avoids persisting secrets in audit logs.
+- The frontend scrollback (command + response) is held in local React state only, never written to `localStorage`, and is cleared on unmount/reload.
+
+Plan:
+
+- Revisit `keys` (whether its response can ever include private key material) and `decryptbackup`/`vault`/the `*from` family before ever considering them for the catalog.
+- If any excluded command is ever added later, add response redaction before persisting or displaying it — not just gate it behind the whitelist.
+
+Status: Mitigated via closed-world catalog + re-auth-gated whitelist + hard exclusions. See `.agents/rules/minima.md`.
+
 ## Update Agent Docker Socket Mount
 
 Risk: The `update-agent` service mounts `/var/run/docker.sock` to pull images by digest and recreate `frontend`/`backend`/`minima` containers during an update. Docker socket access is host-root-equivalent: any process holding the mount can start a privileged or host-mounted container regardless of whether the socket is reachable over the network.
