@@ -12,7 +12,9 @@
 
 ## Current Focus
 
-- [ ] Merge `chore/workflow-pagination` into `main` — a manual browser pass through Diagnostics pagination (proofs/reads/workflow-runs) is recommended first; full E2E wasn't run this session (TOTP-gated setup flow, out of scope for automated verification).
+- [ ] Commit the pending `MinimaSettingsPanel` change on `fix/minima-sync-missmatch` (new file + `AuthSettingsPage.tsx`/`MinimaPage.tsx` edits) — typecheck/build clean, container verified, not yet `git commit`ed.
+- [ ] Manual browser click-through of `fix/minima-sync-missmatch` before merging: restart/resync from Minima Core, Dashboard tile during restart, Wallet page gating/spinners/auto-repoll, and the new Wallet-settings/Minima-node-settings panels on Account settings — no authenticated browser session was available to click-test this session.
+- [ ] Add a `CHANGELOG.md` `[Unreleased]` section for `fix/minima-sync-missmatch`'s user-facing changes (Minima restart/resync UX, Wallet page gating, settings moved to Account settings) — currently missing entirely.
 
 ## In Progress
 
@@ -22,6 +24,8 @@
 ## Next
 
 - [ ] Document the `DEV_MODE` install flag in `README.md`'s runtime-config section and note its manifest-signature-verification bypass in `SECURITY.md`/`docs/security/host-and-infrastructure.md` — flagged during code review, deliberately deferred as a separate concern from the pagination work.
+- [ ] Consider a shared Minima-node-state hook/context: `WalletPage`, `WalletSettingsPanel`, and `MinimaSettingsPanel` each run their own independent `useMinimaStatusRefresh` subscription today (accepted duplication, no shared store exists yet).
+- [ ] Check whether `README.md` needs updating now that Account settings gained Wallet settings and Minima node settings sections (moved off `WalletPage`/`MinimaPage`).
 
 ## Done
 
@@ -42,6 +46,10 @@
 - [x] Added structured app/API error helpers, frontend parser support, and high-impact route conversion for Data Sources/Webhook, Automation/read-history, auth/setup, and Integritas actions — see `docs/plans/app-api-error-handling.md`.
 - [x] Completed active route-level structured app/API error response migration for address book, feedback, files, wallet, tokens, Minima, Integritas Connect auth, and data-source health failures — see `docs/plans/app-api-error-handling.md`.
 - [x] Documented structured backend/frontend error-handling rules in `.agents/rules/` and synced the `.claude/` and `.cursor/` counterparts.
+- [x] Fixed the Minima Core "Syncing" false-status root cause and added a durable backend-owned `"restarting"` node state, friendlier RPC errors, and adaptive status polling — see `docs/plans/minima-restart-resync-status.md` (branch `fix/minima-sync-missmatch`).
+- [x] Synced Dashboard wallet display and polling to node state; disabled Minima Core and Wallet page actions until the node is confirmed running/idle; added loading indicators (dots/spinner) in place of stale or misleading values across Minima Core, Dashboard, and Wallet.
+- [x] Fixed Wallet page going stale after a resync/restart performed from another page by auto-refreshing balance/assets/history on the node's return to `"running"`.
+- [x] Moved Wallet settings and Minima node settings out of page-level modals into new `WalletSettingsPanel`/`MinimaSettingsPanel` cards on the Account settings page; removed the now-unused settings buttons/modals from `WalletPage.tsx`/`MinimaPage.tsx`. (Still needs a commit — see Current Focus.)
 
 ## Ideas
 

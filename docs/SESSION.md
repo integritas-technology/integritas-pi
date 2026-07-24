@@ -4,39 +4,36 @@ Scratch log for the session in progress. Update it as you go; reset it when a se
 
 ## Progress
 
-- Implemented Diagnostics "Workflow logs" tab pagination/filtering/search (backend + frontend), matching the existing proofs/reads pattern — see `docs/plans/workflow-runs-pagination.md` (now Implemented).
-- Fixed the "Raw details" panel rendering at the table bottom instead of inline below its row.
-- Changed the default Diagnostics page size from 50 to 25 and fixed a bug where it silently fell back to 10 instead.
-- Unified a single lightweight refresh button across all three Diagnostics tabs.
-- Added indexes on `automation_runs`/`automation_block_runs`; verified via `EXPLAIN QUERY PLAN`.
-- Ran a multi-agent code review + security review of the branch; security review came back clean.
-- Fixed 7 of the 10 code-review findings (shared backend pageSize=0 bug, duplicated tab-dispatch logic, an orphaned API route, a stale hardcoded default, dead code, refresh-icon busy-state conflation, empty `CHANGELOG.md [Unreleased]`).
-- Duplicated `.agents/` → `.claude/` and `AGENTS.md` → `CLAUDE.md`, with a sync notice in both against drift.
-- Added `commit-message` and `session-notes` skills, mirrored in both `.claude/skills/` and `.agents/skills/`.
-- Added Pi Camera capture devices and a `Capture camera` automation data block that hashes captured media bytes, stores metadata in read history, and can attach Integritas stamping.
-- Pivoted camera execution to an opt-in host-side Python camera helper service so Raspberry Pi camera commands use the host camera stack instead of the backend container.
-- Updated installer/env/Compose docs for `ENABLE_CAMERA=true`, camera helper setup, capture retention, and camera privacy/security notes.
-- Implemented structured operational errors for data sources, data reads, automation runs, and block runs while preserving legacy string-error compatibility.
-- Stopped downstream workflow/block failures from overwriting trigger data-source errors; GPIO/MQTT workflow execution failures now stay in workflow logs while source-level failures remain on the source.
-- Added frontend error normalization and `ErrorDetails` views for Devices, read history, and workflow run/block failures.
-- Added shared API error helpers and converted high-impact Data Sources/Webhook routes to return structured app/API details while keeping top-level string compatibility.
-- Verified `npm --prefix backend run build`, `npm --prefix frontend run build`, and `npm run check` through typecheck/tests; `npm run check` still fails at `audit:moderate` due to existing dependency advisories.
-- Manual test pass confirmed the GPIO-trigger/camera-failure attribution fix: the GPIO source stayed clean while the workflow/block logs carried the camera failure details.
-- Extended structured app/API responses to Automation/read-history, auth/setup/auth middleware, and Integritas action routes while preserving compatibility fields used by the frontend.
-- Completed structured app/API response migration for active route-level error responses, including address book, feedback, files, wallet, tokens, Minima, Integritas Connect auth, and data-source health failures.
-- Documented the new backend/frontend error-handling conventions in `.agents/rules/`, `.claude/rules/`, and `.cursor/rules/` so future edits use the structured error helpers and UI patterns.
+Branch `fix/minima-sync-missmatch`, verified locally via Docker Compose (`docker compose build <service> && docker compose up -d <service>`) against `https://localhost:8080` — no authenticated browser session available, so verification has been typecheck/build/container-health only, never live click-through. `npm run dev` was tried but has flaky interactions with the restart/resync/status polling flows, so Docker rebuild+redeploy is the agreed verification path for this branch, even though it costs more time per change.
+
+- Fixed the root cause of Minima Core showing "Syncing" when already up to date: `deriveSyncStatus` (`backend/src/features/minima/minima.parse.ts`) was conflating peer-connectivity with chain-sync; simplified to rely only on `rpcOk`/`blockAgeSeconds`.
+- Added a durable backend-owned `"restarting"` node state (`MinimaNodeState`) so restart/resync-in-progress is visible from any page/after navigation, not just page-local React state — see `docs/plans/minima-restart-resync-status.md`. Backend tracks operation start/expiry in `minima-monitoring.ts` (`beginMinimaOperation`/`endMinimaOperation`/`isMinimaOperationInProgress`, 120s window) and overrides computed node state in `minima.service.ts`.
+- Applied `normalizeMinimaRpcError()` uniformly across Minima RPC routes (not just `/status`) for friendlier error text instead of raw RPC/abort messages.
+- Made Minima status polling adaptive: 3s while `"restarting"`, 30s otherwise (`useMinimaStatusRefresh.ts`), applied to both the Minima Core page and the Dashboard.
+- Merged the Dashboard's separate node/wallet polling loops into one `tick()` so wallet balance display follows node state one-way (loading/"Unavailable" instead of a stale or misleading value), on the same cadence as node polling.
+- Disabled Minima Core page's Resync/Restart buttons until status is confirmed loaded and not already mid-operation.
+- Moved the restart/resync "operation in progress" message into a page-level amber banner (was buried in a card footer), sourced from backend truth so it survives navigation.
+- Fixed a timing gap between the restart-complete toast and the UI already showing recovered status: extended `refreshAfterOperation`'s retry budget from ~12s to 90s (backend's own operation window is 120s).
+- UI polish pass on the Minima Core page: restyled "View RPC debug" as a full-width secondary button with icon (always visible, disabled when no data); moved Restart/Resync buttons to card footers with matching full-width secondary-button styling; removed hover-lift effect on summary cards; moved the "Checked at" timestamp from the Node health card to the Minima card; fixed an empty-header-space bug left behind by that move.
+- Standardized `LoadingDots` to a fixed `bg-slate-400` (was `bg-current`, which inherited inconsistent colors per call site).
+- Disabled all Wallet page functionality (Receive/Send/Create token/Import wallet) while Minima isn't confirmed `"running"`, using an `actionsBlocked` (gates buttons) vs `minimaConfirmedUnavailable` (gates the warning banner) split — the split exists specifically so the banner doesn't flash "unavailable" during the initial unconfirmed/loading window when the node is actually fine.
+- Replaced the Wallet hero's raw/zero balance with `LoadingDots`, and added a spinner (`Loader2`, matching `ProgressModal`'s existing spinner pattern, sized `size-10`) for the Assets and History sections whenever loading or `actionsBlocked`.
+- Fixed Wallet page going stale after a resync/restart done from the Minima Core page while Wallet stayed mounted: added a ref-tracked previous-Minima-state check in `WalletPage.tsx` that calls `refresh()` (reloads balance/assets/history) the moment `minimaState` transitions from any non-`running` value back to `"running"`.
+- Moved Wallet settings (Import wallet / Export-coming-soon) out of a `WalletPage` modal into a new self-contained `WalletSettingsPanel` card on the Account settings page (`AuthSettingsPage.tsx`), following the existing `IntegritasConnectPanel` pattern; removed the settings icon button and modal from `WalletPage.tsx`.
+- Moved Minima node settings (megammr host config, peer connections/add-peers) out of a `MinimaPage` modal into a new `MinimaSettingsPanel` card on the Account settings page, reusing the existing `MinimaRuntimeConfig` presentational component; removed the settings icon button, modal, and all related state/handlers from `MinimaPage.tsx`. **Not yet committed** — this is the very last change made this session.
+- Both new settings panels (`WalletSettingsPanel`, `MinimaSettingsPanel`) independently call `useMinimaStatusRefresh` and derive their own `actionsBlocked`/`minimaConfirmedUnavailable` locally — there is no shared Minima-state store/context yet, so each consumer polls and derives on its own (confirmed via research agent; documented as a known duplication, not an oversight).
 
 ## Next Steps
 
-- Manual browser pass through all three Diagnostics tabs (pagination, filters, search, refresh) before merging — not click-tested live this session due to the TOTP-gated setup flow.
-- Decide whether to merge `chore/workflow-pagination` into `main` now or fold in the deferred README/SECURITY `DEV_MODE` doc note first.
-- Verify camera capture on real Raspberry Pi hardware with the host camera helper and host `rpicam-still`/`libcamera-still` camera stack.
-- Review whether status payloads that embed service errors should eventually use structured nested error details; they are not HTTP error responses today.
+- Commit the pending `MinimaSettingsPanel` change (`frontend/src/features/minima/MinimaSettingsPanel.tsx` new, `frontend/src/pages/AuthSettingsPage.tsx` + `frontend/src/pages/MinimaPage.tsx` modified) — typecheck/build clean, container rebuilt and healthy, but not yet `git commit`ed.
+- `CHANGELOG.md` has no `[Unreleased]` section — none of this branch's user-facing Minima/Wallet/Settings changes are logged yet. Per `.claude/rules/documenting-work.md` this should be added before the branch is considered done.
+- Manual click-through verification is still outstanding for the whole branch (no authenticated browser session was available this session): restart/resync from Minima Core, Dashboard tile behavior during restart, Wallet page gating/spinners/auto-repoll, and the two new Account-settings panels (Wallet settings import flow, Minima node settings save/add-peers) all need a real pass.
+- Consider whether a shared Minima-node-state hook/context is worth building now that three consumers (`WalletPage`, `WalletSettingsPanel`, `MinimaSettingsPanel`, plus `MinimaPage`/`DashboardPage`) each run their own `useMinimaStatusRefresh` subscription — currently accepted duplication, not yet a problem, but worth a second look if a fourth consumer shows up.
+- README.md may need an update if the Account settings page gained enough surface area (Wallet settings, Minima node settings) to warrant documenting in the operational/API-usage sections — not checked yet this session.
 
 ## Notes / Open Questions
 
-- Deliberately left unfixed from the code review: unescaped `%`/`_` in the new LIKE search (matches an existing pattern in `dataReads.repository.ts`/`integritas.repository.ts`; fixing it would mean touching unrelated pre-existing files); the free-text search index-coverage gap (needs FTS5, a real feature, not a cleanup); the `DEV_MODE` docs gap in `README.md`/`SECURITY.md` (separate concern from this branch).
-- Considered adding a `docs/MEMORY.md` file; decided against it — the need is already covered by `docs/notes/*.md` (deferred items), `docs/plans/*.md` (active work), and `CHANGELOG.md` (shipped history).
-- Audit gate currently reports advisories for `body-parser`, `brace-expansion`, `esbuild`, `multer`, and `tar` via `@mapbox/node-pre-gyp`; code/type/test verification passed before audit.
-- Active route-level API error responses now use the shared structured helpers. The remaining grep hits are successful `201` responses, commented-out old Integritas API-key code, or non-HTTP-error status payload entries.
-- `.claude/rules/backend.md`, `.claude/rules/frontend.md`, `.cursor/rules/backend.mdc`, and `.cursor/rules/frontend.mdc` were brought back in sync with their `.agents/rules/` counterparts while adding the error rules.
+- Architecture principle applied throughout: backend is the sole source of truth for "operation in progress" and node state; frontend pages/panels are thin pollers/renderers, never competing local state.
+- User's explicit governing rule for all enable/disable logic: "we only want to allow button presses when we are 100% sure we are in a state it will be useful."
+- User's explicit process preference: one page/component at a time, verify (typecheck + build + Docker rebuild/redeploy), then move on — an earlier multi-page bundled change broke and had to be reverted.
+- `npm run dev` is known to interact badly with the restart/resync/status polling flows in this environment — use `docker compose build <service> && docker compose up -d <service>` for verification on this branch instead, even though the user is otherwise running the app via `npm run dev` day-to-day.
