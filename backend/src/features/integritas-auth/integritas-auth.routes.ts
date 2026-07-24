@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { Response } from "express";
+import { apiErrorFromStatus, unexpected } from "../../shared/api-error.js";
 import { recordAuditEvent } from "../auth/audit.service.js";
 import {
   IntegritasAuthServiceError,
@@ -13,13 +14,13 @@ export const integritasUserRouter = Router();
 
 function sendServiceError(res: Response, error: unknown) {
   if (error instanceof IntegritasAuthServiceError) {
-    return res.status(error.status).json({
+    return apiErrorFromStatus(res, error.status, error.message, {
       success: false,
       message: error.message,
       ...(error.code ? { errorCode: error.code } : {}),
     });
   }
-  return res.status(500).json({
+  return unexpected(res, error instanceof Error ? error.message : "Integritas auth request failed", error, undefined, {
     success: false,
     message: error instanceof Error ? error.message : "Integritas auth request failed",
   });

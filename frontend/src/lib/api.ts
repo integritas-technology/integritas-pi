@@ -1,4 +1,7 @@
-export type ApiError = Error & { status?: number; errorCode?: string };
+import type { UiError } from "./errors";
+import { normalizeError } from "./errors";
+
+export type ApiError = Error & { status?: number; errorCode?: string; details?: UiError };
 
 let onUnauthorized: (() => void) | null = null;
 
@@ -27,14 +30,16 @@ async function parseResponse<T>(response: Response): Promise<T> {
     if (onUnauthorized && shouldForceLogin(response.status, response.url, parsed)) {
       onUnauthorized();
     }
+    const details = normalizeError(parsed, `HTTP ${response.status}`);
     const error = new Error(
       typeof parsed.error === "string"
         ? parsed.error
         : typeof parsed.message === "string"
           ? parsed.message
-          : `HTTP ${response.status}`
+          : details.message
     ) as ApiError;
     error.status = response.status;
+    error.details = details;
     if (typeof parsed.errorCode === "string") error.errorCode = parsed.errorCode;
     throw error;
   }

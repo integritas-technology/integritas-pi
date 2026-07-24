@@ -12,13 +12,13 @@ A Raspberry Pi Docker Compose prototype that lets an operator run a Minima node,
 ## Core Value
 
 - API-first architecture: one backend serves the browser UI and the CLI, so there is one source of truth for business logic.
-- Automation workflows connect data sources (HTTP, webhook, MQTT, GPIO) directly to Integritas stamping without custom scripting.
+- Automation workflows connect data sources and capture devices (HTTP, webhook, MQTT, GPIO, Pi Camera) directly to Integritas stamping without custom scripting.
 - Self-hosted: no cloud dependency beyond the Integritas API itself.
 
 ## Key Features
 
 - Manual file stamping and verification through Integritas.
-- Automation workflows: collect data (poll/webhook/MQTT/GPIO) then optionally stamp it.
+- Automation workflows: collect data (poll/webhook/MQTT/GPIO), capture Pi Camera media, then optionally stamp it.
 - Minima node wallet, tokens, peers, and status monitoring.
 - Read-only host file browser.
 - First-run setup wizard, local admin auth (6-digit PIN or 8+ character password with uppercase, lowercase, a number, and a symbol), audit log.

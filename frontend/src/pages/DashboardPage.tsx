@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import type { ReactNode } from 'react';
-import type { LucideIcon } from 'lucide-react';
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import type { ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 import {
   Cpu,
   Database,
@@ -12,29 +12,28 @@ import {
   ShieldCheck,
   Wallet,
   Zap,
-} from 'lucide-react';
-import { Button } from '../components/Button';
-import { Card } from '../components/Card';
-import { DarkHeroCard } from '../components/DarkHeroCard';
-import { Page } from '../components/Page';
-import { Pill } from '../components/Pill';
-import { ErrorText, Eyebrow, MutedText } from '../components/Text';
-import { listDataReads } from '../features/data-reads/dataReadsApi';
-import type { DataSourceRead } from '../features/data-reads/dataReadTypes';
-import { getHistory } from '../features/integritas/integritasApi';
-import type { IntegritasProofRecord } from '../features/integritas/integritasTypes';
-import { useIntegritasHistoryAutoRefresh } from '../features/integritas/useIntegritasHistoryAutoRefresh';
-import { getDeviceStatus } from '../features/status/statusApi';
-import type {
-  DeviceNodeState,
-  DeviceStatus,
-} from '../features/status/statusTypes';
-import { getWalletStatus } from '../features/wallet/walletApi';
-import { LoadingDots } from '../components/LoadingDots';
-import { MinimaIcon } from '../components/MinimaIcon';
-import { cx } from '../lib/cx';
-import { formatAmountThreshold } from '../lib/format';
-import { formatLocalTime } from '../lib/time';
+} from "lucide-react";
+import { Button } from "../components/Button";
+import { Card } from "../components/Card";
+import { DarkHeroCard } from "../components/DarkHeroCard";
+import { Page } from "../components/Page";
+import { Pill } from "../components/Pill";
+import { ErrorText, Eyebrow, MutedText } from "../components/Text";
+import { listDataReads } from "../features/data-reads/dataReadsApi";
+import type { DataSourceRead } from "../features/data-reads/dataReadTypes";
+import { getHistory } from "../features/integritas/integritasApi";
+import type { IntegritasProofRecord } from "../features/integritas/integritasTypes";
+import { useIntegritasHistoryAutoRefresh } from "../features/integritas/useIntegritasHistoryAutoRefresh";
+import { getDeviceStatus } from "../features/status/statusApi";
+import type { DeviceNodeState, DeviceStatus } from "../features/status/statusTypes";
+import { getWalletStatus } from "../features/wallet/walletApi";
+import { LoadingDots } from "../components/LoadingDots";
+import { MinimaIcon } from "../components/MinimaIcon";
+import { cx } from "../lib/cx";
+import { formatAmountThreshold } from "../lib/format";
+import { formatLocalTime } from "../lib/time";
+import { APP_NAME } from "../app/names";
+import { DashboardNextAction } from "./DashboardNextAction";
 
 const DASHBOARD_POLL_INTERVAL_MS = 30_000;
 const STATUS_RESTARTING_INTERVAL_MS = 3_000;
@@ -50,61 +49,28 @@ type ActivityItem = {
 
 const useCaseSteps = [
   {
-    number: '01',
-    title: 'Connect data',
-    text: 'Sensor, file, API, webhook, or device log',
+    number: "01",
+    title: "Connect data",
+    text: "Sensor, file, API, webhook, or device log",
     icon: Database,
   },
   {
-    number: '02',
-    title: 'Prove data',
-    text: 'Integritas timestamp, integrity check, and provenance',
+    number: "02",
+    title: "Prove data",
+    text: "Integritas timestamp, integrity check, and provenance",
     icon: ShieldCheck,
   },
   {
-    number: '03',
-    title: 'Trigger action',
-    text: 'Run workflows from data, proofs, or token events',
+    number: "03",
+    title: "Trigger action",
+    text: "Run workflows from data, proofs, or token events",
     icon: Zap,
   },
   {
-    number: '04',
-    title: 'Settle value',
-    text: 'Wallet payments, token access, and future marketplace revenue',
+    number: "04",
+    title: "Settle value",
+    text: "Wallet payments, token access, and future marketplace revenue",
     icon: Wallet,
-  },
-];
-
-const buildSteps = [
-  {
-    number: '1',
-    title: 'Deploy Edge Stack',
-    text: 'Install the Raspberry Pi Edition bundle and open Edge Workbench.',
-  },
-  {
-    number: '2',
-    title: 'Create wallet',
-    text: 'Create or import a Minima wallet for payments, tokens, and future marketplace revenue.',
-  },
-  {
-    number: '3',
-    title: 'Connect data',
-    text: 'Bring in sensor streams, device logs, local files, or APIs.',
-  },
-  {
-    number: '4',
-    title: 'Verify with Integritas',
-    text: 'Timestamp and attest selected data so it can be trusted.',
-  },
-  {
-    number: '5',
-    title: 'Automate events',
-    text: 'Trigger actions when payments, tokens, data, or proofs change.',
-  },
-  {
-    number: '6',
-    title: 'Build the use case',
-    text: 'Combine node, wallet, data, proof, and automation tools into a working edge workflow.',
   },
 ];
 
@@ -131,7 +97,7 @@ export function DashboardPage() {
           if (cancelled) return;
           setDeviceStatus(status);
 
-          if (status.node.state === 'restarting') {
+          if (status.node.state === "restarting") {
             setWalletLoading(true);
             setWalletBalance(null);
             timer = window.setTimeout(tick, STATUS_RESTARTING_INTERVAL_MS);
@@ -142,7 +108,7 @@ export function DashboardPage() {
             .then((ws) => {
               if (cancelled) return;
               const native = ws.tokens.find((t) => t.isNative);
-              setWalletBalance(native?.confirmed ?? '0');
+              setWalletBalance(native?.confirmed ?? "0");
             })
             .catch(() => {
               if (cancelled) return;
@@ -161,10 +127,7 @@ export function DashboardPage() {
     };
     tick();
 
-    Promise.all([
-      getHistory({ page: 1, pageSize: 100 }),
-      listDataReads({ page: 1, pageSize: 100 }),
-    ])
+    Promise.all([getHistory({ page: 1, pageSize: 100 }), listDataReads({ page: 1, pageSize: 100 })])
       .then(([proofHistory, readHistory]) => {
         setProofs(proofHistory.items);
         setReads(readHistory.items);
@@ -183,11 +146,11 @@ export function DashboardPage() {
 
   return (
     <Page
-      eyebrow='Dashboard'
-      title='Minima Edge Workbench'
-      desc='A browser-first workspace for trusted data, proofs, automation, and value flows at the edge.'
+      eyebrow="Dashboard"
+      title={APP_NAME}
+      desc="A browser-first workspace for trusted data, proofs, automation, and value flows at the edge."
     >
-      <DarkHeroCard className='items-start lg:grid-cols-[1.35fr_0.65fr]'>
+      {/* <DarkHeroCard className='items-start lg:grid-cols-[1.35fr_0.65fr]'>
         <div className='relative z-10 grid content-start gap-[18px]'>
           <div className='flex flex-wrap gap-2'>
             <Pill>Pi Edition</Pill>
@@ -224,50 +187,35 @@ export function DashboardPage() {
             </article>
           ))}
         </div>
-      </DarkHeroCard>
+      </DarkHeroCard> */}
+
+      <DashboardNextAction />
 
       <DeviceStatusCard status={deviceStatus} walletBalance={walletBalance} walletLoading={walletLoading} />
 
-      <Card className='grid gap-5'>
-        <div>
-          <Eyebrow>Build flow</Eyebrow>
-          <h3 className='my-2 text-2xl text-slate-950'>From setup to trusted edge workflow</h3>
-          <MutedText className='m-0'>
-            Each step has one job: deploy, connect, prove, automate, then build.
-          </MutedText>
-        </div>
-        <div className='grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]'>
-          {buildSteps.map((step) => (
-            <article className='grid grid-cols-[auto_minmax(0,1fr)] gap-3.5 rounded-[20px] border border-slate-200 bg-slate-50 p-4' key={step.number}>
-              <span className='grid size-[34px] place-items-center rounded-[13px] bg-slate-950 font-black text-white'>{step.number}</span>
-              <div>
-                <strong>{step.title}</strong>
-                <MutedText className='m-0 mt-1.5 leading-relaxed'>{step.text}</MutedText>
-              </div>
-            </article>
-          ))}
-        </div>
-      </Card>
-
-      <Card className='grid gap-5'>
+      <Card className="grid gap-5">
         <div>
           <Eyebrow>Live activity</Eyebrow>
-          <h3 className='my-2 text-2xl text-slate-950'>Events, attestations, and actions</h3>
-          <MutedText className='m-0'>
-            A clear activity layer helps users understand what the Pi is doing
-            in the background.
+          <h3 className="my-2 text-2xl text-slate-950">Events, attestations, and actions</h3>
+          <MutedText className="m-0">
+            A clear activity layer helps users understand what the Pi is doing in the background.
           </MutedText>
         </div>
         {activityError && <ErrorText>{activityError}</ErrorText>}
-        <div className='grid gap-2.5'>
+        <div className="grid gap-2.5">
           {activity.map((item) => (
-            <article className='grid items-center gap-3.5 rounded-[18px] border border-slate-200 bg-slate-50 p-3.5 sm:grid-cols-[minmax(0,1fr)_auto_auto]' key={item.id}>
+            <article
+              className="grid items-center gap-3.5 rounded-[18px] border border-slate-200 bg-slate-50 p-3.5 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
+              key={item.id}
+            >
               <div>
                 <strong>{item.category}</strong>
-                <MutedText className='m-0 mt-1.5 leading-relaxed'>{item.message}</MutedText>
+                <MutedText className="m-0 mt-1.5 leading-relaxed">{item.message}</MutedText>
               </div>
-              <time className='font-mono text-sm font-extrabold text-slate-600'>{formatLocalTime(item.createdAt)}</time>
-              <Pill tone={item.good ? 'good' : 'warn'}>{item.status}</Pill>
+              <time className="font-mono text-sm font-extrabold text-slate-600">
+                {formatLocalTime(item.createdAt)}
+              </time>
+              <Pill tone={item.good ? "good" : "warn"}>{item.status}</Pill>
             </article>
           ))}
         </div>
@@ -299,10 +247,10 @@ function pct(used: number, total: number) {
 }
 
 function nodeStateValueClass(state: DeviceNodeState) {
-  if (state === 'running') return 'text-emerald-600';
-  if (state === 'restarting') return 'text-blue-600';
-  if (state === 'unknown') return 'text-slate-400';
-  return 'text-amber-600';
+  if (state === "running") return "text-emerald-600";
+  if (state === "restarting") return "text-blue-600";
+  if (state === "unknown") return "text-slate-400";
+  return "text-amber-600";
 }
 
 function MetricCard({
@@ -310,7 +258,7 @@ function MetricCard({
   value,
   helper,
   icon: Icon,
-  valueClass = 'text-slate-950',
+  valueClass = "text-slate-950",
 }: {
   label: string;
   value: ReactNode;
@@ -319,21 +267,21 @@ function MetricCard({
   valueClass?: string;
 }) {
   return (
-    <Card className='p-5!'>
-      <div className='flex items-start justify-between gap-3'>
-        <div className='min-w-0 flex-1'>
-          <p className='text-sm text-slate-500'>{label}</p>
+    <Card className="p-5!">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-slate-500">{label}</p>
           <p
             className={cx(
-              'mt-2 min-w-0 truncate text-2xl font-semibold tracking-tight',
+              "mt-2 min-w-0 truncate text-2xl font-semibold tracking-tight",
               valueClass,
             )}
           >
             {value}
           </p>
-          <p className='mt-1 text-sm text-slate-500'>{helper}</p>
+          <p className="mt-1 text-sm text-slate-500">{helper}</p>
         </div>
-        <div className='shrink-0 rounded-2xl bg-slate-100 p-3 text-slate-700'>
+        <div className="shrink-0 rounded-2xl bg-slate-100 p-3 text-slate-700">
           <Icon size={22} />
         </div>
       </div>
@@ -353,99 +301,96 @@ function DeviceStatusCard({
   const device = status?.device ?? null;
   const app = status?.app ?? null;
   const node = status?.node ?? null;
-  const nodeRestarting = node?.state === 'restarting';
+  const nodeRestarting = node?.state === "restarting";
   const cpuPct = device ? `${Math.round((device.loadAvg[0] / device.cpuCount) * 100)}%` : null;
-  const diskValue = device ? (device.disk ? formatBytes(device.disk.usedBytes) : 'N/A') : null;
+  const diskValue = device ? (device.disk ? formatBytes(device.disk.usedBytes) : "N/A") : null;
   const diskHelper = device
     ? device.disk
       ? `of ${formatBytes(device.disk.totalBytes)} · ${pct(device.disk.usedBytes, device.disk.totalBytes)} used`
-      : '/data unavailable'
-    : '';
+      : "/data unavailable"
+    : "";
   return (
     <>
-      <div className='grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-3'>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <MetricCard
-          label='Wallet balance'
+          label="Wallet balance"
           value={
             walletLoading && !nodeRestarting ? (
               <LoadingDots />
             ) : nodeRestarting || walletBalance === null ? (
-              'Unavailable'
+              "Unavailable"
             ) : (
-              <span className='flex min-w-0 items-center gap-2'>
-                <MinimaIcon size={20} className='shrink-0 text-slate-600' />
-                <span
-                  className='min-w-0 truncate'
-                  title={walletBalance}
-                >
+              <span className="flex min-w-0 items-center gap-2">
+                <MinimaIcon size={20} className="shrink-0 text-slate-600" />
+                <span className="min-w-0 truncate" title={walletBalance}>
                   {formatAmountThreshold(walletBalance)}
                 </span>
               </span>
             )
           }
-          helper='Primary wallet'
+          helper="Primary Pi wallet"
           icon={Wallet}
           valueClass={
-            walletLoading || walletBalance === null ? 'text-slate-400' : 'text-slate-950'
+            walletLoading || walletBalance === null ? "text-slate-400" : "text-slate-950"
           }
         />
         <MetricCard
-          label='Node status'
+          label="Node status"
           value={node ? node.state.charAt(0).toUpperCase() + node.state.slice(1) : <LoadingDots />}
-          helper='Minima node'
+          helper="Minima node"
           icon={RadioTower}
-          valueClass={node ? nodeStateValueClass(node.state) : 'text-slate-400'}
+          valueClass={node ? nodeStateValueClass(node.state) : "text-slate-400"}
         />
         <MetricCard
-          label='Integritas API'
+          label="Integritas API"
           value={
             !app ? (
               <LoadingDots />
             ) : app.integritasConnected === null ? (
-              'Not configured'
+              "Not configured"
             ) : app.integritasConnected ? (
-              'Connected'
+              "Connected"
             ) : (
-              'Unreachable'
+              "Unreachable"
             )
           }
-          helper='API connection'
+          helper="API connection"
           icon={ShieldCheck}
           valueClass={
             !app || app.integritasConnected === null
-              ? 'text-slate-400'
+              ? "text-slate-400"
               : app.integritasConnected
-                ? 'text-emerald-600'
-                : 'text-amber-600'
+                ? "text-emerald-600"
+                : "text-amber-600"
           }
         />
       </div>
 
-      <div className='grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-3'>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <MetricCard
-          label='Device'
+          label="Device"
           value={device ? device.hostname : <LoadingDots />}
-          helper={device ? `${device.platform} · ${device.arch}` : ''}
+          helper={device ? `${device.platform} · ${device.arch}` : ""}
           icon={Server}
         />
         <MetricCard
-          label='Device CPU'
+          label="Device CPU"
           value={cpuPct ?? <LoadingDots />}
-          helper={device ? `${device.cpuCount}-core · ${device.loadAvg[0].toFixed(2)} 1m avg` : ''}
+          helper={device ? `${device.cpuCount}-core · ${device.loadAvg[0].toFixed(2)} 1m avg` : ""}
           icon={Cpu}
         />
         <MetricCard
-          label='Device Memory'
+          label="Device Memory"
           value={device ? formatBytes(device.memory.usedBytes) : <LoadingDots />}
           helper={
             device
               ? `of ${formatBytes(device.memory.totalBytes)} · ${pct(device.memory.usedBytes, device.memory.totalBytes)} used`
-              : ''
+              : ""
           }
           icon={MemoryStick}
         />
         <MetricCard
-          label='Device Disk'
+          label="Device Disk"
           value={diskValue ?? <LoadingDots />}
           helper={diskHelper}
           icon={HardDrive}
@@ -455,47 +400,40 @@ function DeviceStatusCard({
   );
 }
 
-function buildActivity(
-  proofs: IntegritasProofRecord[],
-  reads: DataSourceRead[],
-) {
+function buildActivity(proofs: IntegritasProofRecord[], reads: DataSourceRead[]) {
   const proofItems: ActivityItem[] = proofs.map((proof) => ({
     id: `proof-${proof.id}`,
     createdAt: proof.created_at,
-    category: 'Integritas API log',
+    category: "Integritas API log",
     message: `Attestation created for ${proof.file_name ?? proof.hash.slice(0, 16)}`,
     status:
-      proof.proof_status === 'ready'
-        ? 'Success'
-        : proof.proof_status === 'failed'
-          ? 'Failed'
-          : 'Pending',
-    good: proof.proof_status !== 'failed',
+      proof.proof_status === "ready"
+        ? "Success"
+        : proof.proof_status === "failed"
+          ? "Failed"
+          : "Pending",
+    good: proof.proof_status !== "failed",
   }));
 
   const readItems: ActivityItem[] = reads.map((read) => ({
     id: `read-${read.id}`,
     createdAt: read.createdAt,
     category:
-      read.triggerType === 'automation'
-        ? 'Trigger history'
-        : read.triggerType === 'mqtt'
-          ? 'MQTT event'
-          : read.triggerType === 'webhook'
-            ? 'Webhook event'
-            : read.triggerType === 'gpio'
-              ? 'GPIO event'
-            : 'Data read log',
-    message: `${read.sourceName} ${read.triggerType === 'automation' ? 'automation poll' : read.triggerType === 'mqtt' ? 'MQTT message received' : read.triggerType === 'webhook' ? 'webhook payload received' : read.triggerType === 'gpio' ? 'GPIO edge detected' : 'manual read'}`,
-    status: read.status === 'success' ? 'Success' : 'Failed',
-    good: read.status === 'success',
+      read.triggerType === "automation"
+        ? "Trigger history"
+        : read.triggerType === "mqtt"
+          ? "MQTT event"
+          : read.triggerType === "webhook"
+            ? "Webhook event"
+            : read.triggerType === "gpio"
+              ? "GPIO event"
+              : "Data read log",
+    message: `${read.sourceName} ${read.triggerType === "automation" ? "automation poll" : read.triggerType === "mqtt" ? "MQTT message received" : read.triggerType === "webhook" ? "webhook payload received" : read.triggerType === "gpio" ? "GPIO edge detected" : "manual read"}`,
+    status: read.status === "success" ? "Success" : "Failed",
+    good: read.status === "success",
   }));
 
   return [...proofItems, ...readItems]
-    .sort(
-      (left, right) =>
-        new Date(right.createdAt).getTime() -
-        new Date(left.createdAt).getTime(),
-    )
+    .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
     .slice(0, 10);
 }

@@ -206,7 +206,7 @@ Impact: Misconfigured pins can record incorrect physical events; unsafe wiring c
 Current Controls:
 
 - GPIO source creation/editing requires admin role.
-- GPIO sources are input-only in V1; no GPIO output/control actions are exposed.
+- GPIO input sources are separate from GPIO output targets; output control is limited to the LED pulse profile documented below.
 - GPIO watchers start only while an enabled automation workflow exists for the source.
 - The backend uses fixed `gpiomon` arguments built from validated source config, not arbitrary shell command execution.
 - GPIO config uses BCM pin numbering, explicit edge selection, and debounce controls.
@@ -238,6 +238,32 @@ Current Controls:
 Required wiring baseline: use an LED with a 220-330 ohm resistor in series. Do not connect GPIO pins directly to 5V, motors, relays, mains voltage, or unknown modules.
 
 Status: Accepted prototype risk for local learning hardware only.
+
+## Pi Camera Capture Devices
+
+Risk: Enabled Pi Camera workflows allow the backend to ask a localhost host-side camera helper to capture photos or short video clips through configured camera commands.
+
+Impact: Captures can contain private images/video. The helper expands app control over host camera hardware, and stored captures can consume disk space if workflows run frequently.
+
+Current Controls:
+
+- Pi Camera device creation/editing requires admin role.
+- Camera access is opt-in through `ENABLE_CAMERA=true`; the installer creates a localhost-only `integritas-pi-camera-helper` systemd service.
+- The helper requires a generated bearer token shared with the backend through `.env`.
+- Camera capability reporting checks that host camera commands exist and that the helper can list at least one detected camera before enabling Pi Camera device creation.
+- Camera capture is a narrow workflow data block, not arbitrary shell execution or a generic output target.
+- Captured media stays local under the configured capture directory; read history stores JSON metadata and the media hash.
+- Integritas stamping uses the captured media file hash, not the raw image/video content.
+- Automation validation warns that camera workflows may record private images/video.
+- Per-capture duration is bounded by `CAMERA_MAX_DURATION_SECONDS`.
+- Old capture files are pruned opportunistically before new captures according to `CAMERA_RETENTION_DAYS`.
+
+Plan:
+
+- Add richer camera command/package detection in capability reporting.
+- Add optional redaction/preview controls before exposing captured media in the browser UI.
+
+Status: Accepted prototype risk for trusted local deployments only. Do not point cameras at private spaces without consent and clear operator intent.
 
 ## Integritas Request Proxy
 

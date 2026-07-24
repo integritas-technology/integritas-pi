@@ -1,6 +1,8 @@
 import mqtt, { type MqttClient } from "mqtt";
+import { dataSourceError, errorFromUnknown } from "../../shared/structured-error.js";
 import { listEnabledEventWorkflows, type AutomationWorkflowRecord } from "../automation/automation.repository.js";
-import { recordPushAutomationError, recordPushAutomationPayload } from "../automation/automation.service.js";
+import { recordPushAutomationPayload } from "../automation/automation.service.js";
+import { createDataSourceRead } from "../data-reads/dataReads.repository.js";
 import { listDataSources, updateDataSourceReadResult, type DataSourceRecord } from "./dataSources.repository.js";
 import { parseMqttConfig, processMqttPayload } from "./dataSources.service.js";
 
@@ -45,7 +47,7 @@ export function syncMqttDataSources() {
       existing?.client.end(true);
       subscriptions.set(source.id, { key, client: connectMqttSource(source, workflow, config) });
     } catch (error) {
-      updateDataSourceReadResult(source.id, { error: error instanceof Error ? error.message : "Invalid MQTT source configuration" });
+      updateDataSourceReadResult(source.id, { error: dataSourceError({ type: "configuration_invalid", ...errorFromUnknown(error, "Invalid MQTT source configuration", { sourceId: source.id }), message: error instanceof Error ? error.message : "Invalid MQTT source configuration" }) });
     }
   }
 }
@@ -58,26 +60,43 @@ function connectMqttSource(source: DataSourceRecord, workflow: AutomationWorkflo
 
   client.on("connect", () => {
     client.subscribe(config.topic, (error) => {
-      if (error) updateDataSourceReadResult(source.id, { error: `MQTT subscribe failed: ${error.message}` });
+      if (error) updateDataSourceReadResult(source.id, { error: dataSourceError({ type: "connection_failed", ...errorFromUnknown(error, "MQTT subscribe failed", { sourceId: source.id, topic: config.topic }), message: "MQTT subscribe failed" }) });
     });
   });
 
   client.on("message", (_topic, payload) => {
     handleMqttMessage(source, workflow, config, payload).catch((error: Error) => {
       if ("code" in error && error.code === "WORKFLOW_ALREADY_RUNNING") return;
-      recordPushAutomationError({ workflow, dataSource: source, sourceUrl: `${config.brokerUrl} ${config.topic}`, triggerType: "mqtt", error: error.message });
+      console.error(`MQTT workflow ${workflow.id} failed for source ${source.id}: ${error.message}`);
     });
   });
 
   client.on("error", (error) => {
-    updateDataSourceReadResult(source.id, { error: `MQTT connection error: ${error.message}` });
+    updateDataSourceReadResult(source.id, { error: dataSourceError({ type: "connection_failed", ...errorFromUnknown(error, "MQTT connection error", { sourceId: source.id, brokerUrl: config.brokerUrl }), message: "MQTT connection error" }) });
   });
 
   return client;
 }
 
 async function handleMqttMessage(source: DataSourceRecord, workflow: AutomationWorkflowRecord, config: { brokerUrl: string; topic: string }, payload: Buffer) {
-  const parsed = JSON.parse(payload.toString("utf8")) as unknown;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(payload.toString("utf8")) as unknown;
+  } catch (error) {
+    const details = dataSourceError({ type: "invalid_payload", ...errorFromUnknown(error, "MQTT payload was not valid JSON", { sourceId: source.id, topic: config.topic }), message: "MQTT payload was not valid JSON" });
+    updateDataSourceReadResult(source.id, { error: details });
+    createDataSourceRead({
+      dataSourceId: source.id,
+      workflowId: workflow.id,
+      sourceName: source.name,
+      sourceUrl: `${config.brokerUrl} ${config.topic}`,
+      triggerType: "mqtt",
+      status: "failed",
+      error: details,
+      triggerSourceId: source.id
+    });
+    return;
+  }
   const result = processMqttPayload(parsed);
   await recordPushAutomationPayload({ workflow, dataSource: source, sourceUrl: `${config.brokerUrl} ${config.topic}`, triggerType: "mqtt", result });
 }

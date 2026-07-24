@@ -196,7 +196,7 @@ Compare value: 20
 
 Variable conditions require an enabled earlier `Set variable` block that defines the variable. The main condition block does not read `Latest data` directly. To condition on data from a recorded or fetched source, set a variable first, then condition on that variable.
 
-Attached `Stamp data` conditions are separate: they still read the parent record/fetch block's data because they are scoped to that attached data block.
+Attached `Stamp data` conditions are separate: they still read the parent record/fetch/capture block's data because they are scoped to that attached data block.
 
 ## Interpolation Rules
 

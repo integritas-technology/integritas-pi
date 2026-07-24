@@ -1,16 +1,68 @@
-@import 'tailwindcss';
+@import "tailwindcss";
+@import "@fontsource/manrope/latin-400.css";
+@import "@fontsource/manrope/latin-500.css";
+@import "@fontsource/manrope/latin-600.css";
+@import "@fontsource/manrope/latin-700.css";
+@import "@fontsource/manrope/latin-800.css";
+
+@theme {
+  /* Primary palette: White, Graphite, Accent — placeholders until design delivers */
+  --color-brand-white: #fafaf8;
+  --color-brand-graphite: #1a1a18;
+  --color-brand-accent: #4a4bc7; /* use sparingly */
+
+  /* Supporting shades of the primaries */
+  --color-brand-bg: #f3f2ef;
+  --color-brand-graphite-muted: #6a6a64;
+  --color-brand-graphite-hover: #2e2e2c;
+  --color-brand-graphite-soft: #e5e5e2;
+  --color-brand-border: #d4d4d0;
+
+  /* Translucent whites for dark surfaces */
+  --color-brand-on-dark: rgb(250 250 248 / 0.15);
+  --color-brand-on-dark-hover: rgb(250 250 248 / 0.25);
+  --color-brand-on-dark-border: rgb(250 250 248 / 0.1);
+
+  /* Semantic status */
+  --color-error: #dc2626;
+  --color-error-hover: #b91c1c;
+  --color-warning: #d97706;
+  --color-warning-hover: #b45309;
+  --color-success: #059669;
+  --color-success-hover: #047857;
+  --color-info: #2563eb;
+  --color-info-hover: #1d4ed8;
+}
 
 :root {
-  color: #020617;
-  background: #f1f5f9;
+  color: var(--color-brand-graphite);
+  background: var(--color-brand-bg);
   font-family:
-    Inter,
+    Manrope,
     ui-sans-serif,
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
-    'Segoe UI',
+    "Segoe UI",
     sans-serif;
+}
+
+@keyframes onboarding-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-enter,
+  .onboarding-enter-stagger > * {
+    animation: none !important;
+  }
 }
 
 * {
@@ -43,7 +95,7 @@ code {
   word-break: break-all;
 }
 
-input,
+/* input,
 textarea,
 select {
   width: 100%;
@@ -52,11 +104,9 @@ select {
   border: 1px solid #cbd5e1;
   border-radius: 16px;
   background: #f8fafc;
-}
+} */
 
 textarea {
   resize: vertical;
-  font-family:
-    ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
 }
-

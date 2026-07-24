@@ -1,4 +1,5 @@
 import { getAddressBookEntryById } from "../address-book/address-book.repository.js";
+import { getCameraCapability } from "../data-sources/cameraCapture.service.js";
 import { getDataSource } from "../data-sources/dataSources.repository.js";
 import { parseGpioOutputConfig } from "../data-sources/dataSources.service.js";
 import { getIntegritasApiKey } from "../settings/secrets.service.js";
@@ -43,6 +44,9 @@ export type BlockConfig = {
   bodyMode?: string;
   bodyTemplateText?: string;
   bodyTemplate?: unknown;
+  multipartFileField?: string;
+  multipartJsonField?: string;
+  multipartJsonText?: string;
   variableName?: string;
   variableSource?: string;
   valueJsonText?: string;
@@ -104,6 +108,7 @@ async function validateAutomationBlockGraph(blocks: ValidationBlock[]): Promise<
   const variables = new Set<string>();
   const startType = startBlock?.type;
   const startConfig = startBlock?.config ?? {};
+  const cameraCapability = blocks.some((block) => block.enabled && block.type === "capture_camera") ? await getCameraCapability() : null;
 
   for (const block of mainBlocks) {
     if (!block.enabled) continue;
@@ -123,6 +128,12 @@ async function validateAutomationBlockGraph(blocks: ValidationBlock[]): Promise<
       hasData = true;
     }
 
+    if (block.type === "capture_camera") {
+      if (cameraCapability && !cameraCapability.enabled) addIssue(issues, "error", "capture_camera.disabled", cameraCapability.reason ?? "Pi Camera support is disabled.", block);
+      else if (cameraCapability && !cameraCapability.available) addIssue(issues, "warning", "capture_camera.unavailable", cameraCapability.reason ?? "Pi Camera capture is not ready.", block);
+      hasData = true;
+    }
+
     if (block.type === "set_variable") {
       validateSetVariableBlock(block, config, hasData, issues);
       const variableName = String(config.variableName ?? "").trim();
@@ -139,8 +150,8 @@ async function validateAutomationBlockGraph(blocks: ValidationBlock[]): Promise<
         addIssue(issues, "error", "attached.unsupported", "Only Integritas stamp blocks can be attached to another block.", attachedBlock);
         continue;
       }
-      if (block.type !== "record_trigger_event" && block.type !== "fetch_data_source") {
-        addIssue(issues, "error", "stamp_integritas.invalid_parent", "Integritas stamps must be attached to a record or fetch block.", attachedBlock);
+      if (block.type !== "record_trigger_event" && block.type !== "fetch_data_source" && block.type !== "capture_camera") {
+        addIssue(issues, "error", "stamp_integritas.invalid_parent", "Integritas stamps must be attached to a record, fetch, or camera capture block.", attachedBlock);
       }
       if (!hasData) {
         addIssue(issues, "error", "stamp_integritas.no_hash", "Integritas stamping requires a prior record/fetch block that creates a hash.", attachedBlock);
@@ -162,7 +173,7 @@ async function validateAutomationBlockGraph(blocks: ValidationBlock[]): Promise<
 }
 
 function validateBlockReference(block: ValidationBlock, config: BlockConfig, issues: AutomationValidationIssue[]) {
-  if (block.type === "gpio_event_start" || block.type === "webhook_event_start" || block.type === "mqtt_event_start" || block.type === "fetch_data_source") {
+  if (block.type === "gpio_event_start" || block.type === "webhook_event_start" || block.type === "mqtt_event_start" || block.type === "fetch_data_source" || block.type === "capture_camera") {
     const source = config.sourceId ? getDataSource(config.sourceId) : undefined;
     if (!source) {
       addIssue(issues, "error", `${block.type}.missing_source`, "Block references a missing device/source.", block);
@@ -171,7 +182,9 @@ function validateBlockReference(block: ValidationBlock, config: BlockConfig, iss
     if (block.type === "gpio_event_start" && source.type !== "gpio-input") addIssue(issues, "error", "gpio_event_start.invalid_source", "GPIO start requires a GPIO input source.", block);
     if (block.type === "webhook_event_start" && source.type !== "webhook") addIssue(issues, "error", "webhook_event_start.invalid_source", "Webhook start requires a webhook source.", block);
     if (block.type === "mqtt_event_start" && source.type !== "mqtt") addIssue(issues, "error", "mqtt_event_start.invalid_source", "MQTT start requires an MQTT source.", block);
-    if (block.type === "fetch_data_source" && (source.type === "gpio-input" || source.type === "gpio-output" || source.type === "webhook" || source.type === "mqtt" || source.type === "http-output" || source.type === "mqtt-output")) addIssue(issues, "error", "fetch_data_source.invalid_source", "Fetch block requires an HTTP JSON source.", block);
+    if (block.type === "fetch_data_source" && (source.type === "gpio-input" || source.type === "gpio-output" || source.type === "webhook" || source.type === "mqtt" || source.type === "pi-camera" || source.type === "http-output" || source.type === "mqtt-output")) addIssue(issues, "error", "fetch_data_source.invalid_source", "Fetch block requires an HTTP JSON source.", block);
+    if (block.type === "capture_camera" && source.type !== "pi-camera") addIssue(issues, "error", "capture_camera.invalid_source", "Capture camera requires a Pi Camera device.", block);
+    if (block.type === "capture_camera") addIssue(issues, "warning", "capture_camera.privacy", "Camera capture can record private images or video. Verify consent, placement, and retention before enabling this workflow.", block);
   }
 
   if (block.type === "control_output") {
@@ -206,16 +219,31 @@ function isOutputTarget(type: string) {
 function validateOutputBodyConfig(block: ValidationBlock, config: BlockConfig, targetType: string, issues: AutomationValidationIssue[]) {
   if (targetType !== "http-output" && targetType !== "mqtt-output") return;
   const bodyMode = String(config.bodyMode ?? "workflow_context");
-  if (bodyMode !== "custom" && bodyMode !== "workflow_context" && bodyMode !== "trigger_payload" && bodyMode !== "latest_data" && bodyMode !== "none") {
+  if (bodyMode !== "custom" && bodyMode !== "workflow_context" && bodyMode !== "trigger_payload" && bodyMode !== "latest_data" && bodyMode !== "latest_data_with_media" && bodyMode !== "multipart_media" && bodyMode !== "none") {
     addIssue(issues, "error", "control_output.invalid_body_mode", "Output body mode is invalid.", block);
   }
   if (targetType === "mqtt-output" && bodyMode === "none") addIssue(issues, "error", "control_output.mqtt_body_required", "MQTT output requires a message payload.", block);
+  if (targetType !== "http-output" && bodyMode === "multipart_media") addIssue(issues, "error", "control_output.multipart_http_required", "Multipart media upload requires an HTTP output target.", block);
+  if (bodyMode === "multipart_media") validateMultipartConfig(block, config, issues);
   if (bodyMode === "custom") {
     const text = typeof config.bodyTemplateText === "string" ? config.bodyTemplateText : JSON.stringify(config.bodyTemplate ?? {});
     try {
       JSON.parse(text) as unknown;
     } catch {
       addIssue(issues, "error", "control_output.invalid_custom_body", "Custom output body must be valid JSON.", block);
+    }
+  }
+}
+
+function validateMultipartConfig(block: ValidationBlock, config: BlockConfig, issues: AutomationValidationIssue[]) {
+  const fileField = String(config.multipartFileField ?? "file").trim();
+  const jsonField = String(config.multipartJsonField ?? "").trim();
+  if (!fileField) addIssue(issues, "error", "control_output.multipart_file_field_required", "Multipart file field name is required.", block);
+  if (jsonField && typeof config.multipartJsonText === "string" && config.multipartJsonText.trim()) {
+    try {
+      JSON.parse(config.multipartJsonText) as unknown;
+    } catch {
+      addIssue(issues, "error", "control_output.multipart_json_invalid", "Multipart JSON field must be valid JSON.", block);
     }
   }
 }

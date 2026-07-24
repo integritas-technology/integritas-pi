@@ -28,6 +28,14 @@ Backend rules:
 - When adding a scheduler, start it from `backend/src/index.ts` after migrations.
 - Return useful error details from backend services, but never leak secrets.
 
+Error handling rules:
+
+- Use `backend/src/shared/structured-error.ts` for persisted/domain errors such as data-source, read-history, workflow-run, and block-run failures.
+- The component that fails owns the persisted error: source ingest/config failures belong to data sources/read history; downstream automation block failures belong to workflow/block run logs and must not overwrite the triggering source's `last_error`.
+- Keep using existing text error columns for now; new persisted error writers should pass structured errors so repositories serialize them and serializers expose both friendly message fields and `errorDetails`/`lastErrorDetails`.
+- Use `backend/src/shared/api-error.ts` for route-level HTTP errors. Preserve existing compatibility fields when needed, but include structured `errorDetails` via the shared helpers.
+- Do not expose stack traces, secrets, tokens, passphrases, API keys, or sensitive host paths in client-visible error details.
+
 Auth rules:
 
 - Public routes: `GET /api/health`, `GET /api/setup/status`, `POST /api/setup/*`, `POST /api/auth/login`.

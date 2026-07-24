@@ -12,9 +12,16 @@ export function SidebarUserBox({
   onSettings: () => void;
 }) {
   return (
-    <div className="mt-4 grid gap-2.5 rounded-[18px] border border-slate-200 bg-slate-50 p-3">
-      <button type="button" className="group flex w-full items-center gap-2.5 border-0 bg-transparent p-0 text-left" onClick={onSettings}>
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white" aria-hidden="true">
+    <div className="mt-4 grid gap-2.5 rounded border border-slate-200 bg-slate-50 p-3">
+      <button
+        type="button"
+        className="group flex w-full items-center gap-2.5 border-0 bg-transparent p-0 text-left"
+        onClick={onSettings}
+      >
+        <div
+          className="flex size-9 shrink-0 items-center justify-center rounded bg-slate-950 text-white"
+          aria-hidden="true"
+        >
           <Settings size={18} />
         </div>
         <div>
@@ -25,13 +32,17 @@ export function SidebarUserBox({
 
       {TOTP_ENABLED ? (
         <div className="flex">
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[0.68rem] font-extrabold text-emerald-700">
+          <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-1 text-[0.68rem] font-extrabold text-emerald-700">
             <ShieldCheck size={12} /> 2FA protected
           </span>
         </div>
       ) : null}
 
-      <button type="button" className="inline-flex w-fit items-center gap-1.5 border-0 bg-transparent p-0 text-[0.78rem] font-bold text-slate-500 hover:text-slate-950" onClick={onSignOut}>
+      <button
+        type="button"
+        className="inline-flex w-fit items-center gap-1.5 border-0 bg-transparent p-0 text-[0.78rem] font-bold text-slate-500 hover:text-slate-950"
+        onClick={onSignOut}
+      >
         <LogOut size={14} /> Sign out
       </button>
     </div>

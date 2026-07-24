@@ -1,141 +1,132 @@
+import { APP_NAME } from "../../../app/names";
+import { CredentialInput } from "../../../components/CredentialInput";
 import { cx } from "../../../lib/cx";
 import {
-  adminPinHint,
-  isValidAdminCredential,
+  ADMIN_PIN_LENGTH,
+  isValidAdminPin,
   sanitizePinInput,
   type AdminCredentialType,
 } from "../../auth/adminCredentials";
 import { PasswordRequirements } from "../../auth/PasswordRequirements";
+import { CredentialTypeToggle } from "../components/CredentialTypeToggle";
+import { OnboardingCard } from "../components/OnboardingCard";
 import {
   eyebrowClass,
   formGridClass,
   goodHintClass,
-  headingClass,
-  inputClass,
   labelClass,
   leadClass,
   mutedClass,
-  panelClass,
   warnHintClass,
 } from "../onboardingStyles";
 import type { OnboardingFormState } from "../types";
 
-function credentialHint(
-  type: AdminCredentialType,
-  credential: string,
-): {
-  label: string;
-  tone: "warn" | "good" | "neutral";
-} {
-  if (type === "pin") {
-    if (!credential) return { label: `Enter a ${adminPinHint()}`, tone: "neutral" };
-    if (!isValidAdminCredential(type, credential))
-      return { label: `Must be a ${adminPinHint()}`, tone: "warn" };
-    return { label: "PIN looks good", tone: "good" };
+function pinHint(pin: string): { label: string; tone: "good" | "neutral" } {
+  if (!pin) return { label: `Enter ${ADMIN_PIN_LENGTH} digits`, tone: "neutral" };
+  if (!isValidAdminPin(pin)) {
+    return { label: `${pin.length} of ${ADMIN_PIN_LENGTH} digits`, tone: "neutral" };
   }
-
-  if (!credential) return { label: "Complete the password requirements below", tone: "neutral" };
-  if (!isValidAdminCredential(type, credential))
-    return { label: "Complete the remaining password requirements", tone: "warn" };
-  return { label: "Password looks good", tone: "good" };
+  return { label: "PIN looks good", tone: "good" };
 }
 
 export function AccountStep({
   form,
   setForm,
+  onSubmit,
 }: {
   form: OnboardingFormState;
   setForm: (patch: Partial<OnboardingFormState>) => void;
+  onSubmit: () => void;
 }) {
-  const hint = credentialHint(form.credentialType, form.password);
-  const credentialsMatch = !form.confirmPassword || form.password === form.confirmPassword;
   const isPin = form.credentialType === "pin";
   const credentialLabel = isPin ? "PIN" : "Password";
+  const hint = isPin ? pinHint(form.password) : null;
+  const confirmComplete = isPin
+    ? form.confirmPassword.length === ADMIN_PIN_LENGTH
+    : form.password.length > 0 && form.confirmPassword.length >= form.password.length;
+  const showMismatch =
+    Boolean(form.confirmPassword) && confirmComplete && form.password !== form.confirmPassword;
 
   const selectCredentialType = (credentialType: AdminCredentialType) => {
     setForm({ credentialType, password: "", confirmPassword: "" });
   };
 
   return (
-    <div className={panelClass}>
+    <OnboardingCard>
       <p className={eyebrowClass}>Secure this device</p>
-      <h2 className={headingClass}>Choose a PIN or password</h2>
-      <p className={leadClass}>This local credential unlocks Edge Workbench on this hardware.</p>
+      <h2 className="text-2xl font-semibold">Choose a PIN or password</h2>
+      <p className={leadClass}>
+        Your local credential stays on this device and unlocks {APP_NAME}.
+      </p>
 
-      <div className={formGridClass}>
-        <fieldset className="grid gap-2 border-0 p-0">
-          <legend className="mb-2 font-bold text-slate-700">Credential type</legend>
-          <div className="grid grid-cols-2 gap-2">
-            {(["pin", "password"] as const).map((type) => (
-              <button
-                key={type}
-                type="button"
-                className={cx(
-                  "rounded-xl border px-3 py-2.5 text-sm font-bold",
-                  form.credentialType === type
-                    ? "border-slate-950 bg-slate-950 text-white"
-                    : "border-slate-300 bg-white text-slate-700",
-                )}
-                aria-pressed={form.credentialType === type}
-                onClick={() => selectCredentialType(type)}
-              >
-                {type === "pin" ? "6-digit PIN" : "Password"}
-              </button>
-            ))}
-          </div>
-        </fieldset>
+      <form
+        className={cx(formGridClass, "relative")}
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmit();
+        }}
+      >
+        <CredentialTypeToggle
+          label="Sign in method"
+          value={form.credentialType}
+          onChange={selectCredentialType}
+        />
 
         <label className={labelClass}>
           {credentialLabel}
-          <input
-            className={inputClass}
+          <CredentialInput
+            mode={form.credentialType}
             value={form.password}
             onChange={(event) =>
               setForm({
                 password: isPin ? sanitizePinInput(event.target.value) : event.target.value,
               })
             }
-            type="password"
-            inputMode={isPin ? "numeric" : "text"}
-            pattern={isPin ? "[0-9]*" : undefined}
-            maxLength={isPin ? 6 : undefined}
-            placeholder={isPin ? "000000" : "Create a strong password"}
-            autoComplete="new-password"
+            maxLength={isPin ? ADMIN_PIN_LENGTH : undefined}
+            placeholder={isPin ? "••••••" : "Create a strong password"}
+            autoComplete={isPin ? undefined : "new-password"}
           />
-          <span
-            className={cx(
-              hint.tone === "good" && goodHintClass,
-              hint.tone === "warn" && warnHintClass,
-              hint.tone === "neutral" && mutedClass,
-            )}
-          >
-            {hint.label}
-          </span>
+          {hint && (
+            <span className={cx(hint.tone === "good" ? goodHintClass : mutedClass)}>
+              {hint.label}
+            </span>
+          )}
         </label>
         {!isPin && <PasswordRequirements password={form.password} />}
 
         <label className={labelClass}>
           Confirm {credentialLabel.toLowerCase()}
-          <input
-            className={inputClass}
+          <CredentialInput
+            mode={form.credentialType}
             value={form.confirmPassword}
             onChange={(event) =>
               setForm({
                 confirmPassword: isPin ? sanitizePinInput(event.target.value) : event.target.value,
               })
             }
-            type="password"
-            inputMode={isPin ? "numeric" : "text"}
-            pattern={isPin ? "[0-9]*" : undefined}
-            maxLength={isPin ? 6 : undefined}
-            placeholder={`Repeat ${credentialLabel.toLowerCase()}`}
-            autoComplete="new-password"
+            maxLength={isPin ? ADMIN_PIN_LENGTH : undefined}
+            placeholder={isPin ? "••••••" : "Repeat password"}
+            autoComplete={isPin ? undefined : "new-password"}
           />
-          {!credentialsMatch && (
-            <span className={warnHintClass}>{credentialLabel}s do not match</span>
-          )}
+          <span
+            className={cx(
+              "min-h-[1.25rem] text-sm font-medium",
+              showMismatch ? warnHintClass : "invisible",
+            )}
+            role={showMismatch ? "status" : undefined}
+          >
+            {showMismatch ? `${credentialLabel}s do not match` : "\u00a0"}
+          </span>
         </label>
-      </div>
-    </div>
+
+        {/* Hidden submit so Enter activates the form without a visible duplicate Continue. */}
+        <button
+          type="submit"
+          className="absolute h-px w-px overflow-hidden border-0 p-0 [clip:rect(0,0,0,0)]"
+        >
+          Continue
+        </button>
+      </form>
+    </OnboardingCard>
   );
 }

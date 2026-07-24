@@ -12,6 +12,7 @@ import {
   tableRowClass,
 } from "../../components/DataTable";
 import { JsonPreview } from "../../components/JsonPreview";
+import { ErrorDetails } from "../../components/ErrorDetails";
 import { MutedText } from "../../components/Text";
 import type { DataSource, DataSourceHealthStatus } from "./dataSourceTypes";
 
@@ -33,7 +34,7 @@ export function DataSourcesList({
   onDelete: (source: DataSource) => void;
 }) {
   return (
-    <TableCard title="Configured devices" description="Input sources and future output targets saved in SQLite.">
+    <TableCard title="Configured devices" description="Input sources, capture devices, and output targets saved in SQLite.">
       <TableWrap>
         <DataTable className="min-w-[980px]">
           <thead>
@@ -55,10 +56,10 @@ export function DataSourcesList({
                   <strong>{source.name}</strong>
                   <MutedText className="m-0 mt-1">{source.description}</MutedText>
                 </td>
-                <td className={tableCellClass}>{isInputSource(source) ? "Input" : "Output"}</td>
+                <td className={tableCellClass}>{source.type === "pi-camera" ? "Capture" : isInputSource(source) ? "Input" : "Output"}</td>
                 <td className={tableCellClass}>{source.type}</td>
                 <td className={tableCellClass}>
-                  <code>{source.type === "webhook" ? webhookUrl(source) : source.type === "mqtt" || source.type === "mqtt-output" ? mqttEndpoint(source) : source.type === "gpio-input" ? gpioEndpoint(source) : source.type === "gpio-output" ? gpioOutputEndpoint(source) : source.config.url}</code>
+                  <code>{source.type === "webhook" ? webhookUrl(source) : source.type === "mqtt" || source.type === "mqtt-output" ? mqttEndpoint(source) : source.type === "gpio-input" ? gpioEndpoint(source) : source.type === "gpio-output" ? gpioOutputEndpoint(source) : source.type === "pi-camera" ? cameraEndpoint(source) : source.config.url}</code>
                 </td>
                 <td className={tableCellClass}>
                   <HealthCell source={source} status={healthStatuses[source.id]} />
@@ -74,7 +75,7 @@ export function DataSourcesList({
                   {source.lastPreview ? (
                     <JsonPreview value={source.lastPreview} />
                   ) : source.lastError ? (
-                    <span className="grid gap-2"><HealthStatus ok={false}>Read failed</HealthStatus><JsonPreview value={{ error: source.lastError }} label="View error" /></span>
+                    <span className="grid gap-2"><HealthStatus ok={false}>Device error</HealthStatus><ErrorDetails error={source.lastErrorDetails ?? source.lastError} label="View error" /></span>
                   ) : (
                     <span className="text-slate-500">No preview</span>
                   )}
@@ -83,7 +84,7 @@ export function DataSourcesList({
                   <RowActions>
                     <TableIconButton
                       type="button"
-                      disabled={busy || source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output" || source.type === "http-output" || source.type === "mqtt-output"}
+                       disabled={busy || source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output" || source.type === "pi-camera" || source.type === "http-output" || source.type === "mqtt-output"}
                       title="Trigger manually"
                       aria-label={`Trigger ${source.name} manually`}
                       onClick={() => onRead(source)}
@@ -150,12 +151,16 @@ function gpioOutputEndpoint(source: DataSource) {
   return `${source.config.profile ?? "led"} ${source.config.chip ?? "gpiochip0"} GPIO${source.config.pin ?? "?"} active:${source.config.activeState ?? "high"}`;
 }
 
+function cameraEndpoint(source: DataSource) {
+  return `${source.config.mode ?? "photo"} ${source.config.width ?? 1280}x${source.config.height ?? 720}${source.config.mode === "video" ? ` ${source.config.durationMs ?? 5000}ms @ ${source.config.fps ?? 30}fps` : ""}`;
+}
+
 function isInputSource(source: DataSource) {
   return source.type === "json-api" || source.type === "internal-json-api" || source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input";
 }
 
 function HealthCell({ source, status }: { source: DataSource; status?: DataSourceHealthStatus }) {
-  if (source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output" || source.type === "http-output" || source.type === "mqtt-output") return <span className="text-slate-500">Automation controlled</span>;
+  if (source.type === "webhook" || source.type === "mqtt" || source.type === "gpio-input" || source.type === "gpio-output" || source.type === "pi-camera" || source.type === "http-output" || source.type === "mqtt-output") return <span className="text-slate-500">Automation controlled</span>;
   if (!source.config.healthStatusUrl) return <span className="text-slate-500">Not configured</span>;
   if (!status) return <HealthStatus pending>Checking</HealthStatus>;
 

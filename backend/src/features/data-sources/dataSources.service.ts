@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { sha3HashHex } from "../../shared/crypto.js";
 import { fetchJsonWithTimeout } from "../../shared/http.js";
+import { errorMessage, parseStoredError } from "../../shared/structured-error.js";
 import type { DataSourceRecord } from "./dataSources.repository.js";
 
 export type JsonApiConfig = {
@@ -51,7 +52,17 @@ export type GpioOutputConfig = {
   initialState: "inactive";
 };
 
+export type PiCameraConfig = {
+  mode: "photo" | "video";
+  width: number;
+  height: number;
+  durationMs: number;
+  fps: number;
+  outputFormat: "jpg" | "h264";
+};
+
 export function serializeDataSource(record: DataSourceRecord) {
+  const lastErrorDetails = parseStoredError(record.last_error);
   return {
     id: record.id,
     createdAt: record.created_at,
@@ -62,7 +73,8 @@ export function serializeDataSource(record: DataSourceRecord) {
     description: record.description,
     config: JSON.parse(record.config) as unknown,
     lastReadAt: record.last_read_at,
-    lastError: record.last_error,
+    lastError: errorMessage(record.last_error),
+    lastErrorDetails,
     lastPreview: record.last_preview ? JSON.parse(record.last_preview) as unknown : null,
     lastHash: record.last_hash
   };
@@ -87,6 +99,7 @@ export function parseDataSourceConfig(type: string, value: unknown, existingConf
   if (type === "mqtt-output") return parseMqttOutputConfig(value);
   if (type === "gpio-input") return parseGpioInputConfig(value);
   if (type === "gpio-output") return parseGpioOutputConfig(value);
+  if (type === "pi-camera") return parsePiCameraConfig(value);
   return parseJsonApiConfig(value);
 }
 
@@ -162,6 +175,23 @@ export function parseGpioOutputConfig(value: unknown): GpioOutputConfig {
   return { chip, pin, profile, activeState, initialState };
 }
 
+export function parsePiCameraConfig(value: unknown): PiCameraConfig {
+  const config = value as Partial<PiCameraConfig> | undefined;
+  const mode = config?.mode === "video" ? "video" : "photo";
+  const width = Number(config?.width ?? 1280);
+  const height = Number(config?.height ?? 720);
+  const durationMs = Number(config?.durationMs ?? (mode === "video" ? 5000 : 1000));
+  const fps = Number(config?.fps ?? 30);
+  const outputFormat = mode === "video" ? "h264" : "jpg";
+
+  if (!Number.isInteger(width) || width < 160 || width > 7680) throw new Error("config.width must be between 160 and 7680");
+  if (!Number.isInteger(height) || height < 120 || height > 4320) throw new Error("config.height must be between 120 and 4320");
+  if (!Number.isFinite(durationMs) || durationMs < 100 || durationMs > 300000) throw new Error("config.durationMs must be between 100 and 300000");
+  if (!Number.isInteger(fps) || fps < 1 || fps > 120) throw new Error("config.fps must be between 1 and 120");
+
+  return { mode, width, height, durationMs, fps, outputFormat };
+}
+
 export async function checkDataSourceHealth(config: JsonApiConfig) {
   if (!config.healthStatusUrl) throw new Error("Data source has no health status URL configured");
   const { response, body } = await fetchJsonWithTimeout(config.healthStatusUrl);
@@ -206,6 +236,26 @@ export async function sendHttpOutput(config: HttpOutputConfig, payload: unknown,
   if (!response.ok) throw new Error(`HTTP output returned HTTP ${response.status}${responseBody === null ? "" : `: ${JSON.stringify(responseBody)}`}`);
 
   return { targetUrl: config.url, method: config.method, status: response.status, response: responseBody, sentAt: new Date().toISOString() };
+}
+
+export async function sendMultipartMediaOutput(config: HttpOutputConfig, input: { fileFieldName: string; fileName: string; mediaType: string; bytes: Buffer; jsonFieldName?: string; jsonPayload?: unknown }) {
+  const form = new FormData();
+  const fileBytes = input.bytes.buffer.slice(input.bytes.byteOffset, input.bytes.byteOffset + input.bytes.byteLength) as ArrayBuffer;
+  if (input.jsonFieldName) form.append(input.jsonFieldName, JSON.stringify(input.jsonPayload ?? {}));
+  form.append(input.fileFieldName, new Blob([fileBytes], { type: input.mediaType }), input.fileName);
+
+  const headers = Object.fromEntries(Object.entries(config.headers ?? {}).filter(([key]) => key.toLowerCase() !== "content-type"));
+  const response = await fetch(config.url, {
+    method: config.method,
+    headers,
+    body: form,
+    signal: AbortSignal.timeout(config.timeoutMs ?? 5000)
+  });
+  const responseBody = await response.json().catch(() => null) as unknown;
+
+  if (!response.ok) throw new Error(`HTTP output returned HTTP ${response.status}${responseBody === null ? "" : `: ${JSON.stringify(responseBody)}`}`);
+
+  return { targetUrl: config.url, method: config.method, status: response.status, response: responseBody, sentAt: new Date().toISOString(), sentMedia: { fieldName: input.fileFieldName, fileName: input.fileName, mediaType: input.mediaType, sizeBytes: input.bytes.length }, sentJsonField: input.jsonFieldName ?? null };
 }
 
 export function processWebhookPayload(payload: unknown) {

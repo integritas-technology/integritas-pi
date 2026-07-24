@@ -21,6 +21,10 @@ Build workflows from ordered blocks:
   -> [Wait 2 seconds]
   -> [Fetch another source]
   -> [Stamp with Integritas]
+
+[GPIO motion event]
+  -> [Capture Pi Camera]
+  -> [Stamp with Integritas]
 ```
 
 Later workflows should support safe GPIO output blocks:
@@ -34,11 +38,11 @@ Later workflows should support safe GPIO output blocks:
 
 ## Current State
 
-- Data sources define HTTP JSON APIs, webhooks, MQTT subscriptions, and GPIO input sources.
-- Automation workflows are ordered block pipelines with one start block and follow-on data, logic, Integritas, output, and transaction blocks.
+- Data sources define HTTP JSON APIs, webhooks, MQTT subscriptions, GPIO input sources, and Pi Camera capture devices.
+- Automation workflows are ordered block pipelines with one start block and follow-on data/capture, logic, Integritas, output, and transaction blocks.
 - Workflow trigger/source summaries are derived from block config instead of workflow-level compatibility fields.
 - GPIO, webhook, MQTT, schedule, and manual starts all route through the central block executor.
-- Integritas stamping is represented as an attached side block on record/fetch data blocks.
+- Integritas stamping is represented as an attached side block on record/fetch/capture data blocks.
 - The old rule API, rule response shape, and workflow-level compatibility fields have been removed.
 
 The pivot now supports workflows such as:
@@ -237,6 +241,7 @@ mqtt_event_start
 ```txt
 record_trigger_event
 fetch_data_source
+capture_camera
 hash_json
 ```
 
@@ -767,6 +772,7 @@ Button -> fetch API -> blink LED.
 - [x] Implement `manual_start`.
 - [x] Implement `schedule_start`.
 - [x] Implement `fetch_data_source`.
+- [x] Implement `capture_camera`.
 - [x] Implement `stamp_integritas`.
 - [x] Rework scheduler around `schedule_start` blocks.
 - [ ] Verify `Schedule -> Fetch HTTP -> Stamp`.
@@ -828,7 +834,7 @@ Button -> fetch API -> blink LED.
 - Implemented the first backend block foundation: destructive legacy automation reset, `automation_blocks`, trigger metadata on reads, block executor, schedule/manual fetch, event recording, Integritas stamping, and compatibility endpoints for the existing UI.
 - Added the first frontend block-list workspace: workflows now show actual blocks, support appending fetch/wait/stamp blocks, and avoid showing internal start blocks as duplicate collect rules.
 - Added block editing and ordering controls: fetch blocks can change target source, wait blocks can change duration, action blocks can be enabled/disabled, and blocks can move up/down while preserving the required start block at the top.
-- Replaced the data-source-first create workflow modal with a block-first creator: operators choose a manual, schedule, GPIO, webhook, or MQTT start block and optionally add an initial record/fetch action before opening the workspace.
+- Replaced the data-source-first create workflow modal with a block-first creator: operators choose a manual, schedule, GPIO, webhook, or MQTT start block and optionally add record/fetch/capture actions before opening the workspace.
 - Added workflow run history: each execution records a run row and per-block rows with status, timing, errors, and context summaries. Recent runs are visible in the workflow workspace and globally under Diagnostics -> Workflow logs.
 - Added the first safe GPIO output path: GPIO Output targets with LED profile, reusable `control_output` pulse blocks, backend pin conflict checks, and hardware safety documentation.
 - Added near-term planning for the remaining block workspace improvements: workflow templates first, then pre-run validation, run-log navigation, workflow organization, configure-block modal refinement, full draft saves, and later branching/else flow.

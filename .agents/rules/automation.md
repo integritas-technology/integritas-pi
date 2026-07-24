@@ -1,10 +1,11 @@
 # Automation Rules
 
-- Automation workflows are collections of ordered rules. V1 supports a required Collect data rule and an optional Integritas stamping rule.
+- Automation workflows are ordered block pipelines. V1 supports start blocks, data/capture blocks, variables, conditions, output control, wallet transaction, and attached Integritas stamping blocks.
 - Each rule follows When / Condition / Then. Keep rules atomic; chain rules instead of adding multiple unrelated actions to one rule.
-- Collect data rules either poll an HTTP JSON API source at an interval or enable event-driven webhook/MQTT/GPIO ingestion for a push/source event.
+- Data/capture blocks either record an event trigger, fetch an HTTP JSON API source, or capture Pi Camera media.
 - The backend scheduler owns HTTP polling execution; webhook/MQTT/GPIO collect rules are triggered by incoming data while enabled.
 - Workflow variables are per-run only. `Set variable` can save custom JSON or field values from trigger/latest data/context for later conditions and output interpolation.
 - Store `last_run_at`, `next_run_at`, `last_hash`, `last_proof_id`, and `last_error`.
 - Save `last_hash` after successful data fetch or push ingestion even if Integritas stamping fails.
+- Pi Camera capture blocks hash the captured media file bytes, not only the JSON metadata preview.
 - Surface detailed upstream errors where possible without leaking secrets.

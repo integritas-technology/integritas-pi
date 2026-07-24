@@ -11,6 +11,7 @@ export type DataSourceRead = {
   hash: string | null;
   preview: unknown;
   error: string | null;
+  errorDetails?: unknown;
   triggerSourceId: string | null;
   triggerPayload: unknown;
   blockId: string | null;

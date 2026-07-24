@@ -51,7 +51,7 @@ Project-specific agent rules live outside `docs/`, in `.agents/rules/` at the re
 | [security/auth-and-transport.md](./security/auth-and-transport.md)                   | LAN access, TLS trust, API keys, `APP_SECRET`                                             |
 | [security/host-and-infrastructure.md](./security/host-and-infrastructure.md)         | Docker socket, file browser, path traversal, SQLite permissions, supply chain, installer  |
 | [security/wallet-and-tokens.md](./security/wallet-and-tokens.md)                     | Seed phrase import, automated transactions, debug clears, token creation                  |
-| [security/data-sources-and-automation.md](./security/data-sources-and-automation.md) | Minima RPC/resync/restart/peers, data source URLs, webhooks, MQTT, GPIO, Integritas proxy |
+| [security/data-sources-and-automation.md](./security/data-sources-and-automation.md) | Minima RPC/resync/restart/peers, data source URLs, webhooks, MQTT, GPIO, Pi Camera, Integritas proxy |
 | [security/low-priority-and-future.md](./security/low-priority-and-future.md)         | Rate limiting, error detail, logging hygiene, missing security tests                      |
 
 ---
@@ -65,9 +65,6 @@ Project-specific agent rules live outside `docs/`, in `.agents/rules/` at the re
 | [plans/feedback.md](./plans/feedback.md)                                                                 | V1 implemented; V2 planned |
 | [plans/security-checklist.md](./plans/security-checklist.md)                                             | In progress                |
 | [plans/workflow-variables-and-output-templating.md](./plans/workflow-variables-and-output-templating.md) | V1 implemented             |
-| [plans/update-service.md](./plans/update-service.md)                                                     | In progress                |
-| [plans/update-agent-review-fixes.md](./plans/update-agent-review-fixes.md)                               | Done                       |
-| [plans/update-service-launch.md](./plans/update-service-launch.md)                                       | In progress                |
 | [plans/manifest-deploy-pull-model.md](./plans/manifest-deploy-pull-model.md)                             | In progress                |
 | [plans/workflow-runs-pagination.md](./plans/workflow-runs-pagination.md)                                 | Implemented                |
 
@@ -85,4 +82,4 @@ Project-specific agent rules live outside `docs/`, in `.agents/rules/` at the re
 
 | Doc                                                  | Purpose                                                        |
 | ---------------------------------------------------- | -------------------------------------------------------------- |
-| [gpio-device-settings.md](./gpio-device-settings.md) | Tested and suggested GPIO input/output settings by device type |
+| [guides/gpio-device-settings.md](./guides/gpio-device-settings.md) | Tested and suggested GPIO input/output settings by device type |

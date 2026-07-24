@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { badRequest, dependencyUnavailable } from "../../shared/api-error.js";
 import { recordAuditEvent } from "../auth/audit.service.js";
 import { requireRole } from "../auth/auth.middleware.js";
 import { normalizeMinimaRpcError } from "./minima.errors.js";
@@ -24,7 +25,7 @@ minimaRouter.post("/config", (req, res) => {
     const megammrHost = typeof req.body?.megammrHost === "string" ? req.body.megammrHost : "";
     res.json(saveMinimaConfig({ megammrHost }));
   } catch (error) {
-    res.status(400).json({ error: error instanceof Error ? error.message : "Invalid Minima configuration" });
+    badRequest(res, error instanceof Error ? error.message : "Invalid Minima configuration");
   }
 });
 
@@ -33,17 +34,19 @@ minimaRouter.get("/status", async (_req, res) => {
     res.json(await getMinimaNodeStatus());
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    res.status(502).json({ error: message });
+    dependencyUnavailable(res, message, message);
   }
 });
 
 minimaRouter.get("/peers", async (_req, res) => {
   try {
     const result = await getMinimaPeers();
-    res.status(result.ok ? 200 : 502).json(result);
+    if (!result.ok) return dependencyUnavailable(res, "Failed to get Minima peers", undefined, undefined, result);
+    res.json(result);
   } catch (error) {
-    const message = normalizeMinimaRpcError(error instanceof Error ? error.message : "Unknown error");
-    res.status(502).json({ ok: false, error: message });
+    const nativeMessage = error instanceof Error ? error.message : "Unknown error";
+    const message = normalizeMinimaRpcError(nativeMessage);
+    dependencyUnavailable(res, message, nativeMessage, undefined, { ok: false });
   }
 });
 
@@ -55,10 +58,11 @@ minimaRouter.post("/peers/add", requireRole("admin"), async (req, res) => {
       userId: req.user?.id,
       detail: peerslist.trim()
     });
-    res.status(result.ok ? 200 : 502).json(result);
+    if (!result.ok) return dependencyUnavailable(res, "Failed to add Minima peers", undefined, undefined, result);
+    res.json(result);
   } catch (error) {
     const message = normalizeMinimaRpcError(error instanceof Error ? error.message : "Unknown error");
-    res.status(400).json({ ok: false, error: message });
+    badRequest(res, message, undefined, { ok: false });
   }
 });
 
@@ -71,27 +75,32 @@ minimaRouter.post("/restart", requireRole("admin"), async (req, res) => {
     });
     res.json(result);
   } catch (error) {
-    const message = normalizeMinimaRpcError(error instanceof Error ? error.message : "Unknown error");
-    res.status(502).json({ ok: false, error: message });
+    const nativeMessage = error instanceof Error ? error.message : "Unknown error";
+    const message = normalizeMinimaRpcError(nativeMessage);
+    dependencyUnavailable(res, message, nativeMessage, undefined, { ok: false });
   }
 });
 
 minimaRouter.get("/balance", async (_req, res) => {
   try {
     const result = await getWalletBalance();
-    res.status(result.ok ? 200 : 502).json(result);
+    if (!result.ok) return dependencyUnavailable(res, "Failed to get wallet balance", undefined, undefined, result);
+    res.json(result);
   } catch (error) {
-    const message = normalizeMinimaRpcError(error instanceof Error ? error.message : "Unknown error");
-    res.status(502).json({ ok: false, source: "minima", error: message });
+    const nativeMessage = error instanceof Error ? error.message : "Unknown error";
+    const message = normalizeMinimaRpcError(nativeMessage);
+    dependencyUnavailable(res, message, nativeMessage, undefined, { ok: false, source: "minima" });
   }
 });
 
 minimaRouter.post("/megammrsync/resync", async (_req, res) => {
   try {
     const result = await resyncMegammr();
-    res.status(result.ok ? 200 : 502).json(result);
+    if (!result.ok) return dependencyUnavailable(res, "Megammr resync failed", undefined, undefined, result);
+    res.json(result);
   } catch (error) {
-    const message = normalizeMinimaRpcError(error instanceof Error ? error.message : "Unknown error");
-    res.status(502).json({ ok: false, source: "minima", error: message });
+    const nativeMessage = error instanceof Error ? error.message : "Unknown error";
+    const message = normalizeMinimaRpcError(nativeMessage);
+    dependencyUnavailable(res, message, nativeMessage, undefined, { ok: false, source: "minima" });
   }
 });

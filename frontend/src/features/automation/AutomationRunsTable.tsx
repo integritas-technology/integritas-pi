@@ -2,6 +2,7 @@ import { Fragment, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../components/Button";
 import { DataTable, RowActions, TableWrap, tableCellClass, tableHeaderCellClass, tableHeadRowClass, tableRowClass } from "../../components/DataTable";
+import { ErrorDetails } from "../../components/ErrorDetails";
 import { JsonPreview } from "../../components/JsonPreview";
 import { cx } from "../../lib/cx";
 import { formatLocalTime } from "../../lib/time";
@@ -37,7 +38,7 @@ export function AutomationRunsTable({ runs, compact = false }: { runs: Automatio
                 <td className={tableCellClass}>{formatLocalTime(run.startedAt)}</td>
                 {!compact && <td className={tableCellClass}>{run.workflowName}</td>}
                 <td className={tableCellClass}>{run.triggerType}</td>
-                <td className={tableCellClass}><StatusPill status={run.status} /></td>
+                <td className={tableCellClass}><div className="grid gap-2"><StatusPill status={run.status} />{run.error && <ErrorDetails error={run.errorDetails ?? run.error} label="View error" />}</div></td>
                 <td className={tableCellClass}>{formatDuration(run.durationMs)}</td>
                 <td className={tableCellClass}>{run.blocks.filter((block) => block.status === "success").length}/{run.blockCount}</td>
                 <td className={tableCellClass}><RowActions>{run.workflowId ? <Link className="font-bold text-blue-700 hover:text-blue-900" to={`/automation?flow=watch&id=${encodeURIComponent(run.workflowId)}&run=${encodeURIComponent(run.id)}`}>Show on canvas</Link> : <span className={mutedText}>Workflow deleted</span>}<Button type="button" variant="secondary" className="rounded-full px-3 py-1.5" onClick={() => setRawRunId(rawRunId === run.id ? null : run.id)}>{rawRunId === run.id ? "Hide raw" : "Raw details"}</Button></RowActions></td>
@@ -64,6 +65,18 @@ function RawRunDetails({ run }: { run: AutomationRun }) {
         <div><strong>Raw workflow run JSON</strong><p className={mutedText}>Full stored run payload for diagnostics.</p></div>
         <StatusPill status={run.status} />
       </div>
+      {run.error && <div className="mt-4"><ErrorDetails error={run.errorDetails ?? run.error} label="View run error" /></div>}
+      {run.blocks.some((block) => block.error) && (
+        <div className="mt-4 grid gap-2">
+          <strong>Failed blocks</strong>
+          {run.blocks.filter((block) => block.error).map((block) => (
+            <div key={block.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white p-3">
+              <span><strong>{block.blockLabel}</strong> <span className={mutedText}>({block.blockType})</span></span>
+              <ErrorDetails error={block.errorDetails ?? block.error} label="View block error" />
+            </div>
+          ))}
+        </div>
+      )}
       <JsonPreview value={run} />
     </section>
   );

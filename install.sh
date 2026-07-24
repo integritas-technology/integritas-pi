@@ -15,6 +15,16 @@ GPIO_GID_INPUT="${GPIO_GID-}"
 ENABLE_MQTT_BROKER_INPUT="${ENABLE_MQTT_BROKER-}"
 MQTT_PUBLIC_HOST_INPUT="${MQTT_PUBLIC_HOST-}"
 MQTT_PUBLIC_PORT_INPUT="${MQTT_PUBLIC_PORT-}"
+ENABLE_CAMERA_INPUT="${ENABLE_CAMERA-}"
+CAMERA_CAPTURE_DIR_INPUT="${CAMERA_CAPTURE_DIR-}"
+CAMERA_HELPER_TOKEN_INPUT="${CAMERA_HELPER_TOKEN-}"
+CAMERA_HELPER_PORT_INPUT="${CAMERA_HELPER_PORT-}"
+CAMERA_MAX_DURATION_SECONDS_INPUT="${CAMERA_MAX_DURATION_SECONDS-}"
+CAMERA_RETENTION_DAYS_INPUT="${CAMERA_RETENTION_DAYS-}"
+CAMERA_PHOTO_COMMAND_INPUT="${CAMERA_PHOTO_COMMAND-}"
+CAMERA_VIDEO_COMMAND_INPUT="${CAMERA_VIDEO_COMMAND-}"
+INTEGRITAS_DOCKER_SUBNET_INPUT="${INTEGRITAS_DOCKER_SUBNET-}"
+INTEGRITAS_DOCKER_GATEWAY_INPUT="${INTEGRITAS_DOCKER_GATEWAY-}"
 MINIMA_DATA_DIR_INPUT="${MINIMA_DATA_DIR-}"
 UPDATE_AGENT_STATE_DIR_INPUT="${UPDATE_AGENT_STATE_DIR-}"
 MINIMA_P2P_PORT_INPUT="${MINIMA_P2P_PORT-}"
@@ -35,6 +45,16 @@ GPIO_GID="${GPIO_GID:-}"
 ENABLE_MQTT_BROKER="${ENABLE_MQTT_BROKER:-false}"
 MQTT_PUBLIC_HOST="${MQTT_PUBLIC_HOST:-}"
 MQTT_PUBLIC_PORT="${MQTT_PUBLIC_PORT:-1883}"
+ENABLE_CAMERA="${ENABLE_CAMERA:-false}"
+CAMERA_CAPTURE_DIR="${CAMERA_CAPTURE_DIR:-/data/captures}"
+CAMERA_HELPER_TOKEN="${CAMERA_HELPER_TOKEN:-}"
+CAMERA_HELPER_PORT="${CAMERA_HELPER_PORT:-38180}"
+CAMERA_MAX_DURATION_SECONDS="${CAMERA_MAX_DURATION_SECONDS:-30}"
+CAMERA_RETENTION_DAYS="${CAMERA_RETENTION_DAYS:-7}"
+CAMERA_PHOTO_COMMAND="${CAMERA_PHOTO_COMMAND:-rpicam-still}"
+CAMERA_VIDEO_COMMAND="${CAMERA_VIDEO_COMMAND:-rpicam-vid}"
+INTEGRITAS_DOCKER_SUBNET="${INTEGRITAS_DOCKER_SUBNET:-172.30.0.0/24}"
+INTEGRITAS_DOCKER_GATEWAY="${INTEGRITAS_DOCKER_GATEWAY:-172.30.0.1}"
 MINIMA_DATA_DIR="${MINIMA_DATA_DIR:-./minima}"
 UPDATE_AGENT_STATE_DIR="${UPDATE_AGENT_STATE_DIR:-./update-agent-state}"
 MINIMA_P2P_PORT="${MINIMA_P2P_PORT:-9003}"
@@ -127,14 +147,16 @@ prepare_app_directory() {
 prepare_runtime_directories() {
   log "Preparing runtime directories"
   local resolved_data_dir
-  case "$DATA_DIR" in
-    /*) resolved_data_dir="$DATA_DIR" ;;
-    ./*) resolved_data_dir="$APP_DIR/${DATA_DIR#./}" ;;
-    *) resolved_data_dir="$APP_DIR/$DATA_DIR" ;;
-  esac
+  resolved_data_dir="$(resolved_data_dir)"
   mkdir -p "$resolved_data_dir"
   chown -R 1000:1000 "$resolved_data_dir"
   chmod 700 "$resolved_data_dir"
+
+  if is_truthy "$ENABLE_CAMERA"; then
+    mkdir -p "$(resolved_camera_capture_dir)"
+    chown -R 1000:1000 "$(resolved_camera_capture_dir)"
+    chmod 700 "$(resolved_camera_capture_dir)"
+  fi
 
   case "$MINIMA_DATA_DIR" in
     /*) mkdir -p "$MINIMA_DATA_DIR" ;;
@@ -173,6 +195,16 @@ load_existing_config() {
   ENABLE_MQTT_BROKER="${ENABLE_MQTT_BROKER_INPUT:-${ENABLE_MQTT_BROKER:-false}}"
   MQTT_PUBLIC_HOST="${MQTT_PUBLIC_HOST_INPUT:-${MQTT_PUBLIC_HOST:-}}"
   MQTT_PUBLIC_PORT="${MQTT_PUBLIC_PORT_INPUT:-${MQTT_PUBLIC_PORT:-1883}}"
+  ENABLE_CAMERA="${ENABLE_CAMERA_INPUT:-${ENABLE_CAMERA:-false}}"
+  CAMERA_CAPTURE_DIR="${CAMERA_CAPTURE_DIR_INPUT:-${CAMERA_CAPTURE_DIR:-/data/captures}}"
+  CAMERA_HELPER_TOKEN="${CAMERA_HELPER_TOKEN_INPUT:-${CAMERA_HELPER_TOKEN:-}}"
+  CAMERA_HELPER_PORT="${CAMERA_HELPER_PORT_INPUT:-${CAMERA_HELPER_PORT:-38180}}"
+  CAMERA_MAX_DURATION_SECONDS="${CAMERA_MAX_DURATION_SECONDS_INPUT:-${CAMERA_MAX_DURATION_SECONDS:-30}}"
+  CAMERA_RETENTION_DAYS="${CAMERA_RETENTION_DAYS_INPUT:-${CAMERA_RETENTION_DAYS:-7}}"
+  CAMERA_PHOTO_COMMAND="${CAMERA_PHOTO_COMMAND_INPUT:-${CAMERA_PHOTO_COMMAND:-rpicam-still}}"
+  CAMERA_VIDEO_COMMAND="${CAMERA_VIDEO_COMMAND_INPUT:-${CAMERA_VIDEO_COMMAND:-rpicam-vid}}"
+  INTEGRITAS_DOCKER_SUBNET="${INTEGRITAS_DOCKER_SUBNET_INPUT:-${INTEGRITAS_DOCKER_SUBNET:-172.30.0.0/24}}"
+  INTEGRITAS_DOCKER_GATEWAY="${INTEGRITAS_DOCKER_GATEWAY_INPUT:-${INTEGRITAS_DOCKER_GATEWAY:-172.30.0.1}}"
   MINIMA_DATA_DIR="${MINIMA_DATA_DIR_INPUT:-${MINIMA_DATA_DIR:-./minima}}"
   UPDATE_AGENT_STATE_DIR="${UPDATE_AGENT_STATE_DIR_INPUT:-${UPDATE_AGENT_STATE_DIR:-./update-agent-state}}"
   MINIMA_P2P_PORT="${MINIMA_P2P_PORT_INPUT:-${MINIMA_P2P_PORT:-9003}}"
@@ -192,6 +224,32 @@ ensure_app_secret() {
 
   log "Generating APP_SECRET for encrypted local settings"
   APP_SECRET="$(openssl rand -hex 32)"
+}
+
+ensure_camera_helper_token() {
+  if ! is_truthy "$ENABLE_CAMERA" || [ -n "$CAMERA_HELPER_TOKEN" ]; then
+    return
+  fi
+
+  log "Generating CAMERA_HELPER_TOKEN for local camera helper"
+  CAMERA_HELPER_TOKEN="$(openssl rand -hex 32)"
+}
+
+resolved_data_dir() {
+  case "$DATA_DIR" in
+    /*) echo "$DATA_DIR" ;;
+    ./*) echo "$APP_DIR/${DATA_DIR#./}" ;;
+    *) echo "$APP_DIR/$DATA_DIR" ;;
+  esac
+}
+
+resolved_camera_capture_dir() {
+  case "$CAMERA_CAPTURE_DIR" in
+    /data/*) echo "$(resolved_data_dir)/${CAMERA_CAPTURE_DIR#/data/}" ;;
+    /*) echo "$CAMERA_CAPTURE_DIR" ;;
+    ./*) echo "$APP_DIR/${CAMERA_CAPTURE_DIR#./}" ;;
+    *) echo "$APP_DIR/$CAMERA_CAPTURE_DIR" ;;
+  esac
 }
 
 detect_docker_gid() {
@@ -281,6 +339,7 @@ download_app() {
   find "${find_args[@]}"
 
   cp -a "$tmp_dir/." "$APP_DIR/"
+  chmod 755 "$APP_DIR"
   rm -rf "$tmp_dir"
 
   log "install.sh version: $(fetch_manifest_field "$APP_DIR/package.json" version)"
@@ -411,6 +470,17 @@ APP_SECRET=$APP_SECRET
 DOCKER_GID=$DOCKER_GID
 ENABLE_GPIO=$ENABLE_GPIO
 GPIO_GID=$GPIO_GID
+ENABLE_CAMERA=$ENABLE_CAMERA
+CAMERA_CAPTURE_DIR=$CAMERA_CAPTURE_DIR
+CAMERA_HELPER_URL=http://$INTEGRITAS_DOCKER_GATEWAY:$CAMERA_HELPER_PORT
+CAMERA_HELPER_TOKEN=$CAMERA_HELPER_TOKEN
+CAMERA_HELPER_PORT=$CAMERA_HELPER_PORT
+CAMERA_MAX_DURATION_SECONDS=$CAMERA_MAX_DURATION_SECONDS
+CAMERA_RETENTION_DAYS=$CAMERA_RETENTION_DAYS
+CAMERA_PHOTO_COMMAND=$CAMERA_PHOTO_COMMAND
+CAMERA_VIDEO_COMMAND=$CAMERA_VIDEO_COMMAND
+INTEGRITAS_DOCKER_SUBNET=$INTEGRITAS_DOCKER_SUBNET
+INTEGRITAS_DOCKER_GATEWAY=$INTEGRITAS_DOCKER_GATEWAY
 ENABLE_MQTT_BROKER=$ENABLE_MQTT_BROKER
 DEV_MODE=$DEV_MODE
 COMPOSE_PROFILES=$compose_profiles_joined
@@ -445,25 +515,107 @@ write_compose_override() {
   docker_group="${DOCKER_GID:-0}"
   gpio_group="${GPIO_GID:-0}"
 
-  log "Enabling GPIO device access"
-
-  if [ ! -e /dev/gpiochip0 ]; then
-    log "Warning: /dev/gpiochip0 was not found on this host. GPIO sources will not work until the device exists."
-  fi
-
   cat > "$APP_DIR/docker-compose.override.yml" <<EOF
 services:
   backend:
+EOF
+
+  if is_truthy "$ENABLE_GPIO"; then
+    log "Enabling GPIO device access"
+
+    if [ ! -e /dev/gpiochip0 ]; then
+      log "Warning: /dev/gpiochip0 was not found on this host. GPIO sources will not work until the device exists."
+    fi
+
+    cat >> "$APP_DIR/docker-compose.override.yml" <<EOF
     devices:
       - /dev/gpiochip0:/dev/gpiochip0
 EOF
+  fi
 
   if [ "$gpio_group" != "$docker_group" ]; then
     cat >> "$APP_DIR/docker-compose.override.yml" <<EOF
     group_add:
+EOF
+    cat >> "$APP_DIR/docker-compose.override.yml" <<EOF
       - "\${GPIO_GID:-0}"
 EOF
   fi
+}
+
+install_camera_helper() {
+  local service_file="/etc/systemd/system/integritas-pi-camera-helper.service"
+  local helper_user
+  local supplementary_groups=""
+  local capture_dir
+
+  if ! is_truthy "$ENABLE_CAMERA"; then
+    if [ -f "$service_file" ]; then
+      log "Disabling camera helper service"
+      systemctl disable --now integritas-pi-camera-helper.service >/dev/null 2>&1 || true
+      rm -f "$service_file"
+      systemctl daemon-reload
+    fi
+    return
+  fi
+
+  helper_user="${SUDO_USER:-pi}"
+  if ! id "$helper_user" >/dev/null 2>&1; then
+    helper_user="root"
+  fi
+  if getent group video >/dev/null 2>&1; then
+    supplementary_groups="SupplementaryGroups=video"
+  fi
+
+  capture_dir="$(resolved_camera_capture_dir)"
+  mkdir -p "$capture_dir"
+  if [ "$helper_user" != "root" ]; then
+    chown -R "$helper_user:$helper_user" "$capture_dir"
+  fi
+  chmod 700 "$capture_dir"
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "python3 is required for the camera helper but was not found."
+    exit 1
+  fi
+
+  if ! command -v rpicam-still >/dev/null 2>&1 && ! command -v libcamera-still >/dev/null 2>&1; then
+    log "Warning: neither rpicam-still nor libcamera-still was found on the host. Install Raspberry Pi camera apps before using camera workflows."
+  fi
+
+  log "Installing camera helper service"
+  cat > "$service_file" <<EOF
+[Unit]
+Description=Integritas Pi Camera Helper
+After=network.target
+
+[Service]
+Type=simple
+User=$helper_user
+$supplementary_groups
+WorkingDirectory=$APP_DIR
+Environment=CAMERA_HELPER_HOST=0.0.0.0
+Environment=CAMERA_HELPER_PORT=$CAMERA_HELPER_PORT
+Environment=CAMERA_HELPER_TOKEN=$CAMERA_HELPER_TOKEN
+Environment=CAMERA_CAPTURE_DIR=$capture_dir
+Environment=CAMERA_CONTAINER_CAPTURE_DIR=$CAMERA_CAPTURE_DIR
+Environment=CAMERA_MAX_DURATION_SECONDS=$CAMERA_MAX_DURATION_SECONDS
+Environment=CAMERA_PHOTO_COMMAND=$CAMERA_PHOTO_COMMAND
+Environment=CAMERA_VIDEO_COMMAND=$CAMERA_VIDEO_COMMAND
+Environment=INTEGRITAS_DOCKER_SUBNET=$INTEGRITAS_DOCKER_SUBNET
+Environment=INTEGRITAS_DOCKER_GATEWAY=$INTEGRITAS_DOCKER_GATEWAY
+ExecStartPre=+/bin/sh -c 'if command -v iptables >/dev/null 2>&1; then iptables -C INPUT -s $INTEGRITAS_DOCKER_SUBNET -p tcp --dport $CAMERA_HELPER_PORT -j ACCEPT 2>/dev/null || iptables -I INPUT -s $INTEGRITAS_DOCKER_SUBNET -p tcp --dport $CAMERA_HELPER_PORT -j ACCEPT; fi'
+ExecStart=/usr/bin/python3 $APP_DIR/camera-helper/integritas_camera_helper.py
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  chmod 600 "$service_file"
+  systemctl daemon-reload
+  systemctl enable --now integritas-pi-camera-helper.service
 }
 
 generate_tls_cert() {
@@ -482,7 +634,25 @@ start_app() {
   else
     docker compose pull frontend backend
   fi
+  ensure_compose_network
   docker compose up -d
+}
+
+ensure_compose_network() {
+  local current_gateway
+
+  if ! docker network inspect integritas-pi >/dev/null 2>&1; then
+    return
+  fi
+
+  current_gateway="$(docker network inspect integritas-pi --format '{{range .IPAM.Config}}{{.Gateway}}{{end}}' 2>/dev/null || true)"
+  if [ "$current_gateway" = "$INTEGRITAS_DOCKER_GATEWAY" ]; then
+    return
+  fi
+
+  log "Recreating Docker network integritas-pi with gateway $INTEGRITAS_DOCKER_GATEWAY"
+  docker compose down
+  docker network rm integritas-pi >/dev/null 2>&1 || true
 }
 
 install_cli() {
@@ -527,6 +697,7 @@ main() {
   prepare_app_directory
   load_existing_config
   ensure_app_secret
+  ensure_camera_helper_token
   detect_docker_gid
   detect_gpio_gid
   normalize_mqtt_broker_config
@@ -537,6 +708,7 @@ main() {
   record_applied_manifest
   write_env_file
   write_compose_override
+  install_camera_helper
   generate_tls_cert
   install_cli
   start_app

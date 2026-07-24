@@ -11,14 +11,14 @@ This project uses Tailwind utilities plus small internal React components. Plain
 
 ## Structure
 
-| Layer | Location | Use |
-|---|---|---|
-| Base globals | `frontend/src/styles.css` | Tailwind import, root/body defaults, base form/code element rules |
-| Shared primitives | `frontend/src/components/` | Buttons, cards, pills, modal, text helpers, copied code |
-| Shared patterns | `frontend/src/components/` | Page shells, sections, tables, status rows, filter/pager bars |
-| Feature UI | `frontend/src/features/**` | Feature-specific forms, panels, modals, and page sections |
-| Route pages | `frontend/src/pages/` | Page composition and route-owned layout |
-| Local class constants | Same component file | One-off repeated class strings or conditional class maps |
+| Layer                 | Location                   | Use                                                               |
+| --------------------- | -------------------------- | ----------------------------------------------------------------- |
+| Base globals          | `frontend/src/styles.css`  | Tailwind import, root/body defaults, base form/code element rules |
+| Shared primitives     | `frontend/src/components/` | Buttons, cards, pills, modal, text helpers, copied code           |
+| Shared patterns       | `frontend/src/components/` | Page shells, sections, tables, status rows, filter/pager bars     |
+| Feature UI            | `frontend/src/features/**` | Feature-specific forms, panels, modals, and page sections         |
+| Route pages           | `frontend/src/pages/`      | Page composition and route-owned layout                           |
+| Local class constants | Same component file        | One-off repeated class strings or conditional class maps          |
 
 The project currently keeps shared primitives and patterns in a flat `frontend/src/components/` folder. Do not introduce `components/ui/` or `components/patterns/` unless the component list becomes hard to navigate.
 
@@ -44,7 +44,10 @@ Use these before writing bespoke markup:
 - `ButtonRow`: wrapping button groups.
 - `Pill`: compact status/category label.
 - `Text`: shared muted, error, and eyebrow text helpers.
+- `ErrorAlert`: in-page error alert with optional title and recovery action.
 - `Modal`: portal-backed dialog shell.
+- `Input`: ordinary text field (brand surface, soft shadow, focus ring).
+- `CredentialInput`: PIN or password field (`mode="pin" | "password"`); wraps `Input`.
 - `DataTable`: workflow-style table shell, wrapper, rows, and action cells.
 - `StatusRow`: compact label/value/status presentation.
 - `ListPagerFilterBar`: list filtering and pagination controls.
@@ -60,14 +63,15 @@ Good local constants:
 
 ```tsx
 const labelClass = "grid gap-2 font-bold text-slate-700";
-const inputClass = "w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-950";
+const inputClass =
+  "w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-950";
 ```
 
 Avoid exporting these constants or moving them into shared files unless more than one feature uses the same structure.
 
 ## Forms
 
-- Use global base input styles for ordinary inputs.
+- Use `Input` for ordinary text fields; use `CredentialInput` for PIN/password.
 - Add Tailwind classes locally when a form needs a special layout or visual treatment.
 - Keep inline validation near the field or form when the user needs to compare the error with entered values.
 - Use toast errors for transient action failures that should not occupy page layout.
@@ -80,9 +84,19 @@ Avoid exporting these constants or moving them into shared files unless more tha
 
 ## Tokens
 
-This repo does not currently define a Tailwind config or CSS token layer. Use Tailwind's default scale directly unless a repeated value becomes a real maintenance issue.
+Edge Studio primary palette is **White**, **Graphite**, and **Accent** (one complementary colour used sparingly). Tokens are defined in `@theme` in `frontend/src/styles.css` and used as Tailwind utilities (e.g. `bg-brand-white`, `text-brand-accent`):
 
-Add tokens only when there is a concrete need, such as a brand color used across many surfaces or a spacing/type rule that cannot be expressed clearly with Tailwind defaults.
+| Brief name | Utility / token  | Role                                             |
+| ---------- | ---------------- | ------------------------------------------------ |
+| White      | `brand-white`    | Near-white surfaces / panels (not raw `#ffffff`) |
+| Graphite   | `brand-graphite` | Text and strong UI                               |
+| Accent     | `brand-accent`   | Sparse highlights (CTA accents, progress)        |
+
+Supporting shades of those primaries: `brand-bg` (off-white page ground), `brand-graphite-muted`, `brand-graphite-hover`, `brand-graphite-soft`, `brand-border`. For dark surfaces: `brand-on-dark`, `brand-on-dark-hover`, `brand-on-dark-border`.
+
+Semantic status: `error` / `error-hover`, `warning` / `warning-hover`, `success` / `success-hover`, `info` / `info-hover`. Use these instead of raw Tailwind red/amber/emerald/blue for status UI.
+
+Do not use Tailwind opacity modifiers (e.g. `brand-white/25`) — add a named token instead. Values are placeholders until design delivers — change hex in `@theme`, not component classes. Use Tailwind defaults for everything else until a repeated need appears.
 
 ## Do Not Add Yet
 
