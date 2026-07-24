@@ -23,6 +23,7 @@
 
 ## Next
 
+- [ ] Minima RPC console on the Minima Core page — see `docs/plans/minima-rpc-console.md`.
 - [ ] Document the `DEV_MODE` install flag in `README.md`'s runtime-config section and note its manifest-signature-verification bypass in `SECURITY.md`/`docs/security/host-and-infrastructure.md` — flagged during code review, deliberately deferred as a separate concern from the pagination work.
 - [ ] Consider a shared Minima-node-state hook/context: `WalletPage`, `WalletSettingsPanel`, and `MinimaSettingsPanel` each run their own independent `useMinimaStatusRefresh` subscription today (accepted duplication, no shared store exists yet).
 - [ ] Check whether `README.md` needs updating now that Account settings gained Wallet settings and Minima node settings sections (moved off `WalletPage`/`MinimaPage`).
