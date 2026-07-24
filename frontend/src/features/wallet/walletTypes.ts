@@ -16,6 +16,7 @@ export type ReceiveAddress = {
   miniAddress: string;  // Mx… — Minima native format; use this for display/sharing
   address: string;      // 0x… — hex format
   publicKey?: string;
+  qrDataUrl: string;    // data:image/png;base64,… QR code encoding miniAddress
 };
 
 export type SendPaymentRequest = {

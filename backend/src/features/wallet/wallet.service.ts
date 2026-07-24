@@ -1,3 +1,4 @@
+import QRCode from "qrcode";
 import { runMinimaPathCommand } from "../minima/minima.rpc.js";
 import { db } from "../../db/database.js";
 import { parseAddressResponse, parseBalanceResponse, parseImportResponse, parsePaymentStatusResponse, parseSendResponse } from "./wallet.parse.js";
@@ -21,7 +22,9 @@ export async function getWalletStatus(): Promise<WalletStatus> {
 export async function getReceiveAddress(): Promise<ReceiveAddress> {
   const result = await runMinimaPathCommand("getaddress");
   if (!result.ok) throw new Error(`Minima RPC error: HTTP ${result.status}`);
-  return parseAddressResponse(result.body);
+  const address = parseAddressResponse(result.body);
+  const qrDataUrl = await QRCode.toDataURL(address.miniAddress, { type: "image/png", margin: 1 });
+  return { ...address, qrDataUrl };
 }
 
 export async function sendPayment({ address, amount, tokenId = "0x00" }: SendPaymentRequest): Promise<SendPaymentResult> {

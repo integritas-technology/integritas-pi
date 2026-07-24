@@ -66,7 +66,7 @@ export function parseBalanceResponse(body: unknown): WalletStatus {
   return { checkedAt, tokens };
 }
 
-export function parseAddressResponse(body: unknown): ReceiveAddress {
+export function parseAddressResponse(body: unknown): Omit<ReceiveAddress, "qrDataUrl"> {
   const record = asRecord(body);
   const response = asRecord(record?.response);
   const miniAddress = asString(response?.miniaddress, "");

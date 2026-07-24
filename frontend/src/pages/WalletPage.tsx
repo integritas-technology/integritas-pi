@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Check, Copy, Loader2 } from 'lucide-react';
 import type { MinimaNodeState } from '../app/types';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
@@ -107,53 +107,125 @@ function TokenGlyph({ isNative }: { isNative: boolean }) {
 const walletListClass = 'grid gap-2';
 const walletListRowClass = 'w-full rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-slate-400 hover:bg-slate-50';
 
+const RECEIVE_QR_REFRESH_MS = 3 * 60 * 1000;
+
+function ReceiveQrPanel({ disabled }: { disabled: boolean }) {
+  const [address, setAddress] = useState<ReceiveAddress | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const refresh = useCallback(() => {
+    getReceiveAddress()
+      .then((result) => {
+        setAddress(result);
+        setError(null);
+      })
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : 'Could not fetch address.'),
+      );
+  }, []);
+
+  useEffect(() => {
+    if (disabled) return;
+    refresh();
+    let interval: number | undefined;
+    function startInterval() {
+      interval = window.setInterval(refresh, RECEIVE_QR_REFRESH_MS);
+    }
+    function stopInterval() {
+      if (interval !== undefined) window.clearInterval(interval);
+      interval = undefined;
+    }
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        refresh();
+        startInterval();
+      } else {
+        stopInterval();
+      }
+    }
+    startInterval();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      stopInterval();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [disabled, refresh]);
+
+  async function handleCopy() {
+    if (!address) return;
+    try {
+      await navigator.clipboard.writeText(address.miniAddress);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // ignore clipboard failures in non-secure contexts
+    }
+  }
+
+  return (
+    <div className='flex h-full flex-col items-center gap-2'>
+      <button
+        type='button'
+        onClick={handleCopy}
+        disabled={!address || disabled}
+        aria-label={copied ? 'Copied' : 'Copy Mx address'}
+        className='flex h-full w-40 flex-col overflow-hidden rounded-md bg-white text-slate-950 shadow-sm transition-colors enabled:hover:bg-slate-50 disabled:opacity-55'
+      >
+        <div className='flex flex-1 items-center justify-center p-2'>
+          <div className='grid size-32 shrink-0 place-items-center'>
+            {address ? (
+              <img src={address.qrDataUrl} alt='Wallet receive address QR code' className='size-full' />
+            ) : (
+              <LoadingDots />
+            )}
+          </div>
+        </div>
+        <div className='flex w-full items-center justify-center gap-2 border-t border-slate-200 px-3 py-2.5 text-sm font-bold whitespace-nowrap'>
+          <span className='grid shrink-0 place-items-center'>
+            {copied ? <Check size={16} /> : <Copy size={16} />}
+          </span>
+          {copied ? 'Copied' : 'Copy address'}
+        </div>
+      </button>
+      {error && <p className='m-0 max-w-35 text-center text-xs text-red-400'>{error}</p>}
+    </div>
+  );
+}
+
 function WalletHero({
   loading,
   totalMinima,
   disabled,
-  onReceive,
-  onSend,
-  onCreateToken,
 }: {
   loading: boolean;
   totalMinima: string;
   disabled: boolean;
-  onReceive: () => void;
-  onSend: () => void;
-  onCreateToken: () => void;
 }) {
   return (
-    <DarkHeroCard>
-      <div className='relative z-10 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
-        <div className='flex items-center gap-3'>
-          <div className='grid size-[38px] place-items-center rounded-[14px] bg-white/10'>
-            <MinimaIcon size={18} />
+    <DarkHeroCard rounded='rounded-md' padding='p-5'>
+      <div className='relative z-10 flex flex-col gap-6 sm:flex-row sm:items-stretch sm:justify-between'>
+        <div className='flex min-w-0 flex-col justify-between gap-4'>
+          <div className='flex items-center gap-3'>
+            <div className='grid size-[38px] place-items-center rounded-[14px] bg-white/10'>
+              <MinimaIcon size={18} />
+            </div>
+            <Eyebrow className='text-slate-400'>Primary wallet</Eyebrow>
           </div>
-          <Eyebrow className='text-slate-400'>Node wallet</Eyebrow>
+          <div>
+            <p className='m-0 text-xs font-extrabold uppercase tracking-[0.12em] text-slate-400'>Total sendable MINIMA</p>
+            <div className='mt-2 flex min-w-0 items-start gap-4 text-[clamp(2.5rem,6vw,3.5rem)]'>
+              <MinimaIcon size={36} className='mt-[calc((1.1em-36px)/2)] shrink-0 opacity-55' />
+              <span
+                className='min-w-0 break-all text-[clamp(2.5rem,6vw,3.5rem)] font-bold leading-[1.1] tracking-[-0.04em]'
+                title={loading || disabled ? undefined : totalMinima}
+              >
+                {loading || disabled ? <LoadingDots className='scale-125' /> : formatAmountThreshold(totalMinima)}
+              </span>
+            </div>
+          </div>
         </div>
-        <div className='flex flex-wrap justify-start gap-2 sm:justify-end'>
-          <Button type='button' variant='onDark' onClick={onReceive} disabled={disabled}>
-            Receive payment
-          </Button>
-          <Button type='button' variant='onDark' onClick={onSend} disabled={disabled}>
-            Send payment
-          </Button>
-          <Button type='button' variant='onDark' onClick={onCreateToken} disabled={disabled}>
-            Create token
-          </Button>
-        </div>
-      </div>
-      <div className='relative z-10'>
-        <p className='m-0 text-xs font-extrabold uppercase tracking-[0.12em] text-slate-400'>Total sendable MINIMA</p>
-        <div className='mt-2 flex min-w-0 items-start gap-4 text-[clamp(2.5rem,6vw,3.5rem)]'>
-          <MinimaIcon size={36} className='mt-[calc((1.1em-36px)/2)] shrink-0 opacity-55' />
-          <span
-            className='min-w-0 break-all text-[clamp(2.5rem,6vw,3.5rem)] font-bold leading-[1.1] tracking-[-0.04em]'
-            title={loading || disabled ? undefined : totalMinima}
-          >
-            {loading || disabled ? <LoadingDots className='scale-125' /> : formatAmountThreshold(totalMinima)}
-          </span>
-        </div>
+        <ReceiveQrPanel disabled={disabled} />
       </div>
     </DarkHeroCard>
   );
@@ -173,7 +245,6 @@ export function WalletPage() {
   const [debugClearingHistory, setDebugClearingHistory] = useState(false);
   const [assetTab, setAssetTab] = useState<'all' | 'minima' | 'tokens'>('all');
   const [selectedAsset, setSelectedAsset] = useState<TokenBalance | null>(null);
-  const [receiveOpen, setReceiveOpen] = useState(false);
   const [mainTab, setMainTab] = useState<'assets' | 'address-book' | 'history'>('assets');
   const [minimaState, setMinimaState] = useState<MinimaNodeState | null>(null);
   const previousMinimaStateRef = useRef<MinimaNodeState | null>(null);
@@ -277,21 +348,28 @@ export function WalletPage() {
         loading={loading}
         totalMinima={totalMinima}
         disabled={actionsBlocked}
-        onReceive={() => setReceiveOpen(true)}
-        onSend={() => setSendOpen(true)}
-        onCreateToken={() => setCreateTokenOpen(true)}
       />
 
-      <SubTabs
-        label='Wallet sections'
-        value={mainTab}
-        options={[
-          { value: 'assets', label: 'Assets' },
-          { value: 'address-book', label: 'Address book' },
-          { value: 'history', label: 'History' },
-        ]}
-        onChange={setMainTab}
-      />
+      <div className='flex flex-wrap items-center justify-between gap-2'>
+        <SubTabs
+          label='Wallet sections'
+          value={mainTab}
+          options={[
+            { value: 'assets', label: 'Assets' },
+            { value: 'address-book', label: 'Address book' },
+            { value: 'history', label: 'History' },
+          ]}
+          onChange={setMainTab}
+        />
+        <div className='flex flex-wrap gap-2'>
+          <Button type='button' variant='secondary' onClick={() => setSendOpen(true)} disabled={actionsBlocked}>
+            Send payment
+          </Button>
+          <Button type='button' variant='secondary' onClick={() => setCreateTokenOpen(true)} disabled={actionsBlocked}>
+            Create token
+          </Button>
+        </div>
+      </div>
 
       <Card>
         {mainTab === 'assets' ? (
@@ -445,9 +523,6 @@ export function WalletPage() {
           onClose={() => setSelectedHistoryItem(null)}
         />
       )}
-      {receiveOpen && (
-        <ReceiveAddressModal onClose={() => setReceiveOpen(false)} />
-      )}
       {sendOpen && (
         <SendPaymentModal
           walletStatus={walletStatus}
@@ -511,56 +586,6 @@ function AssetDetailModal({
             {formatAmountAdaptive(token.unconfirmed)}
           </p>
         </div>
-      </div>
-    </Modal>
-  );
-}
-
-function ReceiveAddressModal({ onClose }: { onClose: () => void }) {
-  const [address, setAddress] = useState<ReceiveAddress | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    getReceiveAddress()
-      .then(setAddress)
-      .catch((err) =>
-        setError(
-          err instanceof Error ? err.message : 'Could not fetch address.',
-        ),
-      )
-      .finally(() => setLoading(false));
-  }, []);
-
-  return (
-    <Modal title='Receive funds' onClose={onClose}>
-      <div className='grid gap-4'>
-        <p className='text-sm text-slate-500'>
-          Share an address below to receive MINIMA or tokens. All addresses
-          belong to this wallet.
-        </p>
-        {loading && <MutedText>Fetching address…</MutedText>}
-        {error && (
-          <div className='rounded-xl bg-red-50 border border-red-200 p-3'>
-            <p className='text-sm text-red-700'>{error}</p>
-          </div>
-        )}
-        {address && (
-          <>
-            <div className='grid gap-1'>
-              <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
-                Minima address
-              </p>
-              <CopyableCode value={address.miniAddress} />
-            </div>
-            <div className='grid gap-1'>
-              <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
-                Hex address
-              </p>
-              <CopyableCode value={address.address} />
-            </div>
-          </>
-        )}
       </div>
     </Modal>
   );
