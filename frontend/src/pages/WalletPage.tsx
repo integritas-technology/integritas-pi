@@ -205,7 +205,7 @@ function WalletHero({
   return (
     <DarkHeroCard rounded='rounded-md' padding='p-5'>
       <div className='relative z-10 flex flex-col gap-6 sm:flex-row sm:items-stretch sm:justify-between'>
-        <div className='flex min-w-0 flex-col justify-between gap-4'>
+        <div className='flex min-w-0 flex-col justify-end gap-4'>
           <div className='flex items-center gap-3'>
             <div className='grid size-[38px] place-items-center rounded-[14px] bg-white/10'>
               <MinimaIcon size={18} />
