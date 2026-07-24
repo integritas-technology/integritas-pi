@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Check, Copy, Pencil, Trash2 } from 'lucide-react';
+import { Check, Copy, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '../../components/Button';
-import { Modal } from '../../components/Modal';
 import { ErrorText, MutedText } from '../../components/Text';
 import { useToast } from '../../components/ToastProvider';
 import {
@@ -28,7 +27,7 @@ function sortByLabel(entries: AddressBookEntry[]): AddressBookEntry[] {
   );
 }
 
-export function AddressBookModal({ onClose }: { onClose: () => void }) {
+export function AddressBookPanel({ actionsBlocked }: { actionsBlocked: boolean }) {
   const { showToast } = useToast();
   const [entries, setEntries] = useState<AddressBookEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,9 +75,16 @@ export function AddressBookModal({ onClose }: { onClose: () => void }) {
     }
   }
 
+  if (loading || actionsBlocked) {
+    return (
+      <div className='flex justify-center py-10'>
+        <Loader2 className='size-10 animate-spin text-slate-400' aria-hidden='true' />
+      </div>
+    );
+  }
+
   return (
-    <Modal title='Address book' onClose={onClose}>
-      {loading && <MutedText>Loading…</MutedText>}
+    <>
       {error && <ErrorText>{error}</ErrorText>}
 
       {addOpen && (
@@ -93,7 +99,7 @@ export function AddressBookModal({ onClose }: { onClose: () => void }) {
         />
       )}
 
-      {!loading && !error && entries.length === 0 && !addOpen && (
+      {!error && entries.length === 0 && !addOpen && (
         <MutedText>No contacts saved yet.</MutedText>
       )}
 
@@ -166,7 +172,7 @@ export function AddressBookModal({ onClose }: { onClose: () => void }) {
           </Button>
         </div>
       )}
-    </Modal>
+    </>
   );
 }
 

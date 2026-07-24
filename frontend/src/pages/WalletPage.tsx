@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { BookUser, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import type { MinimaNodeState } from '../app/types';
-import { Button, IconButton } from '../components/Button';
+import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { CopyableCode } from '../components/CopyableCode';
 import { DarkHeroCard } from '../components/DarkHeroCard';
@@ -31,7 +31,7 @@ import type {
   WalletSendHistoryItem,
   WalletStatus,
 } from '../features/wallet/walletTypes';
-import { AddressBookModal } from '../features/address-book/AddressBookPanel';
+import { AddressBookPanel } from '../features/address-book/AddressBookPanel';
 import { listAddressBookEntries } from '../features/address-book/addressBookApi';
 import type { AddressBookEntry } from '../features/address-book/addressBookTypes';
 import { useMinimaStatusRefresh } from '../features/minima/useMinimaStatusRefresh';
@@ -174,8 +174,7 @@ export function WalletPage() {
   const [assetTab, setAssetTab] = useState<'all' | 'minima' | 'tokens'>('all');
   const [selectedAsset, setSelectedAsset] = useState<TokenBalance | null>(null);
   const [receiveOpen, setReceiveOpen] = useState(false);
-  const [addressBookOpen, setAddressBookOpen] = useState(false);
-  const [mainTab, setMainTab] = useState<'assets' | 'history'>('assets');
+  const [mainTab, setMainTab] = useState<'assets' | 'address-book' | 'history'>('assets');
   const [minimaState, setMinimaState] = useState<MinimaNodeState | null>(null);
   const previousMinimaStateRef = useRef<MinimaNodeState | null>(null);
 
@@ -267,15 +266,6 @@ export function WalletPage() {
       eyebrow='Wallet'
       title='Wallet'
       desc='Node wallet balance and transaction history.'
-      action={
-        <IconButton
-          variant='primary'
-          onClick={() => setAddressBookOpen(true)}
-          aria-label='Address book'
-        >
-          <BookUser size={20} />
-        </IconButton>
-      }
     >
       {minimaConfirmedUnavailable && (
         <div className='rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900'>
@@ -295,7 +285,11 @@ export function WalletPage() {
       <SubTabs
         label='Wallet sections'
         value={mainTab}
-        options={[{ value: 'assets', label: 'Assets' }, { value: 'history', label: 'History' }]}
+        options={[
+          { value: 'assets', label: 'Assets' },
+          { value: 'address-book', label: 'Address book' },
+          { value: 'history', label: 'History' },
+        ]}
         onChange={setMainTab}
       />
 
@@ -361,6 +355,11 @@ export function WalletPage() {
                 ))}
               </div>
             )}
+          </>
+        ) : mainTab === 'address-book' ? (
+          <>
+            <Eyebrow className='mb-4'>Address book</Eyebrow>
+            <AddressBookPanel actionsBlocked={actionsBlocked} />
           </>
         ) : (
           <>
@@ -434,9 +433,6 @@ export function WalletPage() {
         )}
       </Card>
 
-      {addressBookOpen && (
-        <AddressBookModal onClose={() => setAddressBookOpen(false)} />
-      )}
       {selectedAsset && (
         <AssetDetailModal
           token={selectedAsset}
