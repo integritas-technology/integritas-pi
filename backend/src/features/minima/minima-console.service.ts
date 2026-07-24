@@ -2,7 +2,7 @@ import { recordAuditEvent } from "../auth/audit.service.js";
 import { findUserById } from "../auth/auth.repository.js";
 import { verifyPassword } from "../auth/password.service.js";
 import { getSetting, saveSetting } from "../settings/settings.repository.js";
-import { minimaConsoleCatalog, type ConsoleCommandEntry } from "./minima-console.catalog.js";
+import { excludedConsoleCommandVerbs, minimaConsoleCatalog, type ConsoleCommandEntry } from "./minima-console.catalog.js";
 import { addMinimaPeers, resyncMegammr } from "./minima.service.js";
 import { runMinimaPathCommand } from "./minima.rpc.js";
 
@@ -84,9 +84,16 @@ export async function runConsoleCommand(userId: string | undefined, rawInput: st
   const entry = resolveCatalogEntry(command);
   const enabledKeys = new Set(loadEnabledKeys());
 
-  if (!entry || !enabledKeys.has(entry.key)) {
+  if (!entry) {
     const verb = parseVerb(command) || command;
-    throw new MinimaConsoleError(`Command not permitted — enable '${verb}' in the console whitelist first.`, 400);
+    if ((excludedConsoleCommandVerbs as readonly string[]).includes(verb)) {
+      throw new MinimaConsoleError(`'${verb}' is permanently excluded from the console and can never be enabled.`, 400);
+    }
+    throw new MinimaConsoleError(`Unknown command '${verb}' — it isn't part of the console catalog.`, 400);
+  }
+
+  if (!enabledKeys.has(entry.key)) {
+    throw new MinimaConsoleError(`Command not permitted — enable '${entry.verb}' in the console whitelist first.`, 400);
   }
 
   let result;

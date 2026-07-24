@@ -19,6 +19,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+// JSON.stringify escapes embedded newlines in string values as the two literal characters
+// "\n" — valid JSON, but unreadable for multi-line help text (e.g. `logs help:`). Un-escape
+// them for display; this is no longer strictly valid JSON, but it's meant to be read, not parsed.
+function prettyJson(value: unknown): string {
+  return JSON.stringify(value, null, 2).replace(/\\n/g, "\n");
+}
+
 // Minima RPC results are wrapped as { ok, status, source, command, body: { ...,
 // response } }. The `response` field is the part an operator actually cares about;
 // everything else is envelope/metadata worth keeping around but not front-and-center.
@@ -35,7 +42,7 @@ function ConsoleResult({ payload }: { payload: unknown }) {
   const { response, envelope } = extractResponse(payload);
 
   if (response === undefined) {
-    return <pre className="m-0 whitespace-pre-wrap break-words text-slate-800">{JSON.stringify(payload, null, 2)}</pre>;
+    return <pre className="m-0 whitespace-pre-wrap break-words text-slate-800">{prettyJson(payload)}</pre>;
   }
 
   return (
@@ -47,8 +54,8 @@ function ConsoleResult({ payload }: { payload: unknown }) {
       >
         {expanded ? "▾" : "▸"} Payload (response shown below)
       </button>
-      {expanded && <pre className="m-0 mt-1 whitespace-pre-wrap break-words text-slate-500">{JSON.stringify(envelope, null, 2)}</pre>}
-      <pre className="m-0 mt-1 whitespace-pre-wrap break-words text-slate-800">{JSON.stringify(response, null, 2)}</pre>
+      {expanded && <pre className="m-0 mt-1 whitespace-pre-wrap break-words text-slate-500">{prettyJson(envelope)}</pre>}
+      <pre className="m-0 mt-1 whitespace-pre-wrap break-words text-slate-800">{prettyJson(response)}</pre>
     </div>
   );
 }
@@ -169,7 +176,7 @@ export function MinimaConsolePanel({ disabled }: { disabled?: boolean }) {
   }
 
   return (
-    <div className="flex max-h-[32rem] min-h-[10rem] flex-col rounded-xl border border-slate-300 bg-slate-50 font-mono text-sm text-slate-800">
+    <div className="flex h-[28rem] flex-col rounded-xl border border-slate-300 bg-slate-50 font-mono text-sm text-slate-800">
       {promptRow}
       {scrollback}
     </div>

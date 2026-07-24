@@ -10,6 +10,20 @@
 // blast radius). None of the excluded commands can be enabled via the whitelist API — they
 // simply have no catalog entry to reference.
 
+// Kept in sync with the exclusions described in the file header comment — used only to give
+// a clearer "permanently excluded" error message than a bare "unknown command" would.
+export const excludedConsoleCommandVerbs = [
+  "vault",
+  "sendfrom",
+  "signfrom",
+  "createfrom",
+  "postfrom",
+  "createtokenfrom",
+  "decryptbackup",
+  "keys",
+  "quit"
+] as const;
+
 export type ConsoleDispatch = "passthrough" | "megammrsync-resync" | "peers-add";
 
 export type ConsoleCommandEntry = {
