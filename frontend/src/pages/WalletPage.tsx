@@ -125,6 +125,10 @@ const HISTORY_STATUS_OPTIONS = [
   { value: 'failed', label: 'Failed' },
 ] as const;
 
+const fieldLabelClass = 'text-xs font-bold uppercase tracking-widest text-slate-500';
+const inputClass =
+  'w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-55';
+
 const RECEIVE_QR_REFRESH_MS = 3 * 60 * 1000;
 
 function ReceiveQrPanel({ disabled }: { disabled: boolean }) {
@@ -723,13 +727,13 @@ function AssetDetailModal({
     <Modal title={token.name} onClose={onClose}>
       <div className='grid gap-4'>
         <div className='grid gap-1'>
-          <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+          <p className={fieldLabelClass}>
             Token ID
           </p>
           <CopyableCode value={token.tokenId} />
         </div>
         <div className='grid gap-1'>
-          <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+          <p className={fieldLabelClass}>
             Sendable
           </p>
           <p className='text-lg font-semibold text-slate-900 tabular-nums inline-flex items-center gap-2'>
@@ -738,7 +742,7 @@ function AssetDetailModal({
           </p>
         </div>
         <div className='grid gap-1'>
-          <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+          <p className={fieldLabelClass}>
             Confirmed
           </p>
           <p className='text-sm font-medium text-slate-900 tabular-nums'>
@@ -746,7 +750,7 @@ function AssetDetailModal({
           </p>
         </div>
         <div className='grid gap-1'>
-          <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+          <p className={fieldLabelClass}>
             Unconfirmed
           </p>
           <p className='text-sm font-medium text-slate-500 tabular-nums'>
@@ -856,7 +860,7 @@ function SendPaymentModal({
       <form onSubmit={handleSubmit} className='grid gap-4'>
         <div className='grid gap-1.5'>
           <div className='flex items-center justify-between gap-3'>
-            <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+            <span className={fieldLabelClass}>
               Recipient address
             </span>
             <div className='flex gap-1 rounded-lg bg-slate-100 p-0.5'>
@@ -889,6 +893,7 @@ function SendPaymentModal({
               placeholder='Mx… or 0x…'
               autoComplete='off'
               spellCheck={false}
+              className={inputClass}
             />
           ) : contacts.length === 0 ? (
             <p className='text-sm text-slate-500'>No contacts saved in address book.</p>
@@ -896,6 +901,7 @@ function SendPaymentModal({
             <select
               value={address}
               onChange={(e) => setAddress(e.target.value)}
+              className={inputClass}
             >
               <option value=''>Select a contact…</option>
               {contacts.map((contact) => (
@@ -909,7 +915,7 @@ function SendPaymentModal({
 
         <label className='grid gap-1.5'>
           <span className='flex items-center justify-between gap-3'>
-            <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+            <span className={fieldLabelClass}>
               Token
             </span>
             {selectedToken && (
@@ -924,6 +930,7 @@ function SendPaymentModal({
               setTokenId(e.target.value);
               setFormError(null);
             }}
+            className={inputClass}
           >
             {tokenOptions.length > 0 ? (
               tokenOptions.map((opt) => (
@@ -938,7 +945,7 @@ function SendPaymentModal({
         </label>
 
         <label className='grid gap-1.5'>
-          <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+          <span className={fieldLabelClass}>
             Amount
           </span>
           <input
@@ -950,6 +957,7 @@ function SendPaymentModal({
               setFormError(null);
             }}
             placeholder='0.00'
+            className={inputClass}
           />
         </label>
 
@@ -974,13 +982,9 @@ function SendPaymentModal({
           </div>
         )}
 
-        <button
-          type='submit'
-          disabled={!canSubmit}
-          className='rounded-xl border-0 bg-slate-950 px-5 py-3 text-sm font-bold text-white disabled:opacity-50'
-        >
+        <Button type='submit' disabled={!canSubmit} className='w-full justify-center'>
           {submitting ? 'Sending…' : 'Send payment'}
-        </button>
+        </Button>
       </form>
     </Modal>
   );
@@ -1098,7 +1102,7 @@ function CreateTokenModal({
           (minimum: {minimumBalance})
         </p>
         <label className='grid gap-1.5'>
-          <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+          <span className={fieldLabelClass}>
             Name
           </span>
           <input
@@ -1107,10 +1111,11 @@ function CreateTokenModal({
             onChange={(e) => setName(e.target.value)}
             placeholder='e.g. Device access'
             maxLength={80}
+            className={inputClass}
           />
         </label>
         <label className='grid gap-1.5'>
-          <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+          <span className={fieldLabelClass}>
             Amount (supply)
           </span>
           <input
@@ -1119,10 +1124,11 @@ function CreateTokenModal({
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder='e.g. 1000'
+            className={inputClass}
           />
         </label>
         <label className='grid gap-1.5'>
-          <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+          <span className={fieldLabelClass}>
             Decimal places
           </span>
           <input
@@ -1131,6 +1137,7 @@ function CreateTokenModal({
             step={1}
             value={decimal}
             onChange={(e) => setDecimal(e.target.value)}
+            className={inputClass}
           />
         </label>
         {error && (
@@ -1148,13 +1155,13 @@ function CreateTokenModal({
             <p className='text-sm text-amber-800'>Minima isn't running — token creation is unavailable right now.</p>
           </div>
         )}
-        <button
+        <Button
           type='submit'
           disabled={submitting || !hasSufficientMinima || actionsBlocked}
-          className='rounded-xl border-0 bg-slate-950 px-5 py-3 text-sm font-bold text-white disabled:opacity-50'
+          className='w-full justify-center'
         >
           {submitting ? 'Creating…' : 'Create token'}
-        </button>
+        </Button>
       </form>
     </Modal>
   );
@@ -1172,7 +1179,7 @@ function HistoryDetailModal({
     <Modal title='History item details' onClose={onClose}>
       <div className='grid gap-4'>
         <div className='grid gap-1'>
-          <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+          <p className={fieldLabelClass}>
             Amount
           </p>
           <p className='text-lg font-semibold text-slate-900 inline-flex items-center gap-2'>
@@ -1181,7 +1188,7 @@ function HistoryDetailModal({
           </p>
         </div>
         <div className='grid gap-1'>
-          <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+          <p className={fieldLabelClass}>
             Status
           </p>
           <p className='text-sm font-medium text-slate-900 capitalize'>
@@ -1189,27 +1196,27 @@ function HistoryDetailModal({
           </p>
         </div>
         <div className='grid gap-1'>
-          <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+          <p className={fieldLabelClass}>
             To
           </p>
           <CopyableCode value={item.toAddress} />
         </div>
         <div className='grid gap-1'>
-          <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+          <p className={fieldLabelClass}>
             Token ID
           </p>
           <CopyableCode value={item.tokenId} />
         </div>
         {item.txpowId && (
           <div className='grid gap-1'>
-            <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+            <p className={fieldLabelClass}>
               TxPow ID
             </p>
             <CopyableCode value={item.txpowId} />
           </div>
         )}
         <div className='grid gap-1'>
-          <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+          <p className={fieldLabelClass}>
             Created
           </p>
           <p className='text-sm text-slate-900'>

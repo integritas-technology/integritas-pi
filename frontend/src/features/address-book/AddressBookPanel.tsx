@@ -36,6 +36,10 @@ function sortByLabel(entries: AddressBookEntry[]): AddressBookEntry[] {
   );
 }
 
+const fieldLabelClass = 'text-xs font-bold uppercase tracking-widest text-slate-500';
+const inputClass =
+  'w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-55';
+
 export function AddressBookPanel({
   actionsBlocked,
   addOpen,
@@ -95,15 +99,17 @@ export function AddressBookPanel({
       {error && <ErrorText>{error}</ErrorText>}
 
       {addOpen && (
-        <AddContactForm
-          onSave={async (data) => {
-            const entry = await createAddressBookEntry(data);
-            upsertEntry(entry);
-            onCloseAdd();
-            showToast({ tone: 'success', title: 'Contact added' });
-          }}
-          onCancel={onCloseAdd}
-        />
+        <Modal title='Add contact' onClose={onCloseAdd}>
+          <AddContactForm
+            onSave={async (data) => {
+              const entry = await createAddressBookEntry(data);
+              upsertEntry(entry);
+              onCloseAdd();
+              showToast({ tone: 'success', title: 'Contact added' });
+            }}
+            onCancel={onCloseAdd}
+          />
+        </Modal>
       )}
 
       <ListPagerFilterBar
@@ -278,12 +284,12 @@ function ContactDetailModal({
     <Modal title={entry.label} onClose={onClose}>
       <div className='grid gap-4'>
         <div className='grid gap-1'>
-          <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>Address</p>
+          <p className={fieldLabelClass}>Address</p>
           <CopyableCode value={entry.address} />
         </div>
         {entry.notes && (
           <div className='grid gap-1'>
-            <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>Notes</p>
+            <p className={fieldLabelClass}>Notes</p>
             <p className='text-sm text-slate-700'>{entry.notes}</p>
           </div>
         )}
@@ -368,11 +374,11 @@ function AddContactForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className='grid gap-3 pb-4 mb-4 border-b border-slate-100'
+      className='grid gap-3'
     >
       <div className='grid gap-3 sm:grid-cols-2'>
         <label className='grid gap-1.5'>
-          <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+          <span className={fieldLabelClass}>
             Label
           </span>
           <input
@@ -382,10 +388,11 @@ function AddContactForm({
             placeholder='e.g. Alice'
             maxLength={80}
             autoFocus
+            className={inputClass}
           />
         </label>
         <label className='grid gap-1.5'>
-          <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+          <span className={fieldLabelClass}>
             Address
           </span>
           <input
@@ -395,11 +402,12 @@ function AddContactForm({
             placeholder='Mx… or 0x…'
             autoComplete='off'
             spellCheck={false}
+            className={inputClass}
           />
         </label>
       </div>
       <label className='grid gap-1.5'>
-        <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+        <span className={fieldLabelClass}>
           Notes{' '}
           <span className='normal-case font-normal text-slate-400'>
             (optional)
@@ -410,6 +418,7 @@ function AddContactForm({
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="e.g. Alice's main wallet"
+          className={inputClass}
         />
       </label>
       {formError && (
@@ -481,7 +490,7 @@ function EditContactForm({
       </p>
       <div className='grid gap-3 sm:grid-cols-2'>
         <label className='grid gap-1.5'>
-          <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+          <span className={fieldLabelClass}>
             Label
           </span>
           <input
@@ -490,10 +499,11 @@ function EditContactForm({
             onChange={(e) => setLabel(e.target.value)}
             maxLength={80}
             autoFocus
+            className={inputClass}
           />
         </label>
         <label className='grid gap-1.5'>
-          <span className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+          <span className={fieldLabelClass}>
             Notes{' '}
             <span className='normal-case font-normal text-slate-400'>
               (optional)
@@ -504,6 +514,7 @@ function EditContactForm({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder='Optional note'
+            className={inputClass}
           />
         </label>
       </div>
