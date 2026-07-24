@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, Copy, Loader2 } from 'lucide-react';
+import { Check, Copy, Eye, Loader2 } from 'lucide-react';
 import type { MinimaNodeState } from '../app/types';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
@@ -7,6 +7,7 @@ import { CopyableCode } from '../components/CopyableCode';
 import {
   DataTable,
   RowActions,
+  TableIconButton,
   TableWrap,
   tableCellClass,
   tableHeaderCellClass,
@@ -450,7 +451,7 @@ export function WalletPage() {
                     <tr className={tableHeadRowClass}>
                       <th className={tableHeaderCellClass}>Name</th>
                       <th className={tableHeaderCellClass}>Coin ID</th>
-                      <th className={tableHeaderCellClass}>Actions</th>
+                      <th className={`${tableHeaderCellClass} w-px whitespace-nowrap`}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -465,15 +466,16 @@ export function WalletPage() {
                         <td className={tableCellClass}>
                           <code className='font-mono text-xs text-slate-500'>{token.tokenId}</code>
                         </td>
-                        <td className={tableCellClass}>
-                          <RowActions>
-                            <Button
+                        <td className={`${tableCellClass} w-px whitespace-nowrap`}>
+                          <RowActions wrap={false}>
+                            <TableIconButton
                               type='button'
-                              variant='secondary'
+                              title='View details'
+                              aria-label={`View ${token.name}`}
                               onClick={() => setSelectedAsset(token)}
                             >
-                              Details
-                            </Button>
+                              <Eye size={16} />
+                            </TableIconButton>
                           </RowActions>
                         </td>
                       </tr>

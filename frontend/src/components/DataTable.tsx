@@ -87,12 +87,14 @@ export function EmptyTableState({
 export function RowActions({
   children,
   className,
+  wrap = true,
 }: {
   children: ReactNode;
   className?: string;
+  wrap?: boolean;
 }) {
   return (
-    <div className={cx('flex flex-wrap items-center gap-2', className)}>
+    <div className={cx('flex items-center gap-2', wrap ? 'flex-wrap' : 'flex-nowrap', className)}>
       {children}
     </div>
   );

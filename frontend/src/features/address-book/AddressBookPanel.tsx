@@ -30,12 +30,6 @@ import type {
   UpdateAddressBookEntryInput,
 } from './addressBookTypes';
 
-function shortAddr(value: string): string {
-  if (value.length <= 18) return value;
-  if (value.startsWith('Mx')) return `${value.slice(0, 8)}…${value.slice(-6)}`;
-  return `${value.slice(0, 10)}…${value.slice(-6)}`;
-}
-
 function sortByLabel(entries: AddressBookEntry[]): AddressBookEntry[] {
   return [...entries].sort((a, b) =>
     a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }),
@@ -144,22 +138,22 @@ export function AddressBookPanel({
           <DataTable>
             <thead>
               <tr className={tableHeadRowClass}>
-                <th className={tableHeaderCellClass}>Name</th>
+                <th className={`${tableHeaderCellClass} min-w-48`}>Name</th>
                 <th className={tableHeaderCellClass}>Address</th>
-                <th className={tableHeaderCellClass}>Actions</th>
+                <th className={`${tableHeaderCellClass} w-px whitespace-nowrap`}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {pagedEntries.map((entry) => (
                 <tr key={entry.id} className={tableRowClass}>
-                  <td className={tableCellClass}>
+                  <td className={`${tableCellClass} min-w-48`}>
                     <span className='font-semibold text-slate-900'>{entry.label}</span>
                   </td>
                   <td className={tableCellClass}>
-                    <code className='font-mono text-xs text-slate-500'>{shortAddr(entry.address)}</code>
+                    <code className='font-mono text-xs text-slate-500'>{entry.address}</code>
                   </td>
-                  <td className={tableCellClass}>
-                    <RowActions>
+                  <td className={`${tableCellClass} w-px whitespace-nowrap`}>
+                    <RowActions wrap={false}>
                       <TableIconButton
                         type='button'
                         title='View contact'
