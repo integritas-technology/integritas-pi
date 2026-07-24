@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Event-driven Automation start blocks can now enforce a cooldown between workflow runs, and GPIO starts can ignore inactive events such as PIR `motion_cleared` edges.
 - GPIO device guidance now documents the tested HC-SR501 PIR wiring, standalone GPIO test script, and troubleshooting notes.
 
+### Changed
+
+- Automation control-output blocks now preserve compatible payload settings when switching between output targets instead of resetting the block to target defaults.
+
 ## [0.22.0] - 2026-07-23
 
 ### Added

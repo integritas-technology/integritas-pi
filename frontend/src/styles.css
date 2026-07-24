@@ -95,7 +95,7 @@ code {
   word-break: break-all;
 }
 
-/* input,
+input,
 textarea,
 select {
   width: 100%;
@@ -104,7 +104,7 @@ select {
   border: 1px solid #cbd5e1;
   border-radius: 16px;
   background: #f8fafc;
-} */
+}
 
 textarea {
   resize: vertical;

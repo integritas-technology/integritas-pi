@@ -492,7 +492,7 @@ function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChan
         </>}
         {block.type === "gpio_event_start" && <>
           <label className="grid grid-cols-[auto_minmax(0,1fr)] items-center justify-start gap-2.5"><input className="w-auto" type="checkbox" checked={Boolean(block.config.activeOnly)} onChange={(event) => onChange({ ...block.config, activeOnly: event.target.checked })} /> Only run when the GPIO event is active</label>
-          <p className={mutedText}>{selectedStartSource?.config.profile === "pir-motion" ? "Recommended for PIR sensors: ignore motion_cleared events and run only on motion_detected." : "Use this when inactive GPIO edges should not trigger the workflow."}</p>
+          <p className={mutedText}>{selectedStartSource?.config.profile === "pir-motion" ? "Useful when this PIR watches both rising and falling edges: ignore motion_cleared and run only on motion_detected." : "Use this when inactive GPIO edges should not trigger the workflow."}</p>
         </>}
       </Panel>
     );
@@ -503,7 +503,7 @@ function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChan
       <Panel className={formGridClass}>
         <strong>Selected block</strong>
         <p className={mutedText}>Fetch JSON from an HTTP device/source.</p>
-        <label>HTTP source<select value={block.config.sourceId ?? ""} onChange={(event) => onChange({ sourceId: event.target.value })}><option value="">Select HTTP source...</option>{httpSources.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>
+        <label>HTTP source<select value={block.config.sourceId ?? ""} onChange={(event) => onChange({ ...block.config, sourceId: event.target.value })}><option value="">Select HTTP source...</option>{httpSources.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>
         <AttachedStampSettings block={block} onAttachedChange={onAttachedChange} onAttachedRemove={onAttachedRemove} />
       </Panel>
     );
@@ -568,7 +568,7 @@ function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChan
         <strong>Selected block</strong>
         <label>Output target<select value={block.config.targetId ?? ""} onChange={(event) => {
           const target = outputTargets.find((source) => source.id === event.target.value);
-          onChange(defaultOutputBlockConfig(target, block.config.durationMs ?? 500));
+          onChange(retargetOutputBlockConfig(block.config, target));
         }}><option value="">Select output target...</option>{outputTargets.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>
         {selectedOutput?.type === "gpio-output" && <label>Pulse duration ms<input value={String(block.config.durationMs ?? 500)} inputMode="numeric" onChange={(event) => onChange({ ...block.config, action: "pulse", durationMs: Number(event.target.value) })} /></label>}
         {selectedOutput?.type === "gpio-output" && <p className={mutedText}>Selected device active state: <strong>{selectedOutput.config.activeState ?? "high"}</strong>. Use High for common GPIO to resistor to LED to GND wiring. Change this from Devices by editing the GPIO Output target.</p>}
@@ -1260,6 +1260,22 @@ function defaultOutputBlockConfig(source: DataSource | undefined, durationMs: nu
   if (source?.type === "http-output") return { targetId: source.id, action: "send_request", bodyMode: "custom", bodyTemplateText: defaultCustomBodyText() };
   if (source?.type === "mqtt-output") return { targetId: source.id, action: "publish", bodyMode: "workflow_context" };
   return { targetId: "", action: "pulse", durationMs };
+}
+
+function retargetOutputBlockConfig(config: AutomationBlock["config"], target: DataSource | undefined): AutomationBlock["config"] {
+  if (!target) return { ...config, targetId: "" };
+  if (target.type === "gpio-output") return { targetId: target.id, action: "pulse", durationMs: config.durationMs ?? 500 };
+  if (target.type !== "http-output" && target.type !== "mqtt-output") return { ...config, targetId: target.id };
+
+  const action = outputActionForTarget(target);
+  const bodyMode = compatibleBodyMode(config.bodyMode, target.type);
+  return outputBodyModeConfig({ ...config, targetId: target.id, action }, bodyMode, target.type);
+}
+
+function compatibleBodyMode(bodyMode: AutomationBlock["config"]["bodyMode"], targetType: "http-output" | "mqtt-output") {
+  if (!bodyMode) return targetType === "http-output" ? "custom" : "workflow_context";
+  if (targetType === "mqtt-output" && (bodyMode === "none" || bodyMode === "multipart_media")) return "workflow_context";
+  return bodyMode;
 }
 
 function outputBodyModeConfig(config: AutomationBlock["config"], bodyMode: NonNullable<AutomationBlock["config"]["bodyMode"]>, targetType: "http-output" | "mqtt-output"): AutomationBlock["config"] {
