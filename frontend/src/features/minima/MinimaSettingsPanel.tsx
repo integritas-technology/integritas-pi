@@ -29,8 +29,16 @@ export function MinimaSettingsPanel() {
 
   useEffect(() => {
     refreshConfig().catch((err: Error) => setConfigError(err.message));
-    refreshPeers().catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    // Wait for a confirmed "running" state before fetching peers — during a
+    // user-triggered resync/restart the node briefly reports "restarting" (or
+    // status hasn't resolved yet), and hitting the peers RPC then would just
+    // fail as an expected side effect, not a real error.
+    if (actionsBlocked) return;
+    refreshPeers().catch(() => undefined);
+  }, [actionsBlocked]);
 
   async function refreshConfig() {
     const parsed = await getMinimaConfig();

@@ -14,7 +14,7 @@
 
 - [ ] Commit the pending `MinimaSettingsPanel` change on `fix/minima-sync-missmatch` (new file + `AuthSettingsPage.tsx`/`MinimaPage.tsx` edits) — typecheck/build clean, container verified, not yet `git commit`ed.
 - [ ] Manual browser click-through of `fix/minima-sync-missmatch` before merging: restart/resync from Minima Core, Dashboard tile during restart, Wallet page gating/spinners/auto-repoll, and the new Wallet-settings/Minima-node-settings panels on Account settings — no authenticated browser session was available to click-test this session.
-- [ ] Add a `CHANGELOG.md` `[Unreleased]` section for `fix/minima-sync-missmatch`'s user-facing changes (Minima restart/resync UX, Wallet page gating, settings moved to Account settings) — currently missing entirely.
+- [ ] `CHANGELOG.md` `[Unreleased]` section now exists but only covers the peers-toast fix (see Done) — still needs entries for `fix/minima-sync-missmatch`'s other user-facing changes (Minima restart/resync UX, Wallet page gating, settings moved to Account settings).
 
 ## In Progress
 
@@ -50,6 +50,7 @@
 - [x] Synced Dashboard wallet display and polling to node state; disabled Minima Core and Wallet page actions until the node is confirmed running/idle; added loading indicators (dots/spinner) in place of stale or misleading values across Minima Core, Dashboard, and Wallet.
 - [x] Fixed Wallet page going stale after a resync/restart performed from another page by auto-refreshing balance/assets/history on the node's return to `"running"`.
 - [x] Moved Wallet settings and Minima node settings out of page-level modals into new `WalletSettingsPanel`/`MinimaSettingsPanel` cards on the Account settings page; removed the now-unused settings buttons/modals from `WalletPage.tsx`/`MinimaPage.tsx`. (Still needs a commit — see Current Focus.)
+- [x] Fixed a false-positive "Failed to load peers" toast on Account Settings: `MinimaSettingsPanel` now only fetches peers once the node is confirmed `"running"` (reusing the existing `actionsBlocked` gate) instead of fetching unconditionally on mount, so a user-triggered resync/restart no longer surfaces the toast as a false error.
 
 ## Ideas
 
