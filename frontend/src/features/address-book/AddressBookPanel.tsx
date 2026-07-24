@@ -139,7 +139,7 @@ export function AddressBookPanel({
             <thead>
               <tr className={tableHeadRowClass}>
                 <th className={`${tableHeaderCellClass} min-w-48`}>Name</th>
-                <th className={tableHeaderCellClass}>Address</th>
+                <th className={`${tableHeaderCellClass} w-full`}>Notes</th>
                 <th className={`${tableHeaderCellClass} w-px whitespace-nowrap`}>Actions</th>
               </tr>
             </thead>
@@ -150,7 +150,7 @@ export function AddressBookPanel({
                     <span className='font-semibold text-slate-900'>{entry.label}</span>
                   </td>
                   <td className={tableCellClass}>
-                    <code className='font-mono text-xs text-slate-500'>{entry.address}</code>
+                    <span className='text-sm text-slate-600'>{entry.notes || '—'}</span>
                   </td>
                   <td className={`${tableCellClass} w-px whitespace-nowrap`}>
                     <RowActions wrap={false}>

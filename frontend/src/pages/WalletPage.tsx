@@ -85,10 +85,6 @@ function shortAddress(value: string): string {
   return `${value.slice(0, 8)}…${value.slice(-6)}`;
 }
 
-function formatHistoryFlow(entry: WalletSendHistoryItem): string {
-  return `To ${shortAddress(entry.toAddress)}`;
-}
-
 function FilledHexTokenIcon({
   size = 13,
   className = '',
@@ -117,13 +113,16 @@ function TokenGlyph({ isNative }: { isNative: boolean }) {
   return <FilledHexTokenIcon size={13} className='text-slate-400 shrink-0' />;
 }
 
-const walletListClass = 'grid gap-2';
-const walletListRowClass = 'w-full rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-slate-400 hover:bg-slate-50';
-
 const ASSET_KIND_OPTIONS = [
   { value: '', label: 'All' },
   { value: 'minima', label: 'Minima' },
   { value: 'tokens', label: 'Tokens' },
+] as const;
+
+const HISTORY_STATUS_OPTIONS = [
+  { value: '', label: 'All' },
+  { value: 'submitted', label: 'Submitted' },
+  { value: 'failed', label: 'Failed' },
 ] as const;
 
 const RECEIVE_QR_REFRESH_MS = 3 * 60 * 1000;
@@ -267,6 +266,10 @@ export function WalletPage() {
   const [assetPage, setAssetPage] = useState(1);
   const [assetPageSize, setAssetPageSize] = useState<number>(DEFAULT_PAGE_SIZE_OPTIONS[0]);
   const [selectedAsset, setSelectedAsset] = useState<TokenBalance | null>(null);
+  const [historyQuery, setHistoryQuery] = useState('');
+  const [historyStatus, setHistoryStatus] = useState('');
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState<number>(DEFAULT_PAGE_SIZE_OPTIONS[0]);
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [mainTab, setMainTab] = useState<'assets' | 'address-book' | 'history'>('assets');
   const [minimaState, setMinimaState] = useState<MinimaNodeState | null>(null);
@@ -336,6 +339,23 @@ export function WalletPage() {
   const pagedAssets = visibleAssets.slice(
     (assetCurrentPage - 1) * assetPageSize,
     assetCurrentPage * assetPageSize,
+  );
+
+  const trimmedHistoryQuery = historyQuery.trim().toLowerCase();
+  const filteredHistory = sendHistory.filter((entry) => {
+    if (historyStatus && entry.status !== historyStatus) return false;
+    if (!trimmedHistoryQuery) return true;
+    return (
+      entry.toAddress.toLowerCase().includes(trimmedHistoryQuery) ||
+      entry.tokenName.toLowerCase().includes(trimmedHistoryQuery) ||
+      (entry.txpowId ?? '').toLowerCase().includes(trimmedHistoryQuery)
+    );
+  });
+  const historyTotalPages = Math.max(1, Math.ceil(filteredHistory.length / historyPageSize));
+  const historyCurrentPage = Math.min(historyPage, historyTotalPages);
+  const pagedHistory = filteredHistory.slice(
+    (historyCurrentPage - 1) * historyPageSize,
+    historyCurrentPage * historyPageSize,
   );
 
   async function handleDebugClearWalletHistory() {
@@ -449,22 +469,25 @@ export function WalletPage() {
                 <DataTable>
                   <thead>
                     <tr className={tableHeadRowClass}>
-                      <th className={tableHeaderCellClass}>Name</th>
-                      <th className={tableHeaderCellClass}>Coin ID</th>
+                      <th className={`${tableHeaderCellClass} min-w-48`}>Name</th>
+                      <th className={tableHeaderCellClass}>Amount</th>
                       <th className={`${tableHeaderCellClass} w-px whitespace-nowrap`}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {pagedAssets.map((token) => (
                       <tr key={token.tokenId} className={tableRowClass}>
-                        <td className={tableCellClass}>
+                        <td className={`${tableCellClass} min-w-48`}>
                           <span className='inline-flex items-center gap-1.5 font-semibold text-slate-900'>
                             <TokenGlyph isNative={token.isNative} />
                             {token.name}
                           </span>
                         </td>
                         <td className={tableCellClass}>
-                          <code className='font-mono text-xs text-slate-500'>{token.tokenId}</code>
+                          <span className='inline-flex items-center gap-1.5 font-mono text-sm tabular-nums text-slate-700'>
+                            <TokenGlyph isNative={token.isNative} />
+                            {formatAmountAdaptive(token.sendable)}
+                          </span>
                         </td>
                         <td className={`${tableCellClass} w-px whitespace-nowrap`}>
                           <RowActions wrap={false}>
@@ -535,44 +558,109 @@ export function WalletPage() {
                 </Button>
               </div>
             </div>
+            <ListPagerFilterBar
+              page={historyCurrentPage}
+              pageSize={historyPageSize}
+              total={filteredHistory.length}
+              totalPages={historyTotalPages}
+              status={historyStatus}
+              q={historyQuery}
+              statusOptions={HISTORY_STATUS_OPTIONS}
+              statusLabel='Status'
+              searchPlaceholder='Address, token, or txpow ID'
+              disabled={loading || actionsBlocked}
+              onPageChange={setHistoryPage}
+              onPageSizeChange={(size) => {
+                setHistoryPageSize(size);
+                setHistoryPage(1);
+              }}
+              onStatusChange={(status) => {
+                setHistoryStatus(status);
+                setHistoryPage(1);
+              }}
+              onQueryChange={(q) => {
+                setHistoryQuery(q);
+                setHistoryPage(1);
+              }}
+            />
             {loading || actionsBlocked ? (
               <div className='flex justify-center py-10'>
                 <Loader2 className='size-10 animate-spin text-slate-400' aria-hidden='true' />
               </div>
             ) : error ? (
               <ErrorText>{error}</ErrorText>
-            ) : sendHistory.length === 0 ? (
-              <MutedText>No send activity yet.</MutedText>
+            ) : filteredHistory.length === 0 ? (
+              <MutedText>
+                {historyStatus || trimmedHistoryQuery
+                  ? 'No matching history.'
+                  : 'No send activity yet.'}
+              </MutedText>
             ) : (
-              <div className={walletListClass}>
-                {sendHistory.map((entry) => (
-                  <button
-                    key={entry.id}
-                    type='button'
-                    onClick={() => setSelectedHistoryItem(entry)}
-                    className={walletListRowClass}
-                  >
-                    <div className='flex items-start justify-between gap-3'>
-                      <div>
-                        <p className='text-sm font-semibold text-slate-900 inline-flex items-center gap-1.5'>
-                          <TokenGlyph isNative={isNativeTokenId(entry.tokenId)} />
-                          {entry.amount} {entry.tokenName}
-                        </p>
-                        <p className='text-xs text-slate-500 mt-1'>
-                          {formatHistoryFlow(entry)}
-                        </p>
-                        <p className='text-xs text-slate-400 mt-1'>
-                          {new Date(entry.createdAt).toLocaleString()}
-                        </p>
-                      </div>
-                      <span className='text-xs font-semibold uppercase tracking-wide text-slate-500'>
-                        {entry.status}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
+              <TableWrap>
+                <DataTable>
+                  <thead>
+                    <tr className={tableHeadRowClass}>
+                      <th className={tableHeaderCellClass}>Amount</th>
+                      <th className={tableHeaderCellClass}>To</th>
+                      <th className={tableHeaderCellClass}>Status</th>
+                      <th className={tableHeaderCellClass}>Date</th>
+                      <th className={`${tableHeaderCellClass} w-px whitespace-nowrap`}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pagedHistory.map((entry) => (
+                      <tr key={entry.id} className={tableRowClass}>
+                        <td className={tableCellClass}>
+                          <span className='inline-flex items-center gap-1.5 font-semibold text-slate-900'>
+                            <TokenGlyph isNative={isNativeTokenId(entry.tokenId)} />
+                            {entry.amount} {entry.tokenName}
+                          </span>
+                        </td>
+                        <td className={tableCellClass}>
+                          <code className='font-mono text-xs text-slate-500'>{shortAddress(entry.toAddress)}</code>
+                        </td>
+                        <td className={tableCellClass}>
+                          <span className='text-xs font-semibold uppercase tracking-wide text-slate-500'>
+                            {entry.status}
+                          </span>
+                        </td>
+                        <td className={tableCellClass}>
+                          <span className='text-xs text-slate-500'>
+                            {new Date(entry.createdAt).toLocaleString()}
+                          </span>
+                        </td>
+                        <td className={`${tableCellClass} w-px whitespace-nowrap`}>
+                          <RowActions wrap={false}>
+                            <TableIconButton
+                              type='button'
+                              title='View details'
+                              aria-label='View history item'
+                              onClick={() => setSelectedHistoryItem(entry)}
+                            >
+                              <Eye size={16} />
+                            </TableIconButton>
+                          </RowActions>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </DataTable>
+              </TableWrap>
             )}
+            <div className='mt-3'>
+              <TablePager
+                page={historyCurrentPage}
+                pageSize={historyPageSize}
+                total={filteredHistory.length}
+                totalPages={historyTotalPages}
+                disabled={loading || actionsBlocked}
+                onPageChange={setHistoryPage}
+                onPageSizeChange={(size) => {
+                  setHistoryPageSize(size);
+                  setHistoryPage(1);
+                }}
+              />
+            </div>
             {isDev && (
               <div className='mt-4 flex justify-start'>
                 <Button
