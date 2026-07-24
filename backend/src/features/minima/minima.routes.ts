@@ -120,7 +120,11 @@ minimaRouter.post("/console/whitelist", requireRole("admin"), authRateLimiter, a
     res.json(result);
   } catch (error) {
     if (error instanceof MinimaConsoleError) {
-      return apiErrorFromStatus(res, error.status, error.message);
+      // errorCode marks this as a re-auth failure, not an expired session — without it the
+      // frontend's shared 401 handler (frontend/src/lib/api.ts) treats any bare 401 as a dead
+      // session and force-logs-out, even though the session cookie is still valid.
+      const extra = error.status === 401 ? { errorCode: "invalid_credential" } : {};
+      return apiErrorFromStatus(res, error.status, error.message, extra);
     }
     unexpected(res, "Failed to update console whitelist", error);
   }
