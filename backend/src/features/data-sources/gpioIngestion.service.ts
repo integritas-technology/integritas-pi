@@ -71,7 +71,7 @@ function watchGpioSource(source: DataSourceRecord, workflow: AutomationWorkflowR
   child.stdout.on("data", (chunk: string) => {
     for (const line of chunk.split(/\r?\n/).filter(Boolean)) {
       handleGpioLine(source, workflow, config, line).catch((error: Error) => {
-        if ("code" in error && error.code === "WORKFLOW_ALREADY_RUNNING") return;
+        if ("code" in error && (error.code === "WORKFLOW_ALREADY_RUNNING" || error.code === "WORKFLOW_COOLDOWN_ACTIVE" || error.code === "WORKFLOW_EVENT_INACTIVE")) return;
         console.error(`GPIO workflow ${workflow.id} failed for source ${source.id}: ${error.message}`);
       });
     }

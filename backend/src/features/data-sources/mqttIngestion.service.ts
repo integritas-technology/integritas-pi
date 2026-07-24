@@ -66,7 +66,7 @@ function connectMqttSource(source: DataSourceRecord, workflow: AutomationWorkflo
 
   client.on("message", (_topic, payload) => {
     handleMqttMessage(source, workflow, config, payload).catch((error: Error) => {
-      if ("code" in error && error.code === "WORKFLOW_ALREADY_RUNNING") return;
+      if ("code" in error && (error.code === "WORKFLOW_ALREADY_RUNNING" || error.code === "WORKFLOW_COOLDOWN_ACTIVE" || error.code === "WORKFLOW_EVENT_INACTIVE")) return;
       console.error(`MQTT workflow ${workflow.id} failed for source ${source.id}: ${error.message}`);
     });
   });

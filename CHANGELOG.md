@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - Devices now include a PIR Motion Sensor input option for HC-SR501-style GPIO motion sensors, with GPIO23-tested defaults and motion-specific trigger payload labels.
+- Event-driven Automation start blocks can now enforce a cooldown between workflow runs, and GPIO starts can ignore inactive events such as PIR `motion_cleared` edges.
 - GPIO device guidance now documents the tested HC-SR501 PIR wiring, standalone GPIO test script, and troubleshooting notes.
 
 ## [0.22.0] - 2026-07-23

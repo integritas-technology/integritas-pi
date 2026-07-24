@@ -60,6 +60,7 @@ export type AutomationBlock = {
     variableSource?: "custom_json" | "trigger_field" | "latest_data_field" | "context_field";
     valueJsonText?: string;
     activeOnly?: boolean;
+    cooldownSeconds?: number;
     source?: "trigger" | "variable";
     fieldPath?: string;
     operator?: ConditionOperator;

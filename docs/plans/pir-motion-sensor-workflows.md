@@ -93,12 +93,12 @@ Initial defaults:
 ```txt
 profile: pir-motion
 activeState: high
-edge: both
-pull: none
+edge: rising
+pull: off
 debounceMs: 500
 ```
 
-Use `edge: both` if the UI should expose both `motion_detected` and `motion_cleared` events. Use `edge: rising` if the first implementation only needs to trigger workflows when motion starts.
+Use `edge: rising` for notification workflows so `motion_cleared` does not create a second workflow run. Use `edge: both` only when the operator intentionally needs both motion start and motion clear events.
 
 ## Workflow Behavior
 
@@ -147,6 +147,8 @@ Motion detected -> Capture Pi Camera -> Stamp with Integritas
 Motion detected -> Fetch HTTP source -> Stamp with Integritas
 Motion detected -> Pulse GPIO output
 ```
+
+PIR workflow starts should default to `activeOnly: true` and `cooldownSeconds: 60` so noisy sensors do not spam notifications or output actions. Cooldown is enforced before a workflow run row is created.
 
 ## Backend Plan
 
@@ -247,6 +249,7 @@ Manual Pi checks:
 
 - [ ] Verify PIR events through existing `gpio_event_start` workflows.
 - [x] Add event payload labels for `motion_detected` and optionally `motion_cleared`.
+- [x] Add event-start active-only and cooldown controls to reduce repeated PIR workflow runs.
 - [ ] Add beginner workflow templates for motion-triggered recording, camera capture, and stamping.
 
 ### Milestone 4: Pi Hardware Verification

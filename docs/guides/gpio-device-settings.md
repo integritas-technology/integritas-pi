@@ -116,17 +116,26 @@ Device settings:
 | Chip          | `gpiochip0`         |
 | BCM pin       | `23`                |
 | Pull resistor | `off`               |
-| Edge          | `both`              |
+| Edge          | `rising`            |
 | Debounce      | `500 ms`            |
 | Active state  | `high`              |
+
+Recommended workflow start settings:
+
+| Field                  | Value     |
+| ---------------------- | --------- |
+| Only active GPIO event | Enabled   |
+| Cooldown between runs  | `60 sec`  |
 
 Expected behavior:
 
 ```txt
 No motion: GPIO23 is low.
-Motion detected: GPIO23 goes high.
+Motion detected: GPIO23 goes high and triggers the workflow.
 Motion cleared: GPIO23 returns low after the sensor delay expires.
 ```
+
+Use `Edge: rising` for notification workflows so `motion_cleared` does not trigger a second run. If you intentionally need both start and clear events, use `Edge: both` and keep `Only active GPIO event` disabled or add condition blocks that separate `motion_detected` from `motion_cleared`.
 
 Standalone Python test used before app integration:
 
@@ -152,6 +161,7 @@ Troubleshooting:
 - Let the PIR warm up for `60-90` seconds after power-on.
 - If readings are always `HIGH`, check whether `OUT` and `VCC` are swapped or whether the sensor delay knob is holding the output high.
 - If readings are always `LOW`, check power, ground, breadboard rows, and the sensor pin order.
+- If workflow runs are too frequent, use the workflow start block's cooldown setting before increasing the device debounce value.
 - Pi GPIO inputs are `3.3V` only. Verify an unknown PIR clone's `OUT` voltage before connecting it to GPIO.
 
 ## Untested

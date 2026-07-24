@@ -58,6 +58,8 @@ export type BlockConfig = {
   recipientAddressBookId?: string;
   tokenId?: string;
   amount?: string;
+  activeOnly?: boolean;
+  cooldownSeconds?: number;
 };
 
 export async function validateAutomationWorkflow(workflowId: string): Promise<AutomationValidationResult> {
@@ -115,6 +117,7 @@ async function validateAutomationBlockGraph(blocks: ValidationBlock[]): Promise<
     const config = block.config;
 
     validateBlockReference(block, config, issues);
+    if (block.type === "gpio_event_start" || block.type === "webhook_event_start" || block.type === "mqtt_event_start") validateEventStartConfig(block, config, issues);
 
     if (block.type === "record_trigger_event") {
       if (startType !== "gpio_event_start" && startType !== "webhook_event_start" && startType !== "mqtt_event_start") {
@@ -209,6 +212,13 @@ function validateBlockReference(block: ValidationBlock, config: BlockConfig, iss
     if (String(config.tokenId ?? "0x00").toLowerCase() !== "0x00") addIssue(issues, "error", "send_transaction.unsupported_token", "Send transaction currently supports only native MINIMA tokenid 0x00.", block);
     if (!isPositiveDecimal(String(config.amount ?? ""))) addIssue(issues, "error", "send_transaction.invalid_amount", "Send transaction requires a positive amount.", block);
     addIssue(issues, "warning", "send_transaction.moves_funds", "This block sends wallet funds automatically when the workflow runs.", block);
+  }
+}
+
+function validateEventStartConfig(block: ValidationBlock, config: BlockConfig, issues: AutomationValidationIssue[]) {
+  const cooldownSeconds = Number(config.cooldownSeconds ?? 0);
+  if (!Number.isFinite(cooldownSeconds) || cooldownSeconds < 0 || cooldownSeconds > 86400) {
+    addIssue(issues, "error", `${block.type}.invalid_cooldown`, "Event start cooldown must be between 0 and 86400 seconds.", block);
   }
 }
 

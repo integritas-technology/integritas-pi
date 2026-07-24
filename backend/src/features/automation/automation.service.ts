@@ -176,42 +176,44 @@ export async function runAutomationWorkflow(id: string, trigger: WorkflowContext
 }
 
 export async function executeWorkflow(workflow: AutomationWorkflowRecord, trigger: WorkflowContext["trigger"]) {
-  if (runningWorkflowIds.has(workflow.id)) throw Object.assign(new Error("Automation workflow is already running"), { code: "WORKFLOW_ALREADY_RUNNING" });
-  if (workflow.archived) throw new Error("Automation workflow is archived");
-  if (!workflow.enabled && trigger.type !== "manual") throw new Error("Automation workflow is disabled");
+  const latestWorkflow = getAutomationWorkflow(workflow.id) ?? workflow;
+  if (runningWorkflowIds.has(latestWorkflow.id)) throw Object.assign(new Error("Automation workflow is already running"), { code: "WORKFLOW_ALREADY_RUNNING" });
+  if (latestWorkflow.archived) throw new Error("Automation workflow is archived");
+  if (!latestWorkflow.enabled && trigger.type !== "manual") throw new Error("Automation workflow is disabled");
 
-  runningWorkflowIds.add(workflow.id);
+  const blocks = listAutomationBlocks(latestWorkflow.id).filter((block) => block.enabled);
+  const mainBlocks = blocks.filter((block) => !block.parent_block_id);
+  if (mainBlocks.length === 0) throw new Error("Automation workflow has no blocks");
+  validateStartBlock(mainBlocks[0], trigger);
+  enforceEventStartLimits(latestWorkflow, mainBlocks[0], trigger);
+
+  runningWorkflowIds.add(latestWorkflow.id);
   const context: WorkflowContext = { trigger, variables: {} };
-  let nextRunAt: string | null = workflow.next_run_at;
+  let nextRunAt: string | null = latestWorkflow.next_run_at;
   let run = null as ReturnType<typeof createAutomationRun> | null;
 
   try {
-    const blocks = listAutomationBlocks(workflow.id).filter((block) => block.enabled);
-    const mainBlocks = blocks.filter((block) => !block.parent_block_id);
-    if (mainBlocks.length === 0) throw new Error("Automation workflow has no blocks");
-
-    validateStartBlock(mainBlocks[0], trigger);
-    run = createAutomationRun({ workflowId: workflow.id, workflowName: workflow.name, triggerType: trigger.type, triggerSourceId: trigger.sourceId ?? null, triggerPayload: trigger.payload, blockCount: blocks.length });
+    run = createAutomationRun({ workflowId: latestWorkflow.id, workflowName: latestWorkflow.name, triggerType: trigger.type, triggerSourceId: trigger.sourceId ?? null, triggerPayload: trigger.payload, blockCount: blocks.length });
 
     for (const block of mainBlocks) {
-      await executeBlock(workflow, block, context, run.id);
+      await executeBlock(latestWorkflow, block, context, run.id);
       for (const attachedBlock of blocks.filter((item) => item.parent_block_id === block.id)) {
-        await executeBlock(workflow, attachedBlock, context, run.id);
+        await executeBlock(latestWorkflow, attachedBlock, context, run.id);
       }
       if (block.type === "schedule_start") nextRunAt = nextScheduleRunAt(block);
       if (context.stopped) break;
     }
 
-    const updatedWorkflow = updateAutomationRunSuccess(workflow.id, { hash: context.hash ?? null, proofId: context.proofId ?? null, nextRunAt });
+    const updatedWorkflow = updateAutomationRunSuccess(latestWorkflow.id, { hash: context.hash ?? null, proofId: context.proofId ?? null, nextRunAt });
     finishAutomationRun(run.id, { status: "success" });
     return { workflow: serializeAutomationWorkflow(updatedWorkflow), dataSource: context.data?.sourceId ? serializeDataSource(getDataSource(context.data.sourceId)!) : null, proofId: context.proofId ?? null };
   } catch (error) {
-    const details = workflowError({ type: "block_failed", ...errorFromUnknown(error, "Automation workflow failed", { workflowId: workflow.id }), message: error instanceof Error ? error.message : "Automation workflow failed" });
-    const updatedWorkflow = updateAutomationRunError(workflow.id, details, { hash: context.hash ?? null, proofId: context.proofId ?? null, nextRunAt });
+    const details = workflowError({ type: "block_failed", ...errorFromUnknown(error, "Automation workflow failed", { workflowId: latestWorkflow.id }), message: error instanceof Error ? error.message : "Automation workflow failed" });
+    const updatedWorkflow = updateAutomationRunError(latestWorkflow.id, details, { hash: context.hash ?? null, proofId: context.proofId ?? null, nextRunAt });
     if (run) finishAutomationRun(run.id, { status: "failed", error: details });
     throw Object.assign(error instanceof Error ? error : new Error(details.message), { workflow: serializeAutomationWorkflow(updatedWorkflow), errorDetails: details });
   } finally {
-    runningWorkflowIds.delete(workflow.id);
+    runningWorkflowIds.delete(latestWorkflow.id);
   }
 }
 
@@ -235,6 +237,22 @@ function validateStartBlock(block: AutomationBlockRecord, trigger: WorkflowConte
   if (trigger.type === "manual") return;
   if (block.type !== expectedType) throw new Error(`Workflow starts with ${block.type}, not ${expectedType}`);
   if (trigger.sourceId && config.sourceId !== trigger.sourceId) throw new Error("Workflow trigger source did not match the incoming event");
+}
+
+function enforceEventStartLimits(workflow: AutomationWorkflowRecord, block: AutomationBlockRecord, trigger: WorkflowContext["trigger"]) {
+  if (trigger.type === "manual" || trigger.type === "schedule" || !block.type.endsWith("_event_start")) return;
+  const config = JSON.parse(block.config_json) as { activeOnly?: boolean; cooldownSeconds?: number };
+
+  if (config.activeOnly && trigger.payload && typeof trigger.payload === "object" && "active" in trigger.payload && (trigger.payload as { active?: unknown }).active === false) {
+    throw Object.assign(new Error("Workflow trigger ignored because the event is inactive"), { code: "WORKFLOW_EVENT_INACTIVE" });
+  }
+
+  const cooldownSeconds = Number(config.cooldownSeconds ?? 0);
+  if (!Number.isFinite(cooldownSeconds) || cooldownSeconds <= 0 || !workflow.last_run_at) return;
+  const nextAllowedAt = new Date(new Date(workflow.last_run_at).getTime() + cooldownSeconds * 1000);
+  if (Date.now() < nextAllowedAt.getTime()) {
+    throw Object.assign(new Error(`Workflow trigger ignored because cooldown is active until ${nextAllowedAt.toISOString()}`), { code: "WORKFLOW_COOLDOWN_ACTIVE", cooldownUntil: nextAllowedAt.toISOString() });
+  }
 }
 
 async function executeBlock(workflow: AutomationWorkflowRecord, block: AutomationBlockRecord, context: WorkflowContext, runId: string) {

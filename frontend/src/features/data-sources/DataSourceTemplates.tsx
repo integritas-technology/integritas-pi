@@ -9,7 +9,7 @@ export const inputTemplates: DataSourceTemplate[] = [
   { title: "Webhook", description: "Receive pushed JSON from another app, device, or workflow", type: "webhook", config: {} },
   { title: "MQTT", description: "Subscribe to a broker topic and ingest JSON messages", type: "mqtt", config: { brokerUrl: "mqtt://localhost:1883", topic: "sensors/+/data" } },
   { title: "GPIO Input", description: "Record Raspberry Pi GPIO pin edge events as JSON", type: "gpio-input", config: { chip: "gpiochip0", pin: 17, pull: "off", edge: "both", debounceMs: 100, activeState: "high" } },
-  { title: "PIR Motion Sensor", description: "Detect HC-SR501-style motion events from a GPIO input pin", type: "gpio-input", config: { chip: "gpiochip0", pin: 23, profile: "pir-motion", pull: "off", edge: "both", debounceMs: 500, activeState: "high" } },
+  { title: "PIR Motion Sensor", description: "Detect HC-SR501-style motion events from a GPIO input pin", type: "gpio-input", config: { chip: "gpiochip0", pin: 23, profile: "pir-motion", pull: "off", edge: "rising", debounceMs: 500, activeState: "high" } },
   { title: "Pi Camera", description: "Capture photos or short video clips from automation workflows", type: "pi-camera", config: { mode: "photo", width: 1280, height: 720, durationMs: 1000, fps: 30, outputFormat: "jpg" } }
 ];
 

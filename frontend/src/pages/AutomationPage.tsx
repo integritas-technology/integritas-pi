@@ -476,11 +476,24 @@ function DraftBlockInspector({ block, sources, addressBook, walletStatus, onChan
   const nativeTokens = nativeMinimaTokens(walletStatus);
 
   if (block.type.endsWith("_start")) {
+    const selectedStartSource = startSources.find((source) => source.id === block.config.sourceId);
+    const isEventStart = block.type === "gpio_event_start" || block.type === "webhook_event_start" || block.type === "mqtt_event_start";
     return (
       <Panel className={formGridClass}>
         <strong>Selected start block</strong>
         <p className={mutedText}>{draftBlockTitle(block)}. To choose a different start block, reset the canvas.</p>
-        {block.type === "schedule_start" ? <label>Interval<select value={block.config.intervalSeconds ?? 60} onChange={(event) => onChange({ intervalSeconds: Number(event.target.value) })}>{intervals.map((interval) => <option key={interval} value={interval}>{formatInterval(interval)}</option>)}</select></label> : block.type === "manual_start" ? <p className={mutedText}>Manual workflows run only when you click Run now.</p> : <label>Start source<select value={block.config.sourceId ?? ""} onChange={(event) => onChange({ sourceId: event.target.value })}><option value="">Select source...</option>{startSources.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>}
+        {block.type === "schedule_start" ? <label>Interval<select value={block.config.intervalSeconds ?? 60} onChange={(event) => onChange({ intervalSeconds: Number(event.target.value) })}>{intervals.map((interval) => <option key={interval} value={interval}>{formatInterval(interval)}</option>)}</select></label> : block.type === "manual_start" ? <p className={mutedText}>Manual workflows run only when you click Run now.</p> : <label>Start source<select value={block.config.sourceId ?? ""} onChange={(event) => {
+          const source = startSources.find((item) => item.id === event.target.value);
+          onChange({ ...block.config, sourceId: event.target.value, activeOnly: source?.config.profile === "pir-motion" ? true : block.config.activeOnly, cooldownSeconds: source?.config.profile === "pir-motion" && !block.config.cooldownSeconds ? 60 : block.config.cooldownSeconds ?? 0 });
+        }}><option value="">Select source...</option>{startSources.map((source) => <option key={source.id} value={source.id}>{source.name} - {sourceLabel(source)}</option>)}</select></label>}
+        {isEventStart && <>
+          <label>Cooldown between runs, seconds<input value={String(block.config.cooldownSeconds ?? 0)} inputMode="numeric" onChange={(event) => onChange({ ...block.config, cooldownSeconds: Number(event.target.value) })} /></label>
+          <p className={mutedText}>Cooldown ignores extra events for this workflow without creating run-log rows. Use 30-60 seconds for noisy motion sensors or notification outputs.</p>
+        </>}
+        {block.type === "gpio_event_start" && <>
+          <label className="grid grid-cols-[auto_minmax(0,1fr)] items-center justify-start gap-2.5"><input className="w-auto" type="checkbox" checked={Boolean(block.config.activeOnly)} onChange={(event) => onChange({ ...block.config, activeOnly: event.target.checked })} /> Only run when the GPIO event is active</label>
+          <p className={mutedText}>{selectedStartSource?.config.profile === "pir-motion" ? "Recommended for PIR sensors: ignore motion_cleared events and run only on motion_detected." : "Use this when inactive GPIO edges should not trigger the workflow."}</p>
+        </>}
       </Panel>
     );
   }
@@ -638,7 +651,10 @@ function defaultDraftConfig(type: AutomationBlockType, sources: DataSource[], po
   if (type === "manual_start") return {};
   if (type === "fetch_data_source") return { sourceId: firstHttpSource(sources)?.id ?? "" };
   if (type === "capture_camera") return { sourceId: firstCameraSource(sources)?.id ?? "" };
-  if (type === "gpio_event_start" || type === "webhook_event_start" || type === "mqtt_event_start") return { sourceId: defaultSourceForStart(type, sources)?.id ?? "" };
+  if (type === "gpio_event_start" || type === "webhook_event_start" || type === "mqtt_event_start") {
+    const source = defaultSourceForStart(type, sources);
+    return { sourceId: source?.id ?? "", activeOnly: source?.config.profile === "pir-motion" ? true : undefined, cooldownSeconds: source?.config.profile === "pir-motion" ? 60 : 0 };
+  }
   if (type === "if_payload_field_equals") return { source: "trigger", fieldPath: "active", operator: "equals", value: true };
   if (type === "wait") return { durationMs: 1000 };
   if (type === "set_variable") return { variableName: "message", variableSource: "custom_json", valueJsonText: '"Button pressed"' };

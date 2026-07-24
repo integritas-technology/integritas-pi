@@ -27,6 +27,9 @@ dataSourcesWebhookRouter.post("/:token", async (req, res) => {
     const response = await recordPushAutomationPayload({ workflow, dataSource: record, sourceUrl: `/api/data-source-webhooks/${req.params.token}`, triggerType: "webhook", result });
     return res.json({ item: response.dataSource, workflow: response.workflow, result });
   } catch (error) {
+    if (error && typeof error === "object" && "code" in error && (error.code === "WORKFLOW_COOLDOWN_ACTIVE" || error.code === "WORKFLOW_EVENT_INACTIVE")) {
+      return res.status(202).json({ skipped: true, reason: error instanceof Error ? error.message : "Workflow trigger ignored" });
+    }
     const message = error instanceof Error ? error.message : "Failed to record webhook payload";
     return dependencyUnavailable(res, message, error instanceof Error ? error.message : undefined, { sourceId: record.id });
   }
