@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, Trash2 } from "lucide-react";
 import { runConsoleCommand } from "./minimaConsoleApi";
 
 type ScrollbackEntry = {
@@ -152,6 +152,15 @@ export function MinimaConsolePanel({ disabled }: { disabled?: boolean }) {
         placeholder={disabled ? "Unavailable" : "status"}
         className="flex-1 bg-transparent text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-55"
       />
+      <button
+        type="button"
+        aria-label="Clear scrollback"
+        disabled={entries.length === 0 || running}
+        onClick={() => setEntries([])}
+        className="shrink-0 rounded-lg border-0 bg-transparent p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700 disabled:pointer-events-none disabled:opacity-40"
+      >
+        <Trash2 size={15} />
+      </button>
       <button
         type="button"
         aria-label={fullscreen ? "Exit fullscreen" : "Fullscreen"}
