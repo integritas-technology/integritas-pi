@@ -90,7 +90,7 @@ export function MinimaRuntimeConfig({
         </div>
 
         {peerItems.length > 0 ? (
-          <ul className="mt-4 mb-0 list-disc space-y-1 pl-5 text-sm text-slate-700">
+          <ul className="mt-4 mb-0 max-h-48 list-disc space-y-1 overflow-y-auto pl-5 text-sm text-slate-700">
             {peerItems.map((peer) => (
               <li key={peer}>
                 <code className="text-slate-800">{peer}</code>
