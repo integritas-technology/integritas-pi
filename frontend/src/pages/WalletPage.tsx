@@ -4,14 +4,26 @@ import type { MinimaNodeState } from '../app/types';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { CopyableCode } from '../components/CopyableCode';
+import {
+  DataTable,
+  RowActions,
+  TableWrap,
+  tableCellClass,
+  tableHeaderCellClass,
+  tableHeadRowClass,
+  tableRowClass,
+} from '../components/DataTable';
 import { DarkHeroCard } from '../components/DarkHeroCard';
+import { ListPagerFilterBar } from '../components/ListPagerFilterBar';
 import { LoadingDots } from '../components/LoadingDots';
 import { MinimaIcon } from '../components/MinimaIcon';
 import { Modal } from '../components/Modal';
 import { Page } from '../components/Page';
 import { SubTabs } from '../components/SubTabs';
+import { TablePager } from '../components/TablePager';
 import { ErrorText, Eyebrow, MutedText } from '../components/Text';
 import { useToast } from '../components/ToastProvider';
+import { DEFAULT_PAGE_SIZE_OPTIONS } from '../lib/paginated';
 import {
   createToken as createTokenApi,
   getTokenCreateRequirements,
@@ -106,6 +118,12 @@ function TokenGlyph({ isNative }: { isNative: boolean }) {
 
 const walletListClass = 'grid gap-2';
 const walletListRowClass = 'w-full rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-slate-400 hover:bg-slate-50';
+
+const ASSET_KIND_OPTIONS = [
+  { value: '', label: 'All' },
+  { value: 'minima', label: 'Minima' },
+  { value: 'tokens', label: 'Tokens' },
+] as const;
 
 const RECEIVE_QR_REFRESH_MS = 3 * 60 * 1000;
 
@@ -243,7 +261,10 @@ export function WalletPage() {
   const [selectedHistoryItem, setSelectedHistoryItem] =
     useState<WalletSendHistoryItem | null>(null);
   const [debugClearingHistory, setDebugClearingHistory] = useState(false);
-  const [assetTab, setAssetTab] = useState<'all' | 'minima' | 'tokens'>('all');
+  const [assetKind, setAssetKind] = useState('');
+  const [assetQuery, setAssetQuery] = useState('');
+  const [assetPage, setAssetPage] = useState(1);
+  const [assetPageSize, setAssetPageSize] = useState<number>(DEFAULT_PAGE_SIZE_OPTIONS[0]);
   const [selectedAsset, setSelectedAsset] = useState<TokenBalance | null>(null);
   const [mainTab, setMainTab] = useState<'assets' | 'address-book' | 'history'>('assets');
   const [minimaState, setMinimaState] = useState<MinimaNodeState | null>(null);
@@ -298,11 +319,22 @@ export function WalletPage() {
   const isDev = import.meta.env.DEV;
 
   const allTokens = walletStatus?.tokens ?? [];
+  const trimmedAssetQuery = assetQuery.trim().toLowerCase();
   const visibleAssets = allTokens.filter((t) => {
-    if (assetTab === 'minima') return t.isNative;
-    if (assetTab === 'tokens') return !t.isNative;
-    return true;
+    if (assetKind === 'minima' && !t.isNative) return false;
+    if (assetKind === 'tokens' && t.isNative) return false;
+    if (!trimmedAssetQuery) return true;
+    return (
+      t.name.toLowerCase().includes(trimmedAssetQuery) ||
+      t.tokenId.toLowerCase().includes(trimmedAssetQuery)
+    );
   });
+  const assetTotalPages = Math.max(1, Math.ceil(visibleAssets.length / assetPageSize));
+  const assetCurrentPage = Math.min(assetPage, assetTotalPages);
+  const pagedAssets = visibleAssets.slice(
+    (assetCurrentPage - 1) * assetPageSize,
+    assetCurrentPage * assetPageSize,
+  );
 
   async function handleDebugClearWalletHistory() {
     const confirmed = window.confirm(
@@ -374,64 +406,94 @@ export function WalletPage() {
       <Card>
         {mainTab === 'assets' ? (
           <>
-            <div className='flex items-center justify-between gap-3 mb-4'>
-              <Eyebrow>Assets</Eyebrow>
-              <div className='flex gap-1 rounded-lg bg-slate-100 p-0.5'>
-                {(['all', 'minima', 'tokens'] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    type='button'
-                    onClick={() => setAssetTab(tab)}
-                    className={`px-3 py-1 rounded-md text-xs font-semibold capitalize transition-colors ${
-                      assetTab === tab
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    {tab === 'all' ? 'All' : tab === 'minima' ? 'Minima' : 'Tokens'}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <Eyebrow className='mb-4'>Assets</Eyebrow>
+            <ListPagerFilterBar
+              page={assetCurrentPage}
+              pageSize={assetPageSize}
+              total={visibleAssets.length}
+              totalPages={assetTotalPages}
+              status={assetKind}
+              q={assetQuery}
+              statusOptions={ASSET_KIND_OPTIONS}
+              statusLabel='Kind'
+              searchPlaceholder='Name or coin ID'
+              onPageChange={setAssetPage}
+              onPageSizeChange={(size) => {
+                setAssetPageSize(size);
+                setAssetPage(1);
+              }}
+              onStatusChange={(kind) => {
+                setAssetKind(kind);
+                setAssetPage(1);
+              }}
+              onQueryChange={(q) => {
+                setAssetQuery(q);
+                setAssetPage(1);
+              }}
+            />
             {loading || actionsBlocked ? (
               <div className='flex justify-center py-10'>
                 <Loader2 className='size-10 animate-spin text-slate-400' aria-hidden='true' />
               </div>
             ) : visibleAssets.length === 0 ? (
               <MutedText>
-                {assetTab === 'tokens'
-                  ? 'No custom tokens in wallet.'
+                {assetKind || trimmedAssetQuery
+                  ? 'No matching assets.'
                   : 'No assets found.'}
               </MutedText>
             ) : (
-              <div className={walletListClass}>
-                {visibleAssets.map((token) => (
-                  <button
-                    key={token.tokenId}
-                    type='button'
-                    onClick={() => setSelectedAsset(token)}
-                    className={walletListRowClass}
-                  >
-                    <div className='flex items-start justify-between gap-3'>
-                      <div className='min-w-0'>
-                        <p className='truncate text-sm font-semibold text-slate-900'>
-                          {token.name}
-                        </p>
-                        <p className='truncate font-mono text-xs text-slate-400'>
-                          {token.tokenId}
-                        </p>
-                      </div>
-                      <div className='shrink-0 text-right'>
-                        <p className='inline-flex items-center gap-1.5 text-sm font-bold tabular-nums text-slate-900'>
-                          <TokenGlyph isNative={token.isNative} />
-                          {formatAmountThreshold(token.sendable)}
-                        </p>
-                        <p className='text-xs text-slate-400'>sendable</p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
+              <>
+                <TableWrap>
+                  <DataTable>
+                    <thead>
+                      <tr className={tableHeadRowClass}>
+                        <th className={tableHeaderCellClass}>Name</th>
+                        <th className={tableHeaderCellClass}>Coin ID</th>
+                        <th className={tableHeaderCellClass}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pagedAssets.map((token) => (
+                        <tr key={token.tokenId} className={tableRowClass}>
+                          <td className={tableCellClass}>
+                            <span className='inline-flex items-center gap-1.5 font-semibold text-slate-900'>
+                              <TokenGlyph isNative={token.isNative} />
+                              {token.name}
+                            </span>
+                          </td>
+                          <td className={tableCellClass}>
+                            <code className='font-mono text-xs text-slate-500'>{token.tokenId}</code>
+                          </td>
+                          <td className={tableCellClass}>
+                            <RowActions>
+                              <Button
+                                type='button'
+                                variant='secondary'
+                                onClick={() => setSelectedAsset(token)}
+                              >
+                                Details
+                              </Button>
+                            </RowActions>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </DataTable>
+                </TableWrap>
+                <div className='mt-3'>
+                  <TablePager
+                    page={assetCurrentPage}
+                    pageSize={assetPageSize}
+                    total={visibleAssets.length}
+                    totalPages={assetTotalPages}
+                    onPageChange={setAssetPage}
+                    onPageSizeChange={(size) => {
+                      setAssetPageSize(size);
+                      setAssetPage(1);
+                    }}
+                  />
+                </div>
+              </>
             )}
           </>
         ) : mainTab === 'address-book' ? (
