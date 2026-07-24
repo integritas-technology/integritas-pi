@@ -6,9 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [Unreleased] fix/minima-sync-missmatch
+
+### Added
+
+- Minima node status now reports a `restarting` state (tracked server-side across restart/resync) instead of only `stopped`/`error` while a restart or resync is in progress; Minima Core, Wallet, and Dashboard show a page-level banner, loading indicators, and a restart-complete toast instead of stale or misleading values.
+- Wallet page actions (Receive, Send, Create token) and the Minima settings panel are now disabled with an inline notice until the Minima node is confirmed `running`, avoiding RPC calls that would just fail mid-restart/resync.
+- Wallet balance, assets, and history now auto-refresh once Minima comes back online after a resync/restart, instead of staying stuck on stale data until the operator navigates away and back.
+- Address book is now its own tab on the Wallet page instead of a modal opened from the page header.
+- Planned a Minima RPC console feature: an admin-curated, closed-world checkbox whitelist of Minima RPC commands with a terminal-like scrollback, excluding secret-exposing/availability-risk commands and reusing existing validated backend actions where one already exists (`docs/plans/minima-rpc-console.md`).
+
+### Changed
+
+- Wallet settings (import wallet) and Minima node settings (megammr host, peer list/add) moved from page-level modals into Account Settings panels.
+- Minima's post-restart status retry window is extended from ~12s to up to 90s, matching the backend's own restart/resync operation-tracking window.
+- Peer connections list in Minima settings is now scrollable instead of growing the panel indefinitely.
+- Loading placeholders ("Checking…" text) across Minima, Wallet, and Dashboard are replaced with a shared bouncing-dots loading indicator.
+- Minima RPC error messages are now normalized for peers/add-peers/restart/balance responses (previously only resync), giving consistent operator-facing wording instead of raw RPC error text.
+
 ### Fixed
 
 - Account Settings no longer shows a false-positive "Failed to load peers" toast while the Minima node is restarting/resyncing; the peers RPC is only called once node status is confirmed `running`, and automatically retried once it comes back.
+- Minima sync status badge no longer shows false/stale status text; sync status is now derived only from block age instead of also weighing the Minima RPC response's unreliable/inconsistent `synced` and `connecting` fields.
 
 ## [0.22.0] - 2026-07-23
 
