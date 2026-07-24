@@ -31,7 +31,7 @@ export function StatusDot({
         {label}
       </span>
       {open && (
-        <div className="absolute left-0 z-20 mt-1 w-64 rounded border border-slate-200 bg-white p-3 text-xs text-slate-600 shadow-lg">
+        <div className="absolute left-0 z-20 mt-1 w-max rounded border border-slate-200 bg-white p-3 text-xs text-slate-600 shadow-lg">
           {children}
         </div>
       )}
