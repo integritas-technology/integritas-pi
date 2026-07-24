@@ -75,8 +75,8 @@ export function MinimaConsoleWhitelistModal({ onClose }: { onClose: () => void }
     }
   }
 
-  const readEntries = catalog?.filter((entry) => entry.kind === "read") ?? [];
-  const writeEntries = catalog?.filter((entry) => entry.kind === "write") ?? [];
+  const readEntries = catalog?.filter((entry) => entry.kind === "read").sort((a, b) => a.verb.localeCompare(b.verb)) ?? [];
+  const writeEntries = catalog?.filter((entry) => entry.kind === "write").sort((a, b) => a.verb.localeCompare(b.verb)) ?? [];
 
   return (
     <Modal title="Console command whitelist" onClose={onClose} closeDisabled={saving}>
