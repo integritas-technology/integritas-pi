@@ -75,6 +75,7 @@ type OutputBodyMode = "custom" | "workflow_context" | "trigger_payload" | "lates
 type VariableSource = "custom_json" | "trigger_field" | "latest_data_field" | "context_field";
 
 const runningWorkflowIds = new Set<string>();
+const eventWorkflowLastAcceptedAt = new Map<string, number>();
 let scheduler: NodeJS.Timeout | null = null;
 
 export function serializeAutomationWorkflow(record: AutomationWorkflowRecord) {
@@ -186,6 +187,7 @@ export async function executeWorkflow(workflow: AutomationWorkflowRecord, trigge
   if (mainBlocks.length === 0) throw new Error("Automation workflow has no blocks");
   validateStartBlock(mainBlocks[0], trigger);
   enforceEventStartLimits(latestWorkflow, mainBlocks[0], trigger);
+  markEventWorkflowAccepted(latestWorkflow.id, mainBlocks[0], trigger);
 
   runningWorkflowIds.add(latestWorkflow.id);
   const context: WorkflowContext = { trigger, variables: {} };
@@ -248,11 +250,17 @@ function enforceEventStartLimits(workflow: AutomationWorkflowRecord, block: Auto
   }
 
   const cooldownSeconds = Number(config.cooldownSeconds ?? 0);
-  if (!Number.isFinite(cooldownSeconds) || cooldownSeconds <= 0 || !workflow.last_run_at) return;
-  const nextAllowedAt = new Date(new Date(workflow.last_run_at).getTime() + cooldownSeconds * 1000);
+  const lastAcceptedAt = eventWorkflowLastAcceptedAt.get(workflow.id);
+  if (!Number.isFinite(cooldownSeconds) || cooldownSeconds <= 0 || !lastAcceptedAt) return;
+  const nextAllowedAt = new Date(lastAcceptedAt + cooldownSeconds * 1000);
   if (Date.now() < nextAllowedAt.getTime()) {
     throw Object.assign(new Error(`Workflow trigger ignored because cooldown is active until ${nextAllowedAt.toISOString()}`), { code: "WORKFLOW_COOLDOWN_ACTIVE", cooldownUntil: nextAllowedAt.toISOString() });
   }
+}
+
+function markEventWorkflowAccepted(workflowId: string, block: AutomationBlockRecord, trigger: WorkflowContext["trigger"]) {
+  if (trigger.type === "manual" || trigger.type === "schedule" || !block.type.endsWith("_event_start")) return;
+  eventWorkflowLastAcceptedAt.set(workflowId, Date.now());
 }
 
 async function executeBlock(workflow: AutomationWorkflowRecord, block: AutomationBlockRecord, context: WorkflowContext, runId: string) {

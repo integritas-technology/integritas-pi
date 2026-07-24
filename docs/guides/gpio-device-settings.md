@@ -135,7 +135,7 @@ Motion detected: GPIO23 goes high and triggers the workflow.
 Motion cleared: GPIO23 returns low after the sensor delay expires.
 ```
 
-Use `Edge: rising` for notification workflows so `motion_cleared` does not trigger a second run. If you intentionally need both start and clear events, use `Edge: both` and keep `Only active GPIO event` disabled or add condition blocks that separate `motion_detected` from `motion_cleared`.
+Use `Edge: rising` for notification workflows so `motion_cleared` does not trigger a second run. If you intentionally need both start and clear events, use `Edge: both` and keep `Only active GPIO event` disabled or add condition blocks that separate `motion_detected` from `motion_cleared`. Workflow cooldown is runtime-only; it starts after the first accepted event in the current backend process and does not block the first event after app startup.
 
 Standalone Python test used before app integration:
 

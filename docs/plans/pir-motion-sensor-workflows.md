@@ -148,7 +148,7 @@ Motion detected -> Fetch HTTP source -> Stamp with Integritas
 Motion detected -> Pulse GPIO output
 ```
 
-PIR workflow starts should default to `activeOnly: true` and `cooldownSeconds: 60` so noisy sensors do not spam notifications or output actions. Cooldown is enforced before a workflow run row is created.
+PIR workflow starts should default to `activeOnly: true` and `cooldownSeconds: 60` so noisy sensors do not spam notifications or output actions. Cooldown is enforced before a workflow run row is created, but it is runtime-only and should not block the first event after backend startup.
 
 ## Backend Plan
 
