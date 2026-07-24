@@ -1,25 +1,16 @@
-import { Settings } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-import type { MinimaConfig, MinimaNodeStatus, MinimaPeersResponse } from "../app/types";
-import { Modal } from "../components/Modal";
+import { useCallback, useState } from "react";
+import type { MinimaNodeStatus } from "../app/types";
 import { Page } from "../components/Page";
-import { IconButton } from "../components/Button";
-import { ErrorText } from "../components/Text";
 import { useToast } from "../components/ToastProvider";
 import {
-  addMinimaPeers,
-  getMinimaConfig,
   getMinimaNodeStatus,
-  getMinimaPeers,
   resyncMegammr,
-  restartMinimaContainer,
-  saveMinimaConfig
+  restartMinimaContainer
 } from "../features/minima/minimaApi";
 import { MinimaContainerCard } from "../features/minima/MinimaContainerCard";
 import { MinimaHealthCard } from "../features/minima/MinimaHealthCard";
 import { mergeMinimaStatus } from "../features/minima/mergeMinimaStatus";
 import { parseMegammrResyncResult, resyncToastForResult } from "../features/minima/minimaResync";
-import { MinimaRuntimeConfig } from "../features/minima/MinimaRuntimeConfig";
 import { MinimaSummaryGrid } from "../features/minima/MinimaSummaryGrid";
 import { useMinimaStatusRefresh } from "../features/minima/useMinimaStatusRefresh";
 
@@ -32,19 +23,12 @@ const REFRESH_AFTER_OPERATION_MAX_MS = 90000;
 
 export function MinimaPage() {
   const { showToast } = useToast();
-  const [config, setConfig] = useState<MinimaConfig | null>(null);
-  const [megammrHostInput, setMegammrHostInput] = useState("megammr.minima.global:9001");
-  const [peerslistInput, setPeerslistInput] = useState("megammr.minima.global:9001");
-  const [configOpen, setConfigOpen] = useState(false);
   const [nodeStatus, setNodeStatus] = useState<MinimaNodeStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
-  const [configError, setConfigError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [resyncing, setResyncing] = useState(false);
   const [restarting, setRestarting] = useState(false);
-  const [peers, setPeers] = useState<MinimaPeersResponse | null>(null);
-  const [peersLoading, setPeersLoading] = useState(false);
 
   const handleStatus = useCallback((status: MinimaNodeStatus) => {
     setNodeStatus((previous) => mergeMinimaStatus(previous, status));
@@ -57,7 +41,7 @@ export function MinimaPage() {
     setStatusLoading(false);
   }, []);
 
-  const { refresh } = useMinimaStatusRefresh(handleStatus, handleStatusError, {
+  useMinimaStatusRefresh(handleStatus, handleStatusError, {
     enabled: !resyncing && !restarting && !busy
   });
 
@@ -75,52 +59,6 @@ export function MinimaPage() {
       }
       if (Date.now() >= deadline) return false;
       await new Promise((resolve) => window.setTimeout(resolve, REFRESH_AFTER_OPERATION_INTERVAL_MS));
-    }
-  }
-
-  useEffect(() => {
-    refreshConfig().catch((err: Error) => setConfigError(err.message));
-  }, []);
-
-  async function refreshConfig() {
-    const parsed = await getMinimaConfig();
-    setConfig(parsed);
-    setMegammrHostInput(parsed.megammrHost);
-  }
-
-  async function refreshPeers() {
-    setPeersLoading(true);
-    try {
-      setPeers(await getMinimaPeers());
-    } catch (error) {
-      showToast({
-        tone: "error",
-        title: "Failed to load peers",
-        message: error instanceof Error ? error.message : "Unknown error",
-        timeoutMs: 8000
-      });
-    } finally {
-      setPeersLoading(false);
-    }
-  }
-
-  function openConfig() {
-    setConfigOpen(true);
-    refreshPeers().catch(() => undefined);
-  }
-
-  async function saveConfig() {
-    setBusy(true);
-    setConfigError(null);
-    try {
-      const parsed = await saveMinimaConfig(megammrHostInput);
-      setConfig(parsed);
-      setMegammrHostInput(parsed.megammrHost);
-      setConfigOpen(false);
-    } catch (error) {
-      setConfigError(error instanceof Error ? error.message : "Unknown error");
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -168,29 +106,6 @@ export function MinimaPage() {
     setBusy(true);
     try {
       await restartContainer();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function runAddPeers() {
-    if (!peerslistInput.trim()) return;
-
-    setBusy(true);
-    setConfigError(null);
-    try {
-      await addMinimaPeers(peerslistInput);
-      showToast({
-        tone: "success",
-        title: "Peers added",
-        message: "Minima accepted the add-peers request.",
-        timeoutMs: 8000
-      });
-      await Promise.all([refresh(), refreshPeers()]);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Add peers failed";
-      setConfigError(message);
-      showToast({ tone: "error", title: "Add peers failed", message, timeoutMs: 9000 });
     } finally {
       setBusy(false);
     }
@@ -249,41 +164,12 @@ export function MinimaPage() {
       eyebrow="Minima node"
       title="Run the Minima node"
       desc="Start, monitor, and manage the Minima Core node running on the Raspberry Pi Edition."
-      action={
-        <IconButton
-          variant="primary"
-          onClick={openConfig}
-          aria-label="Configure Minima"
-        >
-          <Settings size={20} />
-        </IconButton>
-      }
     >
       {operationBanner && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           {operationBanner}
         </div>
       )}
-
-      {configOpen && (
-        <Modal title="Configure Minima" onClose={() => setConfigOpen(false)}>
-          <MinimaRuntimeConfig
-            config={config}
-            megammrHostInput={megammrHostInput}
-            setMegammrHostInput={setMegammrHostInput}
-            peers={peers}
-            peersLoading={peersLoading}
-            peerslistInput={peerslistInput}
-            setPeerslistInput={setPeerslistInput}
-            busy={busy}
-            onSave={saveConfig}
-            onAddPeers={runAddPeers}
-          />
-          {configError && <ErrorText>{configError}</ErrorText>}
-        </Modal>
-      )}
-
-      {!configOpen && configError && <ErrorText>{configError}</ErrorText>}
 
       <MinimaSummaryGrid
         status={nodeStatus}
