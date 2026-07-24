@@ -266,6 +266,7 @@ export function WalletPage() {
   const [assetPage, setAssetPage] = useState(1);
   const [assetPageSize, setAssetPageSize] = useState<number>(DEFAULT_PAGE_SIZE_OPTIONS[0]);
   const [selectedAsset, setSelectedAsset] = useState<TokenBalance | null>(null);
+  const [addContactOpen, setAddContactOpen] = useState(false);
   const [mainTab, setMainTab] = useState<'assets' | 'address-book' | 'history'>('assets');
   const [minimaState, setMinimaState] = useState<MinimaNodeState | null>(null);
   const previousMinimaStateRef = useRef<MinimaNodeState | null>(null);
@@ -417,6 +418,7 @@ export function WalletPage() {
               statusOptions={ASSET_KIND_OPTIONS}
               statusLabel='Kind'
               searchPlaceholder='Name or coin ID'
+              disabled={loading || actionsBlocked}
               onPageChange={setAssetPage}
               onPageSizeChange={(size) => {
                 setAssetPageSize(size);
@@ -442,64 +444,77 @@ export function WalletPage() {
                   : 'No assets found.'}
               </MutedText>
             ) : (
-              <>
-                <TableWrap>
-                  <DataTable>
-                    <thead>
-                      <tr className={tableHeadRowClass}>
-                        <th className={tableHeaderCellClass}>Name</th>
-                        <th className={tableHeaderCellClass}>Coin ID</th>
-                        <th className={tableHeaderCellClass}>Actions</th>
+              <TableWrap>
+                <DataTable>
+                  <thead>
+                    <tr className={tableHeadRowClass}>
+                      <th className={tableHeaderCellClass}>Name</th>
+                      <th className={tableHeaderCellClass}>Coin ID</th>
+                      <th className={tableHeaderCellClass}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pagedAssets.map((token) => (
+                      <tr key={token.tokenId} className={tableRowClass}>
+                        <td className={tableCellClass}>
+                          <span className='inline-flex items-center gap-1.5 font-semibold text-slate-900'>
+                            <TokenGlyph isNative={token.isNative} />
+                            {token.name}
+                          </span>
+                        </td>
+                        <td className={tableCellClass}>
+                          <code className='font-mono text-xs text-slate-500'>{token.tokenId}</code>
+                        </td>
+                        <td className={tableCellClass}>
+                          <RowActions>
+                            <Button
+                              type='button'
+                              variant='secondary'
+                              onClick={() => setSelectedAsset(token)}
+                            >
+                              Details
+                            </Button>
+                          </RowActions>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {pagedAssets.map((token) => (
-                        <tr key={token.tokenId} className={tableRowClass}>
-                          <td className={tableCellClass}>
-                            <span className='inline-flex items-center gap-1.5 font-semibold text-slate-900'>
-                              <TokenGlyph isNative={token.isNative} />
-                              {token.name}
-                            </span>
-                          </td>
-                          <td className={tableCellClass}>
-                            <code className='font-mono text-xs text-slate-500'>{token.tokenId}</code>
-                          </td>
-                          <td className={tableCellClass}>
-                            <RowActions>
-                              <Button
-                                type='button'
-                                variant='secondary'
-                                onClick={() => setSelectedAsset(token)}
-                              >
-                                Details
-                              </Button>
-                            </RowActions>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </DataTable>
-                </TableWrap>
-                <div className='mt-3'>
-                  <TablePager
-                    page={assetCurrentPage}
-                    pageSize={assetPageSize}
-                    total={visibleAssets.length}
-                    totalPages={assetTotalPages}
-                    onPageChange={setAssetPage}
-                    onPageSizeChange={(size) => {
-                      setAssetPageSize(size);
-                      setAssetPage(1);
-                    }}
-                  />
-                </div>
-              </>
+                    ))}
+                  </tbody>
+                </DataTable>
+              </TableWrap>
             )}
+            <div className='mt-3'>
+              <TablePager
+                page={assetCurrentPage}
+                pageSize={assetPageSize}
+                total={visibleAssets.length}
+                totalPages={assetTotalPages}
+                disabled={loading || actionsBlocked}
+                onPageChange={setAssetPage}
+                onPageSizeChange={(size) => {
+                  setAssetPageSize(size);
+                  setAssetPage(1);
+                }}
+              />
+            </div>
           </>
         ) : mainTab === 'address-book' ? (
           <>
-            <Eyebrow className='mb-4'>Address book</Eyebrow>
-            <AddressBookPanel actionsBlocked={actionsBlocked} />
+            <div className='flex items-center justify-between gap-3 mb-4'>
+              <Eyebrow>Address book</Eyebrow>
+              <Button
+                type='button'
+                variant='secondary'
+                onClick={() => setAddContactOpen(true)}
+                disabled={actionsBlocked}
+              >
+                Add contact
+              </Button>
+            </div>
+            <AddressBookPanel
+              actionsBlocked={actionsBlocked}
+              addOpen={addContactOpen}
+              onCloseAdd={() => setAddContactOpen(false)}
+            />
           </>
         ) : (
           <>
